@@ -36,13 +36,13 @@
 - [ ] CI 構築後に必須ステータスチェックを Ruleset へ追加
 - [ ] monorepo のディレクトリ雛形 + `.editorconfig`
 - [x] Jira プロジェクト作成（課題キー `DEV`）
-- [ ] Phase 単位で Epic を登録
+- [x] Phase 単位で Epic を登録
 - [ ] GitHub ↔ Jira 連携（Smart Commits）
 - [x] ADR-0001〜0005（ADR の採用 / Kotlin + Spring Boot / Next.js / サービスの段階的分割 / Cognito パスキー）
 - [ ] 要件整理: 画面一覧・ユースケース・ER 図初版（draw.io）
 - [ ] クイズのカテゴリ体系と難易度定義（AWS / インフラ、イベント駆動・マイクロサービス、認証認可、バックエンド設計）
 - [ ] ローカル環境: Java 21 (SDKMAN)、pnpm、Docker Compose (PostgreSQL)
-- [ ] AWS アカウント準備、IAM Identity Center、請求アラート
+- [x] AWS アカウント準備、IAM Identity Center、請求アラート
 
 **成果物**: リポジトリ、ADR 5 本、ER 図、Jira バックログ
 
