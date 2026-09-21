@@ -37,7 +37,7 @@
 - [ ] GitHub ↔ Jira 連携（Smart Commits）
 - [x] ADR-0001〜0005（ADR の採用 / Kotlin + Spring Boot / Next.js / サービスの段階的分割 / Cognito パスキー）
 - [ ] 要件整理: 画面一覧・ユースケース・ER 図初版（draw.io）
-- [ ] 難易度の段階と判定基準の定義、初期データとして登録するカテゴリの整理
+- [x] カテゴリと難易度の持ち方を決定（[ドメインモデル](domain-model.md)）
 - [x] ローカル環境: mise（Java 21 / Node.js / pnpm）、Docker Compose（PostgreSQL / LocalStack）
 - [x] AWS アカウント準備、IAM Identity Center、請求アラート
 
