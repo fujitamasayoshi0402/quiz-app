@@ -1,0 +1,54 @@
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- IDE ---
+.idea/
+.vscode/
+*.iml
+.kotlin/
+
+# --- Java / Gradle ---
+build/
+.gradle/
+out/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.log
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+*.tsbuildinfo
+.pnpm-store/
+
+# --- 環境変数 / シークレット ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Terraform ---
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+.terraform.lock.hcl
+
+# --- テスト / カバレッジ ---
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# --- その他 ---
+tmp/
+*.bak
