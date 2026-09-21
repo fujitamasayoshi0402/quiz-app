@@ -1,0 +1,42 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# Kotlin / Java
+[*.{kt,kts,java}]
+indent_size = 4
+
+# Gradle
+[*.{gradle,properties}]
+indent_size = 4
+
+# Terraform
+[*.{tf,tfvars}]
+indent_size = 2
+
+# Markdown（行末スペース 2 つが改行を意味するため除外）
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# Makefile はタブ必須
+[Makefile]
+indent_style = tab
+
+[*.{yml,yaml}]
+indent_size = 2
+
+# 生成物・ラッパー類は対象外
+[{gradlew,gradlew.bat,gradle/wrapper/**}]
+indent_style = unset
+indent_size = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset

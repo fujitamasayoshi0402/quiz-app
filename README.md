@@ -22,6 +22,30 @@ CRUD し、文章と draw.io による図解で解説を登録できます。認
 | IaC | Terraform |
 | CI/CD | GitHub Actions（OIDC） |
 
+## ディレクトリ構成
+
+```
+.
+├── apps/
+│   └── web/                     # Next.js フロントエンド
+├── services/
+│   ├── quiz-service/            # クイズ / カテゴリ / 難易度の CRUD、出題と採点
+│   └── notification-service/    # EventBridge から起動し Slack へ通知する Lambda
+├── infra/
+│   └── terraform/
+│       ├── modules/             # 再利用するモジュール
+│       └── envs/                # dev / prod の環境定義
+├── docs/
+│   ├── adr/                     # アーキテクチャ決定記録（MADR 形式）
+│   ├── architecture/            # C4 図・draw.io 原本
+│   └── api/                     # OpenAPI 定義
+└── .github/workflows/           # GitHub Actions のワークフロー
+```
+
+サービスの境界は DB スキーマ単位で分離します。回答・採点・履歴を担う `answer-service` は、
+当面 `quiz-service` 内のモジュールとして実装し、ドメイン境界が安定してから物理的に分割します。
+理由は [ADR-0004](docs/adr/0004-split-services-incrementally.md) を参照してください。
+
 ## ドキュメント
 
 - [ロードマップ](docs/ROADMAP.md)
