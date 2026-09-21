@@ -27,7 +27,7 @@
 - テナントは `private` / `public` の公開設定を持つ。`public` は将来の機能とし、
   Phase 1〜3 では `private` のみを扱う
 
-各概念の持ち方は [ドメインモデル](domain-model.md) を参照。
+ユースケース・画面一覧・URL 構成は [要件定義](requirements.md)、各概念の持ち方は [ドメインモデル](domain-model.md) を参照。
 
 ### 一般ユーザー
 - パスキー（WebAuthn）でユーザー登録・ログイン

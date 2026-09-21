@@ -74,6 +74,7 @@ docker compose up -d                             # PostgreSQL / LocalStack
 - [ロードマップ](docs/ROADMAP.md)
 - [ADR](docs/adr/)
 - [開発ガイドライン](docs/development-guidelines.md)
+- [要件定義](docs/requirements.md)
 - [ドメインモデル](docs/domain-model.md)
 
 ## 設計方針

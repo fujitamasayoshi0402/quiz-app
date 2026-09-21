@@ -169,6 +169,89 @@ AWS の資格のように、**同じ難度帯に複数の種類が並ぶ**体系
 
 ---
 
+## ER 図（初版）
+
+型・制約・インデックスは DB 設計（DEV-17）で確定します。ここでは関連と主要な項目のみ示します。
+
+```mermaid
+erDiagram
+    tenants ||--o{ tenant_members : "所属"
+    users ||--o{ tenant_members : "所属"
+    tenants ||--o{ categories : "持つ"
+    categories ||--o{ difficulties : "持つ"
+    categories ||--o{ quizzes : "分類する"
+    difficulties ||--o{ quizzes : "難度を示す"
+    quizzes ||--|{ choices : "4 つ持つ"
+    users ||--o{ answers : "回答する"
+    quizzes ||--o{ answers : "回答される"
+    choices ||--o{ answers : "選ばれる"
+
+    tenants {
+        uuid id PK
+        string slug UK "URL 用"
+        string name
+        string visibility "private / public"
+    }
+    tenant_members {
+        uuid id PK
+        uuid tenant_id FK
+        uuid user_id FK
+        string role "admin / user"
+    }
+    users {
+        uuid id PK
+        string external_id UK "Cognito のユーザー識別子"
+    }
+    categories {
+        uuid id PK
+        uuid tenant_id FK
+        string name "テナント内で一意"
+        int sort_order
+    }
+    difficulties {
+        uuid id PK
+        uuid tenant_id FK
+        uuid category_id FK
+        string name "カテゴリ内で一意"
+        int level "一意ではない"
+        int sort_order "同じ level 内の順序"
+    }
+    quizzes {
+        uuid id PK
+        uuid tenant_id FK
+        uuid category_id FK
+        uuid difficulty_id FK
+        text question
+        text explanation
+        string explanation_image_key "Phase 4"
+    }
+    choices {
+        uuid id PK
+        uuid tenant_id FK
+        uuid quiz_id FK
+        text body
+        bool is_correct "1 クイズにつき 1 つだけ true"
+        int sort_order
+    }
+    answers {
+        uuid id PK
+        uuid user_id FK
+        uuid quiz_id FK
+        uuid choice_id FK
+        bool is_correct
+        timestamp answered_at
+    }
+```
+
+### 図から読み取れる注意点
+
+- **`quizzes` は `categories` と `difficulties` の両方を参照します。** この 2 つは親子関係にあるため、
+  組み合わせが矛盾しないことをアプリケーションか DB 制約で保証する必要があります
+- **`answers` は `tenant_id` を持ちません。** 将来の公開テナント対応のためです
+- `tenant_members` は `tenant_id` と `user_id` の組で一意になります。同じ人が複数テナントに所属できます
+
+---
+
 ## 初期データ
 
 デモ環境に投入するサンプルです。**アプリの仕様ではありません。**

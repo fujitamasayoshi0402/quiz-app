@@ -36,7 +36,7 @@
 - [x] Phase 単位で Epic を登録
 - [ ] GitHub ↔ Jira 連携（Smart Commits）
 - [x] ADR-0001〜0005（ADR の採用 / Kotlin + Spring Boot / Next.js / サービスの段階的分割 / Cognito パスキー）
-- [ ] 要件整理: 画面一覧・ユースケース・ER 図初版（draw.io）
+- [x] 要件整理: [ユースケース・画面一覧・URL 構成](requirements.md)、[ER 図初版](domain-model.md#er-図初版)
 - [x] カテゴリと難易度の持ち方を決定（[ドメインモデル](domain-model.md)）
 - [x] ローカル環境: mise（Java 21 / Node.js / pnpm）、Docker Compose（PostgreSQL / LocalStack）
 - [x] AWS アカウント準備、IAM Identity Center、請求アラート
