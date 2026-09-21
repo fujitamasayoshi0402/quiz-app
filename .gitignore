@@ -41,7 +41,8 @@ dist/
 !*.tfvars.example
 crash.log
 crash.*.log
-.terraform.lock.hcl
+# .terraform.lock.hcl は意図的に追跡する（プロバイダのバージョンとハッシュを固定し、
+# ローカルと CI で同じプロバイダを使うため）
 
 # --- テスト / カバレッジ ---
 coverage/
