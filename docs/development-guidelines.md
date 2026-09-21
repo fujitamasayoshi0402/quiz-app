@@ -107,11 +107,24 @@
 ## 6. 開発規約
 
 ### Git
-- ブランチ: `main`(本番) ← `develop`(統合) ← `feature/*` / `fix/*`
+- ブランチ: `main`(本番) ← `develop`(統合) ← `feature/*` / `fix/*` / `docs/*` / `chore/*`
 - ブランチ名に Jira キーを含める: `feature/DEV-12-add-quiz-crud`
 - コミットは Conventional Commits + Jira キー: `feat(quiz): add quiz CRUD API (DEV-12)`
 - `main` / `develop` への直 push は Ruleset `protect-main-develop` で禁止。必ず PR 経由でマージする
 - force push / ブランチ削除も禁止
+
+### Jira 連携
+
+GitHub for Atlassian により、コミット・ブランチ・PR が Jira 課題の「開発」パネルに自動で紐づく。
+紐付けの条件は **ブランチ名・コミットメッセージ・PR タイトルのいずれかに課題キーが含まれていること**であり、
+上記のブランチ・コミット規約を守っていれば自動的に満たされる。
+
+Smart Commits（コミットメッセージからの課題操作）は**紐付けのみを使い、ステータス遷移には使わない**。
+
+- **コミットメッセージは後から修正できない。** 誤記でステータスが飛ぶと、履歴に残り続ける
+- コミット規約では課題キーが末尾の括弧内にあり（`(DEV-12)`）、`DEV-12 #done` という
+  Smart Commit の構文とは並びが異なる。動作が環境に依存する書き方を規約にしない
+- ステータスの変更は Jira 上で行う
 
 ### コード
 - バックエンド: レイヤード（controller / usecase / domain / infrastructure）、テストは JUnit5 + Testcontainers
