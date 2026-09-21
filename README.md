@@ -46,6 +46,25 @@ CRUD し、文章と draw.io による図解で解説を登録できます。認
 当面 `quiz-service` 内のモジュールとして実装し、ドメイン境界が安定してから物理的に分割します。
 理由は [ADR-0004](docs/adr/0004-split-services-incrementally.md) を参照してください。
 
+## ローカル開発
+
+開発ツールのバージョンは [mise](https://mise.jdx.dev/) で固定しています（Java 21 / Node.js 22 / pnpm）。
+
+```bash
+brew install mise
+echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # 初回のみ
+mise install                                     # .mise.toml のバージョンを導入
+
+docker compose up -d                             # PostgreSQL / LocalStack
+```
+
+| サービス | ポート |
+| --- | --- |
+| PostgreSQL | 5432 |
+| LocalStack | 4566 |
+
+詳細は [開発ガイドライン](docs/development-guidelines.md#7-ローカル開発) を参照してください。
+
 ## ドキュメント
 
 - [ロードマップ](docs/ROADMAP.md)
