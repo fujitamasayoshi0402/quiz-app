@@ -9,7 +9,7 @@ AWS / インフラ、イベント駆動・マイクロサービス設計、認�
 - 一般ユーザー: カテゴリ / 難易度を選んでクイズに回答する
 - 管理者: クイズ・カテゴリ・難易度を CRUD する
 - リポジトリ: https://github.com/fujitamasayoshi0402/quiz-app （Public / monorepo）
-- タスク管理: Jira
+- タスク管理: Jira（課題キー `DEV-*`）
 - インフラ: AWS（Terraform で IaC 管理）
 - 重視する観点: 設計判断の記録（ADR）・IaC・CI/CD・認証・運用設計・コスト最適化
 
@@ -84,8 +84,8 @@ AWS / インフラ、イベント駆動・マイクロサービス設計、認�
 
 ### Git
 - ブランチ: `main`(本番) ← `develop`(統合) ← `feature/*` / `fix/*`
-- ブランチ名に Jira キーを含める: `feature/QUIZ-12-add-quiz-crud`
-- コミットは Conventional Commits + Jira キー: `feat(quiz): add quiz CRUD API (QUIZ-12)`
+- ブランチ名に Jira キーを含める: `feature/DEV-12-add-quiz-crud`
+- コミットは Conventional Commits + Jira キー: `feat(quiz): add quiz CRUD API (DEV-12)`
 - `main` / `develop` への直 push は Ruleset `protect-main-develop` で禁止。必ず PR 経由でマージする
 - force push / ブランチ削除も禁止
 
@@ -95,8 +95,8 @@ AWS / インフラ、イベント駆動・マイクロサービス設計、認�
 - API は OpenAPI を単一の真実とし、フロントの型は生成する
 
 ### ドキュメント
-- 技術選定・設計判断は必ず `docs/adr/NNNN-*.md` に ADR として残す
-- ADR は MADR 形式（Context / Decision / Consequences / Alternatives）
+- 技術選定・設計判断は必ず [ADR](adr/) に残す。運用ルールは [docs/adr/README.md](adr/README.md) を参照
+- 記録対象は「後から変更するのが高くつく決定」に限定する。ライブラリの細かな選択は対象外
 
 ### コンテンツ
 - 実装中に調べた内容・判断に迷った論点は、クイズと図解解説の題材にする
