@@ -12,6 +12,7 @@
 | [0004](0004-split-services-incrementally.md) | マイクロサービスへの分割は段階的に行う | Accepted |
 | [0005](0005-use-cognito-passkeys.md) | 認証に Amazon Cognito のパスキーを採用する | Accepted |
 | [0006](0006-row-level-multi-tenancy.md) | マルチテナントをロウ単位の分離で実現する | Accepted |
+| [0007](0007-soft-delete-master-data.md) | マスタデータを論理削除する | Accepted |
 
 ## 運用ルール
 

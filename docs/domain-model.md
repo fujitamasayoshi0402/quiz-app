@@ -169,6 +169,18 @@ AWS の資格のように、**同じ難度帯に複数の種類が並ぶ**体系
 
 ---
 
+## 削除
+
+カテゴリ・難易度・クイズ・選択肢・テナント・所属は**論理削除**します（[ADR-0007](adr/0007-soft-delete-master-data.md)）。
+`deleted_at` を持ち、NULL が生存を表します。
+
+回答（`answers`）は削除しません。履歴そのものであり、削除する操作を設けないためです。
+
+物理削除するとクイズを参照する回答履歴が意味を失い、誤削除からの復旧もできなくなります。
+代償として、**すべてのクエリに「削除済みを除く」条件が必要**になります。
+
+---
+
 ## ER 図（初版）
 
 型・制約・インデックスは DB 設計（DEV-17）で確定します。ここでは関連と主要な項目のみ示します。
@@ -205,8 +217,9 @@ erDiagram
     categories {
         uuid id PK
         uuid tenant_id FK
-        string name "テナント内で一意"
+        string name "生存行の中で一意"
         int sort_order
+        timestamp deleted_at "NULL が生存"
     }
     difficulties {
         uuid id PK
@@ -215,6 +228,7 @@ erDiagram
         string name "カテゴリ内で一意"
         int level "一意ではない"
         int sort_order "同じ level 内の順序"
+        timestamp deleted_at "NULL が生存"
     }
     quizzes {
         uuid id PK
@@ -224,6 +238,7 @@ erDiagram
         text question
         text explanation
         string explanation_image_key "Phase 4"
+        timestamp deleted_at "NULL が生存"
     }
     choices {
         uuid id PK
@@ -249,6 +264,8 @@ erDiagram
   組み合わせが矛盾しないことをアプリケーションか DB 制約で保証する必要があります
 - **`answers` は `tenant_id` を持ちません。** 将来の公開テナント対応のためです
 - `tenant_members` は `tenant_id` と `user_id` の組で一意になります。同じ人が複数テナントに所属できます
+- **ユニーク制約は生存行のみを対象にします。** 削除済みと同じ名前で作り直せるようにするため、
+  PostgreSQL の部分インデックス（`WHERE deleted_at IS NULL`）を使います
 
 ---
 
