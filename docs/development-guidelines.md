@@ -104,11 +104,36 @@ AWS / インフラ、イベント駆動・マイクロサービス設計、認�
 
 ## 7. ローカル開発
 
+### 初回セットアップ
+
+開発ツールのバージョンは [mise](https://mise.jdx.dev/) で管理する。
+`.mise.toml` にパッチバージョンまで固定し、ローカルと CI で同じバージョンを使う。
+
+```bash
+brew install mise
+echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # 初回のみ。新しいシェルから有効
+mise install                                     # Java 21 / Node.js / pnpm を導入
+```
+
+### 起動
+
 ```bash
 docker compose up -d          # PostgreSQL / LocalStack
 ./gradlew :services:quiz-service:bootRun
 pnpm --filter web dev
 ```
+
+`docker compose up -d` で起動するもの。
+
+| サービス | ポート | 備考 |
+| --- | --- | --- |
+| PostgreSQL | 5432 | ユーザー / パスワード / DB 名はすべて `quiz` |
+| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda |
+
+PostgreSQL は本番の Aurora とメジャーバージョンを揃えて 16 系を使う（min 0 ACU は 16.3 以降が前提）。
+タイムゾーンは本番との差異を減らすため UTC に固定している。
+
+ローカルの認証情報は開発専用のため、値を直接 `docker-compose.yml` に記載している。
 
 ## 8. コスト方針
 

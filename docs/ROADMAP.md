@@ -41,7 +41,7 @@
 - [x] ADR-0001〜0005（ADR の採用 / Kotlin + Spring Boot / Next.js / サービスの段階的分割 / Cognito パスキー）
 - [ ] 要件整理: 画面一覧・ユースケース・ER 図初版（draw.io）
 - [ ] クイズのカテゴリ体系と難易度定義（AWS / インフラ、イベント駆動・マイクロサービス、認証認可、バックエンド設計）
-- [ ] ローカル環境: Java 21 (SDKMAN)、pnpm、Docker Compose (PostgreSQL)
+- [x] ローカル環境: mise（Java 21 / Node.js / pnpm）、Docker Compose（PostgreSQL / LocalStack）
 - [x] AWS アカウント準備、IAM Identity Center、請求アラート
 
 **成果物**: リポジトリ、ADR 5 本、ER 図、Jira バックログ

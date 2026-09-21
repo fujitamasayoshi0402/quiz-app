@@ -1,0 +1,57 @@
+# ローカル開発用の依存サービス
+# アプリ本体（quiz-service / web）のコンテナ化は DEV-29 で追加する
+services:
+  postgres:
+    # 本番の Aurora PostgreSQL Serverless v2 とメジャーバージョンを揃える。
+    # min 0 ACU（自動一時停止）は PostgreSQL 16.3 以降が前提のため 16 系を使う
+    image: postgres:16-alpine
+    container_name: quiz-app-postgres
+    environment:
+      POSTGRES_USER: quiz
+      POSTGRES_PASSWORD: quiz
+      POSTGRES_DB: quiz
+      # 本番との差異を減らすため UTC に固定する
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # depends_on の condition から参照する。起動直後の接続失敗を防ぐ
+      test: ["CMD-SHELL", "pg_isready -U quiz -d quiz"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  localstack:
+    # S3 / EventBridge / SQS / Secrets Manager をローカルで代替する
+    image: localstack/localstack:4.9
+    container_name: quiz-app-localstack
+    environment:
+      SERVICES: s3,secretsmanager,events,sqs,lambda
+      DEBUG: 0
+      # 認証情報は検証されないが、SDK が要求するためダミーを渡す
+      AWS_DEFAULT_REGION: ap-northeast-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      # Lambda を LocalStack から起動するために必要
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  localstack-data:
