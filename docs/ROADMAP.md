@@ -35,9 +35,10 @@
 - [x] `.gitignore` / README.md
 - [ ] CI 構築後に必須ステータスチェックを Ruleset へ追加
 - [ ] monorepo のディレクトリ雛形 + `.editorconfig`
-- [ ] Jira プロジェクト作成（キー: `QUIZ`）、Phase 単位で Epic を登録
+- [x] Jira プロジェクト作成（課題キー `DEV`）
+- [ ] Phase 単位で Epic を登録
 - [ ] GitHub ↔ Jira 連携（Smart Commits）
-- [ ] ADR-0001 ADR を採用する／0002 Kotlin + Spring Boot／0003 Next.js／0004 マイクロサービスの段階的分割／0005 Cognito パスキー
+- [x] ADR-0001〜0005（ADR の採用 / Kotlin + Spring Boot / Next.js / サービスの段階的分割 / Cognito パスキー）
 - [ ] 要件整理: 画面一覧・ユースケース・ER 図初版（draw.io）
 - [ ] クイズのカテゴリ体系と難易度定義（AWS / インフラ、イベント駆動・マイクロサービス、認証認可、バックエンド設計）
 - [ ] ローカル環境: Java 21 (SDKMAN)、pnpm、Docker Compose (PostgreSQL)
