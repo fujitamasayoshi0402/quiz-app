@@ -1,0 +1,12 @@
+-- アプリケーション用のロール。
+-- POSTGRES_USER（quiz）はスーパーユーザーとして作成されるため、FORCE ROW LEVEL SECURITY を
+-- 設定しても RLS をバイパスしてしまう。テナント分離を実際に機能させるには、
+-- スーパーユーザーではないロールで接続する必要がある。
+--
+-- 役割分担:
+--   quiz     … スキーマの所有者。Flyway によるマイグレーション（DDL）を実行する
+--   quiz_app … アプリケーションの接続先。RLS が適用される
+--
+-- このファイルは docker-entrypoint-initdb.d で初回起動時にのみ実行される。
+-- 本番（Aurora）でのロール作成は Phase 2 で Terraform から行う。
+CREATE ROLE quiz_app WITH LOGIN PASSWORD 'quiz_app' NOSUPERUSER NOCREATEDB NOCREATEROLE;

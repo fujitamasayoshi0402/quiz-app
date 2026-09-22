@@ -319,12 +319,45 @@ CREATE INDEX answers_user_time_idx ON answer.answers (user_id, answered_at DESC)
 
 ```sql
 ALTER TABLE quiz.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quiz.categories FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON quiz.categories
-  USING (tenant_id = current_setting('app.tenant_id')::uuid);
+  USING (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid);
 ```
 
 アプリケーションは接続ごとに `SET LOCAL app.tenant_id = '...'` を実行します。
 **HikariCP は接続を使い回すため、返却時にリセットしないと前のリクエストのテナントが残ります**（DEV-34 で検証）。
+
+### 接続ロールを分ける
+
+**スーパーユーザーは `FORCE ROW LEVEL SECURITY` を設定しても RLS をバイパスします。**
+PostgreSQL の公式イメージでは `POSTGRES_USER` がスーパーユーザーとして作られるため、
+そのまま接続すると **RLS を有効にしても一切機能しません**。
+
+| ロール | 用途 | 属性 |
+| --- | --- | --- |
+| `quiz` | スキーマの所有者。Flyway による DDL を実行する | スーパーユーザー |
+| `quiz_app` | アプリケーションの接続先 | `NOSUPERUSER` |
+
+Spring Boot では `spring.datasource` に `quiz_app`、`spring.flyway.user` に `quiz` を指定して使い分けます。
+
+### `nullif` を挟む理由
+
+セッション変数が未設定のときの挙動を揃えるためです。
+一度も `SET` していなければ `NULL` が返りますが、`RESET` した後は**空文字列**が返ります。
+素直に `::uuid` へキャストすると、後者だけが `invalid input syntax for type uuid` で失敗します。
+
+`nullif` で `NULL` に揃えることで、どちらの場合も「0 件」で一貫します。
+設定漏れを検知する仕組みはアプリケーション層に置きます。
+
+### core.tenants と core.tenant_members には設定しない
+
+この 2 つは**テナント境界の中にあるデータではなく、境界そのものを定義するテーブル**です。
+
+所属テナント一覧の取得は、どのテナントで作業するかが決まる**前**に行われます。
+この時点では `app.tenant_id` を設定できないため、ポリシーをかけると一覧が取れず、
+複数テナントに所属するユーザーが最初の画面から先へ進めなくなります。
+
+参照できる範囲はアプリケーション層で `user_id` により制御します。
 
 ### 論理削除の条件は含めない
 

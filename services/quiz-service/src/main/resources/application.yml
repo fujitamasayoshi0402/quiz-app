@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: quiz-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/quiz
+    # アプリケーションはスーパーユーザーではないロールで接続する。
+    # スーパーユーザーは FORCE ROW LEVEL SECURITY でも RLS をバイパスするため
+    username: quiz_app
+    password: quiz_app
+    hikari:
+      # Aurora Serverless v2 の自動一時停止（min 0 ACU）を妨げないため、
+      # アイドル時に接続を保持しない。dev / 本番ともにこの方針
+      minimum-idle: 0
+      idle-timeout: 30000
+      max-lifetime: 300000
+      maximum-pool-size: 5
+      connection-timeout: 30000
+
+  flyway:
+    enabled: true
+    # マイグレーション（DDL）はスキーマ所有者が実行する
+    user: quiz
+    password: quiz
+    locations: classpath:db/migration
+    # サービス境界をスキーマで表現する（ADR-0004）
+    schemas: core,quiz,answer
+    default-schema: core
+    create-schemas: true
+
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.flywaydb: INFO
