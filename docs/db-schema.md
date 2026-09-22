@@ -324,8 +324,35 @@ CREATE POLICY tenant_isolation ON quiz.categories
   USING (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid);
 ```
 
-アプリケーションは接続ごとに `SET LOCAL app.tenant_id = '...'` を実行します。
-**HikariCP は接続を使い回すため、返却時にリセットしないと前のリクエストのテナントが残ります**（DEV-34 で検証）。
+### セッション変数は SET LOCAL 相当で設定する
+
+アプリケーションはトランザクションの開始後に次を実行します。
+
+```sql
+SELECT set_config('app.tenant_id', ?, true)
+```
+
+第 3 引数の `true` が `SET LOCAL` 相当で、**トランザクションの終了時に PostgreSQL が値を破棄します**。
+HikariCP は接続を使い回しますが、返却時のリセット処理は不要です。リセット漏れが構造的に起きません。
+
+代償として、**トランザクションの外では設定できません**。読み取りだけの処理にもトランザクションが要ります。
+トランザクション外で呼ばれた場合は例外にして、静かに失敗しないようにしています。
+
+値は文字列連結ではなくプレースホルダで渡します。`set_config` は関数なので値をバインドできます。
+
+> DEV-34 で、接続プールを 1 本に固定した状態でも前のトランザクションの値が残らないことを確認済みです。
+
+### RLS 違反は「SQL 文法エラー」として現れる
+
+PostgreSQL はポリシー違反を SQLState 42501（権限不足）で返します。
+Spring はこれを `BadSqlGrammarException` に分類するため、**例外のメッセージから理由が消えます**。
+
+```
+PreparedStatementCallback; bad SQL grammar [INSERT INTO quiz.categories ...]
+```
+
+原因を知るには根本例外まで辿る必要があります。
+エラー応答を組み立てるとき、この分類をそのまま「文法エラー」として扱わないよう注意します。
 
 ### 接続ロールを分ける
 

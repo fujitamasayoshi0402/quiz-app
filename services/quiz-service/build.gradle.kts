@@ -33,6 +33,12 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+
+    // Testcontainers 2.x で artifact 名が変わっている（postgresql → testcontainers-postgresql）。
+    // バージョンは Spring Boot の BOM が管理する
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 }
 
 kotlin {
