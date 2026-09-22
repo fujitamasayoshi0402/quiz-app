@@ -33,6 +33,27 @@ ID は URL に現れます（`/t/{slug}/admin/quizzes/{id}`）。
 `varchar(n)` ではなく `text` + `CHECK` を使います。
 PostgreSQL では両者の性能差がなく、`CHECK` のほうが上限変更が容易なためです。
 
+### updated_at は DB トリガーで更新する
+
+アプリケーション層（JPA の `@LastModifiedDate` など）ではなく、トリガーで更新します。
+
+```sql
+CREATE FUNCTION set_updated_at() RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+更新経路がアプリケーションだけとは限らないためです。
+整合性チェックやクイズ生成のバッチが SQL を直接実行する場合、
+アプリケーション層の実装では **`updated_at` が古いまま残ります**。
+「最終更新日を見て処理対象を決めるバッチ」を後から作ったとき、そこが狂うと検知が効きません。
+
+トリガーはマイグレーションでの管理とテストでの再現が必要になりますが、
+更新経路が増えても漏れない利点がそれを上回ると判断しました。
+
 ---
 
 ## スキーマ分割
@@ -182,6 +203,7 @@ CREATE INDEX difficulties_level_idx
 | `question` | text | NOT NULL, `CHECK (length(question) BETWEEN 1 AND 2000)` |
 | `explanation` | text | NOT NULL |
 | `explanation_image_key` | text | NULL 可（Phase 4 で使う S3 キー） |
+| `status` | text | NOT NULL, default `'draft'`, `CHECK (status IN ('draft','published'))` |
 | `created_at` / `updated_at` | timestamptz | NOT NULL |
 | `deleted_at` | timestamptz | NULL 可 |
 
@@ -198,9 +220,24 @@ ALTER TABLE quiz.quizzes
 
 ALTER TABLE quiz.quizzes ADD CONSTRAINT quizzes_id_tenant_key UNIQUE (id, tenant_id);
 
+-- 出題は公開済みのみを対象にするため、status を条件に含める
 CREATE INDEX quizzes_filter_idx
-  ON quiz.quizzes (tenant_id, category_id, difficulty_id) WHERE deleted_at IS NULL;
+  ON quiz.quizzes (tenant_id, category_id, difficulty_id)
+  WHERE deleted_at IS NULL AND status = 'published';
+
+-- 管理画面は下書きも含めて一覧する
+CREATE INDEX quizzes_admin_idx
+  ON quiz.quizzes (tenant_id, category_id) WHERE deleted_at IS NULL;
 ```
+
+#### 下書きと公開
+
+`status` を Phase 1 から持たせます。UI の作り込みは Phase 4 ですが、**カラムを後から追加すると、
+それまでに書いた出題クエリすべてに「公開のみ」の条件を足して回ることになる**ためです。
+
+- 既定は `draft`。作成した直後のクイズは出題されない
+- 出題 API は `published` のみを対象にする
+- 管理画面は両方を表示し、状態で絞り込めるようにする
 
 #### 2 本の複合外部キーが守るもの
 
@@ -335,7 +372,15 @@ CREATE POLICY tenant_isolation ON quiz.categories
 
 | 項目 | 決める時期 |
 | --- | --- |
-| 下書き / 公開の状態をクイズに持たせるか | Phase 4（管理機能の作り込み） |
-| `updated_at` の更新をトリガーで行うか、アプリケーションで行うか | DEV-18 |
 | 削除済みを一定期間後に物理削除するバッチを設けるか | 運用開始後 |
-| `answers` に出題時のスナップショットを持たせるか（クイズ修正後の履歴の見え方） | Phase 4 |
+| バッチ処理の実行基盤（ECS Scheduled Task / Lambda / アプリ内スケジューラ） | 設計時 |
+
+### 採用しなかったもの
+
+**`answers` に出題時のスナップショットを持たせる案**は採用しません。
+
+クイズを修正した後も過去の履歴が当時の問題文を保つ、という利点があります。
+しかし本アプリでは、**正解が変わるような修正は新しいクイズとして作る運用**で足ります。
+誤字の修正で履歴の意味が変わることはありません。
+
+データ量が回答数に比例して増え、実装も複雑になる割に、得られるものが見合いません。
