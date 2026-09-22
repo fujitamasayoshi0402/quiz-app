@@ -101,6 +101,12 @@ ADR-0002 を Superseded にしない。
 `spring-boot-starter-flyway` が別途必要で、入れ忘れると**エラーも警告も出ないまま
 マイグレーションが実行されない**。起動には成功するため気づきにくい。
 
+**Testcontainers の artifact 名が変わっている。**
+Spring Boot 4.1.1 の BOM は Testcontainers 2.0.5 を指すが、1.x の `org.testcontainers:postgresql` は
+2.x に存在しない。2.x では `org.testcontainers:testcontainers-postgresql` のように
+プレフィックスが付く（DEV-34 で判明）。コンテナのクラスも
+`org.testcontainers.containers` から `org.testcontainers.postgresql` へ移っている。
+
 同種の差分が他の機能でも起こりうる。依存を追加したら、
 **実際にその機能が動いていることを確認する**まで完了としないほうがよい。
 
