@@ -76,6 +76,7 @@ docker compose up -d                             # PostgreSQL / LocalStack
 - [開発ガイドライン](docs/development-guidelines.md)
 - [要件定義](docs/requirements.md)
 - [ドメインモデル](docs/domain-model.md)
+- [DB スキーマ設計](docs/db-schema.md)
 
 ## 設計方針
 
