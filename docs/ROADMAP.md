@@ -36,7 +36,7 @@
 - [x] Phase 単位で Epic を登録
 - [ ] GitHub ↔ Jira 連携（Smart Commits）
 - [x] ADR-0001〜0005（ADR の採用 / Kotlin + Spring Boot / Next.js / サービスの段階的分割 / Cognito パスキー）
-- [ ] 要件整理: 画面一覧・ユースケース・ER 図初版（draw.io）
+- [x] 要件整理: [ユースケース・画面一覧・URL 構成](requirements.md)、[ER 図初版](domain-model.md#er-図初版)
 - [x] カテゴリと難易度の持ち方を決定（[ドメインモデル](domain-model.md)）
 - [x] ローカル環境: mise（Java 21 / Node.js / pnpm）、Docker Compose（PostgreSQL / LocalStack）
 - [x] AWS アカウント準備、IAM Identity Center、請求アラート
@@ -57,6 +57,8 @@
 - [ ] quiz-service: 出題 API（カテゴリ / 難易度でフィルタ）、回答 API（採点 + 解説返却）
 - [ ] OpenAPI 定義 + フロントの型を自動生成
 - [ ] Next.js: 出題 / 回答 / 結果画面、管理画面のクイズ一覧・作成・編集
+- [ ] 論理削除と削除済み一覧からの復活（連鎖削除・連鎖復活を含む）
+- [ ] 回答の中断と再開（localStorage）
 - [ ] 認証はスタブ（ヘッダでテナントとロールを切替）。Phase 3 で差し替える前提の境界を切っておく
 - [ ] テスト: サービス層の単体テスト、Testcontainers による API 統合テスト
 - [ ] セキュリティテスト: 別テナントの ID を指定したアクセスが結果を返さないことを全エンドポイントで検証
@@ -113,6 +115,7 @@
 - [ ] クイズの一括インポート（CSV / JSON）
 - [ ] テナントの公開設定（`public`）と、公開テナントの横断的な閲覧導線
 - [ ] ユーザー側: 回答履歴、カテゴリ別の正答率
+- [ ] テナント内のランキング（指標・期間・プライバシーの扱いを設計する）
 
 **デモできること**: 図解つきの解説が表示されるクイズ
 
