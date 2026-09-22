@@ -50,7 +50,7 @@
 
 | 領域 | 採用技術 | 備考 |
 | --- | --- | --- |
-| バックエンド | Kotlin 2.x + Spring Boot 3.x (Java 21) | Gradle Kotlin DSL |
+| バックエンド | Kotlin 2.3 + Spring Boot 4.1 (Java 21) | Gradle Kotlin DSL。[ADR-0008](adr/0008-use-spring-boot-4.md) |
 | DB | Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止） | サービスごとにスキーマ分離。コスト最優先 |
 | マイグレーション | Flyway | |
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui | TanStack Query / Zod |
