@@ -82,6 +82,7 @@
 - [ ] フロント配信: Amplify Hosting か CloudFront + ECS（ADR で決定）
 - [ ] GitHub Actions: OIDC で AssumeRole、イメージ build/push、ECS デプロイ、Flyway 実行
 - [ ] gitleaks による secret スキャンを CI と pre-commit に追加
+- [ ] Postman コレクションと Newman による、デプロイ後のスモークテスト
 - [ ] コスト: Budget アラート、dev の夜間停止（EventBridge Scheduler）
 
 **デモできること**: 公開 URL で動くアプリ、PR マージからデプロイまでの自動化
