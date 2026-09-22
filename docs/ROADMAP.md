@@ -49,7 +49,7 @@
 
 **ゴール: 管理者が自分のテナントにクイズを作り、所属ユーザーが解ける**
 
-- [ ] DB 設計: `tenants` / `tenant_members` / `categories` / `difficulties` / `quizzes` / `choices` / `answers` / `users`
+- [x] DB 設計: [スキーマ定義と制約](db-schema.md)
 - [ ] テナント配下の全テーブルに `tenant_id` と RLS ポリシーを設定
 - [ ] **RLS とコネクションプールの検証**: 接続の使い回しで前のテナントのセッション変数が残らないこと
 - [ ] Flyway マイグレーション
