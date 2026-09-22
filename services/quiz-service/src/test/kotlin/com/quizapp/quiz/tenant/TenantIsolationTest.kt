@@ -12,11 +12,8 @@ import org.springframework.jdbc.BadSqlGrammarException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import com.quizapp.quiz.support.TestPostgres
 import org.springframework.transaction.support.TransactionTemplate
-import org.testcontainers.postgresql.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
-import org.testcontainers.utility.MountableFile
 import java.util.UUID
 
 /**
@@ -32,37 +29,12 @@ import java.util.UUID
         "spring.datasource.hikari.minimum-idle=1",
     ],
 )
-@Testcontainers
 class TenantIsolationTest {
 
     companion object {
-        /**
-         * アプリケーション用ロールは docker-entrypoint-initdb.d で作る。
-         * dev 環境と同じスクリプトを使い、ロール定義が二重管理にならないようにしている。
-         */
-        @Container
-        @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16-alpine")
-            .withDatabaseName("quiz")
-            .withUsername("quiz")
-            .withPassword("quiz")
-            .withCopyFileToContainer(
-                MountableFile.forHostPath("../../infra/docker/postgres/init/01-create-app-role.sql"),
-                "/docker-entrypoint-initdb.d/01-create-app-role.sql",
-            )
-
         @JvmStatic
         @DynamicPropertySource
-        fun datasourceProperties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.datasource.url", postgres::getJdbcUrl)
-            // アプリケーションは非スーパーユーザーで接続する。
-            // スーパーユーザーは FORCE ROW LEVEL SECURITY でも RLS をバイパスするため
-            registry.add("spring.datasource.username") { "quiz_app" }
-            registry.add("spring.datasource.password") { "quiz_app" }
-            // マイグレーション（DDL）はスキーマ所有者が実行する
-            registry.add("spring.flyway.user") { "quiz" }
-            registry.add("spring.flyway.password") { "quiz" }
-        }
+        fun datasourceProperties(registry: DynamicPropertyRegistry) = TestPostgres.configure(registry)
     }
 
     @Autowired private lateinit var jdbcTemplate: JdbcTemplate
@@ -77,28 +49,20 @@ class TenantIsolationTest {
     @BeforeEach
     fun setUp() {
         // tenants は RLS の対象外なので、テナントを設定せずに登録できる
-        transactionTemplate.execute {
-            jdbcTemplate.update(
-                "INSERT INTO core.tenants (id, slug, name) VALUES (?, 'tenant-a', 'テナントA'), (?, 'tenant-b', 'テナントB')",
-                tenantA,
-                tenantB,
-            )
-        }
+        TestPostgres.adminJdbcTemplate.update(
+            "INSERT INTO core.tenants (id, slug, name) VALUES (?, 'tenant-a', 'テナントA'), (?, 'tenant-b', 'テナントB')",
+            tenantA,
+            tenantB,
+        )
         insertCategory(tenantA, "AWS")
         insertCategory(tenantB, "認証認可")
     }
 
     @AfterEach
     fun tearDown() {
-        transactionTemplate.execute {
-            // 片付けは RLS を通さずに行いたいので、所有者権限を持つ Flyway 用の接続ではなく
-            // テナントごとに削除する
-            listOf(tenantA, tenantB).forEach { tenant ->
-                tenantSession.apply(tenant)
-                jdbcTemplate.update("DELETE FROM quiz.categories")
-            }
-            jdbcTemplate.update("DELETE FROM core.tenants")
-        }
+        // RLS を通さない接続で片付ける
+        TestPostgres.adminJdbcTemplate.update("DELETE FROM quiz.categories WHERE tenant_id IN (?, ?)", tenantA, tenantB)
+        TestPostgres.adminJdbcTemplate.update("DELETE FROM core.tenants WHERE id IN (?, ?)", tenantA, tenantB)
     }
 
     private fun insertCategory(tenant: UUID, name: String) {

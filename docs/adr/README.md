@@ -14,6 +14,7 @@
 | [0006](0006-row-level-multi-tenancy.md) | マルチテナントをロウ単位の分離で実現する | Accepted |
 | [0007](0007-soft-delete-master-data.md) | マスタデータを論理削除する | Accepted |
 | [0008](0008-use-spring-boot-4.md) | Spring Boot 4 を採用する | Accepted |
+| [0009](0009-use-spring-data-jdbc.md) | データアクセスに Spring Data JDBC を採用する | Accepted |
 
 ## 運用ルール
 

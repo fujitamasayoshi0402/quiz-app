@@ -20,7 +20,8 @@ repositories {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     // Spring Boot 4 では autoconfigure がモジュール分割されたため、
@@ -32,6 +33,8 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    // Spring Boot 4 では MockMvc のテスト支援が spring-boot-starter-test から分離されている
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 
     // Testcontainers 2.x で artifact 名が変わっている（postgresql → testcontainers-postgresql）。

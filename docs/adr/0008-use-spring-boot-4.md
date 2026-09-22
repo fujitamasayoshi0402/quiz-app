@@ -107,6 +107,16 @@ Spring Boot 4.1.1 の BOM は Testcontainers 2.0.5 を指すが、1.x の `org.t
 プレフィックスが付く（DEV-34 で判明）。コンテナのクラスも
 `org.testcontainers.containers` から `org.testcontainers.postgresql` へ移っている。
 
+**Jackson が 3 系になり、groupId とパッケージが変わっている。**
+`com.fasterxml.jackson.core` → `tools.jackson.core`、
+`com.fasterxml.jackson.databind.ObjectMapper` → `tools.jackson.databind.ObjectMapper`。
+記事やサンプルの import がそのままでは通らない（DEV-19 で判明）。
+
+**MockMvc のテスト支援が spring-boot-starter-test から分離されている。**
+`spring-boot-starter-webmvc-test` が別途必要で、`AutoConfigureMockMvc` のパッケージも
+`org.springframework.boot.test.autoconfigure.web.servlet` から
+`org.springframework.boot.webmvc.test.autoconfigure` へ移っている（DEV-19 で判明）。
+
 同種の差分が他の機能でも起こりうる。依存を追加したら、
 **実際にその機能が動いていることを確認する**まで完了としないほうがよい。
 
