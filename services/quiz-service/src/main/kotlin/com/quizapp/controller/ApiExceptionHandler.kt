@@ -11,7 +11,9 @@ import com.quizapp.answer.usecase.QuizNotInAttemptException
 import com.quizapp.quiz.usecase.CategoryNotFoundException
 import com.quizapp.quiz.usecase.DifficultyNotFoundException
 import com.quizapp.quiz.usecase.QuizNotFoundException
-import com.quizapp.tenant.UserNotIdentifiedException
+import com.quizapp.auth.AdminRoleRequiredException
+import com.quizapp.auth.TenantAccessDeniedException
+import com.quizapp.auth.UserNotIdentifiedException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
@@ -109,6 +111,27 @@ class ApiExceptionHandler {
     fun handleUserNotIdentified(e: UserNotIdentifiedException): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "利用者を特定できません").apply {
             title = "認証が必要です"
+        }
+
+    /**
+     * 所属していないテナントへのアクセス。
+     *
+     * **403 ではなく 404 を返す。** 権限エラーとして区別すると、
+     * その slug のテナントが実在することが分かってしまう。
+     */
+    @ExceptionHandler(TenantAccessDeniedException::class)
+    fun handleTenantAccessDenied(e: TenantAccessDeniedException): ProblemDetail {
+        log.warn("所属していないテナントへのアクセスを拒否しました")
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定されたテナントは存在しません").apply {
+            title = "リソースが見つかりません"
+        }
+    }
+
+    /** 所属はしているが管理者ではない。テナントの存在は既知なので 403 で返す。 */
+    @ExceptionHandler(AdminRoleRequiredException::class)
+    fun handleAdminRequired(e: AdminRoleRequiredException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "この操作には管理者の権限が必要です").apply {
+            title = "権限がありません"
         }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)

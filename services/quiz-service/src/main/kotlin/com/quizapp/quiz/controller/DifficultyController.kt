@@ -21,7 +21,7 @@ import java.util.UUID
  * 独立した一覧画面を持たない方針（docs/requirements.md）と対応している。
  */
 @RestController
-@RequestMapping("/api/t/{slug}/categories/{categoryId}/difficulties")
+@RequestMapping("/api/t/{slug}/admin/categories/{categoryId}/difficulties")
 class DifficultyController(private val useCase: DifficultyUseCase) {
 
     @GetMapping

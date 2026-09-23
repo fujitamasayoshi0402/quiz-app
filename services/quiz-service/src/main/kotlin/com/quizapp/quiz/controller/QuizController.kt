@@ -22,7 +22,7 @@ import java.util.UUID
  * 下書きも含めて返す。出題 API（DEV-21）は公開済みのみを対象にする。
  */
 @RestController
-@RequestMapping("/api/t/{slug}/quizzes")
+@RequestMapping("/api/t/{slug}/admin/quizzes")
 class QuizController(private val useCase: QuizUseCase) {
 
     @GetMapping

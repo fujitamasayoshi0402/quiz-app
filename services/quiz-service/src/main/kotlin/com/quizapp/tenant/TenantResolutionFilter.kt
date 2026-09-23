@@ -3,6 +3,7 @@ package com.quizapp.tenant
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.core.annotation.Order
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
@@ -17,6 +18,7 @@ import java.util.UUID
  * （[ADR-0006](../../../../../../../docs/adr/0006-row-level-multi-tenancy.md)）。
  */
 @Component
+@Order(TenantResolutionFilter.ORDER)
 class TenantResolutionFilter(private val jdbcTemplate: JdbcTemplate) : OncePerRequestFilter() {
 
     override fun doFilterInternal(
@@ -28,21 +30,17 @@ class TenantResolutionFilter(private val jdbcTemplate: JdbcTemplate) : OncePerRe
             extractSlug(request.requestURI)?.let { slug ->
                 findTenantId(slug)?.let { TenantContext.set(it) }
             }
-            // Phase 1 の暫定。Phase 3 で JWT から解決するように差し替える（DEV-24）
-            request.getHeader(USER_ID_HEADER)?.let { header ->
-                runCatching { UUID.fromString(header) }.getOrNull()?.let { UserContext.set(it) }
-            }
             filterChain.doFilter(request, response)
         } finally {
             // スレッドはプールで使い回されるため、必ず消す。
-            // 残すと次のリクエストが前のテナントや利用者を引き継ぐ
+            // 残すと次のリクエストが前のテナントを引き継ぐ
             TenantContext.clear()
-            UserContext.clear()
         }
     }
 
-    private companion object {
-        const val USER_ID_HEADER = "X-User-Id"
+    companion object {
+        /** 利用者の所属判定にテナントが要るため、認証より先に動く */
+        const val ORDER = 10
     }
 
     private fun extractSlug(uri: String): String? {

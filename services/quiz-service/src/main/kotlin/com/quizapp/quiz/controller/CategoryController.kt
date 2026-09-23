@@ -21,7 +21,7 @@ import java.util.UUID
  * [com.quizapp.tenant.TenantResolutionFilter] が行うため、ここでは受け取らない。
  */
 @RestController
-@RequestMapping("/api/t/{slug}/categories")
+@RequestMapping("/api/t/{slug}/admin/categories")
 class CategoryController(private val useCase: CategoryUseCase) {
 
     @GetMapping

@@ -19,19 +19,23 @@ class PlayFixture(
     private val mockMvc: MockMvc,
     private val objectMapper: ObjectMapper,
     private val slug: String,
+    /** 管理 API は管理者として所属していないと叩けない */
+    private val admin: UUID = TestAuth.ADMIN,
 ) {
     fun category(name: String): UUID {
-        val result = mockMvc.post("/api/t/$slug/categories") {
+        val result = mockMvc.post("/api/t/$slug/admin/categories") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"$name"}"""
+            header("X-User-Id", admin.toString())
         }.andExpect { }.andReturn()
         return objectMapper.readValue(result.response.contentAsString, CategoryResponse::class.java).id
     }
 
     fun difficulty(categoryId: UUID, name: String, level: Int): UUID {
-        val result = mockMvc.post("/api/t/$slug/categories/$categoryId/difficulties") {
+        val result = mockMvc.post("/api/t/$slug/admin/categories/$categoryId/difficulties") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"$name","level":$level}"""
+            header("X-User-Id", admin.toString())
         }.andExpect { }.andReturn()
         return objectMapper.readValue(result.response.contentAsString, DifficultyResponse::class.java).id
     }
@@ -39,13 +43,14 @@ class PlayFixture(
     /** 先頭の選択肢を正解にする。テストはこれを前提に「1 番目が正解」として書ける。 */
     fun quiz(categoryId: UUID, difficultyId: UUID, question: String, status: String = "published"): UUID {
         val choices = (1..4).joinToString(",") { """{"body":"選択肢 $it","isCorrect":${it == 1}}""" }
-        val result = mockMvc.post("/api/t/$slug/quizzes") {
+        val result = mockMvc.post("/api/t/$slug/admin/quizzes") {
             contentType = MediaType.APPLICATION_JSON
             content = """
                 {"categoryId":"$categoryId","difficultyId":"$difficultyId",
                  "question":"$question","explanation":"$question の解説",
                  "choices":[$choices],"status":"$status"}
             """.trimIndent()
+            header("X-User-Id", admin.toString())
         }.andExpect { }.andReturn()
         return objectMapper.readValue(result.response.contentAsString, QuizResponse::class.java).id
     }
