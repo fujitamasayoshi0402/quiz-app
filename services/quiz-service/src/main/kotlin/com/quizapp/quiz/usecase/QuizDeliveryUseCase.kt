@@ -19,10 +19,7 @@ import java.util.UUID
  * 途中で失敗したときに「出題されたクイズが分からない挑戦」が残る。
  */
 @Service
-class QuizDeliveryUseCase(
-    private val quizRepository: QuizRepository,
-    private val answeredQuizzes: AnsweredQuizzes,
-) {
+class QuizDeliveryUseCase(private val quizRepository: QuizRepository, private val answeredQuizzes: AnsweredQuizzes) {
     fun select(criteria: DeliveryCriteria, userId: UUID): List<DeliveredQuiz> {
         val candidates = quizRepository.findPublishedCandidates(
             criteria.categoryId,
@@ -59,6 +56,7 @@ class QuizDeliveryUseCase(
     private fun order(quizzes: List<Quiz>, order: DeliveryOrder): List<Quiz> = when (order) {
         // 候補はリポジトリがレベル順・並び順・作成順で返している
         DeliveryOrder.REGISTERED -> quizzes
+
         DeliveryOrder.RANDOM -> quizzes.shuffled()
     }
 

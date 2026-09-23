@@ -30,7 +30,7 @@ class TenantAccessInterceptor(private val memberships: TenantMemberships) : Hand
     override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {
         val tenantId = TenantContext.get()
             // slug が実在しない。存在しないテナントとして扱う
-            ?: throw IllegalStateException("テナントを解決できませんでした: ${request.requestURI}")
+            ?: error("テナントを解決できませんでした: ${request.requestURI}")
 
         val userId = UserContext.require()
         val role = memberships.findRole(tenantId, userId) ?: throw TenantAccessDeniedException()
@@ -44,11 +44,10 @@ class TenantAccessInterceptor(private val memberships: TenantMemberships) : Hand
         return true
     }
 
-    private fun isAdminPath(uri: String): Boolean =
-        uri.trim('/').split('/').let { segments ->
-            val index = segments.indexOf("t")
-            index >= 0 && index + 2 < segments.size && segments[index + 2] == "admin"
-        }
+    private fun isAdminPath(uri: String): Boolean = uri.trim('/').split('/').let { segments ->
+        val index = segments.indexOf("t")
+        index >= 0 && index + 2 < segments.size && segments[index + 2] == "admin"
+    }
 }
 
 @Component

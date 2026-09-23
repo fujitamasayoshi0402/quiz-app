@@ -11,9 +11,7 @@ import java.util.UUID
  * quiz モジュールはこのクラスを知らない。インターフェース越しに使う。
  */
 @Component
-class AnsweredQuizzesJdbc(
-    private val jdbcTemplate: NamedParameterJdbcTemplate,
-) : AnsweredQuizzes {
+class AnsweredQuizzesJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) : AnsweredQuizzes {
 
     override fun filterAnswered(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> {
         if (candidateQuizIds.isEmpty()) return emptySet()

@@ -40,3 +40,9 @@ indent_size = unset
 end_of_line = unset
 insert_final_newline = unset
 trim_trailing_whitespace = unset
+
+# Kotlin の整形規約（ktlint）
+[*.{kt,kts}]
+# 既定の ktlint_official は改行の入れ方が強く、IntelliJ の整形結果と食い違う。
+# エディタと lint が別々の形を要求する状態を避けるため、IDE 既定に合わせる
+ktlint_code_style = intellij_idea

@@ -1,9 +1,9 @@
 package com.quizapp.quiz.controller
 
-import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.tags.Tag
 import com.quizapp.quiz.domain.QuizStatus
 import com.quizapp.quiz.usecase.QuizUseCase
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -58,18 +58,17 @@ class QuizController(private val useCase: QuizUseCase) {
 
     @PutMapping("/{id}")
     @Operation(operationId = "updateQuiz", summary = "クイズを更新")
-    fun update(@PathVariable id: UUID, @Valid @RequestBody request: SaveQuizRequest): QuizResponse =
-        QuizResponse.from(
-            useCase.update(
-                id = id,
-                categoryId = request.categoryId,
-                difficultyId = request.difficultyId,
-                question = request.question,
-                explanation = request.explanation,
-                choices = request.choices.map { it.toDomain() },
-                status = request.statusAsDomain(),
-            ),
-        )
+    fun update(@PathVariable id: UUID, @Valid @RequestBody request: SaveQuizRequest): QuizResponse = QuizResponse.from(
+        useCase.update(
+            id = id,
+            categoryId = request.categoryId,
+            difficultyId = request.difficultyId,
+            question = request.question,
+            explanation = request.explanation,
+            choices = request.choices.map { it.toDomain() },
+            status = request.statusAsDomain(),
+        ),
+    )
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

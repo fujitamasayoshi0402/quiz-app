@@ -64,7 +64,7 @@
 - [x] 認証はスタブ（`X-User-Id` ヘッダ）。ロールと所属は DB から引く。Phase 3 で差し替える前提の境界を切っておく
 - [ ] テスト: サービス層の単体テスト、Testcontainers による API 統合テスト
 - [ ] セキュリティテスト: 別テナントの ID を指定したアクセスが結果を返さないことを全エンドポイントで検証
-- [ ] GitHub Actions: lint / test / build（PR 時）
+- [x] GitHub Actions: lint / test / build（PR 時）
 - [ ] `docker compose up` で一発起動
 - [x] シードデータ: 各カテゴリ数問ずつの初期クイズ（`dev` プロファイルでのみ投入）
 

@@ -10,12 +10,7 @@ import java.util.UUID
  * ドメインモデルにテナントを持たせると、保存のたびに正しい値が入っているかを
  * 呼び出し側で確認することになり、付け替えの余地も生まれる。
  */
-data class Category(
-    val id: UUID? = null,
-    val name: String,
-    val description: String? = null,
-    val sortOrder: Int = 0,
-) {
+data class Category(val id: UUID? = null, val name: String, val description: String? = null, val sortOrder: Int = 0) {
     init {
         require(name.isNotBlank()) { "カテゴリ名を入力してください" }
         require(name.length <= MAX_NAME_LENGTH) { "カテゴリ名は $MAX_NAME_LENGTH 文字以内で入力してください" }

@@ -25,11 +25,10 @@ enum class DeliveryScope {
     ;
 
     companion object {
-        fun from(value: String): DeliveryScope =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
-                ?: throw IllegalArgumentException(
-                    "出題対象は all / unanswered / unanswered_only を指定してください: $value",
-                )
+        fun from(value: String): DeliveryScope = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+            ?: throw IllegalArgumentException(
+                "出題対象は all / unanswered / unanswered_only を指定してください: $value",
+            )
     }
 }
 
@@ -42,9 +41,8 @@ enum class DeliveryOrder {
     ;
 
     companion object {
-        fun from(value: String): DeliveryOrder =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
-                ?: throw IllegalArgumentException("並びは random / registered を指定してください: $value")
+        fun from(value: String): DeliveryOrder = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+            ?: throw IllegalArgumentException("並びは random / registered を指定してください: $value")
     }
 }
 
@@ -86,10 +84,7 @@ data class DeliveredQuiz(
     val choices: List<DeliveredChoice>,
 )
 
-data class DeliveredChoice(
-    val id: UUID,
-    val body: String,
-)
+data class DeliveredChoice(val id: UUID, val body: String)
 
 /**
  * 採点に必要な情報。**回答したあとにだけ渡る。**
@@ -97,9 +92,4 @@ data class DeliveredChoice(
  * 正誤の判定そのものは answer モジュールが行う（ADR-0004）。
  * quiz 側は「どれが正解か」という事実だけを渡し、採点の責務は持たない。
  */
-data class AnswerKey(
-    val quizId: UUID,
-    val correctChoiceId: UUID,
-    val choiceIds: Set<UUID>,
-    val explanation: String,
-)
+data class AnswerKey(val quizId: UUID, val correctChoiceId: UUID, val choiceIds: Set<UUID>, val explanation: String)

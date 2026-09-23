@@ -21,9 +21,8 @@ import java.util.UUID
 @Profile("!prod & !stg")
 class StubAuthenticator : Authenticator {
 
-    override fun authenticate(request: HttpServletRequest): UUID? =
-        request.getHeader(USER_ID_HEADER)
-            ?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+    override fun authenticate(request: HttpServletRequest): UUID? = request.getHeader(USER_ID_HEADER)
+        ?.let { runCatching { UUID.fromString(it) }.getOrNull() }
 
     companion object {
         const val USER_ID_HEADER = "X-User-Id"

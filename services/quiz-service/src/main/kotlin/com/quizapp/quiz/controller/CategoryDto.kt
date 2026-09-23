@@ -23,12 +23,7 @@ data class UpdateCategoryRequest(
     val sortOrder: Int = 0,
 )
 
-data class CategoryResponse(
-    val id: UUID,
-    val name: String,
-    val description: String?,
-    val sortOrder: Int,
-) {
+data class CategoryResponse(val id: UUID, val name: String, val description: String?, val sortOrder: Int) {
     companion object {
         fun from(category: Category) = CategoryResponse(
             id = requireNotNull(category.id) { "永続化されたカテゴリには ID があるはずです" },

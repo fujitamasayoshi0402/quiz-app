@@ -24,8 +24,7 @@ class QuizCatalogAdapter(
     override fun select(criteria: DeliveryCriteria, userId: UUID): List<DeliveredQuiz> =
         deliveryUseCase.select(criteria, userId)
 
-    override fun findDeliverable(quizIds: List<UUID>): List<DeliveredQuiz> =
-        deliveryUseCase.findDeliverable(quizIds)
+    override fun findDeliverable(quizIds: List<UUID>): List<DeliveredQuiz> = deliveryUseCase.findDeliverable(quizIds)
 
     /**
      * 採点に必要な情報を返す。

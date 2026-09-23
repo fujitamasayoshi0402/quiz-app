@@ -1,11 +1,11 @@
 package com.quizapp.answer.controller
 
-import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.tags.Tag
 import com.quizapp.answer.usecase.AnswerResult
 import com.quizapp.answer.usecase.AttemptResult
 import com.quizapp.answer.usecase.AttemptUseCase
 import com.quizapp.answer.usecase.AttemptView
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -52,10 +52,8 @@ class AttemptController(private val useCase: AttemptUseCase) {
 
     @PostMapping("/{attemptId}/answers")
     @Operation(operationId = "answerQuiz", summary = "1 問に回答する")
-    fun answer(
-        @PathVariable attemptId: UUID,
-        @Valid @RequestBody request: AnswerRequest,
-    ): AnswerResult = useCase.answer(attemptId, request.quizId, request.choiceId)
+    fun answer(@PathVariable attemptId: UUID, @Valid @RequestBody request: AnswerRequest): AnswerResult =
+        useCase.answer(attemptId, request.quizId, request.choiceId)
 
     @PostMapping("/{attemptId}/complete")
     @Operation(operationId = "completeAttempt", summary = "挑戦を終えて結果を取得")

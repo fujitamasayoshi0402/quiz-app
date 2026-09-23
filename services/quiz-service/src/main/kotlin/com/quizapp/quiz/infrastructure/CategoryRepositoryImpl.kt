@@ -7,9 +7,7 @@ import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
-class CategoryRepositoryImpl(
-    private val jdbcRepository: CategoryJdbcRepository,
-) : CategoryRepository {
+class CategoryRepositoryImpl(private val jdbcRepository: CategoryJdbcRepository) : CategoryRepository {
 
     override fun findAll(): List<Category> = jdbcRepository.findAllActive().map { it.toDomain() }
 

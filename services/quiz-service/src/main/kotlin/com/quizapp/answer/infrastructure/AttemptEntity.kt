@@ -39,9 +39,7 @@ data class AttemptEntity(
  * `quiz_id` に外部キーを貼っていないのは、answer モジュールを分離するときの障害になるため（ADR-0004）。
  */
 @Table(schema = "answer", name = "attempt_quizzes")
-data class AttemptQuizEntity(
-    val quizId: UUID,
-)
+data class AttemptQuizEntity(val quizId: UUID)
 
 @Table(schema = "answer", name = "answers")
 data class AnswerEntity(

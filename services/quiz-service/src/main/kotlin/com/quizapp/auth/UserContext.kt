@@ -12,9 +12,8 @@ enum class TenantRole {
     ;
 
     companion object {
-        fun from(value: String): TenantRole =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
-                ?: throw IllegalStateException("不明なロールです: $value")
+        fun from(value: String): TenantRole = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+            ?: error("不明なロールです: $value")
     }
 }
 
@@ -24,10 +23,7 @@ enum class TenantRole {
  * ロールはテナントごとに決まる。同じ人がテナント A では管理者、B では一般ユーザーになりうるため、
  * 利用者そのものではなくリクエスト単位で持つ。
  */
-data class CurrentUser(
-    val id: UUID,
-    val role: TenantRole? = null,
-)
+data class CurrentUser(val id: UUID, val role: TenantRole? = null)
 
 /**
  * 現在のリクエストの利用者。

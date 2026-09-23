@@ -11,9 +11,8 @@ enum class QuizStatus {
     ;
 
     companion object {
-        fun from(value: String): QuizStatus =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
-                ?: throw IllegalArgumentException("状態は draft または published を指定してください: $value")
+        fun from(value: String): QuizStatus = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+            ?: throw IllegalArgumentException("状態は draft または published を指定してください: $value")
     }
 }
 
@@ -23,11 +22,7 @@ enum class QuizStatus {
  * [id] を持つのは、出題したあとに「どれを選んだか」を受け取る必要があるため。
  * 新規作成時は null で、永続化されると採番される。
  */
-data class Choice(
-    val id: UUID? = null,
-    val body: String,
-    val isCorrect: Boolean,
-) {
+data class Choice(val id: UUID? = null, val body: String, val isCorrect: Boolean) {
     init {
         require(body.isNotBlank()) { "選択肢の本文を入力してください" }
         require(body.length <= MAX_BODY_LENGTH) { "選択肢は $MAX_BODY_LENGTH 文字以内で入力してください" }

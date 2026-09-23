@@ -20,4 +20,5 @@ interface AttemptRepository {
     fun findAnswers(attemptId: UUID): List<Answer>
 }
 
-class DuplicateAnswerException(quizId: UUID) : RuntimeException("このクイズにはすでに回答しています: $quizId")
+class DuplicateAnswerException(quizId: UUID, cause: Throwable? = null) :
+    RuntimeException("このクイズにはすでに回答しています: $quizId", cause)

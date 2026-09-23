@@ -9,9 +9,7 @@ import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
-class QuizRepositoryImpl(
-    private val jdbcRepository: QuizJdbcRepository,
-) : QuizRepository {
+class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository) : QuizRepository {
 
     override fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> =
         jdbcRepository.search(categoryId, difficultyId, status?.name?.lowercase()).map { it.toDomain() }

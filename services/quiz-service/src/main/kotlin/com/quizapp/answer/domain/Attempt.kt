@@ -17,9 +17,8 @@ enum class AttemptStatus {
     ;
 
     companion object {
-        fun from(value: String): AttemptStatus =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
-                ?: throw IllegalArgumentException("不明な挑戦の状態です: $value")
+        fun from(value: String): AttemptStatus = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+            ?: throw IllegalArgumentException("不明な挑戦の状態です: $value")
     }
 }
 

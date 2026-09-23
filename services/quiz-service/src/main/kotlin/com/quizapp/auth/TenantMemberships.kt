@@ -25,14 +25,13 @@ interface TenantMemberships {
 @Component
 class TenantMembershipsJdbc(private val jdbcTemplate: JdbcTemplate) : TenantMemberships {
 
-    override fun findRole(tenantId: UUID, userId: UUID): TenantRole? =
-        jdbcTemplate.query(
-            """
+    override fun findRole(tenantId: UUID, userId: UUID): TenantRole? = jdbcTemplate.query(
+        """
             SELECT role FROM core.tenant_members
             WHERE tenant_id = ? AND user_id = ? AND deleted_at IS NULL
             """,
-            { rs, _ -> TenantRole.from(rs.getString("role")) },
-            tenantId,
-            userId,
-        ).firstOrNull()
+        { rs, _ -> TenantRole.from(rs.getString("role")) },
+        tenantId,
+        userId,
+    ).firstOrNull()
 }

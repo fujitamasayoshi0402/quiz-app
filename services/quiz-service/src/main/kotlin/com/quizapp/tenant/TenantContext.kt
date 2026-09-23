@@ -16,10 +16,8 @@ object TenantContext {
     fun get(): UUID? = holder.get()
 
     /** テナントが必須の処理で使う。未設定は呼び出し側のバグなので例外にする。 */
-    fun require(): UUID =
-        holder.get() ?: throw IllegalStateException(
-            "テナントが設定されていません。TenantContext.set を呼ばずに DB へアクセスしています",
-        )
+    fun require(): UUID = holder.get()
+        ?: error("テナントが設定されていません。TenantContext.set を呼ばずに DB へアクセスしています")
 
     fun clear() = holder.remove()
 }

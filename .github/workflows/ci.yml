@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# 同じブランチに新しく push されたら、動いている古い実行を止める。
+# Testcontainers を使うジョブは実行時間が長く、積み上がると待ち時間になる
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # 変更されたパスを見て、後続のジョブを出し分ける。
+  # monorepo なので、フロントだけの変更でバックエンドのテストまで回す必要はない
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'services/**'
+              - 'config/detekt.yml'
+              - '.editorconfig'
+              - 'gradle/**'
+              - 'gradlew'
+              - 'settings.gradle.kts'
+              - '.mise.toml'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'apps/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              # 型は OpenAPI 定義から生成するため、定義が変われば作り直しが要る
+              - 'docs/api/**'
+              - '.mise.toml'
+              - '.github/workflows/ci.yml'
+
+  backend:
+    name: backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ツールのバージョンは .mise.toml が持つ。CI 側で別に指定すると二重管理になる
+      - uses: jdx/mise-action@v2
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: lint（ktlint / detekt）
+        run: ./gradlew :services:quiz-service:ktlintCheck :services:quiz-service:detekt
+
+      # Testcontainers が PostgreSQL を起動する。ランナーには Docker が入っている
+      - name: test
+        run: ./gradlew :services:quiz-service:test
+
+      - name: build
+        run: ./gradlew :services:quiz-service:bootJar
+
+      # 失敗したときだけ残す。OpenAPI の乖離やテストの詳細はレポートを見ないと分からない
+      - name: レポートを保存する
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-reports
+          path: services/quiz-service/build/reports/
+          retention-days: 7
+
+  frontend:
+    name: frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: pnpm ストアの場所を調べる
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: 依存を入れる
+        run: pnpm install --frozen-lockfile
+
+      # 生成物をリポジトリに持っているので、作り直して差が出ないことを確かめる。
+      # ここが落ちるのは「API を変えたのに型を作り直していない」とき
+      - name: 型が OpenAPI 定義から作り直されているか
+        run: |
+          pnpm --filter web generate:api
+          if ! git diff --quiet -- apps/web/src/lib/api/schema.d.ts; then
+            echo "::error::生成した型が docs/api/openapi.yaml と合っていません。pnpm --filter web generate:api を実行してコミットしてください"
+            git --no-pager diff -- apps/web/src/lib/api/schema.d.ts
+            exit 1
+          fi
+
+      - name: 型チェック
+        run: pnpm --filter web typecheck
+
+  # 必須ステータスチェックはこのジョブだけを指定する（DEV-16）。
+  # ジョブを足すたびに Ruleset を触らずに済み、パスの出し分けでスキップされても
+  # 「報告されないまま待ち続ける」状態にならない
+  ci:
+    name: ci
+    if: always()
+    needs: [changes, backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 先行ジョブの結果を確かめる
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "::error::先行ジョブが失敗またはキャンセルされました"
+          exit 1
+
+      - run: echo "すべてのチェックを通過しました"

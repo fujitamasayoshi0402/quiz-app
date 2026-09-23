@@ -322,19 +322,17 @@ class AttemptAnswerApiTest {
 
     // --- ヘルパー -------------------------------------------------------------
 
-    private fun start(body: String): ResultActionsDsl =
-        mockMvc.post("/api/t/hotel/play/attempts") {
-            contentType = MediaType.APPLICATION_JSON
-            content = body
-            header("X-User-Id", user.toString())
-        }
+    private fun start(body: String): ResultActionsDsl = mockMvc.post("/api/t/hotel/play/attempts") {
+        contentType = MediaType.APPLICATION_JSON
+        content = body
+        header("X-User-Id", user.toString())
+    }
 
     /** 並びを固定して、テストから出題順を指定できるようにする。 */
-    private fun startAttempt(): JsonNode =
-        start("""{"scope":"all","order":"registered"}""")
-            .andExpect { status { isCreated() } }
-            .andReturn().response.contentAsString
-            .let { objectMapper.readTree(it) }
+    private fun startAttempt(): JsonNode = start("""{"scope":"all","order":"registered"}""")
+        .andExpect { status { isCreated() } }
+        .andReturn().response.contentAsString
+        .let { objectMapper.readTree(it) }
 
     private fun answer(attemptId: String, quizId: String, choiceId: String): ResultActionsDsl =
         mockMvc.post("/api/t/hotel/play/attempts/$attemptId/answers") {

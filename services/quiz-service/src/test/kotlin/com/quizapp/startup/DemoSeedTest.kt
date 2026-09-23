@@ -36,11 +36,9 @@ class DemoSeedTest {
 
     private val seed = ClassPathResource("db/seed/R__demo_data.sql")
 
-    private fun applySeed() =
-        ResourceDatabasePopulator(seed).execute(TestPostgres.adminJdbcTemplate.dataSource!!)
+    private fun applySeed() = ResourceDatabasePopulator(seed).execute(TestPostgres.adminJdbcTemplate.dataSource!!)
 
-    private fun count(sql: String): Int =
-        TestPostgres.adminJdbcTemplate.queryForObject(sql, Int::class.java) ?: 0
+    private fun count(sql: String): Int = TestPostgres.adminJdbcTemplate.queryForObject(sql, Int::class.java) ?: 0
 
     @AfterEach
     fun tearDown() {

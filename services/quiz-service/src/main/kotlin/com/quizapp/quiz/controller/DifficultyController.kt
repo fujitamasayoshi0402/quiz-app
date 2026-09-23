@@ -1,8 +1,8 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.quiz.usecase.DifficultyUseCase
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
-import com.quizapp.quiz.usecase.DifficultyUseCase
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -24,7 +24,10 @@ import java.util.UUID
  * 独立した一覧画面を持たない方針（docs/requirements.md）と対応している。
  */
 @RestController
-@RequestMapping("/api/t/{slug}/admin/categories/{categoryId}/difficulties", produces = [MediaType.APPLICATION_JSON_VALUE])
+@RequestMapping(
+    "/api/t/{slug}/admin/categories/{categoryId}/difficulties",
+    produces = [MediaType.APPLICATION_JSON_VALUE],
+)
 @Tag(name = "難易度", description = "カテゴリ配下の難易度を CRUD する。体系はカテゴリごとに決める")
 class DifficultyController(private val useCase: DifficultyUseCase) {
 

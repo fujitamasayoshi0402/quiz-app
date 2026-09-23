@@ -86,16 +86,14 @@ class AttemptDeliveryApiTest {
         admin.update("DELETE FROM core.users WHERE id = ?", user)
     }
 
-    private fun start(body: String): ResultActionsDsl =
-        mockMvc.post("/api/t/golf/play/attempts") {
-            contentType = MediaType.APPLICATION_JSON
-            content = body
-            header("X-User-Id", user.toString())
-        }
+    private fun start(body: String): ResultActionsDsl = mockMvc.post("/api/t/golf/play/attempts") {
+        contentType = MediaType.APPLICATION_JSON
+        content = body
+        header("X-User-Id", user.toString())
+    }
 
     /** 中断中は 1 件までなので、続けて始めるテストでは毎回破棄する。 */
-    private fun restart(body: String): ResultActionsDsl =
-        start(body.dropLast(1) + ""","discardInProgress":true}""")
+    private fun restart(body: String): ResultActionsDsl = start(body.dropLast(1) + ""","discardInProgress":true}""")
 
     @Test
     @DisplayName("応答に正解と解説が含まれない")
