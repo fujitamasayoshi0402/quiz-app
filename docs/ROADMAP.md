@@ -54,7 +54,7 @@
 - [x] **RLS とコネクションプールの検証**: `SET LOCAL` 相当で解決。接続プール 1 本のテストで確認済み
 - [x] Flyway マイグレーション
 - [x] quiz-service: カテゴリと難易度の CRUD API
-- [ ] quiz-service: クイズの CRUD API（下書き / 公開の状態を含む）
+- [x] quiz-service: クイズの CRUD API（下書き / 公開の状態を含む）
 - [ ] quiz-service: 出題 API（カテゴリ / 難易度でフィルタ）、回答 API（採点 + 解説返却）
 - [ ] OpenAPI 定義 + フロントの型を自動生成
 - [ ] Next.js: 出題 / 回答 / 結果画面、管理画面のクイズ一覧・作成・編集
