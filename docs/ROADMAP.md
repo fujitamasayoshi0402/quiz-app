@@ -41,7 +41,7 @@
 - [x] ローカル環境: mise（Java 21 / Node.js / pnpm）、Docker Compose（PostgreSQL / LocalStack）
 - [x] AWS アカウント準備、IAM Identity Center、請求アラート
 
-**成果物**: リポジトリ、ADR 9 本、要件定義・ドメインモデル・ER 図、Jira バックログ
+**成果物**: リポジトリ、ADR 10 本、要件定義・ドメインモデル・ER 図、Jira バックログ
 
 ---
 
@@ -56,7 +56,7 @@
 - [x] quiz-service: カテゴリと難易度の CRUD API
 - [x] quiz-service: クイズの CRUD API（下書き / 公開の状態を含む）
 - [x] quiz-service: 出題 API（カテゴリ / 難易度 / レベルでフィルタ、出題対象・並び・出題数の指定）
-- [ ] quiz-service: 挑戦と回答 API（挑戦の開始・採点 + 解説返却・結果）
+- [x] quiz-service: 挑戦と回答 API（挑戦の開始・採点 + 解説返却・結果）
 - [x] OpenAPI 定義 + フロントの型を自動生成（コードから生成しスナップショットを固定）
 - [ ] Next.js: 出題 / 回答 / 結果画面（学習モードと模試モード）、管理画面のクイズ一覧・作成・編集
 - [ ] 論理削除と削除済み一覧からの復活（連鎖削除・連鎖復活を含む）
