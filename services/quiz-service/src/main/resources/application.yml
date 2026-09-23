@@ -31,6 +31,13 @@ spring:
   jackson:
     default-property-inclusion: non_null
 
+springdoc:
+  # スナップショットと比較するため、出力の順序を安定させる。
+  # 並びが実行ごとに変わると、差分が本当の変更なのか判断できない
+  writer-with-order-by-keys: true
+  api-docs:
+    path: /v3/api-docs
+
 server:
   port: 8080
 

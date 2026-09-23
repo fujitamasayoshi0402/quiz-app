@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import io.swagger.v3.oas.annotations.media.Schema
 import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizStatus
@@ -12,6 +13,9 @@ data class ChoiceRequest(
     @field:NotBlank(message = "選択肢の本文を入力してください")
     @field:Size(max = Choice.MAX_BODY_LENGTH, message = "選択肢は {max} 文字以内で入力してください")
     val body: String,
+    // Kotlin の `isCorrect` は Java の getter 規約では `correct` と読まれる。
+    // Jackson は Kotlin のプロパティ名で出すため、明示しないと定義と実際の JSON がずれる
+    @get:Schema(name = "isCorrect")
     val isCorrect: Boolean = false,
 ) {
     fun toDomain() = Choice(body = body, isCorrect = isCorrect)
@@ -35,6 +39,9 @@ data class SaveQuizRequest(
 data class ChoiceResponse(
     val id: UUID,
     val body: String,
+    // Kotlin の `isCorrect` は Java の getter 規約では `correct` と読まれる。
+    // Jackson は Kotlin のプロパティ名で出すため、明示しないと定義と実際の JSON がずれる
+    @get:Schema(name = "isCorrect")
     val isCorrect: Boolean,
 )
 

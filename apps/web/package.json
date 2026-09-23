@@ -1,0 +1,11 @@
+{
+  "name": "web",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "generate:api": "openapi-typescript ../../docs/api/openapi.yaml --output src/lib/api/schema.d.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.9.1"
+  }
+}
