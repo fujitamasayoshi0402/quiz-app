@@ -33,6 +33,7 @@ data class SaveQuizRequest(
 }
 
 data class ChoiceResponse(
+    val id: UUID,
     val body: String,
     val isCorrect: Boolean,
 )
@@ -53,7 +54,13 @@ data class QuizResponse(
             difficultyId = quiz.difficultyId,
             question = quiz.question,
             explanation = quiz.explanation,
-            choices = quiz.choices.map { ChoiceResponse(it.body, it.isCorrect) },
+            choices = quiz.choices.map {
+                ChoiceResponse(
+                    id = requireNotNull(it.id) { "永続化された選択肢には ID があるはずです" },
+                    body = it.body,
+                    isCorrect = it.isCorrect,
+                )
+            },
             status = quiz.status.name.lowercase(),
         )
     }

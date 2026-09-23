@@ -55,7 +55,8 @@
 - [x] Flyway マイグレーション
 - [x] quiz-service: カテゴリと難易度の CRUD API
 - [x] quiz-service: クイズの CRUD API（下書き / 公開の状態を含む）
-- [ ] quiz-service: 出題 API（カテゴリ / 難易度でフィルタ）、回答 API（採点 + 解説返却）
+- [x] quiz-service: 出題 API（カテゴリ / 難易度 / レベルでフィルタ、3 つの出題モード）
+- [ ] quiz-service: 回答 API（採点 + 解説返却）
 - [ ] OpenAPI 定義 + フロントの型を自動生成
 - [ ] Next.js: 出題 / 回答 / 結果画面、管理画面のクイズ一覧・作成・編集
 - [ ] 論理削除と削除済み一覧からの復活（連鎖削除・連鎖復活を含む）
