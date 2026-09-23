@@ -143,10 +143,27 @@ Smart Commits（コミットメッセージからの課題操作）は**紐付�
 同じクイズでも、管理 API は正解を含み、出題 API は含まない。
 1 つの URL に両方の応答を同居させると、権限の掛け違いで正解が漏れる余地が生まれる。
 
+### OpenAPI
+
+定義は `docs/api/openapi.yaml` にある。**手で書かない。** コードから生成して固定している。
+
+```bash
+# API を変えたら再生成してコミットする
+UPDATE_OPENAPI=true ./gradlew :services:quiz-service:test --tests '*OpenApiSnapshotTest'
+pnpm --filter web generate:api
+```
+
+再生成を忘れると `OpenApiSnapshotTest` が落ちる。**落ちること自体が仕組み**なので、
+テストを直すのではなく定義を再生成する。
+
+フロントの型（`apps/web/src/lib/api/schema.d.ts`）も生成物で、リポジトリに持つ。
+生成し直さないと差分が残るため、CI で検出できる。
+
 ### コード
 - バックエンド: レイヤード（controller / usecase / domain / infrastructure）、テストは JUnit5 + Testcontainers
 - フロント: Server Components 優先、API 呼び出しは TanStack Query、型は Zod でバリデーション
-- API は OpenAPI を単一の真実とし、フロントの型は生成する
+- API 定義はコードから生成し、`docs/api/openapi.yaml` に固定する（[ADR-0010](adr/0010-generate-openapi-from-code.md)）。
+  **真実はコードであり、定義はその写像。** フロントの型は固定した定義から生成する
 
 ### ドキュメント
 - 技術選定・設計判断は必ず [ADR](adr/) に残す。運用ルールは [docs/adr/README.md](adr/README.md) を参照

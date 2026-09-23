@@ -34,6 +34,11 @@ dependencies {
     // Flyway 10 以降、PostgreSQL のサポートは別モジュールに分かれている
     implementation("org.flywaydb:flyway-database-postgresql")
 
+    // OpenAPI 定義をコードから生成する（ADR-0010）。
+    // 3.x が Spring Boot 4 系の対応版。2.x は Boot 3 までなので上げられない。
+    // Swagger UI は入れない。定義は docs/api に出力してリポジトリで持つ
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.1.1")
+
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")

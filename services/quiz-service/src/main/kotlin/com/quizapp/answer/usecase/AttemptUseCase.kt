@@ -1,5 +1,6 @@
 package com.quizapp.answer.usecase
 
+import io.swagger.v3.oas.annotations.media.Schema
 import com.quizapp.answer.domain.Answer
 import com.quizapp.answer.domain.Attempt
 import com.quizapp.answer.domain.AttemptRepository
@@ -211,6 +212,9 @@ data class AttemptView(
 )
 
 data class AnswerResult(
+    // Kotlin の `isCorrect` は Java の getter 規約では `correct` と読まれる。
+    // Jackson は Kotlin のプロパティ名で出すため、明示しないと定義と実際の JSON がずれる
+    @get:Schema(name = "isCorrect")
     val isCorrect: Boolean,
     val correctChoiceId: UUID,
     val explanation: String,
@@ -234,6 +238,9 @@ data class QuizResult(
     val choices: List<DeliveredChoice>,
     val selectedChoiceId: UUID?,
     val correctChoiceId: UUID,
+    // Kotlin の `isCorrect` は Java の getter 規約では `correct` と読まれる。
+    // Jackson は Kotlin のプロパティ名で出すため、明示しないと定義と実際の JSON がずれる
+    @get:Schema(name = "isCorrect")
     val isCorrect: Boolean,
     val explanation: String,
 )

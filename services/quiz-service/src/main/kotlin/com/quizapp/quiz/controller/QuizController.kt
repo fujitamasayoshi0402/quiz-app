@@ -1,9 +1,12 @@
 package com.quizapp.quiz.controller
 
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import com.quizapp.quiz.domain.QuizStatus
 import com.quizapp.quiz.usecase.QuizUseCase
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -22,10 +25,12 @@ import java.util.UUID
  * 下書きも含めて返す。出題 API（DEV-21）は公開済みのみを対象にする。
  */
 @RestController
-@RequestMapping("/api/t/{slug}/admin/quizzes")
+@RequestMapping("/api/t/{slug}/admin/quizzes", produces = [MediaType.APPLICATION_JSON_VALUE])
+@Tag(name = "クイズ（管理）", description = "管理者がクイズを CRUD する。**応答に正解を含む**")
 class QuizController(private val useCase: QuizUseCase) {
 
     @GetMapping
+    @Operation(operationId = "searchQuizzes", summary = "クイズを絞り込んで一覧")
     fun search(
         @RequestParam(required = false) categoryId: UUID?,
         @RequestParam(required = false) difficultyId: UUID?,
@@ -34,10 +39,12 @@ class QuizController(private val useCase: QuizUseCase) {
         useCase.search(categoryId, difficultyId, status?.let(QuizStatus::from)).map(QuizResponse::from)
 
     @GetMapping("/{id}")
+    @Operation(operationId = "getQuiz", summary = "クイズを 1 件取得")
     fun get(@PathVariable id: UUID): QuizResponse = QuizResponse.from(useCase.get(id))
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "createQuiz", summary = "クイズを作成")
     fun create(@Valid @RequestBody request: SaveQuizRequest): QuizResponse = QuizResponse.from(
         useCase.create(
             categoryId = request.categoryId,
@@ -50,6 +57,7 @@ class QuizController(private val useCase: QuizUseCase) {
     )
 
     @PutMapping("/{id}")
+    @Operation(operationId = "updateQuiz", summary = "クイズを更新")
     fun update(@PathVariable id: UUID, @Valid @RequestBody request: SaveQuizRequest): QuizResponse =
         QuizResponse.from(
             useCase.update(
@@ -65,5 +73,6 @@ class QuizController(private val useCase: QuizUseCase) {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "deleteQuiz", summary = "クイズを削除")
     fun delete(@PathVariable id: UUID) = useCase.delete(id)
 }

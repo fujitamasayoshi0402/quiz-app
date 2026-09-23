@@ -1,0 +1,1188 @@
+openapi: 3.1.0
+info:
+  description: |-
+    カテゴリと難易度を自由に定義できるクイズアプリの API。
+
+    テナント配下のエンドポイントは、触れる人によってパスが分かれる。
+
+    - `/api/t/{slug}/admin/...` … 管理者として所属していること
+    - `/api/t/{slug}/play/...` … 所属していること
+
+    同じクイズでも管理 API は正解を含み、出題 API は含まない。
+  title: quiz-app API
+  version: 0.1.0
+servers:
+- description: アプリケーションと同じオリジン
+  url: /
+security:
+- stubUser: []
+tags:
+- description: カテゴリ配下の難易度を CRUD する。体系はカテゴリごとに決める
+  name: 難易度
+- description: 出題・回答・結果。**出題の応答に正解と解説を含まない**
+  name: 挑戦
+- description: 管理者がクイズを CRUD する。**応答に正解を含む**
+  name: クイズ（管理）
+- description: 管理者がカテゴリを CRUD する
+  name: カテゴリ
+paths:
+  /api/t/{slug}/admin/categories:
+    get:
+      operationId: listCategories
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: カテゴリ一覧
+      tags:
+      - カテゴリ
+    post:
+      operationId: createCategory
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+          description: Created
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: カテゴリを作成
+      tags:
+      - カテゴリ
+  /api/t/{slug}/admin/categories/{categoryId}/difficulties:
+    get:
+      operationId: listDifficulties
+      parameters:
+      - in: path
+        name: categoryId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DifficultyResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 難易度一覧
+      tags:
+      - 難易度
+    post:
+      operationId: createDifficulty
+      parameters:
+      - in: path
+        name: categoryId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveDifficultyRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DifficultyResponse"
+          description: Created
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 難易度を作成
+      tags:
+      - 難易度
+  /api/t/{slug}/admin/categories/{categoryId}/difficulties/{id}:
+    delete:
+      operationId: deleteDifficulty
+      parameters:
+      - in: path
+        name: categoryId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 難易度を削除
+      tags:
+      - 難易度
+    get:
+      operationId: getDifficulty
+      parameters:
+      - in: path
+        name: categoryId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DifficultyResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 難易度を 1 件取得
+      tags:
+      - 難易度
+    put:
+      operationId: updateDifficulty
+      parameters:
+      - in: path
+        name: categoryId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveDifficultyRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DifficultyResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 難易度を更新
+      tags:
+      - 難易度
+  /api/t/{slug}/admin/categories/{id}:
+    delete:
+      operationId: deleteCategory
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: カテゴリを削除
+      tags:
+      - カテゴリ
+    get:
+      operationId: getCategory
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: カテゴリを 1 件取得
+      tags:
+      - カテゴリ
+    put:
+      operationId: updateCategory
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: カテゴリを更新
+      tags:
+      - カテゴリ
+  /api/t/{slug}/admin/quizzes:
+    get:
+      operationId: searchQuizzes
+      parameters:
+      - in: query
+        name: categoryId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: difficultyId
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuizResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: クイズを絞り込んで一覧
+      tags:
+      - クイズ（管理）
+    post:
+      operationId: createQuiz
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveQuizRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizResponse"
+          description: Created
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: クイズを作成
+      tags:
+      - クイズ（管理）
+  /api/t/{slug}/admin/quizzes/{id}:
+    delete:
+      operationId: deleteQuiz
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: クイズを削除
+      tags:
+      - クイズ（管理）
+    get:
+      operationId: getQuiz
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: クイズを 1 件取得
+      tags:
+      - クイズ（管理）
+    put:
+      operationId: updateQuiz
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveQuizRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: クイズを更新
+      tags:
+      - クイズ（管理）
+  /api/t/{slug}/play/attempts:
+    post:
+      operationId: startAttempt
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartAttemptRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttemptView"
+          description: Created
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 挑戦を始める
+      tags:
+      - 挑戦
+  /api/t/{slug}/play/attempts/current:
+    get:
+      operationId: getCurrentAttempt
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttemptView"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 中断中の挑戦を取得
+      tags:
+      - 挑戦
+  /api/t/{slug}/play/attempts/{attemptId}:
+    get:
+      operationId: resumeAttempt
+      parameters:
+      - in: path
+        name: attemptId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttemptView"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 挑戦を再開する
+      tags:
+      - 挑戦
+  /api/t/{slug}/play/attempts/{attemptId}/abandon:
+    post:
+      operationId: abandonAttempt
+      parameters:
+      - in: path
+        name: attemptId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 挑戦を破棄する
+      tags:
+      - 挑戦
+  /api/t/{slug}/play/attempts/{attemptId}/answers:
+    post:
+      operationId: answerQuiz
+      parameters:
+      - in: path
+        name: attemptId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerResult"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 1 問に回答する
+      tags:
+      - 挑戦
+  /api/t/{slug}/play/attempts/{attemptId}/complete:
+    post:
+      operationId: completeAttempt
+      parameters:
+      - in: path
+        name: attemptId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttemptResult"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 挑戦を終えて結果を取得
+      tags:
+      - 挑戦
+components:
+  schemas:
+    AnswerRequest:
+      type: object
+      properties:
+        choiceId:
+          type: string
+          format: uuid
+        quizId:
+          type: string
+          format: uuid
+    AnswerResult:
+      type: object
+      properties:
+        answeredCount:
+          type: integer
+          format: int32
+        correctChoiceId:
+          type: string
+          format: uuid
+        explanation:
+          type: string
+        isCorrect:
+          type: boolean
+        totalCount:
+          type: integer
+          format: int32
+    AttemptResult:
+      type: object
+      properties:
+        answeredCount:
+          type: integer
+          format: int32
+        correctCount:
+          type: integer
+          format: int32
+        id:
+          type: string
+          format: uuid
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuizResult"
+        status:
+          type: string
+        totalCount:
+          type: integer
+          format: int32
+    AttemptView:
+      type: object
+      properties:
+        answeredQuizIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        excludedCount:
+          type: integer
+          format: int32
+        id:
+          type: string
+          format: uuid
+        quizzes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveredQuiz"
+        scope:
+          type: string
+        status:
+          type: string
+    CategoryResponse:
+      type: object
+      properties:
+        description:
+          type:
+          - string
+          - "null"
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        sortOrder:
+          type: integer
+          format: int32
+    ChoiceRequest:
+      type: object
+      properties:
+        body:
+          type: string
+          maxLength: 500
+          minLength: 0
+        isCorrect:
+          type: boolean
+      required:
+      - body
+    ChoiceResponse:
+      type: object
+      properties:
+        body:
+          type: string
+        id:
+          type: string
+          format: uuid
+        isCorrect:
+          type: boolean
+    CreateCategoryRequest:
+      type: object
+      properties:
+        description:
+          type:
+          - string
+          - "null"
+          maxLength: 500
+          minLength: 0
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        sortOrder:
+          type: integer
+          format: int32
+      required:
+      - name
+    DeliveredChoice:
+      type: object
+      properties:
+        body:
+          type: string
+        id:
+          type: string
+          format: uuid
+    DeliveredQuiz:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveredChoice"
+        difficultyId:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        question:
+          type: string
+    DifficultyResponse:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        description:
+          type:
+          - string
+          - "null"
+        id:
+          type: string
+          format: uuid
+        level:
+          type: integer
+          format: int32
+        name:
+          type: string
+        sortOrder:
+          type: integer
+          format: int32
+    ProblemDetail:
+      type: object
+      additionalProperties: true
+      description: RFC 9457 の Problem Details 形式のエラー応答
+      properties:
+        detail:
+          type: string
+          description: この発生に固有の説明
+        instance:
+          type: string
+          format: uri
+        status:
+          type: integer
+          format: int32
+          description: HTTP ステータスコード
+        title:
+          type: string
+          description: エラーの種類を表す短い説明
+        type:
+          type: string
+          format: uri
+    QuizResponse:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChoiceResponse"
+        difficultyId:
+          type: string
+          format: uuid
+        explanation:
+          type: string
+        id:
+          type: string
+          format: uuid
+        question:
+          type: string
+        status:
+          type: string
+    QuizResult:
+      type: object
+      properties:
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveredChoice"
+        correctChoiceId:
+          type: string
+          format: uuid
+        explanation:
+          type: string
+        isCorrect:
+          type: boolean
+        question:
+          type: string
+        quizId:
+          type: string
+          format: uuid
+        selectedChoiceId:
+          type:
+          - string
+          - "null"
+          format: uuid
+    SaveDifficultyRequest:
+      type: object
+      properties:
+        description:
+          type:
+          - string
+          - "null"
+          maxLength: 500
+          minLength: 0
+        level:
+          type: integer
+          format: int32
+          minimum: 1
+        name:
+          type: string
+          maxLength: 50
+          minLength: 0
+        sortOrder:
+          type: integer
+          format: int32
+      required:
+      - name
+    SaveQuizRequest:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChoiceRequest"
+        difficultyId:
+          type: string
+          format: uuid
+        explanation:
+          type: string
+        question:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        status:
+          type: string
+      required:
+      - question
+    StartAttemptRequest:
+      type: object
+      properties:
+        categoryId:
+          type:
+          - string
+          - "null"
+          format: uuid
+        difficultyId:
+          type:
+          - string
+          - "null"
+          format: uuid
+        discardInProgress:
+          type: boolean
+        level:
+          type:
+          - integer
+          - "null"
+          format: int32
+          minimum: 1
+        limit:
+          type:
+          - integer
+          - "null"
+          format: int32
+          maximum: 100
+          minimum: 1
+        order:
+          type: string
+        scope:
+          type: string
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        description:
+          type:
+          - string
+          - "null"
+          maxLength: 500
+          minLength: 0
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        sortOrder:
+          type: integer
+          format: int32
+      required:
+      - name
+  securitySchemes:
+    stubUser:
+      description: Phase 1 のスタブ認証。利用者の UUID をそのまま渡す。Phase 3 で Cognito の JWT に差し替える
+      in: header
+      name: X-User-Id
+      type: apiKey

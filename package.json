@@ -1,0 +1,8 @@
+{
+  "name": "quiz-app",
+  "private": true,
+  "packageManager": "pnpm@12.5.1",
+  "scripts": {
+    "generate:api": "pnpm --filter web generate:api"
+  }
+}
