@@ -137,6 +137,38 @@ class TenantIsolationTest {
     }
 
     @Test
+    @DisplayName("quiz / answer スキーマの全テーブルが tenant_id を持ち、RLS が強制されている")
+    fun everyTenantScopedTableHasRowLevelSecurity() {
+        // テーブルを足したときに RLS を付け忘れると、そのテーブルだけ境界が DB で守られなくなる。
+        // core は境界そのものを定義するテーブルのため対象外（V5 のコメントを参照）
+        val tables = TestPostgres.adminJdbcTemplate.queryForList(
+            """
+            SELECT n.nspname || '.' || c.relname AS name,
+                   c.relrowsecurity AS enabled,
+                   c.relforcerowsecurity AS forced,
+                   EXISTS (SELECT 1 FROM information_schema.columns col
+                           WHERE col.table_schema = n.nspname AND col.table_name = c.relname
+                             AND col.column_name = 'tenant_id') AS has_tenant_id,
+                   EXISTS (SELECT 1 FROM pg_policies p
+                           WHERE p.schemaname = n.nspname AND p.tablename = c.relname
+                             AND p.policyname = 'tenant_isolation') AS has_policy
+            FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind = 'r' AND n.nspname IN ('quiz', 'answer')
+            """,
+        )
+
+        assertThat(tables).isNotEmpty
+        assertThat(tables).allSatisfy { table ->
+            assertThat(table)
+                .describedAs(table["name"].toString())
+                .containsEntry("enabled", true)
+                .containsEntry("forced", true)
+                .containsEntry("has_tenant_id", true)
+                .containsEntry("has_policy", true)
+        }
+    }
+
+    @Test
     @DisplayName("トランザクションの外ではテナントを設定できない")
     fun cannotApplyTenantOutsideTransaction() {
         assertThatThrownBy { tenantSession.apply(tenantA) }
