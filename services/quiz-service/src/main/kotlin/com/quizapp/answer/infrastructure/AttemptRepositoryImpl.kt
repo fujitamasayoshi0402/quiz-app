@@ -6,6 +6,7 @@ import com.quizapp.answer.domain.AttemptRepository
 import com.quizapp.answer.domain.AttemptStatus
 import com.quizapp.answer.domain.DuplicateAnswerException
 import com.quizapp.quiz.domain.DeliveryScope
+import com.quizapp.tenant.TenantContext
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.stereotype.Component
 import java.util.UUID
@@ -15,14 +16,16 @@ class AttemptRepositoryImpl(private val attempts: AttemptJdbcRepository, private
     AttemptRepository {
 
     override fun create(attempt: Attempt): Attempt {
+        val tenantId = TenantContext.require()
         val entity = AttemptEntity(
+            tenantId = tenantId,
             userId = attempt.userId,
             categoryId = attempt.categoryId,
             difficultyId = attempt.difficultyId,
             level = attempt.level,
             scope = attempt.scope.name.lowercase(),
             status = attempt.status.name.lowercase(),
-            quizzes = attempt.quizIds.map { AttemptQuizEntity(quizId = it) },
+            quizzes = attempt.quizIds.map { AttemptQuizEntity(tenantId = tenantId, quizId = it) },
         )
         return attempts.save(entity).toDomain()
     }
@@ -35,6 +38,7 @@ class AttemptRepositoryImpl(private val attempts: AttemptJdbcRepository, private
 
     override fun record(answer: Answer): Answer {
         val entity = AnswerEntity(
+            tenantId = TenantContext.require(),
             attemptId = answer.attemptId,
             userId = answer.userId,
             quizId = answer.quizId,
