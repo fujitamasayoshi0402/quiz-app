@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.quiz.domain.DeletionImpact
 import com.quizapp.quiz.usecase.DifficultyUseCase
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -61,8 +62,13 @@ class DifficultyController(private val useCase: DifficultyUseCase) {
         useCase.update(categoryId, id, request.name, request.level, request.sortOrder, request.description),
     )
 
+    @GetMapping("/{id}/deletion-impact")
+    @Operation(operationId = "difficultyDeletionImpact", summary = "削除したときに巻き込む範囲")
+    fun deletionImpact(@PathVariable categoryId: UUID, @PathVariable id: UUID): DeletionImpact =
+        useCase.deletionImpact(categoryId, id)
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(operationId = "deleteDifficulty", summary = "難易度を削除")
+    @Operation(operationId = "deleteDifficulty", summary = "難易度を削除（その難易度のクイズも削除される）")
     fun delete(@PathVariable categoryId: UUID, @PathVariable id: UUID) = useCase.delete(categoryId, id)
 }

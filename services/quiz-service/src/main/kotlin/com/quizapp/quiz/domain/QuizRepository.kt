@@ -20,6 +20,4 @@ interface QuizRepository {
     fun findPublishedByIds(ids: List<UUID>): List<Quiz>
 
     fun save(quiz: Quiz): Quiz
-
-    fun softDelete(id: UUID): Boolean
 }

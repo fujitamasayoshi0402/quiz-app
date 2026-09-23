@@ -1,6 +1,8 @@
 package com.quizapp.quiz.usecase
 
 import com.quizapp.quiz.domain.CategoryRepository
+import com.quizapp.quiz.domain.DeletionImpact
+import com.quizapp.quiz.domain.DeletionRepository
 import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.DifficultyRepository
 import com.quizapp.tenant.TenantTransaction
@@ -18,6 +20,7 @@ import java.util.UUID
 class DifficultyUseCase(
     private val difficultyRepository: DifficultyRepository,
     private val categoryRepository: CategoryRepository,
+    private val deletion: DeletionRepository,
     private val tenantTransaction: TenantTransaction,
 ) {
     fun list(categoryId: UUID): List<Difficulty> = tenantTransaction.execute {
@@ -66,10 +69,17 @@ class DifficultyUseCase(
         )
     }
 
+    /** 削除したときに巻き込むクイズの数。 */
+    fun deletionImpact(categoryId: UUID, id: UUID): DeletionImpact = tenantTransaction.execute {
+        requireCategory(categoryId)
+        deletion.impactOfDifficulty(categoryId, id) ?: throw DifficultyNotFoundException(id)
+    }
+
+    /** その難易度を使うクイズも一緒に削除する。難易度を失ったクイズは出題も編集もできないため。 */
     fun delete(categoryId: UUID, id: UUID) = tenantTransaction.executeWithoutResult {
         requireCategory(categoryId)
         findInCategory(categoryId, id)
-        difficultyRepository.softDelete(id)
+        deletion.deleteDifficulty(id)
     }
 
     private fun requireCategory(categoryId: UUID) {

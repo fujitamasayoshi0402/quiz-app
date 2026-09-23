@@ -13,9 +13,6 @@ class CategoryRepositoryImpl(private val jdbcRepository: CategoryJdbcRepository)
 
     override fun findById(id: UUID): Category? = jdbcRepository.findActiveById(id)?.toDomain()
 
-    override fun findAllIncludingDeleted(): List<Category> =
-        jdbcRepository.findAllIncludingDeleted().map { it.toDomain() }
-
     override fun save(category: Category): Category {
         // テナントは呼び出し側から受け取らず、文脈から取る。
         // 引数で渡す形にすると、別テナントの ID を渡せる経路ができてしまう
@@ -38,8 +35,6 @@ class CategoryRepositoryImpl(private val jdbcRepository: CategoryJdbcRepository)
         }
         return jdbcRepository.save(entity).toDomain()
     }
-
-    override fun softDelete(id: UUID): Boolean = jdbcRepository.softDelete(id) > 0
 
     private fun CategoryEntity.toDomain() =
         Category(id = id, name = name, description = description, sortOrder = sortOrder)

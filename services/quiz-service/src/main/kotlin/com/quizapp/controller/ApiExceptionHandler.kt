@@ -11,6 +11,8 @@ import com.quizapp.answer.usecase.QuizNotInAttemptException
 import com.quizapp.auth.AdminRoleRequiredException
 import com.quizapp.auth.TenantAccessDeniedException
 import com.quizapp.auth.UserNotIdentifiedException
+import com.quizapp.quiz.domain.DeletedItemNotFound
+import com.quizapp.quiz.domain.RestoreBlocked
 import com.quizapp.quiz.usecase.CategoryNotFoundException
 import com.quizapp.quiz.usecase.DifficultyNotFoundException
 import com.quizapp.quiz.usecase.QuizNotFoundException
@@ -135,6 +137,25 @@ class ApiExceptionHandler {
     fun handleAdminRequired(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "この操作には管理者の権限が必要です").apply {
             title = "権限がありません"
+        }
+
+    @ExceptionHandler(DeletedItemNotFound::class)
+    fun handleDeletedItemNotFound(): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "削除済みの項目が見つかりません").apply {
+            title = "リソースが見つかりません"
+        }
+
+    /**
+     * 復活できない状態。
+     *
+     * **理由を `obstacle` で返す。** 親が削除済みなのか名前が埋まっているのかで、
+     * 利用者が次に取る操作が変わる（親を先に戻す / 既存のものを消すか改名する）。
+     */
+    @ExceptionHandler(RestoreBlocked::class)
+    fun handleRestoreBlocked(e: RestoreBlocked): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.message ?: "復活できません").apply {
+            title = "復活できません"
+            setProperty("obstacle", e.obstacle.name.lowercase())
         }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)

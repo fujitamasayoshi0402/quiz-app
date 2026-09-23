@@ -58,8 +58,6 @@ class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository) : QuizR
         return jdbcRepository.save(entity).toDomain()
     }
 
-    override fun softDelete(id: UUID): Boolean = jdbcRepository.softDelete(id) > 0
-
     private fun QuizEntity.toDomain() = Quiz(
         id = id,
         categoryId = categoryId,

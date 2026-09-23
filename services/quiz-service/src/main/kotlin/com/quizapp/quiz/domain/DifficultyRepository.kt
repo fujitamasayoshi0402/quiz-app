@@ -12,6 +12,4 @@ interface DifficultyRepository {
     fun findById(id: UUID): Difficulty?
 
     fun save(difficulty: Difficulty): Difficulty
-
-    fun softDelete(id: UUID): Boolean
 }

@@ -2,6 +2,7 @@ package com.quizapp.quiz.usecase
 
 import com.quizapp.quiz.domain.CategoryRepository
 import com.quizapp.quiz.domain.Choice
+import com.quizapp.quiz.domain.DeletionRepository
 import com.quizapp.quiz.domain.DifficultyRepository
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizRepository
@@ -15,6 +16,7 @@ class QuizUseCase(
     private val quizRepository: QuizRepository,
     private val categoryRepository: CategoryRepository,
     private val difficultyRepository: DifficultyRepository,
+    private val deletion: DeletionRepository,
     private val tenantTransaction: TenantTransaction,
 ) {
     fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> =
@@ -70,7 +72,7 @@ class QuizUseCase(
     }
 
     fun delete(id: UUID) = tenantTransaction.executeWithoutResult {
-        if (!quizRepository.softDelete(id)) throw QuizNotFoundException(id)
+        if (!deletion.deleteQuiz(id)) throw QuizNotFoundException(id)
     }
 
     /**

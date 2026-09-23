@@ -21,8 +21,4 @@ interface DifficultyJdbcRepository : CrudRepository<DifficultyEntity, UUID> {
 
     @Query("SELECT * FROM quiz.difficulties WHERE id = :id AND deleted_at IS NULL")
     fun findActiveById(id: UUID): DifficultyEntity?
-
-    @Modifying
-    @Query("UPDATE quiz.difficulties SET deleted_at = now() WHERE id = :id AND deleted_at IS NULL")
-    fun softDelete(id: UUID): Int
 }
