@@ -64,7 +64,7 @@ $$ LANGUAGE plpgsql;
 | --- | --- | --- |
 | `core` | `tenants` / `users` / `tenant_members` | 分離しない（共通） |
 | `quiz` | `categories` / `difficulties` / `quizzes` / `choices` | quiz-service |
-| `answer` | `answers` | answer-service |
+| `answer` | `attempts` / `attempt_quizzes` / `answers` | answer-service |
 
 ### スキーマをまたぐ外部キーを貼らない
 
@@ -295,6 +295,8 @@ CREATE UNIQUE INDEX choices_order_key ON quiz.choices (quiz_id, sort_order);
 | カラム | 型 | 制約 |
 | --- | --- | --- |
 | `id` | uuid | PK |
+| `tenant_id` | uuid | NOT NULL |
+| `attempt_id` | uuid | NOT NULL, FK → `answer.attempts(id, tenant_id)` |
 | `user_id` | uuid | NOT NULL, FK → `core.users(id)` |
 | `quiz_id` | uuid | NOT NULL（**外部キーなし**） |
 | `choice_id` | uuid | NOT NULL（**外部キーなし**） |
@@ -309,8 +311,9 @@ CREATE INDEX answers_user_quiz_idx ON answer.answers (user_id, quiz_id);
 CREATE INDEX answers_user_time_idx ON answer.answers (user_id, answered_at DESC);
 ```
 
-`tenant_id` を持ちません。将来テナントを公開したとき、所属していないユーザーが回答するためです
-（[ADR-0006](adr/0006-row-level-multi-tenancy.md)）。
+挑戦（`attempts`）と出題リスト（`attempt_quizzes`）も同じく `tenant_id` を持ち、
+子の `tenant_id` は複合外部キーで親の挑戦と一致させます。
+中断中の挑戦は `(tenant_id, user_id)` の部分ユニークインデックスで、**テナントごとに 1 件まで**に制限します。
 
 論理削除もしません。履歴そのものであり、削除する操作を設けないためです。
 
@@ -318,7 +321,7 @@ CREATE INDEX answers_user_time_idx ON answer.answers (user_id, answered_at DESC)
 
 ## RLS ポリシー
 
-`quiz` スキーマの全テーブルと `core.tenant_members` に適用します。
+`quiz` / `answer` スキーマの全テーブルに適用します。
 
 ```sql
 ALTER TABLE quiz.categories ENABLE ROW LEVEL SECURITY;
@@ -398,17 +401,20 @@ Spring Boot では `spring.datasource` に `quiz_app`、`spring.flyway.user` に
 削除条件はリポジトリ層の共通機構で強制し、削除済みを取得する操作は復活機能専用のメソッドに限定します
 （[ADR-0007](adr/0007-soft-delete-master-data.md)）。
 
-### answers に RLS を設定しない
+### answer スキーマも本人ではなくテナントで絞る
 
-`answers` は `tenant_id` を持たないため、テナントによる分離ができません。
-`user_id` で絞る案もありますが、ランキング（Phase 4）では他の利用者の回答を集計するため、
+ポリシーが見るのは `tenant_id` だけで、`user_id` は見ません。
+ランキング（Phase 4）では同じテナントの他の利用者の回答を集計するため、
 ポリシーで本人に限定すると機能が作れなくなります。
 
-回答の参照はアプリケーション層で制御します。
-個別の回答履歴は本人のみ、集計は匿名化した結果のみ、という区別をユースケースごとに実装します。
+**本人の挑戦かどうかはアプリケーション層で判定します。** 他人の挑戦は「存在しない」として 404 を返します。
 
-**これは RLS による保護が効かない唯一のテーブルです。** 回答を扱う実装では、
-`user_id` の条件を明示的に書く必要があります。
+当初は `tenant_id` を持たせず、`user_id` だけで制御していました。
+その結果、複数のテナントに所属する利用者では、テナント A の URL から B の挑戦を参照・終了できました（DEV-37）。
+本人確認とテナント境界は別の軸であり、前者で後者を代替できません。
+
+RLS は「アクセス先のテナント」で絞るもので、所属は問いません。
+将来テナントを公開し、所属していない利用者が回答するようになっても矛盾しません。
 
 ---
 

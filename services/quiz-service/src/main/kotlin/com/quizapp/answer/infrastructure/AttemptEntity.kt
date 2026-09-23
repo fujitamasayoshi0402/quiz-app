@@ -20,6 +20,7 @@ import java.util.UUID
 @Table(schema = "answer", name = "attempts")
 data class AttemptEntity(
     @Id val id: UUID? = null,
+    val tenantId: UUID,
     val userId: UUID,
     val categoryId: UUID? = null,
     val difficultyId: UUID? = null,
@@ -37,13 +38,15 @@ data class AttemptEntity(
  *
  * `attempt_id` と `sort_order` は Spring Data JDBC が管理するので宣言しない。
  * `quiz_id` に外部キーを貼っていないのは、answer モジュールを分離するときの障害になるため（ADR-0004）。
+ * `tenant_id` は複合外部キーの構成要素であり、親と同じ値を明示的に設定する必要がある。
  */
 @Table(schema = "answer", name = "attempt_quizzes")
-data class AttemptQuizEntity(val quizId: UUID)
+data class AttemptQuizEntity(val tenantId: UUID, val quizId: UUID)
 
 @Table(schema = "answer", name = "answers")
 data class AnswerEntity(
     @Id val id: UUID? = null,
+    val tenantId: UUID,
     val attemptId: UUID,
     val userId: UUID,
     val quizId: UUID,

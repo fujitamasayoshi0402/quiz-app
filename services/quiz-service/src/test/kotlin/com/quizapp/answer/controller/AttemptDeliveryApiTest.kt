@@ -295,17 +295,19 @@ class AttemptDeliveryApiTest {
         )
         val attemptId = TestPostgres.adminJdbcTemplate.queryForObject(
             """
-            INSERT INTO answer.attempts (user_id, scope, status, finished_at)
-            VALUES (?, 'all', 'completed', now()) RETURNING id
+            INSERT INTO answer.attempts (tenant_id, user_id, scope, status, finished_at)
+            VALUES (?, ?, 'all', 'completed', now()) RETURNING id
             """,
             UUID::class.java,
+            tenant,
             user,
         )
         TestPostgres.adminJdbcTemplate.update(
             """
-            INSERT INTO answer.answers (attempt_id, user_id, quiz_id, choice_id, is_correct)
-            VALUES (?, ?, ?, ?, true)
+            INSERT INTO answer.answers (tenant_id, attempt_id, user_id, quiz_id, choice_id, is_correct)
+            VALUES (?, ?, ?, ?, ?, true)
             """,
+            tenant,
             attemptId,
             user,
             quizId,

@@ -273,6 +273,7 @@ erDiagram
     tenants ||--o{ tenant_members : "所属"
     users ||--o{ tenant_members : "所属"
     tenants ||--o{ categories : "持つ"
+    tenants ||--o{ attempts : "持つ"
     categories ||--o{ difficulties : "持つ"
     categories ||--o{ quizzes : "分類する"
     difficulties ||--o{ quizzes : "難度を示す"
@@ -337,6 +338,7 @@ erDiagram
     }
     attempts {
         uuid id PK
+        uuid tenant_id FK
         uuid user_id FK
         uuid category_id "FK を貼らない"
         uuid difficulty_id "FK を貼らない"
@@ -347,12 +349,14 @@ erDiagram
         timestamp finished_at
     }
     attempt_quizzes {
+        uuid tenant_id FK
         uuid attempt_id FK
         uuid quiz_id "FK を貼らない"
         int sort_order "出題順"
     }
     answers {
         uuid id PK
+        uuid tenant_id FK
         uuid attempt_id FK
         uuid user_id FK
         uuid quiz_id FK
@@ -366,11 +370,12 @@ erDiagram
 
 - **`quizzes` は `categories` と `difficulties` の両方を参照します。** この 2 つは親子関係にあるため、
   組み合わせが矛盾しないことをアプリケーションか DB 制約で保証する必要があります
-- **`answers` と `attempts` は `tenant_id` を持ちません。** 将来の公開テナント対応のためです
+- **`attempts` / `attempt_quizzes` / `answers` も `tenant_id` を持ち、RLS の対象です。**
+  本人確認（`user_id`）だけでは、複数のテナントに所属する利用者の挑戦をテナントごとに区別できないためです（DEV-37）
 - **`attempts` / `attempt_quizzes` から quiz スキーマへの外部キーを貼りません。**
   `answers.quiz_id` と同じ理由で、answer モジュールを分離するときの障害になるためです（[ADR-0004](adr/0004-split-services-incrementally.md)）。
   参照先が消えうることを前提に、**再開時に出題リストを検証します**
-- **未完了の挑戦は 1 ユーザーにつき 1 件まで。** 部分ユニークインデックス（`WHERE status = 'in_progress'`）で保証します
+- **未完了の挑戦はテナントごとに 1 ユーザー 1 件まで。** 部分ユニークインデックス（`(tenant_id, user_id) WHERE status = 'in_progress'`）で保証します
 - `tenant_members` は `tenant_id` と `user_id` の組で一意になります。同じ人が複数テナントに所属できます
 - **ユニーク制約は生存行のみを対象にします。** 削除済みと同じ名前で作り直せるようにするため、
   PostgreSQL の部分インデックス（`WHERE deleted_at IS NULL`）を使います
