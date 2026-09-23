@@ -10,7 +10,7 @@ import com.quizapp.quiz.domain.DeliveredQuiz
 import com.quizapp.quiz.domain.DeliveryCriteria
 import com.quizapp.quiz.domain.DeliveryScope
 import com.quizapp.tenant.TenantTransaction
-import com.quizapp.tenant.UserContext
+import com.quizapp.auth.UserContext
 import org.springframework.stereotype.Service
 import java.util.UUID
 

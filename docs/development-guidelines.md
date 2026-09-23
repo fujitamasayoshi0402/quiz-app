@@ -128,6 +128,21 @@ Smart Commits（コミットメッセージからの課題操作）は**紐付�
   Smart Commit の構文とは並びが異なる。動作が環境に依存する書き方を規約にしない
 - ステータスの変更は Jira 上で行う
 
+### API の URL
+
+テナント配下の API は、**触れる人によってパスを分ける。**
+
+| パス | 必要な条件 |
+| --- | --- |
+| `/api/t/{slug}/admin/...` | 管理者として所属していること |
+| `/api/t/{slug}/play/...` | 所属していること |
+
+パスで判定するため、**テナント配下にエンドポイントを足したときに書き忘れても公開されない。**
+コントローラごとに注釈を付ける方式だと、付け忘れがそのまま穴になる。
+
+同じクイズでも、管理 API は正解を含み、出題 API は含まない。
+1 つの URL に両方の応答を同居させると、権限の掛け違いで正解が漏れる余地が生まれる。
+
 ### コード
 - バックエンド: レイヤード（controller / usecase / domain / infrastructure）、テストは JUnit5 + Testcontainers
 - フロント: Server Components 優先、API 呼び出しは TanStack Query、型は Zod でバリデーション
@@ -169,6 +184,33 @@ PostgreSQL は本番の Aurora とメジャーバージョンを揃えて 16 系
 タイムゾーンは本番との差異を減らすため UTC に固定している。
 
 ローカルの認証情報は開発専用のため、値を直接 `docker-compose.yml` に記載している。
+
+### 認証（Phase 1 のスタブ）
+
+Phase 3 までは `X-User-Id` ヘッダの値をそのまま利用者とみなす。
+
+```bash
+curl -H "X-User-Id: 00000000-0000-0000-0000-0000000000a1" \
+     http://localhost:8080/api/t/demo/admin/categories
+```
+
+**ロールと所属はヘッダでは指定できない。** `core.tenant_members` から引く。
+認証方式が変わっても認可の仕組みを変えずに済むよう、ロールは Cognito ではなく
+アプリケーションのデータとして持つ。ロールを切り替えたいときは所属行を変える。
+
+```sql
+INSERT INTO core.users (id, external_id, display_name)
+VALUES ('00000000-0000-0000-0000-0000000000a1', 'local-admin', 'ローカル管理者');
+
+INSERT INTO core.tenant_members (tenant_id, user_id, role)
+VALUES ('<テナントの id>', '00000000-0000-0000-0000-0000000000a1', 'admin');
+```
+
+スタブは `prod` / `stg` プロファイルでは無効になり、**それでも有効なら起動に失敗する**。
+誰にでもなりすませるため、設定の誤りが全テナントの情報漏洩に直結する。
+
+Phase 3 で差し替えるのは `auth/StubAuthenticator.kt` と `auth/StubAuthenticatorGuard.kt` の削除、
+`Authenticator` を実装する Cognito 版の追加だけ。
 
 ## 8. コスト方針
 

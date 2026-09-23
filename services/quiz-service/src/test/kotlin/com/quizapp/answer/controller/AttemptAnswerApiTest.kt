@@ -2,6 +2,7 @@ package com.quizapp.answer.controller
 
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
+import com.quizapp.support.TestAuth
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -65,6 +66,11 @@ class AttemptAnswerApiTest {
             user,
             otherUser,
         )
+        TestAuth.ensureUsers()
+        TestAuth.joinAsAdmin(tenant)
+        TestAuth.join(tenant, user, "member")
+        // 所属はしている別人。挑戦の持ち主かどうかだけを確かめたいため
+        TestAuth.join(tenant, otherUser, "member")
         fixture = PlayFixture(mockMvc, objectMapper, "hotel")
         category = fixture.category("AWS")
         difficulty = fixture.difficulty(category, "SAA", 2)
@@ -79,6 +85,7 @@ class AttemptAnswerApiTest {
         admin.update("DELETE FROM quiz.quizzes WHERE tenant_id = ?", tenant)
         admin.update("DELETE FROM quiz.difficulties WHERE tenant_id = ?", tenant)
         admin.update("DELETE FROM quiz.categories WHERE tenant_id = ?", tenant)
+        TestAuth.leaveAll(tenant)
         admin.update("DELETE FROM core.tenants WHERE id = ?", tenant)
         admin.update("DELETE FROM core.users WHERE id IN (?, ?)", user, otherUser)
     }
@@ -224,7 +231,9 @@ class AttemptAnswerApiTest {
         repeat(2) { fixture.quiz(category, difficulty, "問題 $it") }
         val attempt = startAttempt()
 
-        mockMvc.delete("/api/t/hotel/quizzes/${attempt.quizId(1)}").andExpect { status { isNoContent() } }
+        mockMvc.delete("/api/t/hotel/admin/quizzes/${attempt.quizId(1)}") {
+            header("X-User-Id", TestAuth.ADMIN.toString())
+        }.andExpect { status { isNoContent() } }
 
         // 出題リストに外部キーを貼っていないため、参照先は消えうる。件数で伝える
         mockMvc.get("/api/t/hotel/play/attempts/${attempt.id()}") { header("X-User-Id", user.toString()) }

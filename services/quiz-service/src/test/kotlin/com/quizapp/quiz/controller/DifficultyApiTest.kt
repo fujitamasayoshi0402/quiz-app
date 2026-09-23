@@ -1,6 +1,7 @@
 package com.quizapp.quiz.controller
 
 import com.quizapp.quiz.support.TestPostgres
+import com.quizapp.support.TestAuth
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -11,6 +12,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.springframework.test.web.servlet.MockHttpServletRequestDsl
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
@@ -47,6 +49,8 @@ class DifficultyApiTest {
             tenantA,
             tenantB,
         )
+        TestAuth.ensureUsers()
+        TestAuth.joinAsAdmin(tenantA, tenantB)
     }
 
     @AfterEach
@@ -57,11 +61,13 @@ class DifficultyApiTest {
             tenantB,
         )
         TestPostgres.adminJdbcTemplate.update("DELETE FROM quiz.categories WHERE tenant_id IN (?, ?)", tenantA, tenantB)
+        TestAuth.leaveAll(tenantA, tenantB)
         TestPostgres.adminJdbcTemplate.update("DELETE FROM core.tenants WHERE id IN (?, ?)", tenantA, tenantB)
     }
 
     private fun createCategory(slug: String, name: String): UUID {
-        val result = mockMvc.post("/api/t/$slug/categories") {
+        val result = mockMvc.post("/api/t/$slug/admin/categories") {
+            auth()
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"$name","sortOrder":0}"""
         }.andExpect { status { isCreated() } }.andReturn()
@@ -70,7 +76,8 @@ class DifficultyApiTest {
     }
 
     private fun createDifficulty(slug: String, categoryId: UUID, name: String, level: Int, sortOrder: Int = 0): UUID {
-        val result = mockMvc.post("/api/t/$slug/categories/$categoryId/difficulties") {
+        val result = mockMvc.post("/api/t/$slug/admin/categories/$categoryId/difficulties") {
+            auth()
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"$name","level":$level,"sortOrder":$sortOrder}"""
         }.andExpect { status { isCreated() } }.andReturn()
@@ -84,7 +91,7 @@ class DifficultyApiTest {
         val categoryId = createCategory("charlie", "AWS")
         createDifficulty("charlie", categoryId, "CLF", 1)
 
-        mockMvc.get("/api/t/charlie/categories/$categoryId/difficulties").andExpect {
+        mockMvc.get("/api/t/charlie/admin/categories/$categoryId/difficulties") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(1) }
             jsonPath("$[0].name") { value("CLF") }
@@ -100,7 +107,7 @@ class DifficultyApiTest {
         createDifficulty("charlie", categoryId, "DVA", 2, sortOrder = 2)
         createDifficulty("charlie", categoryId, "SOA", 2, sortOrder = 3)
 
-        mockMvc.get("/api/t/charlie/categories/$categoryId/difficulties").andExpect {
+        mockMvc.get("/api/t/charlie/admin/categories/$categoryId/difficulties") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(3) }
             // AWS のアソシエイト級のように、同じ難度帯に複数の種類が並ぶ体系を表現できる
@@ -118,7 +125,7 @@ class DifficultyApiTest {
         createDifficulty("charlie", categoryId, "CLF", 1)
         createDifficulty("charlie", categoryId, "SAA", 2, sortOrder = 1)
 
-        mockMvc.get("/api/t/charlie/categories/$categoryId/difficulties").andExpect {
+        mockMvc.get("/api/t/charlie/admin/categories/$categoryId/difficulties") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$[0].name") { value("CLF") }
             jsonPath("$[1].name") { value("SAA") }
@@ -134,11 +141,11 @@ class DifficultyApiTest {
         createDifficulty("charlie", aws, "CLF", 1)
         createDifficulty("charlie", auth, "初級", 1)
 
-        mockMvc.get("/api/t/charlie/categories/$aws/difficulties").andExpect {
+        mockMvc.get("/api/t/charlie/admin/categories/$aws/difficulties") { auth() }.andExpect {
             jsonPath("$.length()") { value(1) }
             jsonPath("$[0].name") { value("CLF") }
         }
-        mockMvc.get("/api/t/charlie/categories/$auth/difficulties").andExpect {
+        mockMvc.get("/api/t/charlie/admin/categories/$auth/difficulties") { auth() }.andExpect {
             jsonPath("$.length()") { value(1) }
             jsonPath("$[0].name") { value("初級") }
         }
@@ -152,7 +159,7 @@ class DifficultyApiTest {
         val clf = createDifficulty("charlie", aws, "CLF", 1)
 
         // URL 上は認証認可カテゴリの配下として AWS の難易度を指定する
-        mockMvc.get("/api/t/charlie/categories/$auth/difficulties/$clf").andExpect {
+        mockMvc.get("/api/t/charlie/admin/categories/$auth/difficulties/$clf") { auth() }.andExpect {
             status { isNotFound() }
         }
     }
@@ -164,7 +171,7 @@ class DifficultyApiTest {
 
         // 空リストではなく 404 を返す。
         // 空リストだと「カテゴリは存在するが難易度が無い」という誤った情報を与えてしまう
-        mockMvc.get("/api/t/charlie/categories/$categoryOfB/difficulties").andExpect {
+        mockMvc.get("/api/t/charlie/admin/categories/$categoryOfB/difficulties") { auth() }.andExpect {
             status { isNotFound() }
         }
     }
@@ -175,10 +182,10 @@ class DifficultyApiTest {
         val categoryId = createCategory("charlie", "AWS")
         val id = createDifficulty("charlie", categoryId, "CLF", 1)
 
-        mockMvc.delete("/api/t/charlie/categories/$categoryId/difficulties/$id")
+        mockMvc.delete("/api/t/charlie/admin/categories/$categoryId/difficulties/$id") { auth() }
             .andExpect { status { isNoContent() } }
 
-        mockMvc.get("/api/t/charlie/categories/$categoryId/difficulties").andExpect {
+        mockMvc.get("/api/t/charlie/admin/categories/$categoryId/difficulties") { auth() }.andExpect {
             jsonPath("$.length()") { value(0) }
         }
     }
@@ -188,7 +195,8 @@ class DifficultyApiTest {
     fun levelMustBePositive() {
         val categoryId = createCategory("charlie", "AWS")
 
-        mockMvc.post("/api/t/charlie/categories/$categoryId/difficulties") {
+        mockMvc.post("/api/t/charlie/admin/categories/$categoryId/difficulties") {
+            auth()
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"おかしなレベル","level":0}"""
         }.andExpect {
@@ -202,8 +210,13 @@ class DifficultyApiTest {
     fun unknownCategoryReturnsNotFound() {
         val unknown = UUID.randomUUID()
 
-        mockMvc.get("/api/t/charlie/categories/$unknown/difficulties").andExpect {
+        mockMvc.get("/api/t/charlie/admin/categories/$unknown/difficulties") { auth() }.andExpect {
             status { isNotFound() }
         }
+    }
+
+    /** テナント配下のエンドポイントは所属していないと触れない。既定は共有管理者。 */
+    private fun MockHttpServletRequestDsl.auth(user: UUID = TestAuth.ADMIN) {
+        header("X-User-Id", user.toString())
     }
 }

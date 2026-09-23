@@ -2,6 +2,7 @@ package com.quizapp.quiz.controller
 
 import tools.jackson.databind.ObjectMapper
 import com.quizapp.quiz.support.TestPostgres
+import com.quizapp.support.TestAuth
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -13,6 +14,7 @@ import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.springframework.test.web.servlet.MockHttpServletRequestDsl
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
@@ -53,6 +55,8 @@ class CategoryApiTest {
             tenantA,
             tenantB,
         )
+        TestAuth.ensureUsers()
+        TestAuth.joinAsAdmin(tenantA, tenantB)
     }
 
     @AfterEach
@@ -63,12 +67,14 @@ class CategoryApiTest {
             tenantA,
             tenantB,
         )
+        TestAuth.leaveAll(tenantA, tenantB)
         TestPostgres.adminJdbcTemplate.update("DELETE FROM core.tenants WHERE id IN (?, ?)", tenantA, tenantB)
     }
 
     private fun createCategory(slug: String, name: String, sortOrder: Int = 0): UUID {
         val body = objectMapper.writeValueAsString(mapOf("name" to name, "sortOrder" to sortOrder))
-        val result = mockMvc.post("/api/t/$slug/categories") {
+        val result = mockMvc.post("/api/t/$slug/admin/categories") {
+            auth()
             contentType = MediaType.APPLICATION_JSON
             content = body
         }.andExpect { status { isCreated() } }.andReturn()
@@ -82,7 +88,7 @@ class CategoryApiTest {
     fun createAndList() {
         createCategory("alpha", "AWS")
 
-        mockMvc.get("/api/t/alpha/categories").andExpect {
+        mockMvc.get("/api/t/alpha/admin/categories") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(1) }
             jsonPath("$[0].name") { value("AWS") }
@@ -95,7 +101,7 @@ class CategoryApiTest {
         createCategory("alpha", "あとに出る", sortOrder = 2)
         createCategory("alpha", "さきに出る", sortOrder = 1)
 
-        mockMvc.get("/api/t/alpha/categories").andExpect {
+        mockMvc.get("/api/t/alpha/admin/categories") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$[0].name") { value("さきに出る") }
             jsonPath("$[1].name") { value("あとに出る") }
@@ -108,7 +114,7 @@ class CategoryApiTest {
         createCategory("alpha", "アルファのカテゴリ")
         createCategory("bravo", "ブラボーのカテゴリ")
 
-        mockMvc.get("/api/t/alpha/categories").andExpect {
+        mockMvc.get("/api/t/alpha/admin/categories") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(1) }
             jsonPath("$[0].name") { value("アルファのカテゴリ") }
@@ -120,7 +126,7 @@ class CategoryApiTest {
     fun cannotReadAnotherTenantCategory() {
         val idOfB = createCategory("bravo", "ブラボーのカテゴリ")
 
-        mockMvc.get("/api/t/alpha/categories/$idOfB").andExpect { status { isNotFound() } }
+        mockMvc.get("/api/t/alpha/admin/categories/$idOfB") { auth() }.andExpect { status { isNotFound() } }
     }
 
     @Test
@@ -128,7 +134,8 @@ class CategoryApiTest {
     fun cannotUpdateAnotherTenantCategory() {
         val idOfB = createCategory("bravo", "ブラボーのカテゴリ")
 
-        mockMvc.put("/api/t/alpha/categories/$idOfB") {
+        mockMvc.put("/api/t/alpha/admin/categories/$idOfB") {
+            auth()
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"乗っ取り","sortOrder":0}"""
         }.andExpect { status { isNotFound() } }
@@ -139,9 +146,9 @@ class CategoryApiTest {
     fun deleteRemovesFromList() {
         val id = createCategory("alpha", "消す対象")
 
-        mockMvc.delete("/api/t/alpha/categories/$id").andExpect { status { isNoContent() } }
+        mockMvc.delete("/api/t/alpha/admin/categories/$id") { auth() }.andExpect { status { isNoContent() } }
 
-        mockMvc.get("/api/t/alpha/categories").andExpect {
+        mockMvc.get("/api/t/alpha/admin/categories") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(0) }
         }
@@ -151,7 +158,7 @@ class CategoryApiTest {
     @DisplayName("削除は論理削除で、行そのものは残る")
     fun deleteIsSoftDelete() {
         val id = createCategory("alpha", "消す対象")
-        mockMvc.delete("/api/t/alpha/categories/$id").andExpect { status { isNoContent() } }
+        mockMvc.delete("/api/t/alpha/admin/categories/$id") { auth() }.andExpect { status { isNoContent() } }
 
         // 行が残っているかは RLS を通さない接続で確認する
         val deletedAt = TestPostgres.adminJdbcTemplate.queryForObject(
@@ -165,7 +172,8 @@ class CategoryApiTest {
     @Test
     @DisplayName("名前が空なら 400 を返す")
     fun blankNameIsRejected() {
-        mockMvc.post("/api/t/alpha/categories") {
+        mockMvc.post("/api/t/alpha/admin/categories") {
+            auth()
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"","sortOrder":0}"""
         }.andExpect {
@@ -177,6 +185,11 @@ class CategoryApiTest {
     @Test
     @DisplayName("存在しないテナントなら 404 を返す")
     fun unknownTenantReturnsNotFound() {
-        mockMvc.get("/api/t/unknown/categories").andExpect { status { isNotFound() } }
+        mockMvc.get("/api/t/unknown/admin/categories") { auth() }.andExpect { status { isNotFound() } }
+    }
+
+    /** テナント配下のエンドポイントは所属していないと触れない。既定は共有管理者。 */
+    private fun MockHttpServletRequestDsl.auth(user: UUID = TestAuth.ADMIN) {
+        header("X-User-Id", user.toString())
     }
 }

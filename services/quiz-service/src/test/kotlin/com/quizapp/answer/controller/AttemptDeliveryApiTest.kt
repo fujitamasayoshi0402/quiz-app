@@ -2,6 +2,7 @@ package com.quizapp.answer.controller
 
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
+import com.quizapp.support.TestAuth
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -58,6 +59,10 @@ class AttemptDeliveryApiTest {
             "INSERT INTO core.users (id, external_id, display_name) VALUES (?, 'stub-user', 'テスト利用者')",
             user,
         )
+        TestAuth.ensureUsers()
+        TestAuth.joinAsAdmin(tenant)
+        // 出題を受ける利用者は一般ユーザーとして所属させる
+        TestAuth.join(tenant, user, "member")
         fixture = PlayFixture(mockMvc, objectMapper, "golf")
         awsCategory = fixture.category("AWS")
         authCategory = fixture.category("認証認可")
@@ -76,6 +81,7 @@ class AttemptDeliveryApiTest {
         admin.update("DELETE FROM quiz.quizzes WHERE tenant_id = ?", tenant)
         admin.update("DELETE FROM quiz.difficulties WHERE tenant_id = ?", tenant)
         admin.update("DELETE FROM quiz.categories WHERE tenant_id = ?", tenant)
+        TestAuth.leaveAll(tenant)
         admin.update("DELETE FROM core.tenants WHERE id = ?", tenant)
         admin.update("DELETE FROM core.users WHERE id = ?", user)
     }
