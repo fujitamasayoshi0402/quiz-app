@@ -143,6 +143,38 @@ Smart Commits（コミットメッセージからの課題操作）は**紐付�
 同じクイズでも、管理 API は正解を含み、出題 API は含まない。
 1 つの URL に両方の応答を同居させると、権限の掛け違いで正解が漏れる余地が生まれる。
 
+### lint
+
+整形は ktlint、設計の匂いは detekt が見る。役割が違うので両方走らせる。
+
+```bash
+./gradlew :services:quiz-service:ktlintFormat   # 自動整形
+./gradlew :services:quiz-service:ktlintCheck :services:quiz-service:detekt
+```
+
+ktlint の規約は `.editorconfig` が持つ。**`ktlint_code_style` は `intellij_idea` にしている。**
+既定の `ktlint_official` は改行の入れ方が強く、IDE の整形結果と食い違うため。
+エディタと lint が別々の形を要求する状態にしない。
+
+detekt で既定から変えたルールは `config/detekt.yml` にあり、それぞれ理由を書いてある。
+detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt のクラスパスだけ 2.0 系に固定**している。
+
+### CI
+
+`.github/workflows/ci.yml` が PR と `develop` / `main` への push で動く。
+
+| ジョブ | 内容 |
+| --- | --- |
+| `changes` | 変更パスを見て後続を出し分ける |
+| `backend` | ktlint / detekt → test（Testcontainers）→ bootJar |
+| `frontend` | 型の作り直しに差が出ないか → 型チェック |
+| `ci` | 先行ジョブの結果を集約する |
+
+**Ruleset の必須チェックには `ci` だけを指定する。** ジョブを足すたびに設定を触らずに済み、
+パスの出し分けでスキップされたジョブが「報告されないまま待ち続ける」状態にもならない。
+
+ツールのバージョンは CI でも `.mise.toml` から取る。CI 側で別に指定すると二重管理になる。
+
 ### OpenAPI
 
 定義は `docs/api/openapi.yaml` にある。**手で書かない。** コードから生成して固定している。
@@ -158,6 +190,15 @@ pnpm --filter web generate:api
 
 フロントの型（`apps/web/src/lib/api/schema.d.ts`）も生成物で、リポジトリに持つ。
 生成し直さないと差分が残るため、CI で検出できる。
+
+起動中は Swagger UI から定義を読める。
+
+```
+http://localhost:8080/swagger-ui.html
+```
+
+**環境で出し分けない。** リポジトリが Public で定義もコミットしてある以上、UI を隠しても何も守れない。
+「試す」操作も認証を通るため、公開される範囲は API そのものと変わらない。
 
 ### コード
 - バックエンド: レイヤード（controller / usecase / domain / infrastructure）、テストは JUnit5 + Testcontainers

@@ -8,12 +8,12 @@ import com.quizapp.answer.usecase.InvalidChoiceException
 import com.quizapp.answer.usecase.NoQuizAvailableException
 import com.quizapp.answer.usecase.QuizNoLongerAvailableException
 import com.quizapp.answer.usecase.QuizNotInAttemptException
-import com.quizapp.quiz.usecase.CategoryNotFoundException
-import com.quizapp.quiz.usecase.DifficultyNotFoundException
-import com.quizapp.quiz.usecase.QuizNotFoundException
 import com.quizapp.auth.AdminRoleRequiredException
 import com.quizapp.auth.TenantAccessDeniedException
 import com.quizapp.auth.UserNotIdentifiedException
+import com.quizapp.quiz.usecase.CategoryNotFoundException
+import com.quizapp.quiz.usecase.DifficultyNotFoundException
+import com.quizapp.quiz.usecase.QuizNotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
@@ -24,6 +24,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 
 /**
  * エラー応答を RFC 9457 の Problem Details で返す。
+ *
+ * 例外そのものを使わないハンドラは引数を取らない。
+ * `@ExceptionHandler` に型を書いてあれば Spring は引数なしのメソッドを呼べる。
+ * 使わない引数を並べると、**どのハンドラが例外の中身を見ているのかが読み取れなくなる。**
  */
 @RestControllerAdvice
 class ApiExceptionHandler {
@@ -31,19 +35,19 @@ class ApiExceptionHandler {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @ExceptionHandler(CategoryNotFoundException::class)
-    fun handleCategoryNotFound(e: CategoryNotFoundException): ProblemDetail =
+    fun handleCategoryNotFound(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定されたカテゴリは存在しません").apply {
             title = "リソースが見つかりません"
         }
 
     @ExceptionHandler(QuizNotFoundException::class)
-    fun handleQuizNotFound(e: QuizNotFoundException): ProblemDetail =
+    fun handleQuizNotFound(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定されたクイズは存在しません").apply {
             title = "リソースが見つかりません"
         }
 
     @ExceptionHandler(DifficultyNotFoundException::class)
-    fun handleDifficultyNotFound(e: DifficultyNotFoundException): ProblemDetail =
+    fun handleDifficultyNotFound(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定された難易度は存在しません").apply {
             title = "リソースが見つかりません"
         }
@@ -64,13 +68,13 @@ class ApiExceptionHandler {
         }
 
     @ExceptionHandler(AttemptNotFoundException::class)
-    fun handleAttemptNotFound(e: AttemptNotFoundException): ProblemDetail =
+    fun handleAttemptNotFound(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定された挑戦は存在しません").apply {
             title = "リソースが見つかりません"
         }
 
     @ExceptionHandler(AttemptAlreadyFinishedException::class)
-    fun handleAttemptFinished(e: AttemptAlreadyFinishedException): ProblemDetail =
+    fun handleAttemptFinished(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "この挑戦はすでに終了しています").apply {
             title = "操作できない状態です"
         }
@@ -81,11 +85,10 @@ class ApiExceptionHandler {
      * 404 にしない。テナントや URL の誤りと区別できず、画面の出し分けができなくなる。
      */
     @ExceptionHandler(NoQuizAvailableException::class)
-    fun handleNoQuiz(e: NoQuizAvailableException): ProblemDetail =
-        ProblemDetail.forStatusAndDetail(
-            HttpStatus.UNPROCESSABLE_ENTITY,
-            "条件に合うクイズがありません。条件を変えてください",
-        ).apply { title = "出題できるクイズがありません" }
+    fun handleNoQuiz(): ProblemDetail = ProblemDetail.forStatusAndDetail(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        "条件に合うクイズがありません。条件を変えてください",
+    ).apply { title = "出題できるクイズがありません" }
 
     @ExceptionHandler(QuizNotInAttemptException::class, InvalidChoiceException::class)
     fun handleInvalidAnswer(e: RuntimeException): ProblemDetail =
@@ -95,20 +98,20 @@ class ApiExceptionHandler {
 
     /** 出題後にクイズが削除・非公開になった。 */
     @ExceptionHandler(QuizNoLongerAvailableException::class)
-    fun handleQuizGone(e: QuizNoLongerAvailableException): ProblemDetail =
+    fun handleQuizGone(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "このクイズは出題できなくなりました").apply {
             title = "クイズが変更されました"
         }
 
     @ExceptionHandler(DuplicateAnswerException::class)
-    fun handleDuplicateAnswer(e: DuplicateAnswerException): ProblemDetail =
+    fun handleDuplicateAnswer(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "このクイズにはすでに回答しています").apply {
             title = "操作できない状態です"
         }
 
     /** スタブ認証では `X-User-Id` ヘッダが無い場合にあたる。Phase 3 で JWT に差し替える。 */
     @ExceptionHandler(UserNotIdentifiedException::class)
-    fun handleUserNotIdentified(e: UserNotIdentifiedException): ProblemDetail =
+    fun handleUserNotIdentified(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "利用者を特定できません").apply {
             title = "認証が必要です"
         }
@@ -120,7 +123,7 @@ class ApiExceptionHandler {
      * その slug のテナントが実在することが分かってしまう。
      */
     @ExceptionHandler(TenantAccessDeniedException::class)
-    fun handleTenantAccessDenied(e: TenantAccessDeniedException): ProblemDetail {
+    fun handleTenantAccessDenied(): ProblemDetail {
         log.warn("所属していないテナントへのアクセスを拒否しました")
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定されたテナントは存在しません").apply {
             title = "リソースが見つかりません"
@@ -129,7 +132,7 @@ class ApiExceptionHandler {
 
     /** 所属はしているが管理者ではない。テナントの存在は既知なので 403 で返す。 */
     @ExceptionHandler(AdminRoleRequiredException::class)
-    fun handleAdminRequired(e: AdminRoleRequiredException): ProblemDetail =
+    fun handleAdminRequired(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "この操作には管理者の権限が必要です").apply {
             title = "権限がありません"
         }

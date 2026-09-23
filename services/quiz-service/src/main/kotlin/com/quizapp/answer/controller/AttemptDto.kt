@@ -36,7 +36,4 @@ data class StartAttemptRequest(
     )
 }
 
-data class AnswerRequest(
-    val quizId: UUID,
-    val choiceId: UUID,
-)
+data class AnswerRequest(val quizId: UUID, val choiceId: UUID)

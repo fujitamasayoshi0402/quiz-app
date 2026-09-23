@@ -7,9 +7,7 @@ import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
-class DifficultyRepositoryImpl(
-    private val jdbcRepository: DifficultyJdbcRepository,
-) : DifficultyRepository {
+class DifficultyRepositoryImpl(private val jdbcRepository: DifficultyJdbcRepository) : DifficultyRepository {
 
     override fun findByCategoryId(categoryId: UUID): List<Difficulty> =
         jdbcRepository.findActiveByCategoryId(categoryId).map { it.toDomain() }

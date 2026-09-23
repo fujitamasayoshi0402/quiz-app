@@ -1,0 +1,22 @@
+# detekt の既定から変えるところだけを書く（buildUponDefaultConfig = true）。
+# 既定をまるごと写すと、detekt を上げたときに新しいルールが増えなくなる。
+
+performance:
+  # runApplication<QuizServiceApplication>(*args) は Spring Boot の Kotlin での定石で、
+  # スプレッド演算子を避ける書き方がない。配列のコピーもプロセス起動時の 1 回きり
+  SpreadOperator:
+    active: false
+
+complexity:
+  # 例外ハンドラとユースケースは「1 ケース 1 メソッド」で並ぶ。
+  # 数で割ると、関係のない例外が同じクラスに同居する分け方になり、かえって読みにくい。
+  # 20 を超えたら、それは責務が混ざっているサインとして扱う
+  TooManyFunctions:
+    thresholdInClasses: 20
+
+  # CRUD のユースケースは、エンティティの項目をそのまま受け取る。
+  # ここでパラメータオブジェクトを作っても DTO を写すだけになる。
+  # 8 個を超えるなら、引数ではなく型の設計を見直す合図とする
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 8

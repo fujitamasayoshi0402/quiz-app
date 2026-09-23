@@ -84,9 +84,7 @@ class QuizUseCase(
         categoryRepository.findById(categoryId) ?: throw CategoryNotFoundException(categoryId)
         val difficulty = difficultyRepository.findById(difficultyId)
             ?: throw DifficultyNotFoundException(difficultyId)
-        if (difficulty.categoryId != categoryId) {
-            throw IllegalArgumentException("指定された難易度はこのカテゴリのものではありません")
-        }
+        require(difficulty.categoryId == categoryId) { "指定された難易度はこのカテゴリのものではありません" }
     }
 }
 

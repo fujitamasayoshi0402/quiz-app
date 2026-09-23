@@ -3,6 +3,20 @@ plugins {
     kotlin("plugin.spring") version "2.3.21"
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
+    // 整形の規約。.editorconfig をそのまま読むので、設定を二重に持たない
+    id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
+    // 静的解析。整形は ktlint、設計の匂いは detekt と役割を分ける
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
+}
+
+ktlint {
+    version = "1.8.0"
+}
+
+detekt {
+    // 既定のルールに乗せて、合わないところだけ config で上書きする
+    buildUponDefaultConfig = true
+    config.setFrom(rootProject.file("config/detekt.yml"))
 }
 
 group = "com.quizapp"
@@ -19,6 +33,12 @@ repositories {
 }
 
 dependencies {
+    // detekt 1.23.8 は Kotlin 2.0 でコンパイルされており、2.3 のままでは起動を拒否する。
+    // detekt 専用のクラスパスだけ 2.0 系に固定する。
+    // このとき既定のクラスパスごと置き換わるため、CLI 本体も明示する必要がある
+    detekt("io.gitlab.arturbosch.detekt:detekt-cli:1.23.8")
+    detekt("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
+
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -35,9 +55,8 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
 
     // OpenAPI 定義をコードから生成する（ADR-0010）。
-    // 3.x が Spring Boot 4 系の対応版。2.x は Boot 3 までなので上げられない。
-    // Swagger UI は入れない。定義は docs/api に出力してリポジトリで持つ
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.1.1")
+    // 3.x が Spring Boot 4 系の対応版。2.x は Boot 3 までなので上げられない
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
 
     runtimeOnly("org.postgresql:postgresql")
 

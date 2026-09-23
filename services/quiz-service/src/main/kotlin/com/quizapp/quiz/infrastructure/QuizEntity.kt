@@ -41,9 +41,4 @@ data class QuizEntity(
  * 全削除・全挿入する）。出題中にクイズが編集された場合は回答が失敗しうる。
  */
 @Table(schema = "quiz", name = "choices")
-data class ChoiceEntity(
-    @Id val id: UUID? = null,
-    val tenantId: UUID,
-    val body: String,
-    val isCorrect: Boolean,
-)
+data class ChoiceEntity(@Id val id: UUID? = null, val tenantId: UUID, val body: String, val isCorrect: Boolean)

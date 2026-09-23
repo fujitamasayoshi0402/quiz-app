@@ -1,17 +1,17 @@
 package com.quizapp.answer.usecase
 
-import io.swagger.v3.oas.annotations.media.Schema
 import com.quizapp.answer.domain.Answer
 import com.quizapp.answer.domain.Attempt
 import com.quizapp.answer.domain.AttemptRepository
 import com.quizapp.answer.domain.AttemptStatus
 import com.quizapp.answer.domain.QuizCatalog
+import com.quizapp.auth.UserContext
 import com.quizapp.quiz.domain.DeliveredChoice
 import com.quizapp.quiz.domain.DeliveredQuiz
 import com.quizapp.quiz.domain.DeliveryCriteria
 import com.quizapp.quiz.domain.DeliveryScope
 import com.quizapp.tenant.TenantTransaction
-import com.quizapp.auth.UserContext
+import io.swagger.v3.oas.annotations.media.Schema
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -33,28 +33,27 @@ class AttemptUseCase(
      * 中断中の挑戦があれば [AttemptInProgressException] を投げ、再開するか破棄するかを選ばせる。
      * 黙って破棄すると、解きかけの記録が予告なく消える。
      */
-    fun start(criteria: DeliveryCriteria, discardInProgress: Boolean): AttemptView =
-        tenantTransaction.execute {
-            val userId = UserContext.require()
+    fun start(criteria: DeliveryCriteria, discardInProgress: Boolean): AttemptView = tenantTransaction.execute {
+        val userId = UserContext.require()
 
-            repository.findInProgress(userId)?.let { existing ->
-                if (!discardInProgress) throw AttemptInProgressException(summarize(existing))
-                repository.finish(requireNotNull(existing.id), AttemptStatus.ABANDONED)
-            }
-
-            val quizzes = catalog.select(criteria, userId)
-            if (quizzes.isEmpty()) throw NoQuizAvailableException()
-
-            val attempt = repository.create(Attempt.start(userId, criteria, quizzes.map { it.id }))
-            AttemptView(
-                id = requireNotNull(attempt.id),
-                status = attempt.status.label(),
-                scope = attempt.scope.label(),
-                quizzes = quizzes,
-                answeredQuizIds = emptyList(),
-                excludedCount = 0,
-            )
+        repository.findInProgress(userId)?.let { existing ->
+            if (!discardInProgress) throw AttemptInProgressException(summarize(existing))
+            repository.finish(requireNotNull(existing.id), AttemptStatus.ABANDONED)
         }
+
+        val quizzes = catalog.select(criteria, userId)
+        if (quizzes.isEmpty()) throw NoQuizAvailableException()
+
+        val attempt = repository.create(Attempt.start(userId, criteria, quizzes.map { it.id }))
+        AttemptView(
+            id = requireNotNull(attempt.id),
+            status = attempt.status.label(),
+            scope = attempt.scope.label(),
+            quizzes = quizzes,
+            answeredQuizIds = emptyList(),
+            excludedCount = 0,
+        )
+    }
 
     /** 中断中の挑戦。なければ null。 */
     fun current(): AttemptView? = tenantTransaction.executeNullable {
@@ -70,34 +69,33 @@ class AttemptUseCase(
      * まとめて見せる模試モードでは、クライアントが受け取った解説を保持して結果画面で出す。
      * 方式ごとに応答を変えると、採点の経路が 2 本になる。
      */
-    fun answer(attemptId: UUID, quizId: UUID, choiceId: UUID): AnswerResult =
-        tenantTransaction.execute {
-            val attempt = load(attemptId)
-            if (!attempt.isInProgress) throw AttemptAlreadyFinishedException()
-            if (quizId !in attempt.quizIds) throw QuizNotInAttemptException()
+    fun answer(attemptId: UUID, quizId: UUID, choiceId: UUID): AnswerResult = tenantTransaction.execute {
+        val attempt = load(attemptId)
+        if (!attempt.isInProgress) throw AttemptAlreadyFinishedException()
+        if (quizId !in attempt.quizIds) throw QuizNotInAttemptException()
 
-            val key = catalog.findAnswerKeys(listOf(quizId))[quizId] ?: throw QuizNoLongerAvailableException()
-            // 他のクイズの選択肢 ID を渡された場合と、出題後にクイズが編集された場合の両方をここで弾く
-            if (choiceId !in key.choiceIds) throw InvalidChoiceException()
+        val key = catalog.findAnswerKeys(listOf(quizId))[quizId] ?: throw QuizNoLongerAvailableException()
+        // 他のクイズの選択肢 ID を渡された場合と、出題後にクイズが編集された場合の両方をここで弾く
+        if (choiceId !in key.choiceIds) throw InvalidChoiceException()
 
-            repository.record(
-                Answer(
-                    attemptId = attemptId,
-                    userId = attempt.userId,
-                    quizId = quizId,
-                    choiceId = choiceId,
-                    isCorrect = choiceId == key.correctChoiceId,
-                ),
-            )
-
-            AnswerResult(
+        repository.record(
+            Answer(
+                attemptId = attemptId,
+                userId = attempt.userId,
+                quizId = quizId,
+                choiceId = choiceId,
                 isCorrect = choiceId == key.correctChoiceId,
-                correctChoiceId = key.correctChoiceId,
-                explanation = key.explanation,
-                answeredCount = repository.findAnswers(attemptId).size,
-                totalCount = attempt.quizIds.size,
-            )
-        }
+            ),
+        )
+
+        AnswerResult(
+            isCorrect = choiceId == key.correctChoiceId,
+            correctChoiceId = key.correctChoiceId,
+            explanation = key.explanation,
+            answeredCount = repository.findAnswers(attemptId).size,
+            totalCount = attempt.quizIds.size,
+        )
+    }
 
     /**
      * 挑戦を終えて結果を返す。
@@ -245,14 +243,9 @@ data class QuizResult(
     val explanation: String,
 )
 
-data class AttemptSummary(
-    val id: UUID,
-    val totalCount: Int,
-    val answeredCount: Int,
-)
+data class AttemptSummary(val id: UUID, val totalCount: Int, val answeredCount: Int)
 
-class AttemptInProgressException(val summary: AttemptSummary) :
-    RuntimeException("中断中の挑戦があります: ${summary.id}")
+class AttemptInProgressException(val summary: AttemptSummary) : RuntimeException("中断中の挑戦があります: ${summary.id}")
 
 class AttemptNotFoundException : RuntimeException("挑戦が見つかりません")
 
@@ -270,5 +263,4 @@ class QuizNoLongerAvailableException : RuntimeException("このクイズは出�
  * 他のクイズの ID を渡された場合と、**出題後にクイズが編集されて選択肢 ID が変わった**場合を
  * 区別できない。メッセージは後者を想定して、再読み込みを促す形にしている。
  */
-class InvalidChoiceException :
-    RuntimeException("選択肢が正しくありません。クイズが編集された可能性があります。画面を読み込み直してください")
+class InvalidChoiceException : RuntimeException("選択肢が正しくありません。クイズが編集された可能性があります。画面を読み込み直してください")

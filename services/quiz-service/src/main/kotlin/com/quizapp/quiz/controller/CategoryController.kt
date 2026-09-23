@@ -1,8 +1,8 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.quiz.usecase.CategoryUseCase
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
-import com.quizapp.quiz.usecase.CategoryUseCase
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -39,17 +39,13 @@ class CategoryController(private val useCase: CategoryUseCase) {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(operationId = "createCategory", summary = "カテゴリを作成")
-    fun create(@Valid @RequestBody request: CreateCategoryRequest): CategoryResponse =
-        CategoryResponse.from(
-            useCase.create(request.name, request.description, request.sortOrder),
-        )
+    fun create(@Valid @RequestBody request: CreateCategoryRequest): CategoryResponse = CategoryResponse.from(
+        useCase.create(request.name, request.description, request.sortOrder),
+    )
 
     @PutMapping("/{id}")
     @Operation(operationId = "updateCategory", summary = "カテゴリを更新")
-    fun update(
-        @PathVariable id: UUID,
-        @Valid @RequestBody request: UpdateCategoryRequest,
-    ): CategoryResponse =
+    fun update(@PathVariable id: UUID, @Valid @RequestBody request: UpdateCategoryRequest): CategoryResponse =
         CategoryResponse.from(
             useCase.update(id, request.name, request.description, request.sortOrder),
         )

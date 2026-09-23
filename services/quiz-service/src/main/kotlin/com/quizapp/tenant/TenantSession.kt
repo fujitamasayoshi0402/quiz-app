@@ -36,9 +36,8 @@ class TenantSession(private val jdbcTemplate: JdbcTemplate) {
     fun applyCurrent() = apply(TenantContext.require())
 
     /** 現在の接続に設定されている値。検証とデバッグに使う。 */
-    fun current(): String? =
-        jdbcTemplate.queryForObject(
-            "SELECT nullif(current_setting('app.tenant_id', true), '')",
-            String::class.java,
-        )
+    fun current(): String? = jdbcTemplate.queryForObject(
+        "SELECT nullif(current_setting('app.tenant_id', true), '')",
+        String::class.java,
+    )
 }

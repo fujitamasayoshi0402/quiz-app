@@ -49,10 +49,9 @@ class TenantResolutionFilter(private val jdbcTemplate: JdbcTemplate) : OncePerRe
         return if (index >= 0 && index + 1 < segments.size) segments[index + 1] else null
     }
 
-    private fun findTenantId(slug: String): UUID? =
-        jdbcTemplate.query(
-            "SELECT id FROM core.tenants WHERE slug = ? AND deleted_at IS NULL",
-            { rs, _ -> rs.getObject("id", UUID::class.java) },
-            slug,
-        ).firstOrNull()
+    private fun findTenantId(slug: String): UUID? = jdbcTemplate.query(
+        "SELECT id FROM core.tenants WHERE slug = ? AND deleted_at IS NULL",
+        { rs, _ -> rs.getObject("id", UUID::class.java) },
+        slug,
+    ).firstOrNull()
 }

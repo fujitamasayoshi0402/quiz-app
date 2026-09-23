@@ -11,10 +11,8 @@ import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
-class AttemptRepositoryImpl(
-    private val attempts: AttemptJdbcRepository,
-    private val answers: AnswerJdbcRepository,
-) : AttemptRepository {
+class AttemptRepositoryImpl(private val attempts: AttemptJdbcRepository, private val answers: AnswerJdbcRepository) :
+    AttemptRepository {
 
     override fun create(attempt: Attempt): Attempt {
         val entity = AttemptEntity(
@@ -33,8 +31,7 @@ class AttemptRepositoryImpl(
 
     override fun findInProgress(userId: UUID): Attempt? = attempts.findInProgress(userId)?.toDomain()
 
-    override fun finish(id: UUID, status: AttemptStatus): Boolean =
-        attempts.finish(id, status.name.lowercase()) > 0
+    override fun finish(id: UUID, status: AttemptStatus): Boolean = attempts.finish(id, status.name.lowercase()) > 0
 
     override fun record(answer: Answer): Answer {
         val entity = AnswerEntity(
@@ -49,12 +46,11 @@ class AttemptRepositoryImpl(
         } catch (e: DuplicateKeyException) {
             // (attempt_id, quiz_id) のユニークインデックス。
             // 先に SELECT で確認する形にすると同時実行で抜けるため、DB の制約を正とする
-            throw DuplicateAnswerException(answer.quizId)
+            throw DuplicateAnswerException(answer.quizId, e)
         }
     }
 
-    override fun findAnswers(attemptId: UUID): List<Answer> =
-        answers.findByAttemptId(attemptId).map { it.toDomain() }
+    override fun findAnswers(attemptId: UUID): List<Answer> = answers.findByAttemptId(attemptId).map { it.toDomain() }
 
     private fun AttemptEntity.toDomain() = Attempt(
         id = id,

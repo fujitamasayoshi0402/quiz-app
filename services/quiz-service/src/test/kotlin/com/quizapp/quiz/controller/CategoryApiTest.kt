@@ -1,6 +1,5 @@
 package com.quizapp.quiz.controller
 
-import tools.jackson.databind.ObjectMapper
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.TestAuth
 import org.junit.jupiter.api.AfterEach
@@ -8,10 +7,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockHttpServletRequestDsl
@@ -20,6 +18,7 @@ import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.put
+import tools.jackson.databind.ObjectMapper
 import java.time.Instant
 import java.util.UUID
 
@@ -40,8 +39,6 @@ class CategoryApiTest {
     }
 
     @Autowired private lateinit var mockMvc: MockMvc
-
-    @Autowired private lateinit var jdbcTemplate: JdbcTemplate
 
     @Autowired private lateinit var objectMapper: ObjectMapper
 

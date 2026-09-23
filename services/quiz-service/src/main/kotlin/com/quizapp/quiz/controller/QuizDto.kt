@@ -1,9 +1,9 @@
 package com.quizapp.quiz.controller
 
-import io.swagger.v3.oas.annotations.media.Schema
 import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizStatus
+import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size

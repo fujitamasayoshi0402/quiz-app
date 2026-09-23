@@ -1,5 +1,6 @@
 package com.quizapp.tenant
 
+import com.quizapp.quiz.support.TestPostgres
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
@@ -12,7 +13,6 @@ import org.springframework.jdbc.BadSqlGrammarException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
-import com.quizapp.quiz.support.TestPostgres
 import org.springframework.transaction.support.TransactionTemplate
 import java.util.UUID
 

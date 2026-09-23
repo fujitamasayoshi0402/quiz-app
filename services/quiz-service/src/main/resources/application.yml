@@ -37,6 +37,11 @@ springdoc:
   writer-with-order-by-keys: true
   api-docs:
     path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    # 表示順を定義の出現順ではなく名前順にする。エンドポイントを足しても並びが動かない
+    tags-sorter: alpha
+    operations-sorter: alpha
 
 server:
   port: 8080

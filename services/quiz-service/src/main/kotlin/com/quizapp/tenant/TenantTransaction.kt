@@ -19,11 +19,10 @@ class TenantTransaction(
     private val transactionTemplate: TransactionTemplate,
     private val tenantSession: TenantSession,
 ) {
-    fun <T : Any> execute(block: () -> T): T =
-        transactionTemplate.execute {
-            tenantSession.applyCurrent()
-            block()
-        }
+    fun <T : Any> execute(block: () -> T): T = transactionTemplate.execute {
+        tenantSession.applyCurrent()
+        block()
+    }
 
     /**
      * 結果が null になりうる処理で使う。
@@ -31,11 +30,10 @@ class TenantTransaction(
      * 「中断中の挑戦を探す」のように、見つからないことが正常な操作がある。
      * [execute] は非 null を前提にしているため分けている。
      */
-    fun <T> executeNullable(block: () -> T?): T? =
-        transactionTemplate.execute {
-            tenantSession.applyCurrent()
-            block()
-        }
+    fun <T> executeNullable(block: () -> T?): T? = transactionTemplate.execute {
+        tenantSession.applyCurrent()
+        block()
+    }
 
     fun executeWithoutResult(block: () -> Unit) {
         transactionTemplate.executeWithoutResult {

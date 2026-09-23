@@ -16,10 +16,7 @@ import org.springframework.stereotype.Component
  * こちらも安全側に倒れる。
  */
 @Component
-class StubAuthenticatorGuard(
-    private val authenticator: Authenticator,
-    private val environment: Environment,
-) {
+class StubAuthenticatorGuard(private val authenticator: Authenticator, private val environment: Environment) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @PostConstruct

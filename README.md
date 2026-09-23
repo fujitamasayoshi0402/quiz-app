@@ -17,7 +17,7 @@
 
 | 領域 | 技術 |
 | --- | --- |
-| バックエンド | Kotlin + Spring Boot 3 (Java 21) |
+| バックエンド | Kotlin 2.3 + Spring Boot 4.1 (Java 21) |
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS |
 | DB | Aurora PostgreSQL Serverless v2 (min 0 ACU) |
 | 認証 | Amazon Cognito（パスキー / WebAuthn） |
@@ -25,6 +25,7 @@
 | 非同期 / 通知 | EventBridge + Lambda + Slack Webhook |
 | IaC | Terraform |
 | CI/CD | GitHub Actions（OIDC） |
+| API 定義 | OpenAPI（コードから生成し、フロントの型を自動生成） |
 
 ## ディレクトリ構成
 
@@ -60,12 +61,17 @@ echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # 初回のみ
 mise install                                     # .mise.toml のバージョンを導入
 
 docker compose up -d                             # PostgreSQL / LocalStack
+
+SPRING_PROFILES_ACTIVE=dev ./gradlew :services:quiz-service:bootRun
 ```
 
-| サービス | ポート |
+`dev` プロファイルで起動すると、デモ用のカテゴリとクイズが投入されます。
+
+| | 場所 |
 | --- | --- |
-| PostgreSQL | 5432 |
-| LocalStack | 4566 |
+| PostgreSQL | `localhost:5432` |
+| LocalStack | `localhost:4566` |
+| API 定義（Swagger UI） | `localhost:8080/swagger-ui.html` |
 
 詳細は [開発ガイドライン](docs/development-guidelines.md#7-ローカル開発) を参照してください。
 
@@ -77,6 +83,7 @@ docker compose up -d                             # PostgreSQL / LocalStack
 - [要件定義](docs/requirements.md)
 - [ドメインモデル](docs/domain-model.md)
 - [DB スキーマ設計](docs/db-schema.md)
+- [OpenAPI 定義](docs/api/openapi.yaml)
 
 ## 設計方針
 
@@ -89,4 +96,11 @@ docker compose up -d                             # PostgreSQL / LocalStack
 
 ## ステータス
 
-基盤構築中（Phase 0）
+Phase 1（ローカルで動く MVP）を実装中です。
+
+バックエンドは、カテゴリ・難易度・クイズの CRUD、出題、挑戦と回答、
+テナント単位の認可までが動作します。行レベルセキュリティによるテナント分離、
+OpenAPI 定義の自動生成、PR ごとの lint / test / build も入っています。
+フロントエンドはこれから実装します。
+
+進捗は [ロードマップ](docs/ROADMAP.md) を参照してください。
