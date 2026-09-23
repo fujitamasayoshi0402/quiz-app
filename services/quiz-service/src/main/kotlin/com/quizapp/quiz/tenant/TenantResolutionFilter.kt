@@ -28,12 +28,21 @@ class TenantResolutionFilter(private val jdbcTemplate: JdbcTemplate) : OncePerRe
             extractSlug(request.requestURI)?.let { slug ->
                 findTenantId(slug)?.let { TenantContext.set(it) }
             }
+            // Phase 1 の暫定。Phase 3 で JWT から解決するように差し替える（DEV-24）
+            request.getHeader(USER_ID_HEADER)?.let { header ->
+                runCatching { UUID.fromString(header) }.getOrNull()?.let { UserContext.set(it) }
+            }
             filterChain.doFilter(request, response)
         } finally {
             // スレッドはプールで使い回されるため、必ず消す。
-            // 残すと次のリクエストが前のテナントを引き継ぐ
+            // 残すと次のリクエストが前のテナントや利用者を引き継ぐ
             TenantContext.clear()
+            UserContext.clear()
         }
+    }
+
+    private companion object {
+        const val USER_ID_HEADER = "X-User-Id"
     }
 
     private fun extractSlug(uri: String): String? {

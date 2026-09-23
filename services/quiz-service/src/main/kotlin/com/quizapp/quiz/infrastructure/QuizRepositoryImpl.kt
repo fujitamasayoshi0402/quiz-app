@@ -18,6 +18,9 @@ class QuizRepositoryImpl(
 
     override fun findById(id: UUID): Quiz? = jdbcRepository.findActiveById(id)?.toDomain()
 
+    override fun findPublishedCandidates(categoryId: UUID?, difficultyId: UUID?, level: Int?): List<Quiz> =
+        jdbcRepository.findPublishedCandidates(categoryId, difficultyId, level).map { it.toDomain() }
+
     override fun save(quiz: Quiz): Quiz {
         val tenantId = TenantContext.require()
         // 選択肢は親と同じテナントに属する。複合外部キーの構成要素なので、
@@ -59,7 +62,7 @@ class QuizRepositoryImpl(
         difficultyId = difficultyId,
         question = question,
         explanation = explanation,
-        choices = choices.map { Choice(body = it.body, isCorrect = it.isCorrect) },
+        choices = choices.map { Choice(id = it.id, body = it.body, isCorrect = it.isCorrect) },
         status = QuizStatus.from(status),
     )
 }

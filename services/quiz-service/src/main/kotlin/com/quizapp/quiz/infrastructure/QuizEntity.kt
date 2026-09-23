@@ -33,11 +33,16 @@ data class QuizEntity(
 /**
  * 選択肢。クイズの集約に属するため単独のリポジトリを持たない。
  *
- * `id` と `quiz_id`、`sort_order` は Spring Data JDBC が管理するので宣言しない。
+ * `quiz_id` と `sort_order` は Spring Data JDBC が管理するので宣言しない。
  * `tenant_id` は複合外部キーの構成要素であり、親と同じ値を明示的に設定する必要がある。
+ *
+ * `id` は出題時にクライアントへ返す。回答 API がどの選択肢を選んだかを受け取るため。
+ * ただし**クイズを更新すると採番し直される**（Spring Data JDBC は集約の子を
+ * 全削除・全挿入する）。出題中にクイズが編集された場合は回答が失敗しうる。
  */
 @Table(schema = "quiz", name = "choices")
 data class ChoiceEntity(
+    @Id val id: UUID? = null,
     val tenantId: UUID,
     val body: String,
     val isCorrect: Boolean,

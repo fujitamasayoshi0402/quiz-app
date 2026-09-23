@@ -17,8 +17,14 @@ enum class QuizStatus {
     }
 }
 
-/** クイズの選択肢。クイズに完全に従属するため、単体では意味を持たない。 */
+/**
+ * クイズの選択肢。クイズに完全に従属するため、単体では意味を持たない。
+ *
+ * [id] を持つのは、出題したあとに「どれを選んだか」を受け取る必要があるため。
+ * 新規作成時は null で、永続化されると採番される。
+ */
 data class Choice(
+    val id: UUID? = null,
     val body: String,
     val isCorrect: Boolean,
 ) {

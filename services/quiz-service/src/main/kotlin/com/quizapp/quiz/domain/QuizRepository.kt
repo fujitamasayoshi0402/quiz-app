@@ -8,6 +8,9 @@ interface QuizRepository {
 
     fun findById(id: UUID): Quiz?
 
+    /** 出題の候補。公開済みのみを返す。 */
+    fun findPublishedCandidates(categoryId: UUID?, difficultyId: UUID?, level: Int?): List<Quiz>
+
     fun save(quiz: Quiz): Quiz
 
     fun softDelete(id: UUID): Boolean
