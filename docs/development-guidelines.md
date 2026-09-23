@@ -185,10 +185,13 @@ mise install                                     # Java 21 / Node.js / pnpm を�
 ### 起動
 
 ```bash
-docker compose up -d          # PostgreSQL / LocalStack
-./gradlew :services:quiz-service:bootRun
+docker compose up -d                                          # PostgreSQL / LocalStack
+SPRING_PROFILES_ACTIVE=dev ./gradlew :services:quiz-service:bootRun
 pnpm --filter web dev
 ```
+
+**`dev` プロファイルを付けると、デモ用のシードが入る。** 付けないとカテゴリもクイズも空のまま立ち上がる。
+シードは Flyway の repeatable マイグレーション（`db/seed/`）で、`dev` のときだけ locations に加わる。
 
 `docker compose up -d` で起動するもの。
 
@@ -202,12 +205,33 @@ PostgreSQL は本番の Aurora とメジャーバージョンを揃えて 16 系
 
 ローカルの認証情報は開発専用のため、値を直接 `docker-compose.yml` に記載している。
 
+### シードデータ
+
+`dev` プロファイルで起動すると、テナント `demo` に次が入る。
+**アプリの仕様ではなくサンプル**であり、スキーマやロジックはこの内容に依存しない。
+
+| 種類 | 内容 |
+| --- | --- |
+| カテゴリ | AWS / インフラ、認証認可、イベント駆動設計 |
+| 難易度 | カテゴリごとに体系が異なる。AWS は同じレベルに SAA / DVA が並ぶ |
+| クイズ | 公開 12 問、下書き 1 問 |
+| 利用者 | 管理者 1 人、一般ユーザー 1 人 |
+
+同じ内容を何度流しても増えない。repeatable マイグレーションは**内容を変えるたびに再実行される**ため、
+識別子を固定して `ON CONFLICT DO NOTHING` で入れている。
+
 ### 認証（Phase 1 のスタブ）
 
 Phase 3 までは `X-User-Id` ヘッダの値をそのまま利用者とみなす。
+シードで入る利用者の識別子は次のとおり。
+
+| 役割 | `X-User-Id` |
+| --- | --- |
+| 管理者 | `67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab` |
+| 一般ユーザー | `957d085e-3b87-5fa7-9283-5eb6229216b1` |
 
 ```bash
-curl -H "X-User-Id: 00000000-0000-0000-0000-0000000000a1" \
+curl -H "X-User-Id: 67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab" \
      http://localhost:8080/api/t/demo/admin/categories
 ```
 
@@ -216,11 +240,8 @@ curl -H "X-User-Id: 00000000-0000-0000-0000-0000000000a1" \
 アプリケーションのデータとして持つ。ロールを切り替えたいときは所属行を変える。
 
 ```sql
-INSERT INTO core.users (id, external_id, display_name)
-VALUES ('00000000-0000-0000-0000-0000000000a1', 'local-admin', 'ローカル管理者');
-
-INSERT INTO core.tenant_members (tenant_id, user_id, role)
-VALUES ('<テナントの id>', '00000000-0000-0000-0000-0000000000a1', 'admin');
+UPDATE core.tenant_members SET role = 'member'
+WHERE user_id = '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab';
 ```
 
 スタブは `prod` / `stg` プロファイルでは無効になり、**それでも有効なら起動に失敗する**。
