@@ -31,17 +31,17 @@
 - [x] ブランチ保護（Rulesets: main / develop への直 push・force push・削除を禁止、PR 必須）
 - [x] `.gitignore` / README.md
 - [ ] CI 構築後に必須ステータスチェックを Ruleset へ追加
-- [ ] monorepo のディレクトリ雛形 + `.editorconfig`
+- [x] monorepo のディレクトリ雛形 + `.editorconfig`
 - [x] Jira プロジェクト作成（課題キー `DEV`）
 - [x] Phase 単位で Epic を登録
-- [ ] GitHub ↔ Jira 連携（Smart Commits）
+- [x] GitHub ↔ Jira 連携（Smart Commits）
 - [x] ADR-0001〜0005（ADR の採用 / Kotlin + Spring Boot / Next.js / サービスの段階的分割 / Cognito パスキー）
 - [x] 要件整理: [ユースケース・画面一覧・URL 構成](requirements.md)、[ER 図初版](domain-model.md#er-図初版)
 - [x] カテゴリと難易度の持ち方を決定（[ドメインモデル](domain-model.md)）
 - [x] ローカル環境: mise（Java 21 / Node.js / pnpm）、Docker Compose（PostgreSQL / LocalStack）
 - [x] AWS アカウント準備、IAM Identity Center、請求アラート
 
-**成果物**: リポジトリ、ADR 5 本、ER 図、Jira バックログ
+**成果物**: リポジトリ、ADR 9 本、要件定義・ドメインモデル・ER 図、Jira バックログ
 
 ---
 
@@ -53,7 +53,8 @@
 - [x] テナント配下の全テーブルに `tenant_id` と RLS ポリシーを設定
 - [x] **RLS とコネクションプールの検証**: `SET LOCAL` 相当で解決。接続プール 1 本のテストで確認済み
 - [x] Flyway マイグレーション
-- [ ] quiz-service: カテゴリ・難易度・クイズの CRUD API（下書き / 公開の状態を含む）
+- [x] quiz-service: カテゴリと難易度の CRUD API
+- [ ] quiz-service: クイズの CRUD API（下書き / 公開の状態を含む）
 - [ ] quiz-service: 出題 API（カテゴリ / 難易度でフィルタ）、回答 API（採点 + 解説返却）
 - [ ] OpenAPI 定義 + フロントの型を自動生成
 - [ ] Next.js: 出題 / 回答 / 結果画面、管理画面のクイズ一覧・作成・編集
