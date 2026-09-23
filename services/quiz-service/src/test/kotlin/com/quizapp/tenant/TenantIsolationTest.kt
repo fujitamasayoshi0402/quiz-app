@@ -1,4 +1,4 @@
-package com.quizapp.quiz.tenant
+package com.quizapp.tenant
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy

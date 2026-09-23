@@ -1,4 +1,4 @@
-package com.quizapp.quiz.tenant
+package com.quizapp.tenant
 
 import java.util.UUID
 

@@ -6,7 +6,7 @@ import java.util.UUID
  * クイズの分類。階層は持たない（docs/domain-model.md）。
  *
  * テナントを属性として持たない。どのテナントの文脈で操作しているかは
- * [com.quizapp.quiz.tenant.TenantContext] が保持し、永続化層が付与する。
+ * [com.quizapp.tenant.TenantContext] が保持し、永続化層が付与する。
  * ドメインモデルにテナントを持たせると、保存のたびに正しい値が入っているかを
  * 呼び出し側で確認することになり、付け替えの余地も生まれる。
  */

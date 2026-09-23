@@ -1,8 +1,17 @@
-package com.quizapp.quiz.controller
+package com.quizapp.controller
 
+import com.quizapp.answer.domain.DuplicateAnswerException
+import com.quizapp.answer.usecase.AttemptAlreadyFinishedException
+import com.quizapp.answer.usecase.AttemptInProgressException
+import com.quizapp.answer.usecase.AttemptNotFoundException
+import com.quizapp.answer.usecase.InvalidChoiceException
+import com.quizapp.answer.usecase.NoQuizAvailableException
+import com.quizapp.answer.usecase.QuizNoLongerAvailableException
+import com.quizapp.answer.usecase.QuizNotInAttemptException
 import com.quizapp.quiz.usecase.CategoryNotFoundException
 import com.quizapp.quiz.usecase.DifficultyNotFoundException
 import com.quizapp.quiz.usecase.QuizNotFoundException
+import com.quizapp.tenant.UserNotIdentifiedException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
@@ -35,6 +44,71 @@ class ApiExceptionHandler {
     fun handleDifficultyNotFound(e: DifficultyNotFoundException): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定された難易度は存在しません").apply {
             title = "リソースが見つかりません"
+        }
+
+    /**
+     * 中断中の挑戦がある状態で新しく始めようとした。
+     *
+     * 黙って破棄せず、再開するか破棄するかを選ばせる。
+     * 解きかけの記録が予告なく消えないようにするため、件数を応答に含める。
+     */
+    @ExceptionHandler(AttemptInProgressException::class)
+    fun handleAttemptInProgress(e: AttemptInProgressException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "中断中のクイズがあります").apply {
+            title = "中断中の挑戦があります"
+            setProperty("attemptId", e.summary.id)
+            setProperty("totalCount", e.summary.totalCount)
+            setProperty("answeredCount", e.summary.answeredCount)
+        }
+
+    @ExceptionHandler(AttemptNotFoundException::class)
+    fun handleAttemptNotFound(e: AttemptNotFoundException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定された挑戦は存在しません").apply {
+            title = "リソースが見つかりません"
+        }
+
+    @ExceptionHandler(AttemptAlreadyFinishedException::class)
+    fun handleAttemptFinished(e: AttemptAlreadyFinishedException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "この挑戦はすでに終了しています").apply {
+            title = "操作できない状態です"
+        }
+
+    /**
+     * 条件に合うクイズが 1 件もない。
+     *
+     * 404 にしない。テナントや URL の誤りと区別できず、画面の出し分けができなくなる。
+     */
+    @ExceptionHandler(NoQuizAvailableException::class)
+    fun handleNoQuiz(e: NoQuizAvailableException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            "条件に合うクイズがありません。条件を変えてください",
+        ).apply { title = "出題できるクイズがありません" }
+
+    @ExceptionHandler(QuizNotInAttemptException::class, InvalidChoiceException::class)
+    fun handleInvalidAnswer(e: RuntimeException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.message ?: "回答の内容が不正です").apply {
+            title = "入力内容に誤りがあります"
+        }
+
+    /** 出題後にクイズが削除・非公開になった。 */
+    @ExceptionHandler(QuizNoLongerAvailableException::class)
+    fun handleQuizGone(e: QuizNoLongerAvailableException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "このクイズは出題できなくなりました").apply {
+            title = "クイズが変更されました"
+        }
+
+    @ExceptionHandler(DuplicateAnswerException::class)
+    fun handleDuplicateAnswer(e: DuplicateAnswerException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "このクイズにはすでに回答しています").apply {
+            title = "操作できない状態です"
+        }
+
+    /** スタブ認証では `X-User-Id` ヘッダが無い場合にあたる。Phase 3 で JWT に差し替える。 */
+    @ExceptionHandler(UserNotIdentifiedException::class)
+    fun handleUserNotIdentified(e: UserNotIdentifiedException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "利用者を特定できません").apply {
+            title = "認証が必要です"
         }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)

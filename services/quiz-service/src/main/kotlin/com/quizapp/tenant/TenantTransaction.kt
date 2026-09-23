@@ -1,4 +1,4 @@
-package com.quizapp.quiz.tenant
+package com.quizapp.tenant
 
 import org.springframework.stereotype.Component
 import org.springframework.transaction.support.TransactionTemplate
@@ -20,6 +20,18 @@ class TenantTransaction(
     private val tenantSession: TenantSession,
 ) {
     fun <T : Any> execute(block: () -> T): T =
+        transactionTemplate.execute {
+            tenantSession.applyCurrent()
+            block()
+        }
+
+    /**
+     * 結果が null になりうる処理で使う。
+     *
+     * 「中断中の挑戦を探す」のように、見つからないことが正常な操作がある。
+     * [execute] は非 null を前提にしているため分けている。
+     */
+    fun <T> executeNullable(block: () -> T?): T? =
         transactionTemplate.execute {
             tenantSession.applyCurrent()
             block()

@@ -80,10 +80,15 @@ quiz / answer / notification を最初から独立したデプロイ単位にす
 
 ## 検証事項
 
-- ~~モジュールをまたぐ参照をどう書くか~~ → DEV-21 で 1 例目を実装した。
-  未回答優先の出題で quiz 側が回答履歴を必要とするため、quiz の domain 層に
-  `AnsweredQuizzes` インターフェースを置き、実装を answer モジュールに配置した。
-  quiz 側は実装クラスを知らない。分離時は実装を HTTP 呼び出しに差し替えるだけで済む。
-  引数に候補 ID を渡す形にして、全回答履歴を取得させないようにしている
+- ~~モジュールをまたぐ参照をどう書くか~~ → DEV-21 と DEV-22 で両方向の例を実装した。
+  **インターフェースは常に呼ぶ側が持ち、実装を呼ばれる側に置く**という形に落ち着いた。
+  分離時はどちらも実装を HTTP 呼び出しに差し替えるだけで済み、呼ぶ側のコードは変わらない。
+  - quiz → answer（DEV-21）: 未回答優先の出題で回答履歴が要る。
+    `quiz.domain.AnsweredQuizzes` を quiz が持ち、実装は `answer.infrastructure`。
+    引数に候補 ID を渡す形にして、全回答履歴を取得させないようにしている
+  - answer → quiz（DEV-22）: 挑戦は answer が持つが、何を出すか・どれが正解かは quiz が知っている。
+    `answer.domain.QuizCatalog` を answer が持ち、実装は `quiz.infrastructure`
+- **採点は answer 側に置いた。** quiz からは「どれが正解か」という事実（`AnswerKey`）だけを渡す。
+  quiz に `grade()` を持たせると、ADR で answer の責務とした採点が quiz 側に寄る
 - インメモリのイベントバスから EventBridge への差し替えが、実装の変更をどの程度で済ませられるか
 - 回答・採点モジュールが、クイズ本体と独立してスケールさせるべき負荷特性を持つか（Phase 6 の負荷試験で計測）

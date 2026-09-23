@@ -6,7 +6,7 @@ import com.quizapp.quiz.domain.DifficultyRepository
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
-import com.quizapp.quiz.tenant.TenantTransaction
+import com.quizapp.tenant.TenantTransaction
 import org.springframework.stereotype.Service
 import java.util.UUID
 
