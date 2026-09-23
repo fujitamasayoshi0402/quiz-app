@@ -23,6 +23,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
+    // Kotlin の data class をデシリアライズするために必要。
+    // 入れないと**デフォルト引数が効かず**、省略可能なはずのフィールドを省いた JSON で失敗する。
+    // Jackson 3 系では groupId が tools.jackson に変わっている
+    implementation("tools.jackson.module:jackson-module-kotlin")
 
     // Spring Boot 4 では autoconfigure がモジュール分割されたため、
     // flyway-core だけでは自動設定が効かない。starter が必要

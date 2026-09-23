@@ -117,6 +117,12 @@ Spring Boot 4.1.1 の BOM は Testcontainers 2.0.5 を指すが、1.x の `org.t
 `org.springframework.boot.test.autoconfigure.web.servlet` から
 `org.springframework.boot.webmvc.test.autoconfigure` へ移っている（DEV-19 で判明）。
 
+**jackson-module-kotlin が自動では入らない。**
+Jackson 3 では groupId が `tools.jackson.module` に変わっており、
+`spring-boot-starter-json` は Kotlin モジュールを引き込まない。
+入れないと **data class のデフォルト引数が効かず**、省略可能なはずのフィールドを省いた
+JSON でデシリアライズに失敗する。しかもエラー応答が空になるため原因が見えにくい（DEV-19 で判明）。
+
 同種の差分が他の機能でも起こりうる。依存を追加したら、
 **実際にその機能が動いていることを確認する**まで完了としないほうがよい。
 
