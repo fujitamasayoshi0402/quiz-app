@@ -114,6 +114,10 @@
 - コミットは Conventional Commits + Jira キー: `feat(quiz): add quiz CRUD API (DEV-12)`
 - `main` / `develop` への直 push は Ruleset `protect-main-develop` で禁止。必ず PR 経由でマージする
 - force push / ブランチ削除も禁止
+- **CI の集約ジョブ `ci` が通らないとマージできない。** 個別ジョブを必須にすると、
+  パスの出し分けでスキップされたときに報告されず、PR が永久にマージできなくなる
+- 「マージ前にブランチを最新にする」は求めていない。PR を 1 本ずつ進めているため。
+  並行して開発するようになったら、これより merge queue のほうが待ち時間の面で適切
 
 ### Jira 連携
 

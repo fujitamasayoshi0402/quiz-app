@@ -23,14 +23,14 @@
 
 ---
 
-## Phase 0: 準備 ✅ 一部完了
+## Phase 0: 準備 ✅ 完了
 
 **ゴール: 開発を始められる状態**
 
 - [x] GitHub リポジトリ `quiz-app` 作成（Public。Free プランでは Private だとブランチ保護が使えないため）
 - [x] ブランチ保護（Rulesets: main / develop への直 push・force push・削除を禁止、PR 必須）
 - [x] `.gitignore` / README.md
-- [ ] CI 構築後に必須ステータスチェックを Ruleset へ追加
+- [x] 必須ステータスチェックを Ruleset へ追加（集約ジョブ `ci` のみを指定）
 - [x] monorepo のディレクトリ雛形 + `.editorconfig`
 - [x] Jira プロジェクト作成（課題キー `DEV`）
 - [x] Phase 単位で Epic を登録
