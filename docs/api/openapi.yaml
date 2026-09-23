@@ -25,6 +25,8 @@ tags:
   name: クイズ（管理）
 - description: 管理者がカテゴリを CRUD する
   name: カテゴリ
+- description: 論理削除したカテゴリ・難易度・クイズの一覧と復活
+  name: 削除済み
 paths:
   /api/t/{slug}/admin/categories:
     get:
@@ -215,7 +217,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: テナントが存在しない、または所属していない
-      summary: 難易度を削除
+      summary: 難易度を削除（その難易度のクイズも削除される）
       tags:
       - 難易度
     get:
@@ -310,6 +312,50 @@ paths:
       summary: 難易度を更新
       tags:
       - 難易度
+  /api/t/{slug}/admin/categories/{categoryId}/difficulties/{id}/deletion-impact:
+    get:
+      operationId: difficultyDeletionImpact
+      parameters:
+      - in: path
+        name: categoryId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionImpact"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 削除したときに巻き込む範囲
+      tags:
+      - 難易度
   /api/t/{slug}/admin/categories/{id}:
     delete:
       operationId: deleteCategory
@@ -341,7 +387,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: テナントが存在しない、または所属していない
-      summary: カテゴリを削除
+      summary: カテゴリを削除（配下の難易度・クイズも削除される）
       tags:
       - カテゴリ
     get:
@@ -422,6 +468,45 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: テナントが存在しない、または所属していない
       summary: カテゴリを更新
+      tags:
+      - カテゴリ
+  /api/t/{slug}/admin/categories/{id}/deletion-impact:
+    get:
+      description: 削除前の確認に使う。配下に何も無くても確認を挟むため、0 件でも応答する
+      operationId: categoryDeletionImpact
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionImpact"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 削除したときに巻き込む範囲
       tags:
       - カテゴリ
   /api/t/{slug}/admin/quizzes:
@@ -625,6 +710,139 @@ paths:
       summary: クイズを更新
       tags:
       - クイズ（管理）
+  /api/t/{slug}/admin/trash:
+    get:
+      operationId: listTrash
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trash"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 削除済みの一覧
+      tags:
+      - 削除済み
+  /api/t/{slug}/admin/trash/categories/{id}/restore:
+    post:
+      operationId: restoreCategory
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: カテゴリを復活する（一緒に削除された難易度・クイズも戻る）
+      tags:
+      - 削除済み
+  /api/t/{slug}/admin/trash/difficulties/{id}/restore:
+    post:
+      operationId: restoreDifficulty
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 難易度を復活する（一緒に削除されたクイズも戻る）
+      tags:
+      - 削除済み
+  /api/t/{slug}/admin/trash/quizzes/{id}/restore:
+    post:
+      operationId: restoreQuiz
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: クイズを復活する
+      tags:
+      - 削除済み
   /api/t/{slug}/play/attempts:
     post:
       operationId: startAttempt
@@ -971,6 +1189,32 @@ components:
           format: int32
       required:
       - name
+    DeletedItem:
+      type: object
+      properties:
+        categoryName:
+          type:
+          - string
+          - "null"
+        deletedAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        restorable:
+          type: boolean
+    DeletionImpact:
+      type: object
+      properties:
+        difficultyCount:
+          type: integer
+          format: int32
+        quizCount:
+          type: integer
+          format: int32
     DeliveredChoice:
       type: object
       properties:
@@ -1162,6 +1406,21 @@ components:
           type: string
         scope:
           type: string
+    Trash:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeletedItem"
+        difficulties:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeletedItem"
+        quizzes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeletedItem"
     UpdateCategoryRequest:
       type: object
       properties:

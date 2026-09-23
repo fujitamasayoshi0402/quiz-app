@@ -52,8 +52,25 @@ export interface paths {
         /** 難易度を更新 */
         put: operations["updateDifficulty"];
         post?: never;
-        /** 難易度を削除 */
+        /** 難易度を削除（その難易度のクイズも削除される） */
         delete: operations["deleteDifficulty"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/categories/{categoryId}/difficulties/{id}/deletion-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 削除したときに巻き込む範囲 */
+        get: operations["difficultyDeletionImpact"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -71,8 +88,28 @@ export interface paths {
         /** カテゴリを更新 */
         put: operations["updateCategory"];
         post?: never;
-        /** カテゴリを削除 */
+        /** カテゴリを削除（配下の難易度・クイズも削除される） */
         delete: operations["deleteCategory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/categories/{id}/deletion-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 削除したときに巻き込む範囲
+         * @description 削除前の確認に使う。配下に何も無くても確認を挟むため、0 件でも応答する
+         */
+        get: operations["categoryDeletionImpact"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -110,6 +147,74 @@ export interface paths {
         post?: never;
         /** クイズを削除 */
         delete: operations["deleteQuiz"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/trash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 削除済みの一覧 */
+        get: operations["listTrash"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/trash/categories/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** カテゴリを復活する（一緒に削除された難易度・クイズも戻る） */
+        post: operations["restoreCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/trash/difficulties/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 難易度を復活する（一緒に削除されたクイズも戻る） */
+        post: operations["restoreDifficulty"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/trash/quizzes/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** クイズを復活する */
+        post: operations["restoreQuiz"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -283,6 +388,21 @@ export interface components {
             /** Format: int32 */
             sortOrder?: number;
         };
+        DeletedItem: {
+            categoryName?: string | null;
+            /** Format: date-time */
+            deletedAt?: string;
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            restorable?: boolean;
+        };
+        DeletionImpact: {
+            /** Format: int32 */
+            difficultyCount?: number;
+            /** Format: int32 */
+            quizCount?: number;
+        };
         DeliveredChoice: {
             body?: string;
             /** Format: uuid */
@@ -382,6 +502,11 @@ export interface components {
             limit?: number | null;
             order?: string;
             scope?: string;
+        };
+        Trash: {
+            categories?: components["schemas"]["DeletedItem"][];
+            difficulties?: components["schemas"]["DeletedItem"][];
+            quizzes?: components["schemas"]["DeletedItem"][];
         };
         UpdateCategoryRequest: {
             description?: string | null;
@@ -750,6 +875,56 @@ export interface operations {
             };
         };
     };
+    difficultyDeletionImpact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionImpact"];
+                };
+            };
+            /** @description 利用者を特定できない */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description 所属はしているが、この操作に必要な権限がない */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description テナントが存在しない、または所属していない */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     getCategory: {
         parameters: {
             query?: never;
@@ -869,6 +1044,55 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description 利用者を特定できない */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description 所属はしているが、この操作に必要な権限がない */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description テナントが存在しない、または所属していない */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    categoryDeletionImpact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionImpact"];
+                };
             };
             /** @description 利用者を特定できない */
             401: {
@@ -1104,6 +1328,194 @@ export interface operations {
         };
     };
     deleteQuiz: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 利用者を特定できない */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description 所属はしているが、この操作に必要な権限がない */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description テナントが存在しない、または所属していない */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    listTrash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trash"];
+                };
+            };
+            /** @description 利用者を特定できない */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description 所属はしているが、この操作に必要な権限がない */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description テナントが存在しない、または所属していない */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    restoreCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 利用者を特定できない */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description 所属はしているが、この操作に必要な権限がない */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description テナントが存在しない、または所属していない */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    restoreDifficulty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 利用者を特定できない */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description 所属はしているが、この操作に必要な権限がない */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description テナントが存在しない、または所属していない */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    restoreQuiz: {
         parameters: {
             query?: never;
             header?: never;

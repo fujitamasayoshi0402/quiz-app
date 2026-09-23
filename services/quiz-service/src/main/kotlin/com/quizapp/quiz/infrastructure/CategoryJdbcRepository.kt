@@ -19,13 +19,6 @@ interface CategoryJdbcRepository : CrudRepository<CategoryEntity, UUID> {
     @Query("SELECT * FROM quiz.categories WHERE deleted_at IS NULL ORDER BY sort_order, name")
     fun findAllActive(): List<CategoryEntity>
 
-    @Query("SELECT * FROM quiz.categories ORDER BY sort_order, name")
-    fun findAllIncludingDeleted(): List<CategoryEntity>
-
     @Query("SELECT * FROM quiz.categories WHERE id = :id AND deleted_at IS NULL")
     fun findActiveById(id: UUID): CategoryEntity?
-
-    @Modifying
-    @Query("UPDATE quiz.categories SET deleted_at = now() WHERE id = :id AND deleted_at IS NULL")
-    fun softDelete(id: UUID): Int
 }

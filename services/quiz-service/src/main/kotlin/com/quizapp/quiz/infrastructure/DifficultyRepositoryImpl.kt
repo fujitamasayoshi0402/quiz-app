@@ -38,8 +38,6 @@ class DifficultyRepositoryImpl(private val jdbcRepository: DifficultyJdbcReposit
         return jdbcRepository.save(entity).toDomain()
     }
 
-    override fun softDelete(id: UUID): Boolean = jdbcRepository.softDelete(id) > 0
-
     private fun DifficultyEntity.toDomain() = Difficulty(
         id = id,
         categoryId = categoryId,

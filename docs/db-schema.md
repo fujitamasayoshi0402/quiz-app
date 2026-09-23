@@ -146,6 +146,7 @@ CREATE INDEX tenant_members_user_idx ON core.tenant_members (user_id) WHERE dele
 | `sort_order` | integer | NOT NULL, default 0 |
 | `created_at` / `updated_at` | timestamptz | NOT NULL |
 | `deleted_at` | timestamptz | NULL 可 |
+| `deletion_batch_id` | uuid | NULL 可。`CHECK (deletion_batch_id IS NULL OR deleted_at IS NOT NULL)` |
 
 ```sql
 CREATE UNIQUE INDEX categories_name_key
@@ -171,6 +172,7 @@ CREATE INDEX categories_list_idx
 | `description` | text | NULL 可 |
 | `created_at` / `updated_at` | timestamptz | NOT NULL |
 | `deleted_at` | timestamptz | NULL 可 |
+| `deletion_batch_id` | uuid | NULL 可。`CHECK (deletion_batch_id IS NULL OR deleted_at IS NOT NULL)` |
 
 ```sql
 -- カテゴリと同じテナントであることを DB が保証する
@@ -206,6 +208,7 @@ CREATE INDEX difficulties_level_idx
 | `status` | text | NOT NULL, default `'draft'`, `CHECK (status IN ('draft','published'))` |
 | `created_at` / `updated_at` | timestamptz | NOT NULL |
 | `deleted_at` | timestamptz | NULL 可 |
+| `deletion_batch_id` | uuid | NULL 可。`CHECK (deletion_batch_id IS NULL OR deleted_at IS NOT NULL)` |
 
 ```sql
 -- カテゴリが同じテナントに属することを保証
@@ -424,7 +427,24 @@ Spring Boot では `spring.datasource` に `quiz_app`、`spring.flyway.user` に
 `deletion_batch_id`（uuid, NULL 可）を持たせ、1 回の削除操作で消した行に同じ値を振ります。
 復活はこの ID を単位に行います。個別に削除した行は独立した ID を持つため、巻き込みが起きません。
 
-> 削除 → 一部だけ個別に復活 → 親を復活、という順序でも破綻しないことを確認する必要があります（DEV-35）。
+削除は**下へ**連鎖します。上へは連鎖しません。難易度を消すとクイズも消えるのは、
+**難易度を失ったクイズが出題も編集もできなくなる**ためです。
+
+生存している行がバッチを持っていたら、復活時の消し忘れにあたります。`CHECK` で弾きます。
+
+```sql
+ALTER TABLE quiz.categories ADD CONSTRAINT categories_batch_only_when_deleted
+  CHECK (deletion_batch_id IS NULL OR deleted_at IS NOT NULL);
+
+-- 削除済みを引くのは管理画面の「削除済み一覧」だけなので、部分インデックスにする
+CREATE INDEX categories_deleted_idx
+  ON quiz.categories (tenant_id, deleted_at DESC) WHERE deleted_at IS NOT NULL;
+```
+
+**実装済み（DEV-35）。** 削除 → 一部だけ個別に復活 → 親を復活、という順序で破綻しないこと、
+親より前に個別削除した行が親の復活で戻らないことをテストで固定しています。
+
+テーブルごとに 1 文の `UPDATE` で消します。行ごとのループにはしていないため、件数が増えても SQL の本数は変わりません。
 
 ---
 

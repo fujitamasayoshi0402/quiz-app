@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.quiz.domain.DeletionImpact
 import com.quizapp.quiz.usecase.CategoryUseCase
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -50,8 +51,16 @@ class CategoryController(private val useCase: CategoryUseCase) {
             useCase.update(id, request.name, request.description, request.sortOrder),
         )
 
+    @GetMapping("/{id}/deletion-impact")
+    @Operation(
+        operationId = "categoryDeletionImpact",
+        summary = "削除したときに巻き込む範囲",
+        description = "削除前の確認に使う。配下に何も無くても確認を挟むため、0 件でも応答する",
+    )
+    fun deletionImpact(@PathVariable id: UUID): DeletionImpact = useCase.deletionImpact(id)
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(operationId = "deleteCategory", summary = "カテゴリを削除")
+    @Operation(operationId = "deleteCategory", summary = "カテゴリを削除（配下の難易度・クイズも削除される）")
     fun delete(@PathVariable id: UUID) = useCase.delete(id)
 }
