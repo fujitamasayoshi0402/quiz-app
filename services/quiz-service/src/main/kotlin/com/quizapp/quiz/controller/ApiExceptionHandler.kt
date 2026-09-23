@@ -2,6 +2,7 @@ package com.quizapp.quiz.controller
 
 import com.quizapp.quiz.usecase.CategoryNotFoundException
 import com.quizapp.quiz.usecase.DifficultyNotFoundException
+import com.quizapp.quiz.usecase.QuizNotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
@@ -21,6 +22,12 @@ class ApiExceptionHandler {
     @ExceptionHandler(CategoryNotFoundException::class)
     fun handleCategoryNotFound(e: CategoryNotFoundException): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定されたカテゴリは存在しません").apply {
+            title = "リソースが見つかりません"
+        }
+
+    @ExceptionHandler(QuizNotFoundException::class)
+    fun handleQuizNotFound(e: QuizNotFoundException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定されたクイズは存在しません").apply {
             title = "リソースが見つかりません"
         }
 
