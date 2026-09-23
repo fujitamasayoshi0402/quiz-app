@@ -1,4 +1,4 @@
-package com.quizapp.quiz.tenant
+package com.quizapp.tenant
 
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest

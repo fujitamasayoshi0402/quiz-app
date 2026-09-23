@@ -4,7 +4,7 @@ import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
-import com.quizapp.quiz.tenant.TenantContext
+import com.quizapp.tenant.TenantContext
 import org.springframework.stereotype.Component
 import java.util.UUID
 
@@ -20,6 +20,12 @@ class QuizRepositoryImpl(
 
     override fun findPublishedCandidates(categoryId: UUID?, difficultyId: UUID?, level: Int?): List<Quiz> =
         jdbcRepository.findPublishedCandidates(categoryId, difficultyId, level).map { it.toDomain() }
+
+    override fun findPublishedByIds(ids: List<UUID>): List<Quiz> {
+        // IN 句に空のリストを渡すと SQL が壊れる
+        if (ids.isEmpty()) return emptyList()
+        return jdbcRepository.findPublishedByIds(ids).map { it.toDomain() }
+    }
 
     override fun save(quiz: Quiz): Quiz {
         val tenantId = TenantContext.require()

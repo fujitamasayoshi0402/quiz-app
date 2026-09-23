@@ -18,7 +18,7 @@ import java.util.UUID
  * カテゴリの CRUD。
  *
  * パスの `{slug}` はテナントの識別に使う。値の取り出しは
- * [com.quizapp.quiz.tenant.TenantResolutionFilter] が行うため、ここでは受け取らない。
+ * [com.quizapp.tenant.TenantResolutionFilter] が行うため、ここでは受け取らない。
  */
 @RestController
 @RequestMapping("/api/t/{slug}/categories")

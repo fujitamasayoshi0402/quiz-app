@@ -2,7 +2,7 @@ package com.quizapp.quiz.usecase
 
 import com.quizapp.quiz.domain.Category
 import com.quizapp.quiz.domain.CategoryRepository
-import com.quizapp.quiz.tenant.TenantTransaction
+import com.quizapp.tenant.TenantTransaction
 import org.springframework.stereotype.Service
 import java.util.UUID
 

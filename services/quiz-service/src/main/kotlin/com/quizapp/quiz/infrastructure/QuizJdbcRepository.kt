@@ -52,6 +52,14 @@ interface QuizJdbcRepository : CrudRepository<QuizEntity, UUID> {
     )
     fun findPublishedCandidates(categoryId: UUID?, difficultyId: UUID?, level: Int?): List<QuizEntity>
 
+    @Query(
+        """
+        SELECT * FROM quiz.quizzes
+        WHERE id IN (:ids) AND deleted_at IS NULL AND status = 'published'
+        """,
+    )
+    fun findPublishedByIds(ids: List<UUID>): List<QuizEntity>
+
     @Modifying
     @Query("UPDATE quiz.quizzes SET deleted_at = now() WHERE id = :id AND deleted_at IS NULL")
     fun softDelete(id: UUID): Int

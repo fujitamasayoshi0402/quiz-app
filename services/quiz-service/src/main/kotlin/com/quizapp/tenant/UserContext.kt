@@ -1,4 +1,4 @@
-package com.quizapp.quiz.tenant
+package com.quizapp.tenant
 
 import java.util.UUID
 
@@ -16,8 +16,15 @@ object UserContext {
 
     fun get(): UUID? = holder.get()
 
-    fun require(): UUID =
-        holder.get() ?: throw IllegalStateException("利用者が特定できません")
+    fun require(): UUID = holder.get() ?: throw UserNotIdentifiedException()
 
     fun clear() = holder.remove()
 }
+
+/**
+ * 利用者を特定できない。
+ *
+ * テナント解決の失敗（[IllegalStateException]）と区別する。
+ * まとめて扱うと「テナントが存在しません」と返ってしまい、原因が追えない。
+ */
+class UserNotIdentifiedException : RuntimeException("利用者が特定できません")

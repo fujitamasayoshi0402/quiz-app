@@ -2,7 +2,7 @@ package com.quizapp.quiz.infrastructure
 
 import com.quizapp.quiz.domain.Category
 import com.quizapp.quiz.domain.CategoryRepository
-import com.quizapp.quiz.tenant.TenantContext
+import com.quizapp.tenant.TenantContext
 import org.springframework.stereotype.Component
 import java.util.UUID
 
