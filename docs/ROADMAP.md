@@ -84,12 +84,15 @@
 - [ ] 0 ACU 検証: 一時停止の発動条件、復帰時間、HikariCP の `minimum-idle: 0` 設定、初回アクセスのリトライ
 - [ ] 実行基盤: ECR、ECS Fargate、ALB、ACM、Route 53（独自ドメイン）
 - [ ] フロント配信: Amplify Hosting か CloudFront + ECS（ADR で決定）
-- [ ] GitHub Actions: OIDC で AssumeRole、イメージ build/push、ECS デプロイ、Flyway 実行
+- [ ] アクセス制限: スタブ認証の間は、許可した相手以外が dev の画面と API に届かないようにする
+- [ ] GitHub Actions: OIDC で AssumeRole、イメージ build/push、ECS デプロイ
+- [ ] マイグレーション: アプリの起動から切り離し、デプロイ時に実行する（アプリのタスクに DDL の権限を持たせない）
 - [ ] gitleaks による secret スキャンを CI と pre-commit に追加
 - [ ] Postman コレクションと Newman による、デプロイ後のスモークテスト
 - [ ] コスト: Budget アラート、dev の夜間停止（EventBridge Scheduler）
+- [ ] 画面のレスポンシブ対応（スマホから出題・回答・結果まで操作できる）
 
-**デモできること**: 公開 URL で動くアプリ、PR マージからデプロイまでの自動化
+**デモできること**: 公開 URL で動くアプリ、PR マージからデプロイまでの自動化、スマホからの回答
 
 ---
 
@@ -102,7 +105,7 @@
 - [ ] バックエンド: JWT 検証、メソッドレベルの認可、**テナント境界の認可**
 - [ ] Cognito のユーザーとテナントの対応付け（1 User Pool にするか、テナントごとに分けるか）
 - [ ] 管理画面のルートガード、管理者・一般ユーザーの招待フロー
-- [ ] スタブ認証の撤去、権限まわりの E2E テスト
+- [ ] スタブ認証の撤去、権限まわりの E2E テスト、dev のアクセス制限の見直し
 - [ ] ADR: パスキーの採用理由、Cognito と自前 WebAuthn 実装（webauthn4j）の比較
 
 **デモできること**: パスキーでのログイン、権限によるアクセス制御
