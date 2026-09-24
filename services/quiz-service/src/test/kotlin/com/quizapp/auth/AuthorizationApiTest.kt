@@ -85,6 +85,13 @@ class AuthorizationApiTest {
     }
 
     @Test
+    @DisplayName("利用者を示さなければ、テナントが無くても 401")
+    fun anonymousCannotProbeTenants() {
+        // 存在しない slug だけ 404 になると、認証なしでテナントの有無を探れてしまう
+        mockMvc.get("/api/t/unknown/admin/categories").andExpect { status { isUnauthorized() } }
+    }
+
+    @Test
     @DisplayName("利用者として読めない値を渡しても 401")
     fun malformedUserIsUnauthorized() {
         mockMvc.get("/api/t/india/admin/categories") {

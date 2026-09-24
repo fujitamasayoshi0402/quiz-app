@@ -42,6 +42,9 @@ import java.util.UUID
  *
  * **検証漏れは仕組みで防ぐ。** アプリケーションの全エンドポイントを Spring から列挙し、
  * ここに検証ケースがないものがあればテストが落ちる。エンドポイントを足したら、ケースも足す。
+ *
+ * テナントの外に置くエンドポイントは [OUTSIDE_TENANT] に理由とともに載せる。
+ * 載せたものはここでは検証しないため、**境界の検証を別のテストで用意する。**
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -63,6 +66,18 @@ class TenantBoundaryApiTest {
         private const val QUIZ_NOT_FOUND = "指定されたクイズは存在しません"
         private const val ATTEMPT_NOT_FOUND = "指定された挑戦は存在しません"
         private const val DELETED_NOT_FOUND = "削除済みの項目が見つかりません"
+
+        private val TENANT_SCOPED = Regex("/api/t/\\{slug}/(admin|play)/.+")
+
+        /**
+         * テナントの外に置くエンドポイントと、その理由。
+         *
+         * **例外を増やすほど境界の外が広がる。** 足すときは理由と、境界を検証しているテストを書く。
+         */
+        private val OUTSIDE_TENANT = mapOf(
+            "GET /api/me/tenants" to
+                "テナントを選ぶ前に呼ぶ。参照するのは RLS の対象外の core だけで、範囲は利用者本人に絞る（MyTenantsApiTest）",
+        )
     }
 
     @Autowired private lateinit var mockMvc: MockMvc
@@ -92,7 +107,7 @@ class TenantBoundaryApiTest {
     @Test
     @DisplayName("テナント配下の全エンドポイントに、境界の検証ケースがある")
     fun everyEndpointIsProbed() {
-        val endpoints = endpoints()
+        val endpoints = endpoints() - OUTSIDE_TENANT.keys
         val probed = probes(Ids.placeholder()).map { it.endpoint }.toSet()
 
         assertThat(endpoints - probed)
@@ -104,12 +119,15 @@ class TenantBoundaryApiTest {
     }
 
     @Test
-    @DisplayName("アプリケーションの全エンドポイントがテナント配下の admin / play にある")
+    @DisplayName("許可したものを除き、全エンドポイントがテナント配下の admin / play にある")
     fun everyEndpointIsUnderTenant() {
         // テナントを含まない API があると、RLS のセッション変数が設定されないまま DB に触れる。
         // admin / play 以外のパスは、ロールの判定（TenantAccessInterceptor）の外に出る
-        assertThat(endpoints().map { it.substringAfter(' ') })
-            .allSatisfy { assertThat(it).matches("/api/t/\\{slug}/(admin|play)/.+") }
+        val outside = endpoints().filterNot { it.substringAfter(' ').matches(TENANT_SCOPED) }
+
+        assertThat(outside.toSet())
+            .describedAs("テナントの外にあるエンドポイント。意図したものなら OUTSIDE_TENANT に理由とともに載せる")
+            .isEqualTo(OUTSIDE_TENANT.keys)
     }
 
     // --- 境界 -----------------------------------------------------------------

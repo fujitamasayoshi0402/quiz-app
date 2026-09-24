@@ -10,19 +10,25 @@
 -- クイズを足すときは、識別子を新しく採番してこのファイルに追記する。
 
 -- テナントと利用者 ------------------------------------------------------------
+-- 2 つ目のテナントは、テナントの選択と、テナントごとにロールが違うことを見せるためにある
 INSERT INTO core.tenants (id, slug, name) VALUES
-    ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', 'demo', 'デモ')
+    ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', 'demo', 'デモ'),
+    ('9efd94a0-e517-573b-b46e-0f1ae96fc342', 'geo-club', '地理の勉強会')
     ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO core.users (id, external_id, display_name) VALUES
     ('67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab',  'demo-admin',  'デモ管理者'),
-    ('957d085e-3b87-5fa7-9283-5eb6229216b1', 'demo-member', 'デモ利用者')
+    ('957d085e-3b87-5fa7-9283-5eb6229216b1', 'demo-member', 'デモ利用者'),
+    ('7918a5c2-30ee-56c8-b76c-57c6a79774e3', 'demo-outsider', 'デモ未所属')
     ON CONFLICT (id) DO NOTHING;
 
--- ロールはテナントごとに決まる。同じ人が別テナントでは一般ユーザーになりうる
+-- ロールはテナントごとに決まる。デモ管理者は、地理の勉強会では一般ユーザー。
+-- 所属の数で `/` の挙動が変わる。デモ管理者は 2 つ（選択画面）、デモ利用者は 1 つ（自動で遷移）、
+-- デモ未所属は 0（招待を受けていない旨を表示）
 INSERT INTO core.tenant_members (tenant_id, user_id, role) VALUES
     ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab',  'admin'),
-    ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', '957d085e-3b87-5fa7-9283-5eb6229216b1', 'member')
+    ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', '957d085e-3b87-5fa7-9283-5eb6229216b1', 'member'),
+    ('9efd94a0-e517-573b-b46e-0f1ae96fc342', '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab',  'member')
     ON CONFLICT DO NOTHING;
 
 -- カテゴリ --------------------------------------------------------------------
@@ -191,4 +197,41 @@ INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order) 
      'フィールドの追加は任意項目として行う', true, 1),
     ('3cfcd5ea-900e-50fe-a23d-94ce62b16ec6', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', '8d4f8264-ecb2-583b-b69b-1a40071c3fa6',
      '既存フィールドを削除する', false, 2)
+    ON CONFLICT (id) DO NOTHING;
+
+-- 地理の勉強会 ----------------------------------------------------------------
+-- 扱う分野がテナントごとに違ってよいことを示す。アプリは分野を前提にしない
+INSERT INTO quiz.categories (id, tenant_id, name, description, sort_order) VALUES
+    ('c6e82f53-2040-54ae-aa18-38a0c3ed1190', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '世界の首都', '最大の都市と首都が違う国', 1)
+    ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO quiz.difficulties (id, tenant_id, category_id, name, level, sort_order) VALUES
+    ('01fbeaec-ab82-52f9-9c52-8e5c4784f6d0', '9efd94a0-e517-573b-b46e-0f1ae96fc342', 'c6e82f53-2040-54ae-aa18-38a0c3ed1190', '基本', 1, 1)
+    ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO quiz.quizzes (id, tenant_id, category_id, difficulty_id, question, explanation, status) VALUES
+    ('8a0fe98a-5ca7-526d-bc59-143bab566d83', '9efd94a0-e517-573b-b46e-0f1ae96fc342', 'c6e82f53-2040-54ae-aa18-38a0c3ed1190', '01fbeaec-ab82-52f9-9c52-8e5c4784f6d0',
+     'オーストラリアの首都はどれですか。',
+     '最大の都市はシドニーですが、首都はキャンベラです。シドニーとメルボルンが首都の座を争ったため、両都市の間に計画都市として建設されました。', 'published'),
+    ('6d5297ad-1687-506d-a0a2-7c005083d77b', '9efd94a0-e517-573b-b46e-0f1ae96fc342', 'c6e82f53-2040-54ae-aa18-38a0c3ed1190', '01fbeaec-ab82-52f9-9c52-8e5c4784f6d0',
+     'カナダの首都はどれですか。',
+     '最大の都市はトロントですが、首都はオタワです。英語圏のオンタリオ州とフランス語圏のケベック州の境に位置しています。', 'published'),
+    ('39571769-55b9-567a-84e4-37348b49d135', '9efd94a0-e517-573b-b46e-0f1ae96fc342', 'c6e82f53-2040-54ae-aa18-38a0c3ed1190', '01fbeaec-ab82-52f9-9c52-8e5c4784f6d0',
+     'トルコの首都はどれですか。',
+     '最大の都市はイスタンブールですが、首都はアンカラです。1923 年、共和国の成立にあわせてアナトリア中央部のアンカラが首都に定められました。', 'published')
+    ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order) VALUES
+    ('ec6e78df-4d7e-5fd6-b8ee-4e62396e5698', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '8a0fe98a-5ca7-526d-bc59-143bab566d83', 'キャンベラ', true, 1),
+    ('18264ac8-8e4e-50d7-9232-7db52cf0d4f8', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '8a0fe98a-5ca7-526d-bc59-143bab566d83', 'シドニー', false, 2),
+    ('ffcefcc0-7acd-508f-90cd-49bbf6317aa9', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '8a0fe98a-5ca7-526d-bc59-143bab566d83', 'メルボルン', false, 3),
+    ('4df5b18a-737c-5b4c-b4d8-a0ab70a3c492', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '8a0fe98a-5ca7-526d-bc59-143bab566d83', 'パース', false, 4),
+    ('b3634b63-ce42-5604-b567-adcf0ae8181c', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '6d5297ad-1687-506d-a0a2-7c005083d77b', 'トロント', false, 1),
+    ('ed30719c-d15a-563e-9bfc-a9c5321c63c2', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '6d5297ad-1687-506d-a0a2-7c005083d77b', 'オタワ', true, 2),
+    ('292f4cef-193d-5a80-af7f-63b3898e15ea', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '6d5297ad-1687-506d-a0a2-7c005083d77b', 'バンクーバー', false, 3),
+    ('e2805e4c-c84a-5eff-a73c-cd938cf73568', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '6d5297ad-1687-506d-a0a2-7c005083d77b', 'モントリオール', false, 4),
+    ('1733cce1-9252-5c40-8faf-a3919bb463b0', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '39571769-55b9-567a-84e4-37348b49d135', 'イスタンブール', false, 1),
+    ('050896ba-a08f-568e-89d4-07369127857d', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '39571769-55b9-567a-84e4-37348b49d135', 'イズミル', false, 2),
+    ('0afb6125-fa30-523e-841b-4703dd446d52', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '39571769-55b9-567a-84e4-37348b49d135', 'アンカラ', true, 3),
+    ('240939f6-719b-58df-b8d4-3182f3d35560', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '39571769-55b9-567a-84e4-37348b49d135', 'アンタルヤ', false, 4)
     ON CONFLICT (id) DO NOTHING;

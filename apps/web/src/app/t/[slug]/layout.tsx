@@ -1,33 +1,23 @@
-import Link from "next/link";
-import { cookies } from "next/headers";
-import { USER_COOKIE, findStubUser } from "@/lib/auth/stub-users";
+import { redirect } from "next/navigation";
+import { SignOutButton } from "@/components/tenant/sign-out-button";
+import { TenantNav } from "@/components/tenant/tenant-nav";
+import { currentUser } from "@/lib/auth/session";
 
 export default async function TenantLayout({ children, params }: LayoutProps<"/t/[slug]">) {
   const { slug } = await params;
-  const user = findStubUser((await cookies()).get(USER_COOKIE)?.value);
+  const user = await currentUser();
+  if (!user) {
+    redirect("/login");
+  }
 
   return (
     <div className="flex min-h-svh flex-col">
       <header className="bg-background border-b">
-        <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Link href={`/t/${slug}/play`} className="font-semibold">
-              Quiz <span className="text-muted-foreground text-sm font-normal">/ {slug}</span>
-            </Link>
-            <nav className="flex gap-3 text-sm">
-              <Link href={`/t/${slug}/play`} className="text-muted-foreground hover:text-foreground">
-                解く
-              </Link>
-              <Link href={`/t/${slug}/admin`} className="text-muted-foreground hover:text-foreground">
-                管理
-              </Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">{user?.name ?? "未選択"}</span>
-            <Link href="/" className="underline-offset-4 hover:underline">
-              切り替える
-            </Link>
+        <div className="mx-auto flex h-14 max-w-2xl items-center justify-between gap-4 px-4">
+          <TenantNav slug={slug} />
+          <div className="flex shrink-0 items-center gap-3 text-sm">
+            <span className="text-muted-foreground hidden sm:inline">{user.name}</span>
+            <SignOutButton />
           </div>
         </div>
       </header>

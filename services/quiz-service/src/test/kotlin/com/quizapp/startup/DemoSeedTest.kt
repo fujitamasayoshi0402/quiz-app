@@ -32,6 +32,9 @@ class DemoSeedTest {
         fun datasourceProperties(registry: DynamicPropertyRegistry) = TestPostgres.configure(registry)
 
         private const val DEMO_SLUG = "demo"
+
+        /** シードが入れるテナント */
+        private const val SEEDED_SLUGS = "'demo', 'geo-club'"
     }
 
     private val seed = ClassPathResource("db/seed/R__demo_data.sql")
@@ -43,14 +46,14 @@ class DemoSeedTest {
     @AfterEach
     fun tearDown() {
         val admin = TestPostgres.adminJdbcTemplate
-        val tenant = "(SELECT id FROM core.tenants WHERE slug = '$DEMO_SLUG')"
-        admin.update("DELETE FROM quiz.choices WHERE tenant_id = $tenant")
-        admin.update("DELETE FROM quiz.quizzes WHERE tenant_id = $tenant")
-        admin.update("DELETE FROM quiz.difficulties WHERE tenant_id = $tenant")
-        admin.update("DELETE FROM quiz.categories WHERE tenant_id = $tenant")
-        admin.update("DELETE FROM core.tenant_members WHERE tenant_id = $tenant")
-        admin.update("DELETE FROM core.users WHERE external_id IN ('demo-admin', 'demo-member')")
-        admin.update("DELETE FROM core.tenants WHERE slug = '$DEMO_SLUG'")
+        val tenants = "(SELECT id FROM core.tenants WHERE slug IN ($SEEDED_SLUGS))"
+        admin.update("DELETE FROM quiz.choices WHERE tenant_id IN $tenants")
+        admin.update("DELETE FROM quiz.quizzes WHERE tenant_id IN $tenants")
+        admin.update("DELETE FROM quiz.difficulties WHERE tenant_id IN $tenants")
+        admin.update("DELETE FROM quiz.categories WHERE tenant_id IN $tenants")
+        admin.update("DELETE FROM core.tenant_members WHERE tenant_id IN $tenants")
+        admin.update("DELETE FROM core.users WHERE external_id LIKE 'demo-%'")
+        admin.update("DELETE FROM core.tenants WHERE slug IN ($SEEDED_SLUGS)")
     }
 
     @Test
@@ -146,5 +149,40 @@ class DemoSeedTest {
         ) { rs, _ -> rs.getString("external_id") to rs.getString("role") }
 
         assertThat(roles).containsExactly("demo-admin" to "admin", "demo-member" to "member")
+    }
+
+    @Test
+    @DisplayName("所属の数が 0 / 1 / 2 以上の利用者がそろっている")
+    fun membershipCountsCoverTenantSelection() {
+        applySeed()
+
+        // `/` の挙動は所属の数で変わる（招待なしの表示 / 自動で遷移 / 選択画面）。どれもデモで見せられるようにする
+        val counts = TestPostgres.adminJdbcTemplate.query(
+            """
+            SELECT u.external_id, count(m.id) AS tenants FROM core.users u
+            LEFT JOIN core.tenant_members m ON m.user_id = u.id AND m.deleted_at IS NULL
+            WHERE u.external_id LIKE 'demo-%'
+            GROUP BY u.external_id ORDER BY u.external_id
+            """,
+        ) { rs, _ -> rs.getString("external_id") to rs.getInt("tenants") }
+
+        assertThat(counts).containsExactly("demo-admin" to 2, "demo-member" to 1, "demo-outsider" to 0)
+    }
+
+    @Test
+    @DisplayName("同じ利用者が、テナントによって違うロールを持つ")
+    fun rolesDifferByTenant() {
+        applySeed()
+
+        val roles = TestPostgres.adminJdbcTemplate.query(
+            """
+            SELECT t.slug, m.role FROM core.tenant_members m
+            JOIN core.users u ON u.id = m.user_id
+            JOIN core.tenants t ON t.id = m.tenant_id
+            WHERE u.external_id = 'demo-admin' ORDER BY t.slug
+            """,
+        ) { rs, _ -> rs.getString("slug") to rs.getString("role") }
+
+        assertThat(roles).containsExactly("demo" to "admin", "geo-club" to "member")
     }
 }

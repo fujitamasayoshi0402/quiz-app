@@ -30,6 +30,7 @@ export * from './deletionImpact.zod';
 export * from './deliveredChoice.zod';
 export * from './deliveredQuiz.zod';
 export * from './difficultyResponse.zod';
+export * from './myTenantResponse.zod';
 export * from './playableCategoryResponse.zod';
 export * from './playableDifficultyResponse.zod';
 export * from './problemDetail.zod';
