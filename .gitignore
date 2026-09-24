@@ -7,6 +7,9 @@ Thumbs.db
 .vscode/
 *.iml
 .kotlin/
+# vim のスワップファイル
+*.swp
+*.swo
 
 # --- Java / Gradle ---
 build/
