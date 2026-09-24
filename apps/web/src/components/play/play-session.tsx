@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ApiErrorAlert } from "@/components/play/api-error-alert";
+import { ApiErrorAlert } from "@/components/api-error-alert";
 import { ChoiceList } from "@/components/play/choice-list";
 import { ApiError } from "@/lib/api/fetcher";
 import { useAnswerQuiz, useResumeAttempt } from "@/lib/api/generated/endpoints";

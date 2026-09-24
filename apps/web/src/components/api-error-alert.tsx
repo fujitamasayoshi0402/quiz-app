@@ -1,0 +1,43 @@
+import Link from "next/link";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ApiError } from "@/lib/api/fetcher";
+
+/**
+ * API のエラーを利用者に伝える。
+ *
+ * - 401 … 利用者の選び直しへ誘導する
+ * - 400 の入力エラー … バックエンドが項目ごとの理由（`errors`）を返すので、それを並べる
+ */
+export function ApiErrorAlert({ error }: { error: unknown }) {
+  const apiError = error instanceof ApiError ? error : null;
+  const fieldErrors = fieldErrorsOf(apiError);
+  return (
+    <Alert variant="destructive">
+      <AlertCircle />
+      <AlertTitle>{apiError?.problem?.title ?? "エラーが発生しました"}</AlertTitle>
+      <AlertDescription>
+        {apiError?.problem?.detail && <p>{apiError.problem.detail}</p>}
+        {fieldErrors.length > 0 && (
+          <ul className="list-disc pl-4">
+            {fieldErrors.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        )}
+        {!apiError && <p>時間をおいてもう一度お試しください</p>}
+        {apiError?.status === 401 && (
+          <Link href="/" className="underline underline-offset-4">
+            利用者を選ぶ
+          </Link>
+        )}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function fieldErrorsOf(error: ApiError | null): string[] {
+  const errors = error?.problem?.errors;
+  if (!errors || typeof errors !== "object") return [];
+  return Object.values(errors).filter((message): message is string => typeof message === "string");
+}

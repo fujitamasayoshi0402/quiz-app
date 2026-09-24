@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ApiErrorAlert } from "@/components/play/api-error-alert";
+import { ApiErrorAlert } from "@/components/api-error-alert";
 import { ChoiceList } from "@/components/play/choice-list";
 import { completeAttempt, getGetCurrentAttemptQueryKey } from "@/lib/api/generated/endpoints";
 import type { QuizResult } from "@/lib/api/generated/model";

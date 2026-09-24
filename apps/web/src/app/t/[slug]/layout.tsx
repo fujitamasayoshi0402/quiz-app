@@ -10,9 +10,19 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/t
     <div className="flex min-h-svh flex-col">
       <header className="bg-background border-b">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
-          <Link href={`/t/${slug}/play`} className="font-semibold">
-            Quiz <span className="text-muted-foreground text-sm font-normal">/ {slug}</span>
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href={`/t/${slug}/play`} className="font-semibold">
+              Quiz <span className="text-muted-foreground text-sm font-normal">/ {slug}</span>
+            </Link>
+            <nav className="flex gap-3 text-sm">
+              <Link href={`/t/${slug}/play`} className="text-muted-foreground hover:text-foreground">
+                解く
+              </Link>
+              <Link href={`/t/${slug}/admin`} className="text-muted-foreground hover:text-foreground">
+                管理
+              </Link>
+            </nav>
+          </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground">{user?.name ?? "未選択"}</span>
             <Link href="/" className="underline-offset-4 hover:underline">
