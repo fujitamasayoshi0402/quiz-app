@@ -1,0 +1,768 @@
+{
+  "info": {
+    "name": "quiz-app スモークテスト",
+    "description": "デプロイした環境で、主要な導線が通るかを確かめる。細かい仕様の検証は JUnit の API テストが担う。\n\n専用のテナント `smoke` の管理者として動く（シード `R__smoke_data.sql`）。作ったカテゴリとクイズは最後に消すので、デモのテナントには何も残らない。\n\n`baseUrl` に web を指定すると、web の proxy を通して API を呼ぶ。API を直接指定してもよい。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 利用者の識別（Phase 3 まではスタブ）。両方を付けておき、経路に応じてどちらかが使われる。",
+          "// web の proxy を通るときは Cookie から付け直され、API を直接呼ぶときは X-User-Id がそのまま使われる",
+          "const userId = pm.collectionVariables.get(\"userId\");",
+          "pm.request.headers.upsert({ key: \"X-User-Id\", value: userId });",
+          "pm.request.headers.upsert({ key: \"Cookie\", value: `quiz-user=${userId}` });"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "slug",
+      "value": "smoke",
+      "description": "スモークテスト専用のテナント"
+    },
+    {
+      "key": "userId",
+      "value": "0b520e9c-a1d8-53e6-90c7-26376e1f7927",
+      "description": "smoke の管理者"
+    },
+    {
+      "key": "otherSlug",
+      "value": "demo",
+      "description": "所属していないテナント"
+    },
+    {
+      "key": "otherCategoryId",
+      "value": "63b3c609-bfa5-5db4-bc9a-ec709936969d",
+      "description": "demo のカテゴリ（AWS / インフラ）。smoke からは見えないはず"
+    }
+  ],
+  "item": [
+    {
+      "name": "所属",
+      "description": "利用者の識別が API まで届くか",
+      "item": [
+        {
+          "name": "所属するテナント",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/tenants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "tenants"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 実行ごとに名前を変える。途中で失敗して片付けが漏れても、次の実行と重ならない",
+                  "pm.collectionVariables.set(\"runId\", String(Date.now()));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 を返す\", () => pm.response.to.have.status(200));",
+                  "const tenants = pm.response.json();",
+                  "pm.test(\"smoke に管理者として所属している\", () => {",
+                  "  const smoke = tenants.find((t) => t.slug === pm.collectionVariables.get(\"slug\"));",
+                  "  pm.expect(smoke?.role).to.eql(\"admin\");",
+                  "});",
+                  "pm.test(\"demo には所属していない\", () => {",
+                  "  pm.expect(tenants.map((t) => t.slug)).to.not.include(pm.collectionVariables.get(\"otherSlug\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "管理",
+      "description": "カテゴリ・難易度・クイズを作り、更新する",
+      "item": [
+        {
+          "name": "カテゴリを作る",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "categories"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"smoke-{{runId}}\",\n  \"description\": \"スモークテストが作り、最後に消す\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 を返す\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"categoryId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "難易度を作る",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/categories/{{categoryId}}/difficulties",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "categories",
+                "{{categoryId}}",
+                "difficulties"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"基本\",\n  \"level\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 を返す\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"difficultyId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "クイズを公開の状態で作る",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/quizzes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "quizzes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"difficultyId\": \"{{difficultyId}}\",\n  \"question\": \"スモークテストの問題（{{runId}}）\",\n  \"explanation\": \"スモークテストの解説\",\n  \"status\": \"published\",\n  \"choices\": [\n    {\n      \"body\": \"正解\",\n      \"isCorrect\": true\n    },\n    {\n      \"body\": \"不正解 1\",\n      \"isCorrect\": false\n    },\n    {\n      \"body\": \"不正解 2\",\n      \"isCorrect\": false\n    },\n    {\n      \"body\": \"不正解 3\",\n      \"isCorrect\": false\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 を返す\", () => pm.response.to.have.status(201));",
+                  "const quiz = pm.response.json();",
+                  "pm.test(\"公開の状態になっている\", () => pm.expect(quiz.status).to.eql(\"published\"));",
+                  "pm.collectionVariables.set(\"quizId\", quiz.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "クイズを更新する",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/quizzes/{{quizId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "quizzes",
+                "{{quizId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"difficultyId\": \"{{difficultyId}}\",\n  \"question\": \"スモークテストの問題（{{runId}}）\",\n  \"explanation\": \"スモークテストの解説（更新後）\",\n  \"status\": \"published\",\n  \"choices\": [\n    {\n      \"body\": \"正解\",\n      \"isCorrect\": true\n    },\n    {\n      \"body\": \"不正解 1\",\n      \"isCorrect\": false\n    },\n    {\n      \"body\": \"不正解 2\",\n      \"isCorrect\": false\n    },\n    {\n      \"body\": \"不正解 3\",\n      \"isCorrect\": false\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 を返す\", () => pm.response.to.have.status(200));",
+                  "const quiz = pm.response.json();",
+                  "pm.test(\"更新が反映されている\", () => pm.expect(quiz.explanation).to.eql(\"スモークテストの解説（更新後）\"));",
+                  "// 回答で使う。出題 API は正解を返さないため、ここで控えておく",
+                  "pm.collectionVariables.set(\"correctChoiceId\", quiz.choices.find((c) => c.isCorrect)?.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "カテゴリで絞ってクイズを一覧する",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/quizzes?categoryId={{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "quizzes"
+              ],
+              "query": [
+                {
+                  "key": "categoryId",
+                  "value": "{{categoryId}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 を返す\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"作ったクイズだけが並ぶ\", () => {",
+                  "  pm.expect(pm.response.json().map((q) => q.id)).to.eql([pm.collectionVariables.get(\"quizId\")]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "出題と回答",
+      "description": "作ったクイズで、挑戦の開始から結果まで通す",
+      "item": [
+        {
+          "name": "出題できるカテゴリ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "categories"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 を返す\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"作ったカテゴリに公開クイズが 1 問ある\", () => {",
+                  "  const category = pm.response.json().find((c) => c.id === pm.collectionVariables.get(\"categoryId\"));",
+                  "  pm.expect(category?.quizCount).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "挑戦を始める",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/attempts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "attempts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"discardInProgress\": true\n}"
+            },
+            "description": "前回の実行が途中で止まって挑戦が残っていても、破棄して始める"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 を返す\", () => pm.response.to.have.status(201));",
+                  "const attempt = pm.response.json();",
+                  "pm.test(\"作ったクイズが出題される\", () => {",
+                  "  pm.expect(attempt.quizzes.map((q) => q.id)).to.eql([pm.collectionVariables.get(\"quizId\")]);",
+                  "});",
+                  "pm.test(\"出題の応答に正解を含めない\", () => {",
+                  "  pm.expect(pm.response.text()).to.not.include(\"isCorrect\");",
+                  "});",
+                  "pm.collectionVariables.set(\"attemptId\", attempt.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "中断中の挑戦",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/attempts/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "attempts",
+                "current"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 を返す\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"始めた挑戦が返る\", () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"attemptId\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "回答する",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/attempts/{{attemptId}}/answers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "attempts",
+                "{{attemptId}}",
+                "answers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quizId\": \"{{quizId}}\",\n  \"choiceId\": \"{{correctChoiceId}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 を返す\", () => pm.response.to.have.status(200));",
+                  "const result = pm.response.json();",
+                  "pm.test(\"正解と判定される\", () => pm.expect(result.isCorrect).to.eql(true));",
+                  "pm.test(\"解説が返る\", () => pm.expect(result.explanation).to.eql(\"スモークテストの解説（更新後）\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "挑戦を終える",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/attempts/{{attemptId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "attempts",
+                "{{attemptId}}",
+                "complete"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 を返す\", () => pm.response.to.have.status(200));",
+                  "const result = pm.response.json();",
+                  "pm.test(\"1 問中 1 問正解\", () => {",
+                  "  pm.expect([result.correctCount, result.totalCount]).to.eql([1, 1]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "終えたあとは中断中の挑戦がない",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/attempts/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "attempts",
+                "current"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 を返す\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "テナントの境界",
+      "description": "テナントの外は、存在しないものとして扱われる",
+      "item": [
+        {
+          "name": "別のテナントのカテゴリを ID で指定する",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/categories/{{otherCategoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "categories",
+                "{{otherCategoryId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 を返す\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "所属していないテナント",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{otherSlug}}/play/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{otherSlug}}",
+                "play",
+                "categories"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 を返す\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "利用者を示さない",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/tenants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "tenants"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// コレクションで付けた識別を外す",
+                  "pm.request.headers.remove(\"X-User-Id\");",
+                  "pm.request.headers.remove(\"Cookie\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 を返す\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "片付け",
+      "description": "作ったものを消す。途中で失敗しても、この段は実行される",
+      "item": [
+        {
+          "name": "カテゴリを消す",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "categories",
+                "{{categoryId}}"
+              ]
+            },
+            "description": "難易度とクイズも一緒に消える"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 を返す\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "消したカテゴリは見えない",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "categories",
+                "{{categoryId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 を返す\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "消したカテゴリからは出題されない",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "categories"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 を返す\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"作ったカテゴリが並ばない\", () => {",
+                  "  pm.expect(pm.response.json().map((c) => c.id)).to.not.include(pm.collectionVariables.get(\"categoryId\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

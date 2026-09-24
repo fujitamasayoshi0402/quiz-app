@@ -41,6 +41,8 @@
 │       ├── bootstrap/           # tfstate を置く S3 バケット
 │       ├── modules/             # 再利用するモジュール
 │       └── envs/                # dev / prod の環境定義
+├── tests/
+│   └── api/                     # API のスモークテスト（Postman / Newman）
 ├── docs/
 │   ├── adr/                     # アーキテクチャ決定記録（MADR 形式）
 │   ├── architecture/            # C4 図・draw.io 原本

@@ -3,6 +3,7 @@
   "private": true,
   "packageManager": "pnpm@12.5.1",
   "scripts": {
-    "generate:api": "pnpm --filter web generate:api"
+    "generate:api": "pnpm --filter web generate:api",
+    "test:api": "newman run tests/api/quiz-app.postman_collection.json -e tests/api/local.postman_environment.json"
   }
 }
