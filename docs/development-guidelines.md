@@ -56,6 +56,7 @@
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui | TanStack Query / Zod |
 | 認証 | Amazon Cognito（パスキー / WebAuthn）+ Group でユーザー・管理者を分離 | |
 | コンテナ基盤 | ECS Fargate + ALB | Kubernetes は採用しない |
+| フロントの配信 | Amplify Hosting | [ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md) |
 | 非同期 / 通知 | EventBridge → Lambda → Slack Incoming Webhook（DLQ に SQS） | 常駐リソースを増やさない |
 | ファイル | S3 + CloudFront（`.drawio` 原本と SVG） | |
 | IaC | Terraform（tfstate は S3 + ロック） | |
@@ -339,7 +340,9 @@ pnpm --filter web dev                                         # http://localhost
 フロントは `/api` をバックエンドへ中継する（`src/proxy.ts`）。ブラウザからは同一オリジンに見えるため、
 CORS の設定は要らない。中継先は `API_ORIGIN` で変えられる（既定は `http://localhost:8080`）。
 **中継先は実行時に読む。** `next.config.ts` の rewrites はビルド時に固定されるため使わない。
-同じイメージを dev と本番で使い回すため。
+同じイメージを環境ごとに使い回すため。
+AWS では Amplify Hosting がソースからビルドする。SSR の実行時には環境変数が渡らないため、
+ビルドの中で `.env.production` に書き出す（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）。
 
 ### コンテナイメージ
 
@@ -349,7 +352,8 @@ CORS の設定は要らない。中継先は `API_ORIGIN` で変えられる（�
 | web | `apps/web/Dockerfile` | Next.js の standalone 出力。`node_modules` を丸ごと持たない |
 
 どちらもビルドコンテキストはリポジトリのルートで、root 以外の利用者で動く。
-Phase 2 の ECS でも同じイメージを使い、環境の違いは環境変数で渡す。
+quiz-service は Phase 2 の ECS でも同じイメージを使い、環境の違いは環境変数で渡す。
+web のイメージはローカル用。AWS では Amplify Hosting がソースからビルドする。
 
 ヘルスチェックは `GET /actuator/health`。**DB には問い合わせない。**
 ALB が定期的に叩くと、Aurora Serverless v2 の自動一時停止（min 0 ACU）が発動しなくなるため。

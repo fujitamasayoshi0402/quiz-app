@@ -21,7 +21,7 @@
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui |
 | DB | Aurora PostgreSQL Serverless v2 (min 0 ACU) |
 | 認証 | Amazon Cognito（パスキー / WebAuthn） |
-| 実行基盤 | ECS Fargate + ALB |
+| 実行基盤 | ECS Fargate + ALB（API）、Amplify Hosting（フロント） |
 | 非同期 / 通知 | EventBridge + Lambda + Slack Webhook |
 | IaC | Terraform |
 | CI/CD | GitHub Actions（OIDC） |
