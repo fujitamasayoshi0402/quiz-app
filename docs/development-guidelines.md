@@ -265,6 +265,8 @@ http://localhost:8080/swagger-ui.html
 - バックエンド: レイヤード（controller / usecase / domain / infrastructure）、テストは JUnit5 + Testcontainers
 - フロント: Server Components 優先、API 呼び出しは生成した TanStack Query のフック、応答は Zod で検証
 - フォーム: react-hook-form + 生成した Zod スキーマ。**定義に表れない規則だけを足す**（空白だけの入力、公開の条件など）。最終的な判定はバックエンド
+- 画面の幅: **360px まで崩さない**（一般的なスマホの下限）。320px でも横スクロールを出さない。
+  テーブルは狭い幅で列を減らし、畳んだ列は主となる列の下に小さく出す（`hidden sm:table-cell` と `sm:hidden`）
 - API 定義はコードから生成し、`docs/api/openapi.yaml` に固定する（[ADR-0010](adr/0010-generate-openapi-from-code.md)）。
   **真実はコードであり、定義はその写像。** フロントの型は固定した定義から生成する
 
