@@ -79,7 +79,7 @@
 **ゴール: develop への merge で dev 環境に自動デプロイされる**
 
 - [x] Terraform: tfstate バックエンド（S3 + ロック）、環境分割（dev / prod）
-- [ ] ネットワーク: VPC / Subnet / SecurityGroup / VPC Endpoint（NAT Gateway は使わない）
+- [x] ネットワーク: VPC / Subnet / SecurityGroup。NAT Gateway も VPC Endpoint も使わず、ECS のタスクをパブリックサブネットに置く（[ADR-0013](adr/0013-run-ecs-tasks-in-public-subnets.md)）
 - [ ] データ: Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止）+ Secrets Manager
 - [ ] 0 ACU 検証: 一時停止の発動条件、復帰時間、HikariCP の `minimum-idle: 0` 設定、初回アクセスのリトライ
 - [ ] 実行基盤: ECR、ECS Fargate、ALB、ACM、Route 53（独自ドメイン）
@@ -194,4 +194,4 @@
 | マイグレーションの実行 | デプロイのたびに、サービスを入れ替える前に単発のタスクで流す。アプリには読み書きの権限だけを渡す | アプリの起動時に流す。アプリがスキーマ所有者の権限を持ち続け、行レベルセキュリティを外せてしまう。タスクが複数あると、それぞれが流そうとする |
 | 通知基盤 | EventBridge + Lambda | 常駐コンテナでのポーリング。イベント頻度が低く、常時起動のコストに見合わない |
 | 認証 | Cognito のパスキー機能 | 自前の WebAuthn 実装。実装・保守コストが本筋のドメイン実装を圧迫する。比較検討は ADR に残す |
-| NAT Gateway | 使わず VPC Endpoint で代替 | NAT Gateway。月額が固定で発生し、本アプリの通信量では割に合わない |
+| ECS のタスクの出口 | パブリックサブネットに置き、タスクのパブリック IP から直接出る。受信は SecurityGroup で ALB 経由に限る | NAT Gateway と VPC Endpoint。どちらもタスクを止めても課金が続き、月 40〜80 ドルかかる。NAT インスタンスは安いが、更新と障害時の切り替えを自分で持つことになる |

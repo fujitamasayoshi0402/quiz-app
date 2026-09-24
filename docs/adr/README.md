@@ -17,6 +17,7 @@
 | [0009](0009-use-spring-data-jdbc.md) | データアクセスに Spring Data JDBC を採用する | Accepted |
 | [0010](0010-generate-openapi-from-code.md) | OpenAPI 定義はコードから生成し、スナップショットを固定する | Accepted |
 | [0011](0011-terraform-state-and-environments.md) | tfstate は 1 つの S3 バケットにキーで分けて置き、環境はルートモジュールで分ける | Accepted |
+| [0013](0013-run-ecs-tasks-in-public-subnets.md) | ECS のタスクはパブリックサブネットに置き、NAT Gateway も VPC Endpoint も使わない | Accepted |
 
 ## 運用ルール
 
