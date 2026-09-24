@@ -1,0 +1,9 @@
+# Git のフック。初回だけ `lefthook install` を実行すると、.git/hooks に入る
+# （開発ガイドライン「secret の検出」を参照）
+pre-commit:
+  commands:
+    # 一度 push した secret は、履歴から消しても漏れたものとして扱うしかない。commit する前に止める。
+    # 見るのはステージした差分だけ。出力では値を伏せる。
+    # mise を通すのは、エディタの Git 操作など、mise が有効になっていない環境からの commit でも動かすため
+    gitleaks:
+      run: mise exec -- gitleaks git --pre-commit --staged --redact --no-banner --verbose

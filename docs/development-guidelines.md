@@ -184,12 +184,37 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | `backend` | ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド |
 | `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → build → イメージのビルド |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
+| `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
 | `ci` | 先行ジョブの結果を集約する |
 
 **Ruleset の必須チェックには `ci` だけを指定する。** ジョブを足すたびに設定を触らずに済み、
 パスの出し分けでスキップされたジョブが「報告されないまま待ち続ける」状態にもならない。
 
 ツールのバージョンは CI でも `.mise.toml` から取る。CI 側で別に指定すると二重管理になる。
+
+### secret の検出
+
+リポジトリは Public のため、**一度 push した secret は、履歴から消しても漏れたものとして扱う。**
+[gitleaks](https://github.com/gitleaks/gitleaks) で 2 段に止める。
+
+| いつ | どこで | 見る範囲 |
+| --- | --- | --- |
+| commit の前 | pre-commit のフック（[lefthook](https://lefthook.dev/)、`lefthook.yml`） | ステージした差分 |
+| PR と push | CI の `secrets` ジョブ | HEAD から辿れる履歴すべて |
+
+フックは入れ忘れや `--no-verify` ですり抜けるため、CI でも見る。
+どちらも見つけた値はログに出さない（`--redact`）。CI のログは誰でも読める。
+
+フックは clone ごとに 1 回入れる（[初回セットアップ](#初回セットアップ)）。
+
+見つかったとき。
+
+- **commit の前に止まった**: その値をファイルから外し、環境変数や Secrets Manager から読むようにする
+- **CI で止まった**: すでに push されている。**まず値を無効にする**（キーの削除、パスワードの変更）。
+  force push を禁止しているため、履歴は書き換えない。無効にしたうえで `.gitleaksignore` にフィンガープリントを足す
+- **誤検知**: 行末に `gitleaks:allow` を書くか、`.gitleaksignore` にフィンガープリントを足す。どちらも理由を残す
+
+いまは許可リストを持っていない。ローカル専用の認証情報（`docker-compose.yml` の `quiz` など）は、既定のルールに当たらない。
 
 ### テスト
 
@@ -286,7 +311,8 @@ http://localhost:8080/swagger-ui.html
 ```bash
 brew install mise
 echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # 初回のみ。新しいシェルから有効
-mise install                                     # Java 21 / Node.js / pnpm を導入
+mise install                                     # .mise.toml のツールを導入
+mise exec -- lefthook install                    # commit の前に secret を探すフックを入れる
 ```
 
 ### 起動
