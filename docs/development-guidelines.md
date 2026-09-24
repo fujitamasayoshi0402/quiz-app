@@ -173,8 +173,8 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | ジョブ | 内容 |
 | --- | --- |
 | `changes` | 変更パスを見て後続を出し分ける |
-| `backend` | ktlint / detekt → test（Testcontainers）→ bootJar |
-| `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → build |
+| `backend` | ktlint / detekt → test（Testcontainers）→ bootJar → イメージのビルド |
+| `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → build → イメージのビルド |
 | `ci` | 先行ジョブの結果を集約する |
 
 **Ruleset の必須チェックには `ci` だけを指定する。** ジョブを足すたびに設定を触らずに済み、
@@ -241,22 +241,49 @@ mise install                                     # Java 21 / Node.js / pnpm を�
 
 ### 起動
 
+**アプリ一式をコンテナで動かす**（動作確認・デモ向け）。
+
 ```bash
-docker compose up -d                                          # PostgreSQL / LocalStack
+docker compose up                                             # http://localhost:3000
+```
+
+**アプリをホストで動かす**（開発向け）。依存サービスだけをコンテナで起動する。
+
+```bash
+docker compose up -d postgres localstack
 SPRING_PROFILES_ACTIVE=dev ./gradlew :services:quiz-service:bootRun
 pnpm --filter web dev                                         # http://localhost:3000
 ```
 
-フロントは `/api` をバックエンドへ中継する（`next.config.ts`）。ブラウザからは同一オリジンに見えるため、
+2 つを同時に動かすとポートが重なる。ホスト側のポートは `.env` で変えられる（`.env.example` を参照）。
+
+フロントは `/api` をバックエンドへ中継する（`src/proxy.ts`）。ブラウザからは同一オリジンに見えるため、
 CORS の設定は要らない。中継先は `API_ORIGIN` で変えられる（既定は `http://localhost:8080`）。
+**中継先は実行時に読む。** `next.config.ts` の rewrites はビルド時に固定されるため使わない。
+同じイメージを dev と本番で使い回すため。
+
+### コンテナイメージ
+
+| イメージ | Dockerfile | 備考 |
+| --- | --- | --- |
+| quiz-service | `services/quiz-service/Dockerfile` | 依存・ローダー・アプリを層に分けて置く。コードだけの変更で依存の層を送り直さない |
+| web | `apps/web/Dockerfile` | Next.js の standalone 出力。`node_modules` を丸ごと持たない |
+
+どちらもビルドコンテキストはリポジトリのルートで、root 以外の利用者で動く。
+Phase 2 の ECS でも同じイメージを使い、環境の違いは環境変数で渡す。
+
+ヘルスチェックは `GET /actuator/health`。**DB には問い合わせない。**
+ALB が定期的に叩くと、Aurora Serverless v2 の自動一時停止（min 0 ACU）が発動しなくなるため。
 
 **`dev` プロファイルを付けると、デモ用のシードが入る。** 付けないとカテゴリもクイズも空のまま立ち上がる。
 シードは Flyway の repeatable マイグレーション（`db/seed/`）で、`dev` のときだけ locations に加わる。
 
-`docker compose up -d` で起動するもの。
+`docker compose up` で起動するもの。
 
 | サービス | ポート | 備考 |
 | --- | --- | --- |
+| web | 3000 | Next.js |
+| quiz-service | 8080 | `dev` プロファイル（シードあり） |
 | PostgreSQL | 5432 | ユーザー / パスワード / DB 名はすべて `quiz` |
 | LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda |
 
