@@ -37,22 +37,26 @@ export function CategoryList({ slug }: { slug: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead>カテゴリ</TableHead>
-                <TableHead>説明</TableHead>
+                <TableHead className="hidden sm:table-cell">説明</TableHead>
                 <TableHead className="w-16 text-right">並び順</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {categories.data.map((category) => (
                 <TableRow key={category.id}>
-                  <TableCell>
+                  <TableCell className="max-w-0 sm:max-w-none">
                     <Link
                       href={`/t/${slug}/admin/categories/${category.id}`}
                       className="font-medium underline-offset-4 hover:underline"
                     >
                       {category.name}
                     </Link>
+                    {/* 狭い幅では説明の列を畳み、名前の下に出す。列のままだと数文字で切れる */}
+                    <p className="text-muted-foreground truncate text-xs sm:hidden">{category.description}</p>
                   </TableCell>
-                  <TableCell className="text-muted-foreground max-w-0 truncate">{category.description}</TableCell>
+                  <TableCell className="text-muted-foreground hidden max-w-0 truncate sm:table-cell">
+                    {category.description}
+                  </TableCell>
                   <TableCell className="text-right">{category.sortOrder}</TableCell>
                 </TableRow>
               ))}

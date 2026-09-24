@@ -90,8 +90,8 @@ export function QuizList({ slug }: { slug: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead>問題文</TableHead>
-                <TableHead className="w-32">カテゴリ</TableHead>
-                <TableHead className="w-24">難易度</TableHead>
+                <TableHead className="hidden w-32 sm:table-cell">カテゴリ</TableHead>
+                <TableHead className="hidden w-24 sm:table-cell">難易度</TableHead>
                 <TableHead className="w-20">状態</TableHead>
               </TableRow>
             </TableHeader>
@@ -101,13 +101,17 @@ export function QuizList({ slug }: { slug: string }) {
                   <TableCell className="max-w-0">
                     <Link
                       href={`/t/${slug}/admin/quizzes/${quiz.id}`}
-                      className="block truncate underline-offset-4 hover:underline"
+                      className="line-clamp-2 whitespace-normal underline-offset-4 hover:underline sm:line-clamp-1"
                     >
                       {quiz.question}
                     </Link>
+                    {/* 狭い幅ではカテゴリと難易度の列を畳み、問題文の下に出す。列のままだと問題文が数文字しか見えない */}
+                    <p className="text-muted-foreground mt-0.5 truncate text-xs sm:hidden">
+                      {catalog.categoryName(quiz.categoryId)}・{catalog.difficultyName(quiz.difficultyId)}
+                    </p>
                   </TableCell>
-                  <TableCell>{catalog.categoryName(quiz.categoryId)}</TableCell>
-                  <TableCell>{catalog.difficultyName(quiz.difficultyId)}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{catalog.categoryName(quiz.categoryId)}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{catalog.difficultyName(quiz.difficultyId)}</TableCell>
                   <TableCell>
                     <StatusBadge status={quiz.status} />
                   </TableCell>

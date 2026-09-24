@@ -51,12 +51,13 @@ export function TenantNav({ slug }: { slug: string }) {
           {name}
         </Link>
       )}
+      {/* py-2 はタップできる範囲を広げるため。ヘッダの高さに収まるので見た目は変わらない */}
       <nav className="flex shrink-0 gap-3 text-sm">
-        <Link href={`/t/${slug}/play`} className="text-muted-foreground hover:text-foreground">
+        <Link href={`/t/${slug}/play`} className="text-muted-foreground hover:text-foreground py-2">
           解く
         </Link>
         {current?.role === "admin" && (
-          <Link href={`/t/${slug}/admin`} className="text-muted-foreground hover:text-foreground">
+          <Link href={`/t/${slug}/admin`} className="text-muted-foreground hover:text-foreground py-2">
             管理
           </Link>
         )}
