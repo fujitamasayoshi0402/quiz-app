@@ -78,7 +78,7 @@
 
 **ゴール: develop への merge で dev 環境に自動デプロイされる**
 
-- [ ] Terraform: tfstate バックエンド（S3 + ロック）、環境分割（dev / prod）
+- [x] Terraform: tfstate バックエンド（S3 + ロック）、環境分割（dev / prod）
 - [ ] ネットワーク: VPC / Subnet / SecurityGroup / VPC Endpoint（NAT Gateway は使わない）
 - [ ] データ: Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止）+ Secrets Manager
 - [ ] 0 ACU 検証: 一時停止の発動条件、復帰時間、HikariCP の `minimum-idle: 0` 設定、初回アクセスのリトライ

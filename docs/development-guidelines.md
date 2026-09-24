@@ -98,6 +98,7 @@
 │   └── notification-service/
 ├── infra/
 │   └── terraform/
+│       ├── bootstrap/       # tfstate のバケット
 │       ├── modules/
 │       └── envs/{dev,prod}/
 ├── docs/
@@ -182,6 +183,7 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | `changes` | 変更パスを見て後続を出し分ける |
 | `backend` | ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド |
 | `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → build → イメージのビルド |
+| `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `ci` | 先行ジョブの結果を集約する |
 
 **Ruleset の必須チェックには `ci` だけを指定する。** ジョブを足すたびに設定を触らずに済み、
@@ -400,6 +402,45 @@ Phase 3 で差し替えるのは `auth/StubAuthenticator.kt` と `auth/StubAuthe
 
 Phase 3 では proxy を「セッションから Cognito のトークンを取り出して `Authorization` に付ける」に替え、
 `src/lib/auth/stub-users.ts` とログイン画面を削除する。
+
+### インフラ（Terraform）
+
+AWS のリソースは Terraform で作る。コンソールで直接変えない。
+state の置き場所と環境の分け方は [ADR-0011](adr/0011-terraform-state-and-environments.md) を参照。
+
+| ディレクトリ | 内容 | state のキー |
+| --- | --- | --- |
+| `infra/terraform/bootstrap` | tfstate のバケット | `bootstrap/terraform.tfstate` |
+| `infra/terraform/envs/dev` | dev 環境 | `dev/terraform.tfstate` |
+| `infra/terraform/envs/prod` | prod 環境 | `prod/terraform.tfstate` |
+| `infra/terraform/modules` | 環境で共有する部品 | — |
+
+```bash
+aws sso login --profile quiz-app-admin
+export AWS_PROFILE=quiz-app-admin
+
+cd infra/terraform/envs/dev
+terraform init
+terraform plan
+terraform apply
+```
+
+**apply はローカルから行う。** CI は整形と `validate` だけで、AWS には触れない。
+CI からの plan / apply は、OIDC のロールを作る課題で検討する。
+
+- 同時に操作すると、あとから始めたほうがロックで止まる（`Error acquiring the state lock`）。
+  ロックは S3 上の `*.tflock` で、異常終了で残ったときは `terraform force-unlock <ID>` で外す
+- provider のバージョンは `.terraform.lock.hcl` で固定している。上げるときは
+  `terraform init -upgrade` のあと、`terraform providers lock -platform=darwin_arm64 -platform=linux_amd64`
+  で CI（Linux）の分も記録する
+- 全リソースに `Project` / `Env` / `ManagedBy` のタグが付く（`default_tags`）
+
+#### state のバケットを作り直すとき
+
+通常は触らない。バケットごと失った場合だけ、次の順で作る。
+
+1. `bootstrap/backend.tf` を一時的に外し、ローカル state で `terraform init` → `apply`
+2. `backend.tf` を戻し、`terraform init -migrate-state` で state をバケットへ移す
 
 ## 8. コスト方針
 

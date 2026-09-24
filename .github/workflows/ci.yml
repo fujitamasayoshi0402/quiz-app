@@ -26,6 +26,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      terraform: ${{ steps.filter.outputs.terraform }}
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +53,10 @@ jobs:
               - 'pnpm-workspace.yaml'
               # 型は OpenAPI 定義から生成するため、定義が変われば作り直しが要る
               - 'docs/api/**'
+              - '.mise.toml'
+              - '.github/workflows/ci.yml'
+            terraform:
+              - 'infra/terraform/**'
               - '.mise.toml'
               - '.github/workflows/ci.yml'
 
@@ -152,13 +157,43 @@ jobs:
       - name: コンテナイメージをビルドする
         run: docker build -f apps/web/Dockerfile .
 
+  # AWS には触れない。plan / apply は OIDC のロールができるまでローカルから行う
+  terraform:
+    name: terraform
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
+    runs-on: ubuntu-latest
+    env:
+      # AWS provider は大きい。ルートモジュールごとに取り直さないよう、ジョブの中で使い回す
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-plugin-cache
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          install_args: terraform
+
+      - name: 整形（terraform fmt）
+        run: terraform fmt -check -recursive -diff infra/terraform
+
+      # backend は初期化しない。認証なしで、構文・型・参照の誤りだけを見る
+      - name: 検証（terraform validate）
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          for dir in infra/terraform/bootstrap infra/terraform/envs/*/; do
+            echo "::group::$dir"
+            terraform -chdir="$dir" init -backend=false -input=false -lockfile=readonly
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done
+
   # 必須ステータスチェックはこのジョブだけを指定する（DEV-16）。
   # ジョブを足すたびに Ruleset を触らずに済み、パスの出し分けでスキップされても
   # 「報告されないまま待ち続ける」状態にならない
   ci:
     name: ci
     if: always()
-    needs: [changes, backend, frontend]
+    needs: [changes, backend, frontend, terraform]
     runs-on: ubuntu-latest
     steps:
       - name: 先行ジョブの結果を確かめる
