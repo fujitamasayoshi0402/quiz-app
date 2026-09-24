@@ -102,6 +102,8 @@
 │       ├── bootstrap/       # tfstate のバケット
 │       ├── modules/
 │       └── envs/{dev,prod}/
+├── tests/
+│   └── api/             # API のスモークテスト（Postman / Newman）
 ├── docs/
 │   ├── ROADMAP.md
 │   ├── development-guidelines.md
@@ -228,6 +230,7 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | 単体テスト | ドメインの不変条件、ユースケースの分岐。DB を使わない | `quiz/domain/QuizTest.kt`、`answer/usecase/AttemptUseCaseTest.kt` |
 | API テスト | コントローラから DB まで。Testcontainers の PostgreSQL を使う | `quiz/controller/QuizApiTest.kt` |
 | 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest` |
+| スモークテスト | デプロイした環境で、主要な導線が通るか。Newman で流す | `tests/api/` |
 
 **単体テストにするのは、分岐や不変条件を持つものだけ。** リポジトリへ素通しするだけのユースケースには書かない。
 SQL が担うこと（絞り込み・並び順・行レベルセキュリティ・連鎖削除）は、フェイクでは確かめられないので API テストで見る。
@@ -255,6 +258,29 @@ SQL が担うこと（絞り込み・並び順・行レベルセキュリティ�
 
 JaCoCo で計測し、CI のジョブサマリーに出す。**閾値でビルドは落とさない。**
 数値を目標にすると、意味の薄いテストが増える。守りたい性質（テナント境界の網羅など）は、構造のテストが担保している。
+
+#### スモークテスト
+
+Postman のコレクション（`tests/api/`）を Newman で流し、**デプロイした環境で主要な導線が通るか**を確かめる。
+管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → テナントの境界 → 片付け、の順に 18 本を呼ぶ。
+
+```bash
+docker compose up -d
+pnpm test:api                                              # web の proxy を通して呼ぶ
+pnpm test:api --env-var baseUrl=http://localhost:8080      # API を直接呼ぶ
+```
+
+**JUnit の API テストと守備範囲を重ねない。** 細かい仕様や境界値は JUnit が見る。
+こちらは「つながっているか」（web → API → DB、利用者の識別、マイグレーション）だけを見る。
+同じことを両方で検証すると、仕様を変えるたびに 2 か所を直すことになる。
+
+- **専用のテナント `smoke` で動く**（シード `R__smoke_data.sql`）。デプロイのたびに作っては消すので、
+  デモのテナントでやるとゴミ箱にたまる。作ったものは最後に消し、途中で失敗しても片付けの段は実行される
+- 利用者の識別は、`X-User-Id` と Cookie の両方を付ける。web を通すと Cookie、API を直接呼ぶと `X-User-Id` が使われる
+- **コレクションは手で書く。** OpenAPI から生成すると、呼ぶ順番と、作った ID を次の要求で使う流れを表せない。
+  生成したものに検証を書き足しても、生成し直すと消える
+- Postman のアプリでそのまま開ける。書き換えたら、ローカルで流してから commit する
+- Newman は `.mise.toml` で固定している（`mise install` で入る）
 
 ### OpenAPI
 
@@ -420,6 +446,9 @@ AWS の dev はデモに使うため `dev,migrate` でシードも流す。本�
 
 2 つ目のテナントは、テナントの選択と、テナントごとにロールが違うことを見せるためにある。
 利用者は所属の数が 0 / 1 / 2 の 3 人で、`/` の出し分けをすべて試せる（下の表）。
+
+ほかに、スモークテスト専用のテナント `smoke` と、その管理者が入る（`R__smoke_data.sql`）。
+カテゴリやクイズはテストが作って消すため、シードでは入れない。ログイン画面にも出さない。
 
 同じ内容を何度流しても増えない。repeatable マイグレーションは**内容を変えるたびに再実行される**ため、
 識別子を固定して `ON CONFLICT DO NOTHING` で入れている。
