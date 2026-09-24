@@ -1,7 +1,7 @@
 # 開発プロファイル。**本番相当の環境では読み込まない。**
 spring:
   flyway:
-    # スキーマのマイグレーションに加えて、デモ用のシードを流す。
+    # スキーマのマイグレーションに加えて、デモ用のシードを流す。効くのは migrate と合わせたとき（dev,migrate）。
     # 既定（application.yml）は db/migration のみで、シードはここでしか加わらない。
     # 誤って本番で dev を有効にした場合は SeedDataGuard が起動を止める
     locations: classpath:db/migration,classpath:db/seed

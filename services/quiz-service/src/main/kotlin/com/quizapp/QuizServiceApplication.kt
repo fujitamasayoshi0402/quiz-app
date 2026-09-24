@@ -1,7 +1,9 @@
 package com.quizapp
 
+import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
+import kotlin.system.exitProcess
 
 /**
  * quiz-service の起動クラス。
@@ -13,6 +15,14 @@ import org.springframework.boot.runApplication
 @SpringBootApplication
 class QuizServiceApplication
 
+/** マイグレーションだけを流して終了するプロファイル（application-migrate.yml） */
+const val MIGRATE_PROFILE = "migrate"
+
 fun main(args: Array<String>) {
-    runApplication<QuizServiceApplication>(*args)
+    val context = runApplication<QuizServiceApplication>(*args)
+    // Flyway は起動の途中で走るため、ここに来た時点でマイグレーションは済んでいる。
+    // 失敗したときは起動そのものが例外で止まり、終了コードが 0 以外になる。デプロイはそれを見て先へ進まない
+    if (context.environment.matchesProfiles(MIGRATE_PROFILE)) {
+        exitProcess(SpringApplication.exit(context))
+    }
 }

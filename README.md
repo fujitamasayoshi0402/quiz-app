@@ -83,11 +83,12 @@ echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # 初回のみ
 mise install                                     # .mise.toml のバージョンを導入
 
 docker compose up -d postgres localstack
+SPRING_PROFILES_ACTIVE=dev,migrate ./gradlew :services:quiz-service:bootRun   # マイグレーションを流して終了する
 SPRING_PROFILES_ACTIVE=dev ./gradlew :services:quiz-service:bootRun
 pnpm install && pnpm --filter web dev
 ```
 
-`dev` プロファイルで起動すると、デモ用のカテゴリとクイズが投入されます。
+アプリは起動時にマイグレーションしません。`dev,migrate` で流すと、デモ用のカテゴリとクイズも投入されます。
 
 詳細は [開発ガイドライン](docs/development-guidelines.md#7-ローカル開発) を参照してください。
 

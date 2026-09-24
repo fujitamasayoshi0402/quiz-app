@@ -372,6 +372,8 @@ PostgreSQL の公式イメージでは `POSTGRES_USER` がスーパーユーザ�
 | `quiz_app` | アプリケーションの接続先 | `NOSUPERUSER` |
 
 Spring Boot では `spring.datasource` に `quiz_app`、`spring.flyway.user` に `quiz` を指定して使い分けます。
+`quiz` の認証情報を持つのは、マイグレーションだけを流す `migrate` プロファイルです。アプリは `quiz_app` しか持ちません
+（[開発ガイドライン「マイグレーション」](development-guidelines.md#マイグレーション)）。
 
 ### `nullif` を挟む理由
 

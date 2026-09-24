@@ -45,11 +45,15 @@ object TestPostgres {
     /**
      * 接続設定をテストのコンテキストに流し込む。
      * アプリケーションは非スーパーユーザー、マイグレーションは所有者で接続する。
+     *
+     * 本番のアプリは起動時にマイグレーションしない（migrate プロファイルで別に流す）。
+     * テストでは手順を 1 つにするため、同じコンテキストの起動時に流す。
      */
     fun configure(registry: DynamicPropertyRegistry) {
         registry.add("spring.datasource.url") { container.jdbcUrl }
         registry.add("spring.datasource.username") { "quiz_app" }
         registry.add("spring.datasource.password") { "quiz_app" }
+        registry.add("spring.flyway.enabled") { "true" }
         registry.add("spring.flyway.user") { "quiz" }
         registry.add("spring.flyway.password") { "quiz" }
     }
