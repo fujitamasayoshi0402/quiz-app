@@ -5,7 +5,7 @@
 # | public     | ALB、ECS のタスク            | Internet Gateway       |
 # | private    | Aurora                       | なし                   |
 #
-# ECS のタスクはパブリック IP を持ち、ECR / CloudWatch Logs / Secrets Manager へ直接出る。
+# ECS のタスクはパブリック IP を持ち、ECR や CloudWatch Logs などの AWS の API へ直接出る。
 # 外から届くかどうかは、security_groups.tf の SecurityGroup だけで決まる。
 
 locals {

@@ -1,19 +1,19 @@
 # 通信の許可。外から届く入口は ALB だけにし、あとは 1 段ずつ隣へ渡す。
 #
-#   インターネット → ALB → web → quiz-service → Aurora
+#   インターネット → ALB → quiz-service → Aurora
 #
 # ECS のタスクはパブリック IP を持つ（ADR-0013）。**タスクへの受信は SG の参照だけで許し、CIDR では開けない。**
 # CIDR で開けると、ALB を通らずタスクへ直接届く。
 #
-# quiz-service は ALB に載せず、web からだけ届くようにする（ADR-0012）。
-# スタブ認証の間、`X-User-Id` を付けてよいのは web の proxy だけのため。
+# web は Amplify Hosting で配り、VPC の外から ALB を呼ぶ（ADR-0012）。
+# スタブ認証の間、ALB は web の proxy だけが知る秘密のヘッダを確かめる（modules/quiz-service）。
 
 locals {
-  web_port          = 3000
+  alb_port          = 80
   quiz_service_port = 8080
   db_port           = 5432
 
-  # ECR からのイメージの取得、CloudWatch Logs、Secrets Manager。いずれも公開エンドポイントへ HTTPS で出る
+  # ECR からのイメージの取得、CloudWatch Logs。いずれも公開エンドポイントへ HTTPS で出る
   anywhere = "0.0.0.0/0"
 }
 
@@ -23,7 +23,7 @@ locals {
 
 resource "aws_security_group" "alb" {
   name        = "${var.name}-alb"
-  description = "ALB in front of web"
+  description = "ALB in front of quiz-service"
   vpc_id      = aws_vpc.this.id
 
   tags = {
@@ -31,55 +31,26 @@ resource "aws_security_group" "alb" {
   }
 }
 
-# 受信はまだ開けない。スタブ認証の間は、誰でも管理者になりすませる。
-# 誰から受けるかは、dev へのアクセス制限の課題（DEV-46）で決める
+# HTTPS（DEV-47）が入るまでは HTTP のため、秘密のヘッダも X-User-Id も平文で流れる。
+# それまでは、受信を許す相手を alb_ingress_cidrs で絞る
+resource "aws_vpc_security_group_ingress_rule" "alb_http" {
+  for_each = toset(var.alb_ingress_cidrs)
 
-resource "aws_vpc_security_group_egress_rule" "alb_to_web" {
+  security_group_id = aws_security_group.alb.id
+  cidr_ipv4         = each.value
+  ip_protocol       = "tcp"
+  from_port         = local.alb_port
+  to_port           = local.alb_port
+  description       = "HTTP until HTTPS is in place"
+}
+
+resource "aws_vpc_security_group_egress_rule" "alb_to_quiz_service" {
   security_group_id            = aws_security_group.alb.id
-  referenced_security_group_id = aws_security_group.web.id
-  ip_protocol                  = "tcp"
-  from_port                    = local.web_port
-  to_port                      = local.web_port
-  description                  = "Forward to web"
-}
-
-# ---- web ----
-
-resource "aws_security_group" "web" {
-  name        = "${var.name}-web"
-  description = "web (Next.js) tasks"
-  vpc_id      = aws_vpc.this.id
-
-  tags = {
-    Name = "${var.name}-web"
-  }
-}
-
-resource "aws_vpc_security_group_ingress_rule" "web_from_alb" {
-  security_group_id            = aws_security_group.web.id
-  referenced_security_group_id = aws_security_group.alb.id
-  ip_protocol                  = "tcp"
-  from_port                    = local.web_port
-  to_port                      = local.web_port
-  description                  = "From ALB"
-}
-
-resource "aws_vpc_security_group_egress_rule" "web_to_quiz_service" {
-  security_group_id            = aws_security_group.web.id
   referenced_security_group_id = aws_security_group.quiz_service.id
   ip_protocol                  = "tcp"
   from_port                    = local.quiz_service_port
   to_port                      = local.quiz_service_port
-  description                  = "Proxy /api to quiz-service"
-}
-
-resource "aws_vpc_security_group_egress_rule" "web_https" {
-  security_group_id = aws_security_group.web.id
-  cidr_ipv4         = local.anywhere
-  ip_protocol       = "tcp"
-  from_port         = 443
-  to_port           = 443
-  description       = "AWS APIs (ECR, CloudWatch Logs, Secrets Manager)"
+  description                  = "Forward to quiz-service"
 }
 
 # ---- quiz-service ----
@@ -95,13 +66,13 @@ resource "aws_security_group" "quiz_service" {
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "quiz_service_from_web" {
+resource "aws_vpc_security_group_ingress_rule" "quiz_service_from_alb" {
   security_group_id            = aws_security_group.quiz_service.id
-  referenced_security_group_id = aws_security_group.web.id
+  referenced_security_group_id = aws_security_group.alb.id
   ip_protocol                  = "tcp"
   from_port                    = local.quiz_service_port
   to_port                      = local.quiz_service_port
-  description                  = "From web only"
+  description                  = "From ALB only"
 }
 
 resource "aws_vpc_security_group_egress_rule" "quiz_service_to_db" {
@@ -119,7 +90,7 @@ resource "aws_vpc_security_group_egress_rule" "quiz_service_https" {
   ip_protocol       = "tcp"
   from_port         = 443
   to_port           = 443
-  description       = "AWS APIs (ECR, CloudWatch Logs, Secrets Manager)"
+  description       = "AWS APIs (ECR, CloudWatch Logs)"
 }
 
 # ---- Aurora ----
