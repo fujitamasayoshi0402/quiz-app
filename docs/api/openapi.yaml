@@ -63,6 +63,13 @@ paths:
       summary: カテゴリ一覧
       tags:
       - カテゴリ
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     post:
       operationId: createCategory
       requestBody:
@@ -139,6 +146,13 @@ paths:
       summary: 難易度一覧
       tags:
       - 難易度
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     post:
       operationId: createDifficulty
       parameters:
@@ -265,6 +279,13 @@ paths:
       summary: 難易度を 1 件取得
       tags:
       - 難易度
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     put:
       operationId: updateDifficulty
       parameters:
@@ -358,6 +379,13 @@ paths:
       summary: 削除したときに巻き込む範囲
       tags:
       - 難易度
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
   /api/t/{slug}/admin/categories/{id}:
     delete:
       operationId: deleteCategory
@@ -429,6 +457,13 @@ paths:
       summary: カテゴリを 1 件取得
       tags:
       - カテゴリ
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     put:
       operationId: updateCategory
       parameters:
@@ -511,6 +546,13 @@ paths:
       summary: 削除したときに巻き込む範囲
       tags:
       - カテゴリ
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
   /api/t/{slug}/admin/quizzes:
     get:
       operationId: searchQuizzes
@@ -562,6 +604,13 @@ paths:
       summary: クイズを絞り込んで一覧
       tags:
       - クイズ（管理）
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     post:
       operationId: createQuiz
       requestBody:
@@ -669,6 +718,13 @@ paths:
       summary: クイズを 1 件取得
       tags:
       - クイズ（管理）
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     put:
       operationId: updateQuiz
       parameters:
@@ -743,7 +799,21 @@ paths:
       summary: 削除済みの一覧
       tags:
       - 削除済み
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
   /api/t/{slug}/admin/trash/categories/{id}/restore:
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     post:
       operationId: restoreCategory
       parameters:
@@ -778,6 +848,13 @@ paths:
       tags:
       - 削除済み
   /api/t/{slug}/admin/trash/difficulties/{id}/restore:
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     post:
       operationId: restoreDifficulty
       parameters:
@@ -812,6 +889,13 @@ paths:
       tags:
       - 削除済み
   /api/t/{slug}/admin/trash/quizzes/{id}/restore:
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     post:
       operationId: restoreQuiz
       parameters:
@@ -846,6 +930,13 @@ paths:
       tags:
       - 削除済み
   /api/t/{slug}/play/attempts:
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     post:
       operationId: startAttempt
       requestBody:
@@ -913,6 +1004,13 @@ paths:
       summary: 中断中の挑戦を取得
       tags:
       - 挑戦
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
   /api/t/{slug}/play/attempts/{attemptId}:
     get:
       operationId: resumeAttempt
@@ -951,7 +1049,21 @@ paths:
       summary: 挑戦を再開する
       tags:
       - 挑戦
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
   /api/t/{slug}/play/attempts/{attemptId}/abandon:
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     post:
       operationId: abandonAttempt
       parameters:
@@ -986,6 +1098,13 @@ paths:
       tags:
       - 挑戦
   /api/t/{slug}/play/attempts/{attemptId}/answers:
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     post:
       operationId: answerQuiz
       parameters:
@@ -1030,6 +1149,13 @@ paths:
       tags:
       - 挑戦
   /api/t/{slug}/play/attempts/{attemptId}/complete:
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
     post:
       operationId: completeAttempt
       parameters:
@@ -1100,6 +1226,13 @@ paths:
       summary: 出題できるカテゴリと難易度の一覧
       tags:
       - 出題条件
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
 components:
   schemas:
     AnswerRequest:
@@ -1111,6 +1244,9 @@ components:
         quizId:
           type: string
           format: uuid
+      required:
+      - choiceId
+      - quizId
     AnswerResult:
       type: object
       properties:
@@ -1127,6 +1263,12 @@ components:
         totalCount:
           type: integer
           format: int32
+      required:
+      - answeredCount
+      - correctChoiceId
+      - explanation
+      - isCorrect
+      - totalCount
     AttemptResult:
       type: object
       properties:
@@ -1148,6 +1290,13 @@ components:
         totalCount:
           type: integer
           format: int32
+      required:
+      - answeredCount
+      - correctCount
+      - id
+      - results
+      - status
+      - totalCount
     AttemptView:
       type: object
       properties:
@@ -1170,6 +1319,13 @@ components:
           type: string
         status:
           type: string
+      required:
+      - answeredQuizIds
+      - excludedCount
+      - id
+      - quizzes
+      - scope
+      - status
     CategoryResponse:
       type: object
       properties:
@@ -1185,6 +1341,10 @@ components:
         sortOrder:
           type: integer
           format: int32
+      required:
+      - id
+      - name
+      - sortOrder
     ChoiceRequest:
       type: object
       properties:
@@ -1206,6 +1366,10 @@ components:
           format: uuid
         isCorrect:
           type: boolean
+      required:
+      - body
+      - id
+      - isCorrect
     CreateCategoryRequest:
       type: object
       properties:
@@ -1241,6 +1405,11 @@ components:
           type: string
         restorable:
           type: boolean
+      required:
+      - deletedAt
+      - id
+      - name
+      - restorable
     DeletionImpact:
       type: object
       properties:
@@ -1258,6 +1427,9 @@ components:
         id:
           type: string
           format: uuid
+      required:
+      - body
+      - id
     DeliveredQuiz:
       type: object
       properties:
@@ -1276,6 +1448,12 @@ components:
           format: uuid
         question:
           type: string
+      required:
+      - categoryId
+      - choices
+      - difficultyId
+      - id
+      - question
     DifficultyResponse:
       type: object
       properties:
@@ -1297,6 +1475,12 @@ components:
         sortOrder:
           type: integer
           format: int32
+      required:
+      - categoryId
+      - id
+      - level
+      - name
+      - sortOrder
     PlayableCategoryResponse:
       type: object
       properties:
@@ -1316,6 +1500,11 @@ components:
         quizCount:
           type: integer
           format: int32
+      required:
+      - difficulties
+      - id
+      - name
+      - quizCount
     PlayableDifficultyResponse:
       type: object
       properties:
@@ -1334,6 +1523,11 @@ components:
         quizCount:
           type: integer
           format: int32
+      required:
+      - id
+      - level
+      - name
+      - quizCount
     ProblemDetail:
       type: object
       additionalProperties: true
@@ -1377,6 +1571,14 @@ components:
           type: string
         status:
           type: string
+      required:
+      - categoryId
+      - choices
+      - difficultyId
+      - explanation
+      - id
+      - question
+      - status
     QuizResult:
       type: object
       properties:
@@ -1401,6 +1603,13 @@ components:
           - string
           - "null"
           format: uuid
+      required:
+      - choices
+      - correctChoiceId
+      - explanation
+      - isCorrect
+      - question
+      - quizId
     SaveDifficultyRequest:
       type: object
       properties:
@@ -1422,6 +1631,7 @@ components:
           type: integer
           format: int32
       required:
+      - level
       - name
     SaveQuizRequest:
       type: object
@@ -1445,6 +1655,8 @@ components:
         status:
           type: string
       required:
+      - categoryId
+      - difficultyId
       - question
     StartAttemptRequest:
       type: object
