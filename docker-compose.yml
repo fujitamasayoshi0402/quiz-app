@@ -56,22 +56,41 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  # マイグレーションを流して終了する。本番と同じく、アプリの起動とは分けて実行する。
+  # イメージは quiz-service と同じで、プロファイルだけが違う
+  migrate:
+    build:
+      context: .
+      dockerfile: services/quiz-service/Dockerfile
+    image: quiz-app/quiz-service
+    container_name: quiz-app-migrate
+    environment:
+      # dev を付けるとデモ用のシードも流れる。クローン直後でもクイズを解ける状態にするため
+      SPRING_PROFILES_ACTIVE: dev,migrate
+      # コンテナの中では localhost ではなくサービス名で DB に届く
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/quiz
+    depends_on:
+      # アプリロールの作成（init スクリプト）が済むまで待つ。権限を与えるマイグレーションがロールを前提にする
+      postgres:
+        condition: service_healthy
+
   quiz-service:
     build:
       context: .
       dockerfile: services/quiz-service/Dockerfile
+    image: quiz-app/quiz-service
     container_name: quiz-app-quiz-service
     environment:
-      # デモ用のシードを入れる。クローン直後でもクイズを解ける状態にするため
       SPRING_PROFILES_ACTIVE: dev
-      # コンテナの中では localhost ではなくサービス名で DB に届く
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/quiz
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
-      # アプリロールの作成（init スクリプト）が済むまで待つ。接続に失敗すると起動が止まる
       postgres:
         condition: service_healthy
+      # マイグレーションが成功してから起動する。失敗したらアプリも起動しない
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       # DB には問い合わせない（application.yml を参照）。プロセスが応答できるかだけを見る
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health || exit 1"]

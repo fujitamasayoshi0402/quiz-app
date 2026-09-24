@@ -1,0 +1,14 @@
+# マイグレーションだけを流して終了する。デプロイではアプリを入れ替える前に、同じイメージを単発で起動する。
+#   SPRING_PROFILES_ACTIVE=migrate       … スキーマのみ
+#   SPRING_PROFILES_ACTIVE=dev,migrate   … デモ用のシードも流す（application-dev.yml）
+# 終了は QuizServiceApplication の main が行う。
+spring:
+  main:
+    # HTTP を受けない。ALB のターゲットにもならない
+    web-application-type: none
+  flyway:
+    enabled: true
+    # DDL はスキーマ所有者が実行する。値はローカル用で、AWS では
+    # SPRING_FLYWAY_USER / SPRING_FLYWAY_PASSWORD を Secrets Manager から渡す
+    user: quiz
+    password: quiz

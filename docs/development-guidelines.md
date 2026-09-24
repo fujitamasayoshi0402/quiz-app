@@ -301,9 +301,12 @@ docker compose up                                             # http://localhost
 
 ```bash
 docker compose up -d postgres localstack
+SPRING_PROFILES_ACTIVE=dev,migrate ./gradlew :services:quiz-service:bootRun   # マイグレーションとシードを流して終わる
 SPRING_PROFILES_ACTIVE=dev ./gradlew :services:quiz-service:bootRun
 pnpm --filter web dev                                         # http://localhost:3000
 ```
+
+**アプリは起動時にマイグレーションしない。** マイグレーションを足したら、2 行目を流し直す（[マイグレーション](#マイグレーション)）。
 
 2 つを同時に動かすとポートが重なる。ホスト側のポートは `.env` で変えられる（`.env.example` を参照）。
 
@@ -325,7 +328,7 @@ Phase 2 の ECS でも同じイメージを使い、環境の違いは環境変�
 ヘルスチェックは `GET /actuator/health`。**DB には問い合わせない。**
 ALB が定期的に叩くと、Aurora Serverless v2 の自動一時停止（min 0 ACU）が発動しなくなるため。
 
-**`dev` プロファイルを付けると、デモ用のシードが入る。** 付けないとカテゴリもクイズも空のまま立ち上がる。
+**`dev,migrate` で流すと、デモ用のシードが入る。** `dev` を付けないとカテゴリもクイズも空のまま立ち上がる。
 シードは Flyway の repeatable マイグレーション（`db/seed/`）で、`dev` のときだけ locations に加わる。
 
 `docker compose up` で起動するもの。
@@ -333,7 +336,8 @@ ALB が定期的に叩くと、Aurora Serverless v2 の自動一時停止（min 
 | サービス | ポート | 備考 |
 | --- | --- | --- |
 | web | 3000 | Next.js |
-| quiz-service | 8080 | `dev` プロファイル（シードあり） |
+| quiz-service | 8080 | `dev` プロファイル。migrate が成功してから起動する |
+| migrate | なし | quiz-service と同じイメージを `dev,migrate` で起動する。マイグレーションとシードを流して終了する |
 | PostgreSQL | 5432 | ユーザー / パスワード / DB 名はすべて `quiz` |
 | LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda |
 
@@ -342,9 +346,39 @@ PostgreSQL は本番の Aurora とメジャーバージョンを揃えて 16 系
 
 ローカルの認証情報は開発専用のため、値を直接 `docker-compose.yml` に記載している。
 
+### マイグレーション
+
+**アプリは起動時にマイグレーションしない。** スキーマ所有者（DDL の権限）の認証情報をアプリに持たせないため。
+同じイメージを `migrate` プロファイルで起動すると、マイグレーションだけを流して終了する。HTTP は受けない。
+
+| 起動するもの | プロファイル | 接続するロール |
+| --- | --- | --- |
+| アプリ | `dev` / `prod` など | `quiz_app`（読み書きのみ。行レベルセキュリティが効く） |
+| マイグレーション | `migrate`。シードも流すなら `dev,migrate` | `quiz`（スキーマ所有者） |
+
+AWS では、デプロイのたびに、サービスを入れ替える前に ECS の単発タスクとして流す。
+失敗すると終了コードが 0 以外になり、デプロイはそこで止まる。
+所有者の認証情報（`SPRING_FLYWAY_USER` / `SPRING_FLYWAY_PASSWORD`）は、この単発タスクにだけ渡す。
+AWS の dev はデモに使うため `dev,migrate` でシードも流す。本番で `dev` を付けると `SeedDataGuard` が止める。
+
+見送った方式。
+
+- **アプリの起動時に流す**: アプリが DDL の権限を持ち続ける。タスクが複数あると、起動のたびにそれぞれが流そうとする
+- **GitHub Actions から流す**: Runner からプライベートサブネットの Aurora へ届く経路が要る
+
+**マイグレーションは、1 つ前のアプリと両立させる。**
+デプロイ中は新旧のタスクが同時に動き、マイグレーションは新しいタスクより先に流れる。
+古いタスクが使っている列を消したり名前を変えたりすると、入れ替わるまでの間、古いタスクが壊れる。
+
+- 列やテーブルの追加は 1 回で行う。`NOT NULL` の列には既定値を付ける。古いタスクはその列を知らずに `INSERT` する
+- 削除と名前の変更は 2 回に分ける。先にアプリが使わないようにしてリリースし、次のリリースで消す
+
+テストだけは、コンテキストの起動時に流す（`TestPostgres`）。手順を 1 つにするため。
+「アプリは流さない」「migrate は流して HTTP を受けない」は `MigrationProfileTest` が確かめる。
+
 ### シードデータ
 
-`dev` プロファイルで起動すると、次が入る。
+`dev,migrate` で流すと、次が入る。
 **アプリの仕様ではなくサンプル**であり、スキーマやロジックはこの内容に依存しない。
 
 | 種類 | `demo`（デモ） | `geo-club`（地理の勉強会） |

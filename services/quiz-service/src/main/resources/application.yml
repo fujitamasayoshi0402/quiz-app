@@ -18,10 +18,9 @@ spring:
       connection-timeout: 30000
 
   flyway:
-    enabled: true
-    # マイグレーション（DDL）はスキーマ所有者が実行する
-    user: quiz
-    password: quiz
+    # アプリの起動時にはマイグレーションしない。**スキーマ所有者（DDL の権限）の認証情報をアプリに持たせない**ため。
+    # マイグレーションは migrate プロファイルで同じイメージを単発で起動して流す（application-migrate.yml）
+    enabled: false
     locations: classpath:db/migration
     # サービス境界をスキーマで表現する（ADR-0004）
     schemas: core,quiz,answer
