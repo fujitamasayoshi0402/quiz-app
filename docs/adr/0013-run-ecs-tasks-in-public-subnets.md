@@ -121,3 +121,15 @@ EC2 に NAT の役割を持たせる（fck-nat などのイメージがある）
 - パブリック IP を付けた Fargate のタスクが、Endpoint なしで ECR からイメージを取得し、Secrets Manager の値を受け取れること（DEV-45）
 - web から quiz-service への経路（ECS Service Connect を想定）が、この SecurityGroup の構成で通ること（DEV-45）
 - 実際の請求額が試算と合うこと（DEV-51）
+
+## 追記: web の配信方式が決まったあとの読み替え
+
+この ADR は、web も ECS で動かす前提（ADR-0012 の草案）で書いた。
+ADR-0012 は Amplify Hosting に決まったため、次のように読み替える。**決定（D）は変わらない。**
+
+- ECS で常時動くタスクは quiz-service の 1 つになる。D の費用は月 約 4 ドル（夜間停止で約 2 ドル）になり、A・B との差は月 35〜80 ドルに広がる。
+  C との差は月 4 ドルほどに開くが、C を見送った理由（NAT インスタンスの面倒を自分で見る）は変わらない
+- SecurityGroup の並びは、インターネット → ALB → quiz-service → Aurora になる。
+  quiz-service は ALB で公開し、スタブ認証の間は web の proxy だけが知る秘密のヘッダを ALB で確かめる（ADR-0012）。組み替えは DEV-45 で行う
+- 検証事項の「web から quiz-service への経路」は要らなくなる。
+  代わりに、quiz-service のタスクへの受信を ALB からだけに限れていることを DEV-45 で確かめる
