@@ -5,7 +5,7 @@
 管理者はそれぞれ独立したクイズ空間（テナント）を持ちます。管理者が登録したカテゴリ・クイズは
 そのテナントの中だけに存在し、他のテナントからは見えません。
 一般ユーザーは所属するテナントのクイズに回答し、正誤判定と解説を確認できます。
-認証にはパスキー（WebAuthn）を採用しています。
+認証にはパスキー（WebAuthn）を採用します。
 
 デモ環境には技術系のクイズ（AWS / インフラ、イベント駆動・マイクロサービス設計、認証認可、
 バックエンド設計など）を収録しています。
@@ -18,7 +18,7 @@
 | 領域 | 技術 |
 | --- | --- |
 | バックエンド | Kotlin 2.3 + Spring Boot 4.1 (Java 21) |
-| フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS |
+| フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui |
 | DB | Aurora PostgreSQL Serverless v2 (min 0 ACU) |
 | 認証 | Amazon Cognito（パスキー / WebAuthn） |
 | 実行基盤 | ECS Fargate + ALB |
@@ -38,6 +38,7 @@
 │   └── notification-service/    # EventBridge から起動し Slack へ通知する Lambda
 ├── infra/
 │   └── terraform/
+│       ├── bootstrap/           # tfstate を置く S3 バケット
 │       ├── modules/             # 再利用するモジュール
 │       └── envs/                # dev / prod の環境定義
 ├── docs/
@@ -114,11 +115,13 @@ pnpm install && pnpm --filter web dev
 
 ## ステータス
 
-Phase 1（ローカルで動く MVP）を実装中です。
+Phase 1（ローカルで動く MVP）が完了し、Phase 2（AWS 基盤と継続的デリバリ）を進めています。
 
-バックエンドは、カテゴリ・難易度・クイズの CRUD、出題、挑戦と回答、
-テナント単位の認可までが動作します。行レベルセキュリティによるテナント分離、
-OpenAPI 定義の自動生成、PR ごとの lint / test / build も入っています。
-フロントエンドはこれから実装します。
+ローカルでは、クイズ・カテゴリ・難易度の管理から、出題・回答・結果の確認までひと通り動きます。スマホの幅でも操作できます。
+テナントの分離は、行レベルセキュリティと、全エンドポイントを対象にしたテナント境界のテストで守っています。
+認証は、Phase 3 でパスキーに差し替えるまでスタブ（ログイン画面で利用者を選ぶ）です。
+
+Phase 2 では、Terraform の土台、secret の検出（commit の前と CI）、マイグレーションとアプリの起動の分離が済んでいます。
+次は AWS 上にネットワーク・Aurora・ECS を構築し、develop へのマージで dev 環境へ自動でデプロイされる状態を目指します。
 
 進捗は [ロードマップ](docs/ROADMAP.md) を参照してください。
