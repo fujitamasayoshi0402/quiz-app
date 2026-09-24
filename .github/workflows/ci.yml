@@ -187,13 +187,33 @@ jobs:
             echo "::endgroup::"
           done
 
+  # パスの出し分けの対象外にして、常に走らせる。secret はどのファイルにも入りうる。
+  # pre-commit のフックは入れ忘れや --no-verify ですり抜けるため、ここで止める
+  secrets:
+    name: secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 途中のコミットで入れて後のコミットで消しても、履歴には残っている。履歴ごと見る
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v2
+        with:
+          install_args: gitleaks
+
+      # 見るのは HEAD から辿れる履歴だけ。ほかのブランチの検出で、無関係な PR まで落ちないようにする。
+      # リポジトリは Public で、ログも誰でも読める。見つけた値は伏せる
+      - name: secret を探す（gitleaks）
+        run: gitleaks git --log-opts=HEAD --redact --no-banner --verbose
+
   # 必須ステータスチェックはこのジョブだけを指定する（DEV-16）。
   # ジョブを足すたびに Ruleset を触らずに済み、パスの出し分けでスキップされても
   # 「報告されないまま待ち続ける」状態にならない
   ci:
     name: ci
     if: always()
-    needs: [changes, backend, frontend, terraform]
+    needs: [changes, backend, frontend, terraform, secrets]
     runs-on: ubuntu-latest
     steps:
       - name: 先行ジョブの結果を確かめる

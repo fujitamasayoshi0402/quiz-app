@@ -81,6 +81,7 @@ docker compose up
 brew install mise
 echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # 初回のみ
 mise install                                     # .mise.toml のバージョンを導入
+mise exec -- lefthook install                    # commit の前に secret を探すフックを入れる
 
 docker compose up -d postgres localstack
 SPRING_PROFILES_ACTIVE=dev,migrate ./gradlew :services:quiz-service:bootRun   # マイグレーションを流して終了する

@@ -87,7 +87,7 @@
 - [ ] アクセス制限: スタブ認証の間は、許可した相手以外が dev の画面と API に届かないようにする
 - [ ] GitHub Actions: OIDC で AssumeRole、イメージ build/push、ECS デプロイ
 - [ ] マイグレーション: アプリの起動から切り離し、デプロイ時に実行する（アプリのタスクに DDL の権限を持たせない）
-- [ ] gitleaks による secret スキャンを CI と pre-commit に追加
+- [x] gitleaks による secret スキャンを CI と pre-commit に追加
 - [ ] Postman コレクションと Newman による、デプロイ後のスモークテスト
 - [ ] コスト: Budget アラート、dev の夜間停止（EventBridge Scheduler）
 - [ ] 画面のレスポンシブ対応（スマホから出題・回答・結果まで操作できる）
