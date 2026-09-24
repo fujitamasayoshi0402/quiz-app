@@ -57,7 +57,9 @@ services:
     restart: unless-stopped
 
   # マイグレーションを流して終了する。本番と同じく、アプリの起動とは分けて実行する。
-  # イメージは quiz-service と同じで、プロファイルだけが違う
+  # イメージは quiz-service と同じで、プロファイルだけが違う。
+  # **ビルドはこちらだけが持つ。** 同じタグを 2 つのサービスでビルドすると、書き出しがぶつかって失敗することがある。
+  # quiz-service より必ず先に動くので、こちらに置けばどのサービスから起動してもイメージができる
   migrate:
     build:
       context: .
@@ -75,10 +77,9 @@ services:
         condition: service_healthy
 
   quiz-service:
-    build:
-      context: .
-      dockerfile: services/quiz-service/Dockerfile
+    # migrate がビルドしたイメージを使う。レジストリには取りに行かない
     image: quiz-app/quiz-service
+    pull_policy: never
     container_name: quiz-app-quiz-service
     environment:
       SPRING_PROFILES_ACTIVE: dev
