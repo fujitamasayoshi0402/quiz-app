@@ -5,6 +5,8 @@ import com.quizapp.answer.usecase.AttemptResult
 import com.quizapp.answer.usecase.AttemptUseCase
 import com.quizapp.answer.usecase.AttemptView
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -42,7 +44,15 @@ class AttemptController(private val useCase: AttemptUseCase) {
 
     /** 中断中の挑戦。なければ 204。 */
     @GetMapping("/current")
-    @Operation(operationId = "getCurrentAttempt", summary = "中断中の挑戦を取得")
+    @Operation(
+        operationId = "getCurrentAttempt",
+        summary = "中断中の挑戦を取得",
+        responses = [
+            ApiResponse(responseCode = "200", description = "中断中の挑戦"),
+            // 宣言しないと、生成したクライアントが「常に挑戦が返る」型になる
+            ApiResponse(responseCode = "204", description = "中断中の挑戦がない", content = [Content()]),
+        ],
+    )
     fun current(): ResponseEntity<AttemptView> =
         useCase.current()?.let { ResponseEntity.ok(it) } ?: ResponseEntity.noContent().build()
 
