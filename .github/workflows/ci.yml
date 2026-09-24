@@ -108,18 +108,26 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # 生成物をリポジトリに持っているので、作り直して差が出ないことを確かめる。
-      # ここが落ちるのは「API を変えたのに型を作り直していない」とき
-      - name: 型が OpenAPI 定義から作り直されているか
+      # ここが落ちるのは「API を変えたのにクライアントを作り直していない」とき。
+      # 操作が増えるとファイルも増えるため、変更だけでなく追加・削除も見る
+      - name: API クライアントが OpenAPI 定義から作り直されているか
         run: |
           pnpm --filter web generate:api
-          if ! git diff --quiet -- apps/web/src/lib/api/schema.d.ts; then
-            echo "::error::生成した型が docs/api/openapi.yaml と合っていません。pnpm --filter web generate:api を実行してコミットしてください"
-            git --no-pager diff -- apps/web/src/lib/api/schema.d.ts
+          if [ -n "$(git status --porcelain -- apps/web/src/lib/api/generated)" ]; then
+            echo "::error::生成したクライアントが docs/api/openapi.yaml と合っていません。pnpm --filter web generate:api を実行してコミットしてください"
+            git status --short -- apps/web/src/lib/api/generated
             exit 1
           fi
 
       - name: 型チェック
         run: pnpm --filter web typecheck
+
+      - name: lint
+        run: pnpm --filter web lint
+
+      # 型チェックと lint では、Server / Client Components の境界の誤りやビルド設定の問題が分からない
+      - name: ビルド
+        run: pnpm --filter web build
 
   # 必須ステータスチェックはこのジョブだけを指定する（DEV-16）。
   # ジョブを足すたびに Ruleset を触らずに済み、パスの出し分けでスキップされても

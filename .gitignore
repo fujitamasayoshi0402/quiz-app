@@ -53,3 +53,6 @@ test-results/
 # --- その他 ---
 tmp/
 *.bak
+
+# Next.js が生成する型定義。next dev / build のたびに作り直される
+next-env.d.ts
