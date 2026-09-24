@@ -7,6 +7,8 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     // 静的解析。整形は ktlint、設計の匂いは detekt と役割を分ける
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
+    // カバレッジの計測。JaCoCo のバージョンは Gradle が持つ既定値に任せる（Gradle 自体は wrapper で固定している）
+    jacoco
 }
 
 ktlint {
@@ -83,6 +85,21 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// テストを流すたびにレポートを作る。閾値でビルドは落とさない（数値を目標にすると、意味の薄いテストが増える）。
+// 守りたい性質は、テナント境界の網羅のように専用のテストが構造で担保している
+tasks.test {
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        // xml は CI のサマリーに使う
+        xml.required = true
+        html.required = true
+    }
 }
 
 tasks.bootJar {

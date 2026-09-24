@@ -180,7 +180,7 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | ジョブ | 内容 |
 | --- | --- |
 | `changes` | 変更パスを見て後続を出し分ける |
-| `backend` | ktlint / detekt → test（Testcontainers）→ bootJar → イメージのビルド |
+| `backend` | ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド |
 | `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → build → イメージのビルド |
 | `ci` | 先行ジョブの結果を集約する |
 
@@ -188,6 +188,45 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 パスの出し分けでスキップされたジョブが「報告されないまま待ち続ける」状態にもならない。
 
 ツールのバージョンは CI でも `.mise.toml` から取る。CI 側で別に指定すると二重管理になる。
+
+### テスト
+
+```bash
+./gradlew :services:quiz-service:test   # レポート: services/quiz-service/build/reports/jacoco/test/html/index.html
+```
+
+| 種類 | 対象 | 置き場所の例 |
+| --- | --- | --- |
+| 単体テスト | ドメインの不変条件、ユースケースの分岐。DB を使わない | `quiz/domain/QuizTest.kt`、`answer/usecase/AttemptUseCaseTest.kt` |
+| API テスト | コントローラから DB まで。Testcontainers の PostgreSQL を使う | `quiz/controller/QuizApiTest.kt` |
+| 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest` |
+
+**単体テストにするのは、分岐や不変条件を持つものだけ。** リポジトリへ素通しするだけのユースケースには書かない。
+SQL が担うこと（絞り込み・並び順・行レベルセキュリティ・連鎖削除）は、フェイクでは確かめられないので API テストで見る。
+
+#### テストデータ
+
+**テストごとに新しいテナントを作り（`TestTenant.create()`）、片付けない。**
+テナントの分離がそのままテスト同士の分離になり、別のテストが残した行は見えない。
+
+- 片付けを書かないので、テーブルを足しても各テストの後始末を直さずに済む
+- 後始末の書き忘れで次のテストだけが壊れる、という事故も起きない
+- テナントの ID と slug は毎回作る。固定すると、テスト同士でぶつかる
+- 利用者を区別したいテストは `TestAuth.createUser()` で作る
+- テナントをまたいで数える検証（シードの検証など）は、対象のテナントに絞る
+
+#### 単体テストの差し替え
+
+依存は**手書きのフェイク**（`support/fake/`）で差し替える。モックライブラリは使わない。
+「どう呼ばれたか」ではなく「結果どうなったか」を確かめるためで、内部の書き換えでテストが壊れにくい。
+
+`TenantTransaction` は本物を使い、内側のトランザクションと DB の設定だけを外す（`fakeTenantTransaction()`）。
+**テナントが決まっていなければ失敗する点は本物のまま**にしている。
+
+#### カバレッジ
+
+JaCoCo で計測し、CI のジョブサマリーに出す。**閾値でビルドは落とさない。**
+数値を目標にすると、意味の薄いテストが増える。守りたい性質（テナント境界の網羅など）は、構造のテストが担保している。
 
 ### OpenAPI
 

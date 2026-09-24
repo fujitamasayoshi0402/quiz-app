@@ -3,7 +3,7 @@ package com.quizapp.answer.controller
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
-import org.junit.jupiter.api.AfterEach
+import com.quizapp.support.TestTenant
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -39,8 +39,8 @@ class AttemptDeliveryApiTest {
 
     @Autowired private lateinit var objectMapper: ObjectMapper
 
-    private val tenant: UUID = UUID.fromString("a1a1a1a1-1111-1111-1111-111111111111")
-    private val user: UUID = UUID.fromString("b2b2b2b2-2222-2222-2222-222222222222")
+    private lateinit var tenant: TestTenant
+    private lateinit var user: UUID
 
     private lateinit var fixture: PlayFixture
     private lateinit var awsCategory: UUID
@@ -51,19 +51,10 @@ class AttemptDeliveryApiTest {
 
     @BeforeEach
     fun setUp() {
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.tenants (id, slug, name) VALUES (?, 'golf', 'ゴルフ')",
-            tenant,
-        )
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.users (id, external_id, display_name) VALUES (?, 'stub-user', 'テスト利用者')",
-            user,
-        )
-        TestAuth.ensureUsers()
-        TestAuth.joinAsAdmin(tenant)
+        user = TestAuth.createUser()
         // 出題を受ける利用者は一般ユーザーとして所属させる
-        TestAuth.join(tenant, user, "member")
-        fixture = PlayFixture(mockMvc, objectMapper, "golf")
+        tenant = TestTenant.create().withAdmin().join(user)
+        fixture = PlayFixture(mockMvc, objectMapper, tenant.slug)
         awsCategory = fixture.category("AWS")
         authCategory = fixture.category("認証認可")
         // レベル 2 に 2 つの難易度を置き、レベル横断の出題を確かめられるようにする
@@ -72,21 +63,7 @@ class AttemptDeliveryApiTest {
         authBeginner = fixture.difficulty(authCategory, "初級", 2)
     }
 
-    @AfterEach
-    fun tearDown() {
-        val admin = TestPostgres.adminJdbcTemplate
-        admin.update("DELETE FROM answer.answers WHERE user_id = ?", user)
-        admin.update("DELETE FROM answer.attempts WHERE user_id = ?", user)
-        admin.update("DELETE FROM quiz.choices WHERE tenant_id = ?", tenant)
-        admin.update("DELETE FROM quiz.quizzes WHERE tenant_id = ?", tenant)
-        admin.update("DELETE FROM quiz.difficulties WHERE tenant_id = ?", tenant)
-        admin.update("DELETE FROM quiz.categories WHERE tenant_id = ?", tenant)
-        TestAuth.leaveAll(tenant)
-        admin.update("DELETE FROM core.tenants WHERE id = ?", tenant)
-        admin.update("DELETE FROM core.users WHERE id = ?", user)
-    }
-
-    private fun start(body: String): ResultActionsDsl = mockMvc.post("/api/t/golf/play/attempts") {
+    private fun start(body: String): ResultActionsDsl = mockMvc.post("/api/t/${tenant.slug}/play/attempts") {
         contentType = MediaType.APPLICATION_JSON
         content = body
         header("X-User-Id", user.toString())
@@ -280,7 +257,7 @@ class AttemptDeliveryApiTest {
     fun missingUserIsUnauthorized() {
         fixture.quiz(awsCategory, saa, "問題")
 
-        mockMvc.post("/api/t/golf/play/attempts") {
+        mockMvc.post("/api/t/${tenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"scope":"all"}"""
         }.andExpect { status { isUnauthorized() } }
@@ -299,7 +276,7 @@ class AttemptDeliveryApiTest {
             VALUES (?, ?, 'all', 'completed', now()) RETURNING id
             """,
             UUID::class.java,
-            tenant,
+            tenant.id,
             user,
         )
         TestPostgres.adminJdbcTemplate.update(
@@ -307,7 +284,7 @@ class AttemptDeliveryApiTest {
             INSERT INTO answer.answers (tenant_id, attempt_id, user_id, quiz_id, choice_id, is_correct)
             VALUES (?, ?, ?, ?, ?, true)
             """,
-            tenant,
+            tenant.id,
             attemptId,
             user,
             quizId,

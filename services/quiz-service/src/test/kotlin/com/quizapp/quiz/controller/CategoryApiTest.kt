@@ -2,7 +2,7 @@ package com.quizapp.quiz.controller
 
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.TestAuth
-import org.junit.jupiter.api.AfterEach
+import com.quizapp.support.TestTenant
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -42,30 +42,13 @@ class CategoryApiTest {
 
     @Autowired private lateinit var objectMapper: ObjectMapper
 
-    private val tenantA: UUID = UUID.fromString("aaaa1111-1111-1111-1111-111111111111")
-    private val tenantB: UUID = UUID.fromString("bbbb2222-2222-2222-2222-222222222222")
+    private lateinit var tenantA: TestTenant
+    private lateinit var tenantB: TestTenant
 
     @BeforeEach
     fun setUp() {
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.tenants (id, slug, name) VALUES (?, 'alpha', 'アルファ'), (?, 'bravo', 'ブラボー')",
-            tenantA,
-            tenantB,
-        )
-        TestAuth.ensureUsers()
-        TestAuth.joinAsAdmin(tenantA, tenantB)
-    }
-
-    @AfterEach
-    fun tearDown() {
-        // RLS を通さない接続で片付ける。quiz_app では 1 行も消えないまま成功してしまう
-        TestPostgres.adminJdbcTemplate.update(
-            "DELETE FROM quiz.categories WHERE tenant_id IN (?, ?)",
-            tenantA,
-            tenantB,
-        )
-        TestAuth.leaveAll(tenantA, tenantB)
-        TestPostgres.adminJdbcTemplate.update("DELETE FROM core.tenants WHERE id IN (?, ?)", tenantA, tenantB)
+        tenantA = TestTenant.create("アルファ").withAdmin()
+        tenantB = TestTenant.create("ブラボー").withAdmin()
     }
 
     private fun createCategory(slug: String, name: String, sortOrder: Int = 0): UUID {
@@ -83,9 +66,9 @@ class CategoryApiTest {
     @Test
     @DisplayName("カテゴリを作成すると一覧に現れる")
     fun createAndList() {
-        createCategory("alpha", "AWS")
+        createCategory(tenantA.slug, "AWS")
 
-        mockMvc.get("/api/t/alpha/admin/categories") { auth() }.andExpect {
+        mockMvc.get("/api/t/${tenantA.slug}/admin/categories") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(1) }
             jsonPath("$[0].name") { value("AWS") }
@@ -95,10 +78,10 @@ class CategoryApiTest {
     @Test
     @DisplayName("一覧は並び順で返る")
     fun listIsOrdered() {
-        createCategory("alpha", "あとに出る", sortOrder = 2)
-        createCategory("alpha", "さきに出る", sortOrder = 1)
+        createCategory(tenantA.slug, "あとに出る", sortOrder = 2)
+        createCategory(tenantA.slug, "さきに出る", sortOrder = 1)
 
-        mockMvc.get("/api/t/alpha/admin/categories") { auth() }.andExpect {
+        mockMvc.get("/api/t/${tenantA.slug}/admin/categories") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$[0].name") { value("さきに出る") }
             jsonPath("$[1].name") { value("あとに出る") }
@@ -108,10 +91,10 @@ class CategoryApiTest {
     @Test
     @DisplayName("他テナントのカテゴリは一覧に現れない")
     fun categoriesAreIsolatedPerTenant() {
-        createCategory("alpha", "アルファのカテゴリ")
-        createCategory("bravo", "ブラボーのカテゴリ")
+        createCategory(tenantA.slug, "アルファのカテゴリ")
+        createCategory(tenantB.slug, "ブラボーのカテゴリ")
 
-        mockMvc.get("/api/t/alpha/admin/categories") { auth() }.andExpect {
+        mockMvc.get("/api/t/${tenantA.slug}/admin/categories") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(1) }
             jsonPath("$[0].name") { value("アルファのカテゴリ") }
@@ -121,17 +104,17 @@ class CategoryApiTest {
     @Test
     @DisplayName("他テナントのカテゴリ ID を指定しても取得できない")
     fun cannotReadAnotherTenantCategory() {
-        val idOfB = createCategory("bravo", "ブラボーのカテゴリ")
+        val idOfB = createCategory(tenantB.slug, "ブラボーのカテゴリ")
 
-        mockMvc.get("/api/t/alpha/admin/categories/$idOfB") { auth() }.andExpect { status { isNotFound() } }
+        mockMvc.get("/api/t/${tenantA.slug}/admin/categories/$idOfB") { auth() }.andExpect { status { isNotFound() } }
     }
 
     @Test
     @DisplayName("他テナントのカテゴリ ID を指定した更新は通らない")
     fun cannotUpdateAnotherTenantCategory() {
-        val idOfB = createCategory("bravo", "ブラボーのカテゴリ")
+        val idOfB = createCategory(tenantB.slug, "ブラボーのカテゴリ")
 
-        mockMvc.put("/api/t/alpha/admin/categories/$idOfB") {
+        mockMvc.put("/api/t/${tenantA.slug}/admin/categories/$idOfB") {
             auth()
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"乗っ取り","sortOrder":0}"""
@@ -141,11 +124,11 @@ class CategoryApiTest {
     @Test
     @DisplayName("削除すると一覧から消える")
     fun deleteRemovesFromList() {
-        val id = createCategory("alpha", "消す対象")
+        val id = createCategory(tenantA.slug, "消す対象")
 
-        mockMvc.delete("/api/t/alpha/admin/categories/$id") { auth() }.andExpect { status { isNoContent() } }
+        mockMvc.delete("/api/t/${tenantA.slug}/admin/categories/$id") { auth() }.andExpect { status { isNoContent() } }
 
-        mockMvc.get("/api/t/alpha/admin/categories") { auth() }.andExpect {
+        mockMvc.get("/api/t/${tenantA.slug}/admin/categories") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(0) }
         }
@@ -154,8 +137,8 @@ class CategoryApiTest {
     @Test
     @DisplayName("削除は論理削除で、行そのものは残る")
     fun deleteIsSoftDelete() {
-        val id = createCategory("alpha", "消す対象")
-        mockMvc.delete("/api/t/alpha/admin/categories/$id") { auth() }.andExpect { status { isNoContent() } }
+        val id = createCategory(tenantA.slug, "消す対象")
+        mockMvc.delete("/api/t/${tenantA.slug}/admin/categories/$id") { auth() }.andExpect { status { isNoContent() } }
 
         // 行が残っているかは RLS を通さない接続で確認する
         val deletedAt = TestPostgres.adminJdbcTemplate.queryForObject(
@@ -169,7 +152,7 @@ class CategoryApiTest {
     @Test
     @DisplayName("名前が空なら 400 を返す")
     fun blankNameIsRejected() {
-        mockMvc.post("/api/t/alpha/admin/categories") {
+        mockMvc.post("/api/t/${tenantA.slug}/admin/categories") {
             auth()
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"","sortOrder":0}"""

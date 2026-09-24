@@ -3,9 +3,9 @@ package com.quizapp.tenant
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
+import com.quizapp.support.TestTenant
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.SoftAssertions
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
@@ -55,9 +55,6 @@ class TenantBoundaryApiTest {
         @DynamicPropertySource
         fun datasourceProperties(registry: DynamicPropertyRegistry) = TestPostgres.configure(registry)
 
-        private const val OWN = "november"
-        private const val VICTIM = "oscar"
-
         /** victim の文字列にはすべてこれを含める。応答に現れたら漏洩 */
         private const val SECRET = "VICTIM-SECRET"
 
@@ -88,19 +85,8 @@ class TenantBoundaryApiTest {
     @Qualifier("requestMappingHandlerMapping")
     private lateinit var handlerMapping: RequestMappingHandlerMapping
 
-    private val ownTenant: UUID = UUID.fromString("0badbeef-0000-4000-8000-000000000001")
-    private val victimTenant: UUID = UUID.fromString("0badbeef-0000-4000-8000-000000000002")
-
-    @AfterEach
-    fun tearDown() {
-        val admin = TestPostgres.adminJdbcTemplate
-        // 挑戦を消すと、出題リストと回答も ON DELETE CASCADE で消える
-        listOf("answer.attempts", "quiz.choices", "quiz.quizzes", "quiz.difficulties", "quiz.categories").forEach {
-            admin.update("DELETE FROM $it WHERE tenant_id IN (?, ?)", ownTenant, victimTenant)
-        }
-        TestAuth.leaveAll(ownTenant, victimTenant)
-        admin.update("DELETE FROM core.tenants WHERE id IN (?, ?)", ownTenant, victimTenant)
-    }
+    private lateinit var ownTenant: TestTenant
+    private lateinit var victimTenant: TestTenant
 
     // --- 網羅性 ---------------------------------------------------------------
 
@@ -168,7 +154,7 @@ class TenantBoundaryApiTest {
     }
 
     private fun perform(probe: Probe): MvcResult {
-        val url = probe.vars.entries.fold(probe.path.replace("{slug}", OWN)) { acc, (name, id) ->
+        val url = probe.vars.entries.fold(probe.path.replace("{slug}", ownTenant.slug)) { acc, (name, id) ->
             acc.replace("{$name}", id.toString())
         }
         assertThat(url).describedAs("パス変数が埋まっていない").doesNotContain("{")
@@ -373,34 +359,29 @@ class TenantBoundaryApiTest {
      * 本番と同じ経路で書き込まれた行に対して境界を確かめるため。
      */
     private fun prepare(): Ids {
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.tenants (id, slug, name) VALUES (?, '$OWN', 'ノベンバー'), (?, '$VICTIM', 'オスカー')",
-            ownTenant,
-            victimTenant,
-        )
-        TestAuth.ensureUsers()
-        TestAuth.joinAsAdmin(ownTenant, victimTenant)
+        ownTenant = TestTenant.create("ノベンバー").withAdmin()
+        victimTenant = TestTenant.create("オスカー").withAdmin()
 
-        val own = PlayFixture(mockMvc, objectMapper, OWN)
-        val ownCategory = own.category("自分のカテゴリ")
-        val ownDifficulty = own.difficulty(ownCategory, "自分の難易度", 1)
-        val ownQuiz = own.quiz(ownCategory, ownDifficulty, "自分の問題")
+        val ownFixture = PlayFixture(mockMvc, objectMapper, ownTenant.slug)
+        val ownCategory = ownFixture.category("自分のカテゴリ")
+        val ownDifficulty = ownFixture.difficulty(ownCategory, "自分の難易度", 1)
+        val ownQuiz = ownFixture.quiz(ownCategory, ownDifficulty, "自分の問題")
 
-        val victim = PlayFixture(mockMvc, objectMapper, VICTIM)
-        val victimCategory = victim.category("$SECRET カテゴリ")
-        val victimDifficulty = victim.difficulty(victimCategory, "$SECRET 難易度", 1)
-        val victimQuiz = victim.quiz(victimCategory, victimDifficulty, "$SECRET 問題")
+        val victimFixture = PlayFixture(mockMvc, objectMapper, victimTenant.slug)
+        val victimCategory = victimFixture.category("$SECRET カテゴリ")
+        val victimDifficulty = victimFixture.difficulty(victimCategory, "$SECRET 難易度", 1)
+        val victimQuiz = victimFixture.quiz(victimCategory, victimDifficulty, "$SECRET 問題")
 
         // 削除済み一覧に載せる。カテゴリを消すと難易度とクイズも連鎖して消える
-        val deletedCategory = victim.category("$SECRET 削除済みカテゴリ")
-        val deletedDifficulty = victim.difficulty(deletedCategory, "$SECRET 削除済み難易度", 1)
-        val deletedQuiz = victim.quiz(deletedCategory, deletedDifficulty, "$SECRET 削除済み問題")
-        mockMvc.delete("/api/t/$VICTIM/admin/categories/$deletedCategory") {
+        val deletedCategory = victimFixture.category("$SECRET 削除済みカテゴリ")
+        val deletedDifficulty = victimFixture.difficulty(deletedCategory, "$SECRET 削除済み難易度", 1)
+        val deletedQuiz = victimFixture.quiz(deletedCategory, deletedDifficulty, "$SECRET 削除済み問題")
+        mockMvc.delete("/api/t/${victimTenant.slug}/admin/categories/$deletedCategory") {
             header("X-User-Id", TestAuth.ADMIN.toString())
         }.andExpect { status { isNoContent() } }
 
         // 攻撃者自身が victim で挑戦を中断している
-        val attempt = mockMvc.post("/api/t/$VICTIM/play/attempts") {
+        val attempt = mockMvc.post("/api/t/${victimTenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"scope":"all"}"""
             header("X-User-Id", TestAuth.ADMIN.toString())
@@ -439,7 +420,7 @@ class TenantBoundaryApiTest {
         TestPostgres.adminJdbcTemplate.queryForObject(
             "SELECT coalesce(json_agg(t ORDER BY t::text), '[]')::text FROM $table t WHERE tenant_id = ?",
             String::class.java,
-            victimTenant,
+            victimTenant.id,
         ).orEmpty()
     }
 
@@ -450,11 +431,11 @@ class TenantBoundaryApiTest {
             TestPostgres.adminJdbcTemplate.queryForList(
                 "SELECT id FROM $table WHERE tenant_id = ?",
                 UUID::class.java,
-                victimTenant,
+                victimTenant.id,
             )
         }
         .filterNotNull()
-        .toSet() + victimTenant
+        .toSet() + victimTenant.id
 
     private fun tenantTables(): List<String> = TestPostgres.adminJdbcTemplate.queryForList(
         """
