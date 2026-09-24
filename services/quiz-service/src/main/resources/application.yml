@@ -46,6 +46,19 @@ springdoc:
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # 公開するのはヘルスチェックだけ。他のエンドポイントは内部の情報を返す
+        include: health
+  health:
+    # ヘルスチェックで DB に問い合わせない。
+    # ALB が定期的に叩くと、Aurora Serverless v2 の自動一時停止（min 0 ACU）が発動しなくなる。
+    # DB に届かないときは、各 API がエラーを返すことで分かる
+    db:
+      enabled: false
+
 logging:
   level:
     org.flywaydb: INFO

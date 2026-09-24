@@ -51,27 +51,42 @@
 当面 `quiz-service` 内のモジュールとして実装し、ドメイン境界が安定してから物理的に分割します。
 理由は [ADR-0004](docs/adr/0004-split-services-incrementally.md) を参照してください。
 
+## 動かしてみる
+
+Docker だけで起動できます。
+
+```bash
+docker compose up
+```
+
+`http://localhost:3000` を開き、利用者（一般ユーザー / 管理者）を選ぶと、デモ用のクイズに回答できます。
+管理者を選ぶと、ヘッダの「管理」からクイズやカテゴリを編集できます。
+
+| | 場所 |
+| --- | --- |
+| アプリ | `localhost:3000` |
+| API 定義（Swagger UI） | `localhost:8080/swagger-ui.html` |
+| PostgreSQL | `localhost:5432` |
+| LocalStack | `localhost:4566` |
+
+ポートがほかのアプリと重なるときは、`.env.example` を `.env` にコピーして変えてください。
+
 ## ローカル開発
 
 開発ツールのバージョンは [mise](https://mise.jdx.dev/) で固定しています（Java 21 / Node.js 22 / pnpm）。
+アプリをホストで動かすときは、依存サービスだけをコンテナで起動します。
 
 ```bash
 brew install mise
 echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # 初回のみ
 mise install                                     # .mise.toml のバージョンを導入
 
-docker compose up -d                             # PostgreSQL / LocalStack
-
+docker compose up -d postgres localstack
 SPRING_PROFILES_ACTIVE=dev ./gradlew :services:quiz-service:bootRun
+pnpm install && pnpm --filter web dev
 ```
 
 `dev` プロファイルで起動すると、デモ用のカテゴリとクイズが投入されます。
-
-| | 場所 |
-| --- | --- |
-| PostgreSQL | `localhost:5432` |
-| LocalStack | `localhost:4566` |
-| API 定義（Swagger UI） | `localhost:8080/swagger-ui.html` |
 
 詳細は [開発ガイドライン](docs/development-guidelines.md#7-ローカル開発) を参照してください。
 

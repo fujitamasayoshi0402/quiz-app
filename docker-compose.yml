@@ -1,5 +1,9 @@
-# ローカル開発用の依存サービス
-# アプリ本体（quiz-service / web）のコンテナ化は DEV-29 で追加する
+# ローカルでアプリ一式を動かす。
+#
+#   docker compose up                      # すべて起動して http://localhost:3000 で使う
+#   docker compose up -d postgres localstack  # アプリをホストで動かすときは依存だけを起動する
+#
+# ホスト側のポートは .env で変えられる（.env.example を参照）。
 services:
   postgres:
     # 本番の Aurora PostgreSQL Serverless v2 とメジャーバージョンを揃える。
@@ -14,7 +18,7 @@ services:
       TZ: UTC
       PGTZ: UTC
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -50,6 +54,47 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+    restart: unless-stopped
+
+  quiz-service:
+    build:
+      context: .
+      dockerfile: services/quiz-service/Dockerfile
+    container_name: quiz-app-quiz-service
+    environment:
+      # デモ用のシードを入れる。クローン直後でもクイズを解ける状態にするため
+      SPRING_PROFILES_ACTIVE: dev
+      # コンテナの中では localhost ではなくサービス名で DB に届く
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/quiz
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      # アプリロールの作成（init スクリプト）が済むまで待つ。接続に失敗すると起動が止まる
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # DB には問い合わせない（application.yml を参照）。プロセスが応答できるかだけを見る
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: quiz-app-web
+    environment:
+      # /api の中継先。実行時に読むので、イメージを作り直さずに変えられる
+      API_ORIGIN: http://quiz-service:8080
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      # バックエンドが応答できるようになってから公開する。先に開くと最初の画面がエラーになる
+      quiz-service:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

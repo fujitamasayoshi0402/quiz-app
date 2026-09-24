@@ -35,6 +35,7 @@ jobs:
           filters: |
             backend:
               - 'services/**'
+              - '.dockerignore'
               - 'config/detekt.yml'
               - '.editorconfig'
               - 'gradle/**'
@@ -44,6 +45,7 @@ jobs:
               - '.github/workflows/ci.yml'
             frontend:
               - 'apps/**'
+              - '.dockerignore'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
@@ -74,6 +76,10 @@ jobs:
 
       - name: build
         run: ./gradlew :services:quiz-service:bootJar
+
+      # Dockerfile が壊れていても、使うまで気づかない。Phase 2 のデプロイで初めて落ちないようにする
+      - name: コンテナイメージをビルドする
+        run: docker build -f services/quiz-service/Dockerfile .
 
       # 失敗したときだけ残す。OpenAPI の乖離やテストの詳細はレポートを見ないと分からない
       - name: レポートを保存する
@@ -128,6 +134,9 @@ jobs:
       # 型チェックと lint では、Server / Client Components の境界の誤りやビルド設定の問題が分からない
       - name: ビルド
         run: pnpm --filter web build
+
+      - name: コンテナイメージをビルドする
+        run: docker build -f apps/web/Dockerfile .
 
   # 必須ステータスチェックはこのジョブだけを指定する（DEV-16）。
   # ジョブを足すたびに Ruleset を触らずに済み、パスの出し分けでスキップされても

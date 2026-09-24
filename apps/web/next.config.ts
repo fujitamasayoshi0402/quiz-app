@@ -1,16 +1,13 @@
+import path from "node:path";
 import type { NextConfig } from "next";
-
-/** バックエンド（quiz-service）の場所。ローカルでは bootRun で 8080 に立つ */
-const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:8080";
 
 const nextConfig: NextConfig = {
   /**
-   * `/api` をバックエンドへ中継する。ブラウザからは同一オリジンに見えるため、CORS の設定が要らない。
-   * 利用者の識別ヘッダは中継の手前で proxy が付ける（src/proxy.ts）。
+   * コンテナ用に、実行に必要なファイルだけを `.next/standalone` へまとめる。
+   * monorepo なので、依存の追跡はリポジトリのルートから行う（pnpm の node_modules がルートにある）。
    */
-  async rewrites() {
-    return [{ source: "/api/:path*", destination: `${apiOrigin}/api/:path*` }];
-  },
+  output: "standalone",
+  outputFileTracingRoot: path.join(import.meta.dirname, "../.."),
 };
 
 export default nextConfig;

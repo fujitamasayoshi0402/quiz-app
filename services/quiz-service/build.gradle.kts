@@ -42,6 +42,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    // コンテナのヘルスチェック（docker compose / 将来の ALB）に使う
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     // Kotlin の data class をデシリアライズするために必要。
     // 入れないと**デフォルト引数が効かず**、省略可能なはずのフィールドを省いた JSON で失敗する。
@@ -81,4 +83,10 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.bootJar {
+    // コンテナのビルドで参照するため、バージョンを含めない固定の名前にする。
+    // 既定の名前だとバージョンを上げるたびに Dockerfile も直すことになる
+    archiveFileName = "quiz-service.jar"
 }
