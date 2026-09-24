@@ -19,6 +19,7 @@
 | [0011](0011-terraform-state-and-environments.md) | tfstate は 1 つの S3 バケットにキーで分けて置き、環境はルートモジュールで分ける | Accepted |
 | [0012](0012-serve-frontend-on-amplify-hosting.md) | フロントは Amplify Hosting で配る | Accepted |
 | [0013](0013-run-ecs-tasks-in-public-subnets.md) | ECS のタスクはパブリックサブネットに置き、NAT Gateway も VPC Endpoint も使わない | Accepted |
+| [0014](0014-connect-to-aurora-with-iam-auth.md) | Aurora へは IAM 認証で接続し、ロールは Data API で作る | Accepted |
 
 ## 運用ルール
 

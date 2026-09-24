@@ -8,5 +8,5 @@
 --   quiz_app … アプリケーションの接続先。RLS が適用される
 --
 -- このファイルは docker-entrypoint-initdb.d で初回起動時にのみ実行される。
--- 本番（Aurora）でのロール作成は Phase 2 で Terraform から行う。
+-- Aurora では infra/terraform/modules/database/sql/bootstrap_roles.sql で作る（パスワードではなく IAM 認証）。
 CREATE ROLE quiz_app WITH LOGIN PASSWORD 'quiz_app' NOSUPERUSER NOCREATEDB NOCREATEROLE;

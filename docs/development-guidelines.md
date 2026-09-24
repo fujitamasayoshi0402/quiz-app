@@ -388,7 +388,8 @@ PostgreSQL は本番の Aurora とメジャーバージョンを揃えて 16 系
 
 AWS では、デプロイのたびに、サービスを入れ替える前に ECS の単発タスクとして流す。
 失敗すると終了コードが 0 以外になり、デプロイはそこで止まる。
-所有者の認証情報（`SPRING_FLYWAY_USER` / `SPRING_FLYWAY_PASSWORD`）は、この単発タスクにだけ渡す。
+AWS ではパスワードを使わず、IAM 認証で接続する（[Aurora](#aurora)）。
+所有者（`quiz`）として接続する権限（`rds-db:connect`）は、この単発タスクのロールにだけ与える。
 AWS の dev はデモに使うため `dev,migrate` でシードも流す。本番で `dev` を付けると `SeedDataGuard` が止める。
 
 見送った方式。
@@ -500,6 +501,34 @@ CI からの plan / apply は、OIDC のロールを作る課題で検討する�
   `terraform init -upgrade` のあと、`terraform providers lock -platform=darwin_arm64 -platform=linux_amd64`
   で CI（Linux）の分も記録する
 - 全リソースに `Project` / `Env` / `ManagedBy` のタグが付く（`default_tags`）
+
+#### Aurora
+
+`modules/database` で作る。ローカルと同じく、スキーマの所有者とアプリの接続先を分ける。
+**アプリとマイグレーションはパスワードを持たず、IAM 認証で接続する**（[ADR-0014](adr/0014-connect-to-aurora-with-iam-auth.md)）。
+
+| ロール | 使う者 | 認証 |
+| --- | --- | --- |
+| `quiz_admin`（マスター） | ロールの作成だけ | パスワード。RDS が作り、Secrets Manager で管理する |
+| `quiz` | マイグレーションの単発タスク | IAM 認証 |
+| `quiz_app` | quiz-service | IAM 認証 |
+
+`quiz` と `quiz_app` は、apply のときに `sql/bootstrap_roles.sql` を Data API で流して作る。
+**apply する環境に AWS CLI が要る。**
+
+Aurora はプライベートサブネットにあり、手元からは直接届かない。SQL を流すときも Data API を使う。
+マスターとして流れるため、**RLS は効かない。** 確認のための読み取りにとどめる。
+
+```bash
+cd infra/terraform/envs/dev
+aws rds-data execute-statement \
+  --resource-arn "$(terraform output -raw database_cluster_arn)" \
+  --secret-arn "$(terraform output -raw database_master_user_secret_arn)" \
+  --database quiz \
+  --sql "SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname LIKE 'quiz%'"
+```
+
+一時停止している間は `DatabaseResumingException` が返る。十数秒おいてやり直す。
 
 #### state のバケットを作り直すとき
 
