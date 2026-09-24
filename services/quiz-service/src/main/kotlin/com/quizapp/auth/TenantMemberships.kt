@@ -15,7 +15,13 @@ interface TenantMemberships {
 
     /** 所属していなければ null。 */
     fun findRole(tenantId: UUID, userId: UUID): TenantRole?
+
+    /** 利用者が所属するテナント。テナントの名前順に返す。 */
+    fun findTenantsOf(userId: UUID): List<Membership>
 }
+
+/** 所属先のテナントと、そこでの役割。 */
+data class Membership(val slug: String, val name: String, val role: TenantRole)
 
 /**
  * `core.tenant_members` は行レベルセキュリティの対象外のため、
@@ -34,4 +40,19 @@ class TenantMembershipsJdbc(private val jdbcTemplate: JdbcTemplate) : TenantMemb
         tenantId,
         userId,
     ).firstOrNull()
+
+    /**
+     * **削除されたテナントも除く。** 所属だけを見ると、選んだ先で「テナントが存在しない」になる
+     * （テナントの解決は [com.quizapp.tenant.TenantResolutionFilter] が削除済みを除いて行う）。
+     */
+    override fun findTenantsOf(userId: UUID): List<Membership> = jdbcTemplate.query(
+        """
+            SELECT t.slug, t.name, m.role FROM core.tenant_members m
+            JOIN core.tenants t ON t.id = m.tenant_id
+            WHERE m.user_id = ? AND m.deleted_at IS NULL AND t.deleted_at IS NULL
+            ORDER BY t.name, t.slug
+            """,
+        { rs, _ -> Membership(rs.getString("slug"), rs.getString("name"), TenantRole.from(rs.getString("role"))) },
+        userId,
+    )
 }

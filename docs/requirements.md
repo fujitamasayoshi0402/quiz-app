@@ -59,6 +59,7 @@
 
 ```
 /                                     テナント選択（所属一覧）
+/login                                ログイン（Phase 1 はスタブ）
 /t/{slug}/                            テナントのトップ
 /t/{slug}/play                        出題条件の選択
 /t/{slug}/play/session                回答中
@@ -132,6 +133,7 @@
 flowchart TD
     Root["/"] -->|所属 1 件| TenantTop["/t/{slug}/"]
     Root -->|所属 2 件以上| Select[テナント選択]
+    Root -->|所属 0 件| NoTenant[招待を受けていない旨]
     Select --> TenantTop
     TenantTop --> Play["出題条件の選択"]
     Play -->|カテゴリ → 難易度 → 出題対象| Mode{"フィードバック方式"}

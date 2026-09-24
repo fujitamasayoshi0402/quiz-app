@@ -27,7 +27,7 @@ export function ApiErrorAlert({ error }: { error: unknown }) {
         )}
         {!apiError && <p>時間をおいてもう一度お試しください</p>}
         {apiError?.status === 401 && (
-          <Link href="/" className="underline underline-offset-4">
+          <Link href="/login" className="underline underline-offset-4">
             利用者を選ぶ
           </Link>
         )}

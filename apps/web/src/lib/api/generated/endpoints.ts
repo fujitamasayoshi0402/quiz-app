@@ -38,6 +38,7 @@ import {
   CategoryResponse,
   DeletionImpact,
   DifficultyResponse,
+  MyTenantResponse,
   PlayableCategoryResponse,
   QuizResponse,
   Trash
@@ -74,6 +75,108 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListMyTenantsUrl = () => {
+
+
+
+
+  return `/api/me/tenants`
+}
+
+/**
+ * @summary 所属しているテナントの一覧
+ */
+export const listMyTenants = async ( options?: Parameters<typeof apiFetch>[1]): Promise<MyTenantResponse[]> => {
+
+  return apiFetch<MyTenantResponse[]>(getListMyTenantsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: zod.array(MyTenantResponse)
+  }
+);}
+
+
+
+
+
+export const getListMyTenantsQueryKey = () => {
+    return [
+    `/api/me/tenants`
+    ] as const;
+    }
+
+
+export const getListMyTenantsQueryOptions = <TData = Awaited<ReturnType<typeof listMyTenants>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTenants>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyTenantsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyTenants>>> = ({ signal }) => listMyTenants({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyTenants>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMyTenantsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyTenants>>>
+export type ListMyTenantsQueryError = unknown
+
+
+export function useListMyTenants<TData = Awaited<ReturnType<typeof listMyTenants>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTenants>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyTenants>>,
+          TError,
+          Awaited<ReturnType<typeof listMyTenants>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyTenants<TData = Awaited<ReturnType<typeof listMyTenants>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTenants>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyTenants>>,
+          TError,
+          Awaited<ReturnType<typeof listMyTenants>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMyTenants<TData = Awaited<ReturnType<typeof listMyTenants>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTenants>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 所属しているテナントの一覧
+ */
+
+export function useListMyTenants<TData = Awaited<ReturnType<typeof listMyTenants>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyTenants>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMyTenantsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListCategoriesUrl = (slug: string,) => {
 

@@ -5,8 +5,6 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.stereotype.Component
 import org.springframework.web.servlet.HandlerInterceptor
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
 /**
  * テナント配下のエンドポイントへのアクセスを検査する。
@@ -23,6 +21,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
  * フィルタではなくインターセプタなのは、ここで投げた例外を
  * [com.quizapp.controller.ApiExceptionHandler] が受け取れるようにするため。
  * フィルタで投げると RFC 9457 の応答にならない。
+ *
+ * 認証の有無は先に [AuthenticationRequiredInterceptor] が確かめている。
  */
 @Component
 class TenantAccessInterceptor(private val memberships: TenantMemberships) : HandlerInterceptor {
@@ -47,17 +47,5 @@ class TenantAccessInterceptor(private val memberships: TenantMemberships) : Hand
     private fun isAdminPath(uri: String): Boolean = uri.trim('/').split('/').let { segments ->
         val index = segments.indexOf("t")
         index >= 0 && index + 2 < segments.size && segments[index + 2] == "admin"
-    }
-}
-
-@Component
-class TenantAccessConfigurer(private val interceptor: TenantAccessInterceptor) : WebMvcConfigurer {
-
-    override fun addInterceptors(registry: InterceptorRegistry) {
-        registry.addInterceptor(interceptor).addPathPatterns(TENANT_SCOPED)
-    }
-
-    private companion object {
-        const val TENANT_SCOPED = "/api/t/*/**"
     }
 }

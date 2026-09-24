@@ -21,6 +21,8 @@ tags:
   name: 難易度
 - description: 出題・回答・結果。**出題の応答に正解と解説を含まない**
   name: 挑戦
+- description: ログインしている利用者自身の情報
+  name: 利用者
 - description: 公開済みのクイズがあるカテゴリと難易度
   name: 出題条件
 - description: 管理者がクイズを CRUD する。**応答に正解を含む**
@@ -30,6 +32,21 @@ tags:
 - description: 論理削除したカテゴリ・難易度・クイズの一覧と復活
   name: 削除済み
 paths:
+  /api/me/tenants:
+    get:
+      operationId: listMyTenants
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyTenantResponse"
+          description: OK
+      summary: 所属しているテナントの一覧
+      tags:
+      - 利用者
   /api/t/{slug}/admin/categories:
     get:
       operationId: listCategories
@@ -1483,6 +1500,19 @@ components:
       - level
       - name
       - sortOrder
+    MyTenantResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        slug:
+          type: string
+      required:
+      - name
+      - role
+      - slug
     PlayableCategoryResponse:
       type: object
       properties:
