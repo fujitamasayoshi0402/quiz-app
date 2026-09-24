@@ -322,6 +322,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/t/{slug}/play/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 出題できるカテゴリと難易度の一覧 */
+        get: operations["listPlayableCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -429,6 +446,25 @@ export interface components {
             name?: string;
             /** Format: int32 */
             sortOrder?: number;
+        };
+        PlayableCategoryResponse: {
+            description?: string | null;
+            difficulties?: components["schemas"]["PlayableDifficultyResponse"][];
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            /** Format: int32 */
+            quizCount?: number;
+        };
+        PlayableDifficultyResponse: {
+            description?: string | null;
+            /** Format: uuid */
+            id?: string;
+            /** Format: int32 */
+            level?: number;
+            name?: string;
+            /** Format: int32 */
+            quizCount?: number;
         };
         /** @description RFC 9457 の Problem Details 形式のエラー応答 */
         ProblemDetail: {
@@ -1827,6 +1863,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttemptResult"];
+                };
+            };
+            /** @description 利用者を特定できない */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description 所属はしているが、この操作に必要な権限がない */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description テナントが存在しない、または所属していない */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    listPlayableCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayableCategoryResponse"][];
                 };
             };
             /** @description 利用者を特定できない */

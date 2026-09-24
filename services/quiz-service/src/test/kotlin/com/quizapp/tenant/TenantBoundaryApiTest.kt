@@ -165,7 +165,8 @@ class TenantBoundaryApiTest {
     // --- 検証ケース -----------------------------------------------------------
 
     private fun probes(ids: Ids): List<Probe> =
-        categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + trashProbes(ids) + attemptProbes(ids)
+        categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + trashProbes(ids) +
+            playCategoryProbes() + attemptProbes(ids)
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -296,6 +297,10 @@ class TenantBoundaryApiTest {
             ),
         )
     }
+
+    private fun playCategoryProbes(): List<Probe> = listOf(
+        Probe(HttpMethod.GET, "/api/t/{slug}/play/categories", "出題条件の選択肢に出ない", status = 200),
+    )
 
     private fun attemptProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/play/attempts"
