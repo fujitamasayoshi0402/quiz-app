@@ -508,7 +508,9 @@ CI からの plan / apply は、OIDC のロールを作る課題で検討する�
 
 個人で運用する規模のため、常時起動のコストを抑えることを前提に設計する。
 
-- NAT Gateway は使わず VPC Endpoint で代替
+- NAT Gateway も VPC Endpoint も使わず、ECS のタスクをパブリックサブネットに置く（[ADR-0013](adr/0013-run-ecs-tasks-in-public-subnets.md)）
+  - どちらもタスクを止めても課金が続き、Endpoint は必要な本数 × AZ 数で NAT Gateway より高くなる
+  - タスクへの受信は SecurityGroup の参照だけで許し、CIDR では開けない。外からの入口は ALB だけ
 - Aurora Serverless v2 は **min 0 ACU**（自動一時停止）を採用。一時停止中はストレージ料金のみ
   - 前提: PostgreSQL 16.3 以降 / 無活動時間は 5 分〜24 時間で設定可 / 復帰に約 15 秒
   - **アプリが常時接続を張ると一時停止しない**ため、dev では HikariCP を `minimum-idle: 0` + 短い `idle-timeout` にする
