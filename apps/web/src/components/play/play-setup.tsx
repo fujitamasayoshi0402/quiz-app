@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ApiErrorAlert } from "@/components/play/api-error-alert";
+import { ApiErrorAlert } from "@/components/api-error-alert";
 import { OptionGroup } from "@/components/play/option-group";
 import { ResumeCard } from "@/components/play/resume-card";
 import { ApiError } from "@/lib/api/fetcher";
