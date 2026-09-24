@@ -8,7 +8,7 @@ spring:
     web-application-type: none
   flyway:
     enabled: true
-    # DDL はスキーマ所有者が実行する。値はローカル用で、AWS では
-    # SPRING_FLYWAY_USER / SPRING_FLYWAY_PASSWORD を Secrets Manager から渡す
+    # DDL はスキーマ所有者が実行する。値はローカル用。
+    # AWS ではパスワードを使わず、IAM 認証で接続する（ADR-0014）
     user: quiz
     password: quiz

@@ -80,7 +80,7 @@
 
 - [x] Terraform: tfstate バックエンド（S3 + ロック）、環境分割（dev / prod）
 - [x] ネットワーク: VPC / Subnet / SecurityGroup。NAT Gateway も VPC Endpoint も使わず、ECS のタスクをパブリックサブネットに置く（[ADR-0013](adr/0013-run-ecs-tasks-in-public-subnets.md)）
-- [ ] データ: Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止）+ Secrets Manager
+- [x] データ: Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止）。アプリとマイグレーションはパスワードを持たず、IAM 認証で接続する（[ADR-0014](adr/0014-connect-to-aurora-with-iam-auth.md)）
 - [ ] 0 ACU 検証: 一時停止の発動条件、復帰時間、HikariCP の `minimum-idle: 0` 設定、初回アクセスのリトライ
 - [ ] 実行基盤: ECR、ECS Fargate、ALB、ACM、Route 53（独自ドメイン）
 - [x] フロント配信の方式: Amplify Hosting（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）
@@ -193,6 +193,7 @@
 | DB のコスト設計 | Aurora Serverless v2 を min 0 ACU で自動一時停止 | 常時起動。アクセスのない時間帯の課金が支配的になるため。代償として復帰に約 15 秒かかるので、dev に限定し、prod では min 0.5 ACU を検討する |
 | 接続プール | dev では RDS Proxy を使わず HikariCP を `minimum-idle: 0` にする | RDS Proxy 常用。接続が維持され続けると 0 ACU への一時停止が発動しない |
 | マイグレーションの実行 | デプロイのたびに、サービスを入れ替える前に単発のタスクで流す。アプリには読み書きの権限だけを渡す | アプリの起動時に流す。アプリがスキーマ所有者の権限を持ち続け、行レベルセキュリティを外せてしまう。タスクが複数あると、それぞれが流そうとする |
+| DB の認証 | IAM 認証。アプリとマイグレーションはパスワードを持たず、タスクロールに接続の権限を与える | Secrets Manager のパスワード。設定する SQL に平文が入り、state に残さない工夫も要る |
 | 通知基盤 | EventBridge + Lambda | 常駐コンテナでのポーリング。イベント頻度が低く、常時起動のコストに見合わない |
 | 認証 | Cognito のパスキー機能 | 自前の WebAuthn 実装。実装・保守コストが本筋のドメイン実装を圧迫する。比較検討は ADR に残す |
 | ECS のタスクの出口 | パブリックサブネットに置き、タスクのパブリック IP から直接出る。受信は SecurityGroup で ALB 経由に限る | NAT Gateway と VPC Endpoint。どちらもタスクを止めても課金が続き、月 40〜80 ドルかかる。NAT インスタンスは安いが、更新と障害時の切り替えを自分で持つことになる |
