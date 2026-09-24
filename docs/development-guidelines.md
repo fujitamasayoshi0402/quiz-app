@@ -174,7 +174,7 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | --- | --- |
 | `changes` | 変更パスを見て後続を出し分ける |
 | `backend` | ktlint / detekt → test（Testcontainers）→ bootJar |
-| `frontend` | 型の作り直しに差が出ないか → 型チェック |
+| `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → build |
 | `ci` | 先行ジョブの結果を集約する |
 
 **Ruleset の必須チェックには `ci` だけを指定する。** ジョブを足すたびに設定を触らずに済み、
@@ -195,8 +195,16 @@ pnpm --filter web generate:api
 再生成を忘れると `OpenApiSnapshotTest` が落ちる。**落ちること自体が仕組み**なので、
 テストを直すのではなく定義を再生成する。
 
-フロントの型（`apps/web/src/lib/api/schema.d.ts`）も生成物で、リポジトリに持つ。
+フロントの API クライアント（`apps/web/src/lib/api/generated/`）も生成物で、リポジトリに持つ。
+[orval](https://orval.dev/) が定義から TanStack Query のフックと Zod スキーマを作る。
 生成し直さないと差分が残るため、CI で検出できる。
+
+**応答は Zod で検証する。** 定義とずれた応答は、画面の奥で `undefined` として壊れる前に
+`apps/web/src/lib/api/fetcher.ts` で落ちる。
+
+定義の `required` は、Kotlin のクラスから書き込んでいる（`KotlinRequiredPropertyConverter`）。
+**null を許さず、既定値もない引数が必須になる。** springdoc は null 許容しか読まないため、
+これがないと応答のすべての項目が省略可能として生成される。
 
 起動中は Swagger UI から定義を読める。
 
@@ -209,7 +217,7 @@ http://localhost:8080/swagger-ui.html
 
 ### コード
 - バックエンド: レイヤード（controller / usecase / domain / infrastructure）、テストは JUnit5 + Testcontainers
-- フロント: Server Components 優先、API 呼び出しは TanStack Query、型は Zod でバリデーション
+- フロント: Server Components 優先、API 呼び出しは生成した TanStack Query のフック、応答は Zod で検証
 - API 定義はコードから生成し、`docs/api/openapi.yaml` に固定する（[ADR-0010](adr/0010-generate-openapi-from-code.md)）。
   **真実はコードであり、定義はその写像。** フロントの型は固定した定義から生成する
 
@@ -235,8 +243,11 @@ mise install                                     # Java 21 / Node.js / pnpm を�
 ```bash
 docker compose up -d                                          # PostgreSQL / LocalStack
 SPRING_PROFILES_ACTIVE=dev ./gradlew :services:quiz-service:bootRun
-pnpm --filter web dev
+pnpm --filter web dev                                         # http://localhost:3000
 ```
+
+フロントは `/api` をバックエンドへ中継する（`next.config.ts`）。ブラウザからは同一オリジンに見えるため、
+CORS の設定は要らない。中継先は `API_ORIGIN` で変えられる（既定は `http://localhost:8080`）。
 
 **`dev` プロファイルを付けると、デモ用のシードが入る。** 付けないとカテゴリもクイズも空のまま立ち上がる。
 シードは Flyway の repeatable マイグレーション（`db/seed/`）で、`dev` のときだけ locations に加わる。
@@ -297,6 +308,15 @@ WHERE user_id = '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab';
 
 Phase 3 で差し替えるのは `auth/StubAuthenticator.kt` と `auth/StubAuthenticatorGuard.kt` の削除、
 `Authenticator` を実装する Cognito 版の追加だけ。
+
+#### フロントエンド
+
+`http://localhost:3000/` で利用者を選ぶと、Cookie に識別子が入る。
+**`X-User-Id` を付けるのは Next.js の proxy（`src/proxy.ts`）だけ**で、ブラウザが付けたヘッダは捨てる。
+画面のコードは認証を意識せずに API を呼ぶ。
+
+Phase 3 では proxy を「セッションから Cognito のトークンを取り出して `Authorization` に付ける」に替え、
+`src/lib/auth/stub-users.ts` とログイン画面を削除する。
 
 ## 8. コスト方針
 

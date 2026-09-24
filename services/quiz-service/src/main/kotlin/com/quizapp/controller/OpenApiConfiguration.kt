@@ -9,6 +9,7 @@ import io.swagger.v3.oas.models.media.MediaType
 import io.swagger.v3.oas.models.media.ObjectSchema
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
+import io.swagger.v3.oas.models.parameters.PathParameter
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.security.SecurityRequirement
 import io.swagger.v3.oas.models.security.SecurityScheme
@@ -93,6 +94,28 @@ class OpenApiConfiguration {
                         ApiResponse().description(description).content(problem),
                     )
                 }
+            }
+    }
+
+    /**
+     * テナント配下のパスに `{slug}` を宣言する。
+     *
+     * slug はコントローラではなく [com.quizapp.tenant.TenantResolutionFilter] が取り出すため、
+     * springdoc の走査では現れない。宣言がないとパスに未定義の変数が残る不正な定義になり、
+     * クライアントの生成が失敗する。パス単位で宣言し、配下の全操作に効かせる。
+     */
+    @Bean
+    fun tenantSlugParameter(): OpenApiCustomizer = OpenApiCustomizer { openApi ->
+        openApi.paths
+            .filterKeys { it.startsWith(TENANT_SCOPED_PREFIX) }
+            .values
+            .forEach { path ->
+                path.addParametersItem(
+                    PathParameter()
+                        .name("slug")
+                        .description("テナントの識別子（URL 用の短い名前）")
+                        .schema(StringSchema()),
+                )
             }
     }
 

@@ -1,2 +1,8 @@
 packages:
   - apps/*
+
+# 依存パッケージのインストールスクリプトは既定で実行しない（サプライチェーン対策）。
+# 以下はいずれもプラットフォーム別のバイナリを optionalDependencies で受け取るため、スクリプトが不要
+allowBuilds:
+  esbuild: false
+  unrs-resolver: false
