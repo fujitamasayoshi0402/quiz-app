@@ -2,7 +2,6 @@ package com.quizapp.startup
 
 import com.quizapp.quiz.support.TestPostgres
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
@@ -22,6 +21,9 @@ import org.springframework.test.context.DynamicPropertySource
  * アプリケーション層の検証を通らない。DB の制約だけでは行数の条件を表現できない。
  *
  * Flyway の履歴を汚さないよう、ここでは locations を切り替えず SQL を直接流す。
+ *
+ * 他のテストと同じく片付けない。**数えるのはシードのテナントに絞る。**
+ * コンテナは全テストで共有しているため、絞らないと他のテストが作った行まで数える。
  */
 @SpringBootTest
 class DemoSeedTest {
@@ -33,8 +35,8 @@ class DemoSeedTest {
 
         private const val DEMO_SLUG = "demo"
 
-        /** シードが入れるテナント */
-        private const val SEEDED_SLUGS = "'demo', 'geo-club'"
+        /** シードが入れるテナント。条件に埋め込んで使う */
+        private const val SEEDED = "(SELECT id FROM core.tenants WHERE slug IN ('demo', 'geo-club'))"
     }
 
     private val seed = ClassPathResource("db/seed/R__demo_data.sql")
@@ -43,40 +45,27 @@ class DemoSeedTest {
 
     private fun count(sql: String): Int = TestPostgres.adminJdbcTemplate.queryForObject(sql, Int::class.java) ?: 0
 
-    @AfterEach
-    fun tearDown() {
-        val admin = TestPostgres.adminJdbcTemplate
-        val tenants = "(SELECT id FROM core.tenants WHERE slug IN ($SEEDED_SLUGS))"
-        admin.update("DELETE FROM quiz.choices WHERE tenant_id IN $tenants")
-        admin.update("DELETE FROM quiz.quizzes WHERE tenant_id IN $tenants")
-        admin.update("DELETE FROM quiz.difficulties WHERE tenant_id IN $tenants")
-        admin.update("DELETE FROM quiz.categories WHERE tenant_id IN $tenants")
-        admin.update("DELETE FROM core.tenant_members WHERE tenant_id IN $tenants")
-        admin.update("DELETE FROM core.users WHERE external_id LIKE 'demo-%'")
-        admin.update("DELETE FROM core.tenants WHERE slug IN ($SEEDED_SLUGS)")
-    }
-
     @Test
     @DisplayName("二度流しても増えない")
     fun seedIsIdempotent() {
         applySeed()
         val first = listOf(
-            count("SELECT count(*) FROM quiz.categories"),
-            count("SELECT count(*) FROM quiz.difficulties"),
-            count("SELECT count(*) FROM quiz.quizzes"),
-            count("SELECT count(*) FROM quiz.choices"),
-            count("SELECT count(*) FROM core.tenant_members"),
+            count("SELECT count(*) FROM quiz.categories WHERE tenant_id IN $SEEDED"),
+            count("SELECT count(*) FROM quiz.difficulties WHERE tenant_id IN $SEEDED"),
+            count("SELECT count(*) FROM quiz.quizzes WHERE tenant_id IN $SEEDED"),
+            count("SELECT count(*) FROM quiz.choices WHERE tenant_id IN $SEEDED"),
+            count("SELECT count(*) FROM core.tenant_members WHERE tenant_id IN $SEEDED"),
         )
 
         applySeed()
 
         assertThat(
             listOf(
-                count("SELECT count(*) FROM quiz.categories"),
-                count("SELECT count(*) FROM quiz.difficulties"),
-                count("SELECT count(*) FROM quiz.quizzes"),
-                count("SELECT count(*) FROM quiz.choices"),
-                count("SELECT count(*) FROM core.tenant_members"),
+                count("SELECT count(*) FROM quiz.categories WHERE tenant_id IN $SEEDED"),
+                count("SELECT count(*) FROM quiz.difficulties WHERE tenant_id IN $SEEDED"),
+                count("SELECT count(*) FROM quiz.quizzes WHERE tenant_id IN $SEEDED"),
+                count("SELECT count(*) FROM quiz.choices WHERE tenant_id IN $SEEDED"),
+                count("SELECT count(*) FROM core.tenant_members WHERE tenant_id IN $SEEDED"),
             ),
         ).isEqualTo(first)
     }
@@ -89,14 +78,15 @@ class DemoSeedTest {
         val broken = count(
             """
             SELECT count(*) FROM quiz.quizzes q
-            WHERE q.status = 'published'
+            WHERE q.tenant_id IN $SEEDED AND q.status = 'published'
               AND ( (SELECT count(*) FROM quiz.choices c WHERE c.quiz_id = q.id) <> 4
                  OR (SELECT count(*) FROM quiz.choices c WHERE c.quiz_id = q.id AND c.is_correct) <> 1 )
             """,
         )
 
         assertThat(broken).isZero()
-        assertThat(count("SELECT count(*) FROM quiz.quizzes WHERE status = 'published'")).isGreaterThan(0)
+        assertThat(count("SELECT count(*) FROM quiz.quizzes WHERE tenant_id IN $SEEDED AND status = 'published'"))
+            .isGreaterThan(0)
     }
 
     @Test
@@ -108,6 +98,7 @@ class DemoSeedTest {
             """
             SELECT c.name AS category, count(d.id) AS levels
             FROM quiz.categories c JOIN quiz.difficulties d ON d.category_id = c.id
+            WHERE c.tenant_id IN $SEEDED
             GROUP BY c.name ORDER BY c.name
             """,
         ) { rs, _ -> rs.getString("category") to rs.getInt("levels") }
@@ -126,6 +117,7 @@ class DemoSeedTest {
             """
             SELECT count(*) FROM (
                 SELECT category_id, level FROM quiz.difficulties
+                WHERE tenant_id IN $SEEDED
                 GROUP BY category_id, level HAVING count(*) > 1
             ) AS t
             """,

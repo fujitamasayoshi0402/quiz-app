@@ -2,7 +2,7 @@ package com.quizapp.quiz.controller
 
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.TestAuth
-import org.junit.jupiter.api.AfterEach
+import com.quizapp.support.TestTenant
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -41,8 +41,8 @@ class QuizApiTest {
 
     @Autowired private lateinit var objectMapper: ObjectMapper
 
-    private val tenantA: UUID = UUID.fromString("eeee1111-1111-1111-1111-111111111111")
-    private val tenantB: UUID = UUID.fromString("ffff2222-2222-2222-2222-222222222222")
+    private lateinit var tenantA: TestTenant
+    private lateinit var tenantB: TestTenant
 
     private lateinit var awsCategory: UUID
     private lateinit var authCategory: UUID
@@ -51,28 +51,12 @@ class QuizApiTest {
 
     @BeforeEach
     fun setUp() {
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.tenants (id, slug, name) VALUES (?, 'echo', 'エコー'), (?, 'foxtrot', 'フォックストロット')",
-            tenantA,
-            tenantB,
-        )
-        TestAuth.ensureUsers()
-        TestAuth.joinAsAdmin(tenantA, tenantB)
-        awsCategory = createCategory("echo", "AWS")
-        authCategory = createCategory("echo", "認証認可")
-        saaDifficulty = createDifficulty("echo", awsCategory, "SAA", 2)
-        authBeginner = createDifficulty("echo", authCategory, "初級", 1)
-    }
-
-    @AfterEach
-    fun tearDown() {
-        val admin = TestPostgres.adminJdbcTemplate
-        admin.update("DELETE FROM quiz.choices WHERE tenant_id IN (?, ?)", tenantA, tenantB)
-        admin.update("DELETE FROM quiz.quizzes WHERE tenant_id IN (?, ?)", tenantA, tenantB)
-        admin.update("DELETE FROM quiz.difficulties WHERE tenant_id IN (?, ?)", tenantA, tenantB)
-        admin.update("DELETE FROM quiz.categories WHERE tenant_id IN (?, ?)", tenantA, tenantB)
-        TestAuth.leaveAll(tenantA, tenantB)
-        admin.update("DELETE FROM core.tenants WHERE id IN (?, ?)", tenantA, tenantB)
+        tenantA = TestTenant.create("エコー").withAdmin()
+        tenantB = TestTenant.create("フォックストロット").withAdmin()
+        awsCategory = createCategory(tenantA.slug, "AWS")
+        authCategory = createCategory(tenantA.slug, "認証認可")
+        saaDifficulty = createDifficulty(tenantA.slug, awsCategory, "SAA", 2)
+        authBeginner = createDifficulty(tenantA.slug, authCategory, "初級", 1)
     }
 
     private fun createCategory(slug: String, name: String): UUID {
@@ -113,7 +97,7 @@ class QuizApiTest {
     }
 
     private fun createQuiz(body: String): UUID {
-        val result = mockMvc.post("/api/t/echo/admin/quizzes") {
+        val result = mockMvc.post("/api/t/${tenantA.slug}/admin/quizzes") {
             auth()
             contentType = MediaType.APPLICATION_JSON
             content = body
@@ -126,7 +110,7 @@ class QuizApiTest {
     fun createPublishedQuiz() {
         val id = createQuiz(quizJson(status = "published"))
 
-        mockMvc.get("/api/t/echo/admin/quizzes/$id") { auth() }.andExpect {
+        mockMvc.get("/api/t/${tenantA.slug}/admin/quizzes/$id") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.status") { value("published") }
             jsonPath("$.choices.length()") { value(4) }
@@ -139,7 +123,7 @@ class QuizApiTest {
     fun choiceOrderIsPreserved() {
         val id = createQuiz(quizJson(status = "published"))
 
-        mockMvc.get("/api/t/echo/admin/quizzes/$id") { auth() }.andExpect {
+        mockMvc.get("/api/t/${tenantA.slug}/admin/quizzes/$id") { auth() }.andExpect {
             jsonPath("$.choices[0].body") { value("選択肢 1") }
             jsonPath("$.choices[3].body") { value("選択肢 4") }
         }
@@ -150,7 +134,7 @@ class QuizApiTest {
     fun draftAllowsIncompleteChoices() {
         val id = createQuiz(quizJson(choiceCount = 2, status = "draft"))
 
-        mockMvc.get("/api/t/echo/admin/quizzes/$id") { auth() }.andExpect {
+        mockMvc.get("/api/t/${tenantA.slug}/admin/quizzes/$id") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.status") { value("draft") }
             jsonPath("$.choices.length()") { value(2) }
@@ -160,7 +144,7 @@ class QuizApiTest {
     @Test
     @DisplayName("選択肢が 4 つ未満のまま公開しようとすると 400")
     fun cannotPublishWithoutFourChoices() {
-        mockMvc.post("/api/t/echo/admin/quizzes") {
+        mockMvc.post("/api/t/${tenantA.slug}/admin/quizzes") {
             auth()
             contentType = MediaType.APPLICATION_JSON
             content = quizJson(choiceCount = 3, status = "published")
@@ -170,7 +154,7 @@ class QuizApiTest {
     @Test
     @DisplayName("正解が無いまま公開しようとすると 400")
     fun cannotPublishWithoutCorrectChoice() {
-        mockMvc.post("/api/t/echo/admin/quizzes") {
+        mockMvc.post("/api/t/${tenantA.slug}/admin/quizzes") {
             auth()
             contentType = MediaType.APPLICATION_JSON
             content = quizJson(correctCount = 0, status = "published")
@@ -180,7 +164,7 @@ class QuizApiTest {
     @Test
     @DisplayName("正解が 2 つあると 400")
     fun cannotHaveTwoCorrectChoices() {
-        mockMvc.post("/api/t/echo/admin/quizzes") {
+        mockMvc.post("/api/t/${tenantA.slug}/admin/quizzes") {
             auth()
             contentType = MediaType.APPLICATION_JSON
             content = quizJson(correctCount = 2, status = "published")
@@ -191,7 +175,7 @@ class QuizApiTest {
     @DisplayName("カテゴリに属さない難易度を指定すると 400")
     fun rejectsDifficultyFromAnotherCategory() {
         // AWS カテゴリに、認証認可カテゴリの難易度を組み合わせる
-        mockMvc.post("/api/t/echo/admin/quizzes") {
+        mockMvc.post("/api/t/${tenantA.slug}/admin/quizzes") {
             auth()
             contentType = MediaType.APPLICATION_JSON
             content = quizJson(categoryId = awsCategory, difficultyId = authBeginner)
@@ -203,7 +187,7 @@ class QuizApiTest {
     fun canPublishDraft() {
         val id = createQuiz(quizJson(status = "draft"))
 
-        mockMvc.put("/api/t/echo/admin/quizzes/$id") {
+        mockMvc.put("/api/t/${tenantA.slug}/admin/quizzes/$id") {
             auth()
             contentType = MediaType.APPLICATION_JSON
             content = quizJson(status = "published")
@@ -218,7 +202,7 @@ class QuizApiTest {
     fun canReplaceChoices() {
         val id = createQuiz(quizJson(status = "draft"))
 
-        mockMvc.put("/api/t/echo/admin/quizzes/$id") {
+        mockMvc.put("/api/t/${tenantA.slug}/admin/quizzes/$id") {
             auth()
             contentType = MediaType.APPLICATION_JSON
             content = """
@@ -239,11 +223,11 @@ class QuizApiTest {
         createQuiz(quizJson(status = "published"))
         createQuiz(quizJson(status = "draft"))
 
-        mockMvc.get("/api/t/echo/admin/quizzes?status=published") { auth() }.andExpect {
+        mockMvc.get("/api/t/${tenantA.slug}/admin/quizzes?status=published") { auth() }.andExpect {
             jsonPath("$.length()") { value(1) }
             jsonPath("$[0].status") { value("published") }
         }
-        mockMvc.get("/api/t/echo/admin/quizzes?categoryId=$authCategory") { auth() }.andExpect {
+        mockMvc.get("/api/t/${tenantA.slug}/admin/quizzes?categoryId=$authCategory") { auth() }.andExpect {
             jsonPath("$.length()") { value(0) }
         }
     }
@@ -253,7 +237,7 @@ class QuizApiTest {
     fun quizzesAreIsolatedPerTenant() {
         createQuiz(quizJson(status = "published"))
 
-        mockMvc.get("/api/t/foxtrot/admin/quizzes") { auth() }.andExpect {
+        mockMvc.get("/api/t/${tenantB.slug}/admin/quizzes") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(0) }
         }
@@ -262,7 +246,7 @@ class QuizApiTest {
     @Test
     @DisplayName("存在しないカテゴリを指定すると 404")
     fun unknownCategoryReturnsNotFound() {
-        mockMvc.post("/api/t/echo/admin/quizzes") {
+        mockMvc.post("/api/t/${tenantA.slug}/admin/quizzes") {
             auth()
             contentType = MediaType.APPLICATION_JSON
             content = quizJson(categoryId = UUID.randomUUID())

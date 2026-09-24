@@ -3,7 +3,7 @@ package com.quizapp.quiz.controller
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
-import org.junit.jupiter.api.AfterEach
+import com.quizapp.support.TestTenant
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -29,38 +29,20 @@ class PlayCategoryApiTest {
         @JvmStatic
         @DynamicPropertySource
         fun datasourceProperties(registry: DynamicPropertyRegistry) = TestPostgres.configure(registry)
-
-        private const val SLUG = "papa"
     }
 
     @Autowired private lateinit var mockMvc: MockMvc
 
     @Autowired private lateinit var objectMapper: ObjectMapper
 
-    private val tenant: UUID = UUID.fromString("abababab-1111-4111-8111-000000000001")
+    private lateinit var tenant: TestTenant
 
     private lateinit var fixture: PlayFixture
 
     @BeforeEach
     fun setUp() {
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.tenants (id, slug, name) VALUES (?, '$SLUG', 'パパ')",
-            tenant,
-        )
-        TestAuth.ensureUsers()
-        TestAuth.joinAsAdmin(tenant)
-        TestAuth.join(tenant, TestAuth.MEMBER, "member")
-        fixture = PlayFixture(mockMvc, objectMapper, SLUG)
-    }
-
-    @AfterEach
-    fun tearDown() {
-        val admin = TestPostgres.adminJdbcTemplate
-        listOf("quiz.choices", "quiz.quizzes", "quiz.difficulties", "quiz.categories").forEach {
-            admin.update("DELETE FROM $it WHERE tenant_id = ?", tenant)
-        }
-        TestAuth.leaveAll(tenant)
-        admin.update("DELETE FROM core.tenants WHERE id = ?", tenant)
+        tenant = TestTenant.create().withAdmin().join(TestAuth.MEMBER)
+        fixture = PlayFixture(mockMvc, objectMapper, tenant.slug)
     }
 
     @Test
@@ -111,14 +93,14 @@ class PlayCategoryApiTest {
         fixture.difficulty(aws, "SAA", 2)
         val auth = fixture.category("認証認可")
         val deleted = fixture.quiz(auth, fixture.difficulty(auth, "基礎", 1), "削除する問題")
-        mockMvc.delete("/api/t/$SLUG/admin/quizzes/$deleted") {
+        mockMvc.delete("/api/t/${tenant.slug}/admin/quizzes/$deleted") {
             header("X-User-Id", TestAuth.ADMIN.toString())
         }.andExpect { status { isNoContent() } }
 
         list().andExpect { jsonPath("$.length()") { value(0) } }
     }
 
-    private fun list() = mockMvc.get("/api/t/$SLUG/play/categories") {
+    private fun list() = mockMvc.get("/api/t/${tenant.slug}/play/categories") {
         // 一般ユーザーが使う API なので、管理者ではない利用者で呼ぶ
         header("X-User-Id", TestAuth.MEMBER.toString())
     }

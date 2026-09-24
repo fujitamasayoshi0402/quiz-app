@@ -3,7 +3,7 @@ package com.quizapp.auth
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
-import org.junit.jupiter.api.AfterEach
+import com.quizapp.support.TestTenant
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -42,37 +42,18 @@ class AuthorizationApiTest {
 
     @Autowired private lateinit var objectMapper: ObjectMapper
 
-    private val tenant: UUID = UUID.fromString("11112222-3333-4444-5555-666677778888")
-    private val otherTenant: UUID = UUID.fromString("88887777-6666-5555-4444-333322221111")
+    private lateinit var tenant: TestTenant
+    private lateinit var otherTenant: TestTenant
 
     @BeforeEach
     fun setUp() {
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.tenants (id, slug, name) VALUES (?, 'india', 'インディア'), (?, 'juliet', 'ジュリエット')",
-            tenant,
-            otherTenant,
-        )
-        TestAuth.ensureUsers()
-        TestAuth.joinAsAdmin(tenant)
-        TestAuth.join(tenant, TestAuth.MEMBER, "member")
-        // OUTSIDER はどちらにも所属させない
+        tenant = TestTenant.create().withAdmin().join(TestAuth.MEMBER)
+        // 管理者も所属していないテナント。OUTSIDER はどちらにも所属させない
+        otherTenant = TestTenant.create()
 
-        val fixture = PlayFixture(mockMvc, objectMapper, "india")
+        val fixture = PlayFixture(mockMvc, objectMapper, tenant.slug)
         val category = fixture.category("AWS")
         fixture.quiz(category, fixture.difficulty(category, "SAA", 2), "問題 1")
-    }
-
-    @AfterEach
-    fun tearDown() {
-        val admin = TestPostgres.adminJdbcTemplate
-        admin.update("DELETE FROM answer.answers WHERE user_id IN (?, ?)", TestAuth.ADMIN, TestAuth.MEMBER)
-        admin.update("DELETE FROM answer.attempts WHERE user_id IN (?, ?)", TestAuth.ADMIN, TestAuth.MEMBER)
-        admin.update("DELETE FROM quiz.choices WHERE tenant_id = ?", tenant)
-        admin.update("DELETE FROM quiz.quizzes WHERE tenant_id = ?", tenant)
-        admin.update("DELETE FROM quiz.difficulties WHERE tenant_id = ?", tenant)
-        admin.update("DELETE FROM quiz.categories WHERE tenant_id = ?", tenant)
-        TestAuth.leaveAll(tenant, otherTenant)
-        admin.update("DELETE FROM core.tenants WHERE id IN (?, ?)", tenant, otherTenant)
     }
 
     // --- 認証 -----------------------------------------------------------------
@@ -80,8 +61,8 @@ class AuthorizationApiTest {
     @Test
     @DisplayName("利用者を示さないと 401")
     fun anonymousIsUnauthorized() {
-        mockMvc.get("/api/t/india/admin/categories").andExpect { status { isUnauthorized() } }
-        mockMvc.get("/api/t/india/play/attempts/current").andExpect { status { isUnauthorized() } }
+        mockMvc.get("/api/t/${tenant.slug}/admin/categories").andExpect { status { isUnauthorized() } }
+        mockMvc.get("/api/t/${tenant.slug}/play/attempts/current").andExpect { status { isUnauthorized() } }
     }
 
     @Test
@@ -94,7 +75,7 @@ class AuthorizationApiTest {
     @Test
     @DisplayName("利用者として読めない値を渡しても 401")
     fun malformedUserIsUnauthorized() {
-        mockMvc.get("/api/t/india/admin/categories") {
+        mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
             header("X-User-Id", "not-a-uuid")
         }.andExpect { status { isUnauthorized() } }
     }
@@ -104,8 +85,8 @@ class AuthorizationApiTest {
     @Test
     @DisplayName("所属していないテナントは、存在しないものとして 404")
     fun outsiderSeesNotFound() {
-        // 403 を返すと、india というテナントが実在することが分かってしまう
-        mockMvc.get("/api/t/india/admin/categories") {
+        // 403 を返すと、そのテナントが実在することが分かってしまう
+        mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
             header("X-User-Id", TestAuth.OUTSIDER.toString())
         }.andExpect {
             status { isNotFound() }
@@ -116,7 +97,7 @@ class AuthorizationApiTest {
     @Test
     @DisplayName("管理者でも、所属していない別テナントは 404")
     fun adminCannotReachAnotherTenant() {
-        mockMvc.get("/api/t/juliet/admin/categories") {
+        mockMvc.get("/api/t/${otherTenant.slug}/admin/categories") {
             header("X-User-Id", TestAuth.ADMIN.toString())
         }.andExpect { status { isNotFound() } }
     }
@@ -134,14 +115,14 @@ class AuthorizationApiTest {
     @Test
     @DisplayName("一般ユーザーは管理 API を使えない")
     fun memberCannotUseAdminApi() {
-        mockMvc.get("/api/t/india/admin/categories") {
+        mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
             header("X-User-Id", TestAuth.MEMBER.toString())
         }.andExpect {
             status { isForbidden() }
             jsonPath("$.title") { value("権限がありません") }
         }
 
-        mockMvc.post("/api/t/india/admin/categories") {
+        mockMvc.post("/api/t/${tenant.slug}/admin/categories") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"勝手に作ったカテゴリ"}"""
             header("X-User-Id", TestAuth.MEMBER.toString())
@@ -151,7 +132,7 @@ class AuthorizationApiTest {
     @Test
     @DisplayName("一般ユーザーでもクイズには回答できる")
     fun memberCanPlay() {
-        mockMvc.post("/api/t/india/play/attempts") {
+        mockMvc.post("/api/t/${tenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"scope":"all"}"""
             header("X-User-Id", TestAuth.MEMBER.toString())
@@ -161,11 +142,11 @@ class AuthorizationApiTest {
     @Test
     @DisplayName("管理者は管理 API も出題 API も使える")
     fun adminCanUseBoth() {
-        mockMvc.get("/api/t/india/admin/categories") {
+        mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
             header("X-User-Id", TestAuth.ADMIN.toString())
         }.andExpect { status { isOk() } }
 
-        mockMvc.post("/api/t/india/play/attempts") {
+        mockMvc.post("/api/t/${tenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"scope":"all"}"""
             header("X-User-Id", TestAuth.ADMIN.toString())
@@ -175,18 +156,18 @@ class AuthorizationApiTest {
     @Test
     @DisplayName("所属を外すと、それまで使えていた API が 404 になる")
     fun leavingTenantRevokesAccess() {
-        mockMvc.get("/api/t/india/admin/categories") {
+        mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
             header("X-User-Id", TestAuth.ADMIN.toString())
         }.andExpect { status { isOk() } }
 
         // 論理削除された所属は参照しない
         TestPostgres.adminJdbcTemplate.update(
             "UPDATE core.tenant_members SET deleted_at = now() WHERE tenant_id = ? AND user_id = ?",
-            tenant,
+            tenant.id,
             TestAuth.ADMIN,
         )
 
-        mockMvc.get("/api/t/india/admin/categories") {
+        mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
             header("X-User-Id", TestAuth.ADMIN.toString())
         }.andExpect { status { isNotFound() } }
     }

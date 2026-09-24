@@ -9,8 +9,10 @@ import java.util.UUID
  * テナント配下のエンドポイントは**所属していないと触れない**ため、
  * どのテストでも利用者を用意する必要がある。
  *
- * 利用者そのものはテスト間で共有し、消さない。**所属はテナントごとに作って片付ける。**
- * ロールはテナント単位に決まるので、共有すると片付け漏れが別のテストに漏れる。
+ * 共有の利用者はテスト間で使い回す。所属はテナント（[TestTenant]）ごとに作るので、
+ * ロールがテストをまたいで漏れることはない。
+ * 利用者単位の状態（中断中の挑戦など）もテナントごとに持つため、共有して困らない。
+ * 利用者そのものを区別したいテストは [createUser] で作る。
  */
 object TestAuth {
 
@@ -40,8 +42,17 @@ object TestAuth {
         }
     }
 
-    /** 指定したテナントに [ADMIN] を管理者として所属させる。 */
-    fun joinAsAdmin(vararg tenantIds: UUID) = tenantIds.forEach { join(it, ADMIN, "admin") }
+    /** テスト専用の利用者を作る。共有の利用者と区別したいときに使う。片付けない */
+    fun createUser(name: String = "テスト利用者"): UUID {
+        val id = UUID.randomUUID()
+        TestPostgres.adminJdbcTemplate.update(
+            "INSERT INTO core.users (id, external_id, display_name) VALUES (?, ?, ?)",
+            id,
+            "test-$id",
+            name,
+        )
+        return id
+    }
 
     fun join(tenantId: UUID, userId: UUID, role: String) {
         TestPostgres.adminJdbcTemplate.update(
@@ -50,12 +61,5 @@ object TestAuth {
             userId,
             role,
         )
-    }
-
-    /** テナントを消す前に呼ぶ。所属が残っていると外部キーで消せない。 */
-    fun leaveAll(vararg tenantIds: UUID) {
-        tenantIds.forEach {
-            TestPostgres.adminJdbcTemplate.update("DELETE FROM core.tenant_members WHERE tenant_id = ?", it)
-        }
     }
 }

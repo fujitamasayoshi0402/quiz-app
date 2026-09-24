@@ -1,9 +1,9 @@
 package com.quizapp.tenant
 
 import com.quizapp.quiz.support.TestPostgres
+import com.quizapp.support.TestTenant
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -43,26 +43,15 @@ class TenantIsolationTest {
 
     @Autowired private lateinit var tenantSession: TenantSession
 
-    private val tenantA: UUID = UUID.fromString("11111111-1111-1111-1111-111111111111")
-    private val tenantB: UUID = UUID.fromString("22222222-2222-2222-2222-222222222222")
+    private lateinit var tenantA: UUID
+    private lateinit var tenantB: UUID
 
     @BeforeEach
     fun setUp() {
-        // tenants は RLS の対象外なので、テナントを設定せずに登録できる
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.tenants (id, slug, name) VALUES (?, 'tenant-a', 'テナントA'), (?, 'tenant-b', 'テナントB')",
-            tenantA,
-            tenantB,
-        )
+        tenantA = TestTenant.create("テナントA").id
+        tenantB = TestTenant.create("テナントB").id
         insertCategory(tenantA, "AWS")
         insertCategory(tenantB, "認証認可")
-    }
-
-    @AfterEach
-    fun tearDown() {
-        // RLS を通さない接続で片付ける
-        TestPostgres.adminJdbcTemplate.update("DELETE FROM quiz.categories WHERE tenant_id IN (?, ?)", tenantA, tenantB)
-        TestPostgres.adminJdbcTemplate.update("DELETE FROM core.tenants WHERE id IN (?, ?)", tenantA, tenantB)
     }
 
     private fun insertCategory(tenant: UUID, name: String) {

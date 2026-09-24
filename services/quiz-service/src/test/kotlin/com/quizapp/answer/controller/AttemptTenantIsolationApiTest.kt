@@ -3,8 +3,8 @@ package com.quizapp.answer.controller
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
+import com.quizapp.support.TestTenant
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -42,51 +42,29 @@ class AttemptTenantIsolationApiTest {
 
     @Autowired private lateinit var objectMapper: ObjectMapper
 
-    private val lima: UUID = UUID.fromString("f6f6f6f6-6666-6666-6666-666666666661")
-    private val mike: UUID = UUID.fromString("f6f6f6f6-6666-6666-6666-666666666662")
-    private val player: UUID = UUID.fromString("f6f6f6f6-6666-6666-6666-666666666663")
+    private lateinit var lima: TestTenant
+    private lateinit var mike: TestTenant
+    private lateinit var player: UUID
 
     @BeforeEach
     fun setUp() {
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.tenants (id, slug, name) VALUES (?, 'lima', 'リマ'), (?, 'mike', 'マイク')",
-            lima,
-            mike,
-        )
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.users (id, external_id, display_name) VALUES (?, 'stub-two-tenants', '掛け持ち')",
-            player,
-        )
-        TestAuth.ensureUsers()
-        TestAuth.joinAsAdmin(lima, mike)
-        TestAuth.join(lima, player, "member")
-        TestAuth.join(mike, player, "member")
+        player = TestAuth.createUser("掛け持ち")
+        lima = TestTenant.create("リマ").withAdmin().join(player)
+        mike = TestTenant.create("マイク").withAdmin().join(player)
 
-        listOf("lima", "mike").forEach { slug ->
-            val fixture = PlayFixture(mockMvc, objectMapper, slug)
+        listOf(lima, mike).forEach { tenant ->
+            val fixture = PlayFixture(mockMvc, objectMapper, tenant.slug)
             val category = fixture.category("AWS")
-            fixture.quiz(category, fixture.difficulty(category, "SAA", 2), "$slug の問題")
+            fixture.quiz(category, fixture.difficulty(category, "SAA", 2), "${tenant.slug} の問題")
         }
-    }
-
-    @AfterEach
-    fun tearDown() {
-        val admin = TestPostgres.adminJdbcTemplate
-        admin.update("DELETE FROM answer.attempts WHERE user_id = ?", player)
-        listOf("choices", "quizzes", "difficulties", "categories").forEach { table ->
-            admin.update("DELETE FROM quiz.$table WHERE tenant_id IN (?, ?)", lima, mike)
-        }
-        TestAuth.leaveAll(lima, mike)
-        admin.update("DELETE FROM core.tenants WHERE id IN (?, ?)", lima, mike)
-        admin.update("DELETE FROM core.users WHERE id = ?", player)
     }
 
     @Test
     @DisplayName("別テナントで中断中の挑戦は、中断中の挑戦として返らない")
     fun currentDoesNotReturnAnotherTenantsAttempt() {
-        start("mike").andExpect { status { isCreated() } }
+        start(mike.slug).andExpect { status { isCreated() } }
 
-        mockMvc.get("/api/t/lima/play/attempts/current") {
+        mockMvc.get("/api/t/${lima.slug}/play/attempts/current") {
             header("X-User-Id", player.toString())
         }.andExpect { status { isNoContent() } }
     }
@@ -94,17 +72,17 @@ class AttemptTenantIsolationApiTest {
     @Test
     @DisplayName("別テナントの挑戦は、本人であっても参照・回答・終了できない")
     fun cannotOperateAnotherTenantsAttempt() {
-        val attempt = startAttempt("mike")
+        val attempt = startAttempt(mike.slug)
         val id = attempt["id"].asString()
         val quiz = attempt["quizzes"][0]
         val body = """{"quizId":"${quiz["id"].asString()}","choiceId":"${quiz["choices"][0]["id"].asString()}"}"""
 
-        mockMvc.get("/api/t/lima/play/attempts/$id") {
+        mockMvc.get("/api/t/${lima.slug}/play/attempts/$id") {
             header("X-User-Id", player.toString())
         }.andExpect { status { isNotFound() } }
-        post("lima", "/$id/answers", body).andExpect { status { isNotFound() } }
-        post("lima", "/$id/complete").andExpect { status { isNotFound() } }
-        post("lima", "/$id/abandon").andExpect { status { isNotFound() } }
+        post(lima.slug, "/$id/answers", body).andExpect { status { isNotFound() } }
+        post(lima.slug, "/$id/complete").andExpect { status { isNotFound() } }
+        post(lima.slug, "/$id/abandon").andExpect { status { isNotFound() } }
 
         // 404 を返しつつ裏で書き換えていないこと
         assertThat(statusOf(id)).isEqualTo("in_progress")
@@ -114,8 +92,8 @@ class AttemptTenantIsolationApiTest {
     @Test
     @DisplayName("中断中の挑戦は、テナントごとに 1 件ずつ持てる")
     fun inProgressAttemptIsPerTenant() {
-        start("mike").andExpect { status { isCreated() } }
-        start("lima").andExpect { status { isCreated() } }
+        start(mike.slug).andExpect { status { isCreated() } }
+        start(lima.slug).andExpect { status { isCreated() } }
     }
 
     private fun start(slug: String): ResultActionsDsl = post(slug, "", """{"scope":"all","order":"registered"}""")

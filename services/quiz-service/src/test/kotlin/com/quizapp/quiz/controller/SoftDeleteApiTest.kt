@@ -3,7 +3,7 @@ package com.quizapp.quiz.controller
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
-import org.junit.jupiter.api.AfterEach
+import com.quizapp.support.TestTenant
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -38,16 +38,14 @@ class SoftDeleteApiTest {
         @JvmStatic
         @DynamicPropertySource
         fun datasourceProperties(registry: DynamicPropertyRegistry) = TestPostgres.configure(registry)
-
-        private const val SLUG = "kilo"
     }
 
     @Autowired private lateinit var mockMvc: MockMvc
 
     @Autowired private lateinit var objectMapper: ObjectMapper
 
-    private val tenant: UUID = UUID.fromString("aaaabbbb-cccc-dddd-eeee-ffff00001111")
-    private val player: UUID = UUID.fromString("aaaabbbb-cccc-dddd-eeee-ffff00002222")
+    private lateinit var tenant: TestTenant
+    private lateinit var player: UUID
 
     private lateinit var fixture: PlayFixture
     private lateinit var category: UUID
@@ -56,36 +54,13 @@ class SoftDeleteApiTest {
 
     @BeforeEach
     fun setUp() {
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.tenants (id, slug, name) VALUES (?, '$SLUG', 'キロ')",
-            tenant,
-        )
-        TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.users (id, external_id, display_name) VALUES (?, 'trash-player', '回答者')",
-            player,
-        )
-        TestAuth.ensureUsers()
-        TestAuth.joinAsAdmin(tenant)
-        TestAuth.join(tenant, player, "member")
+        player = TestAuth.createUser("回答者")
+        tenant = TestTenant.create().withAdmin().join(player)
 
-        fixture = PlayFixture(mockMvc, objectMapper, SLUG)
+        fixture = PlayFixture(mockMvc, objectMapper, tenant.slug)
         category = fixture.category("AWS")
         saa = fixture.difficulty(category, "SAA", 2)
         dva = fixture.difficulty(category, "DVA", 2)
-    }
-
-    @AfterEach
-    fun tearDown() {
-        val admin = TestPostgres.adminJdbcTemplate
-        admin.update("DELETE FROM answer.answers WHERE user_id = ?", player)
-        admin.update("DELETE FROM answer.attempts WHERE user_id = ?", player)
-        admin.update("DELETE FROM quiz.choices WHERE tenant_id = ?", tenant)
-        admin.update("DELETE FROM quiz.quizzes WHERE tenant_id = ?", tenant)
-        admin.update("DELETE FROM quiz.difficulties WHERE tenant_id = ?", tenant)
-        admin.update("DELETE FROM quiz.categories WHERE tenant_id = ?", tenant)
-        TestAuth.leaveAll(tenant)
-        admin.update("DELETE FROM core.tenants WHERE id = ?", tenant)
-        admin.update("DELETE FROM core.users WHERE id = ?", player)
     }
 
     // --- 連鎖削除 -------------------------------------------------------------
@@ -112,7 +87,7 @@ class SoftDeleteApiTest {
         deleteCategory(category).andExpect { status { isNoContent() } }
 
         // 連鎖削除が無いと、カテゴリだけ消えてクイズが出題され続ける
-        mockMvc.post("/api/t/$SLUG/play/attempts") {
+        mockMvc.post("/api/t/${tenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"scope":"all"}"""
             header("X-User-Id", player.toString())
@@ -307,15 +282,15 @@ class SoftDeleteApiTest {
         header("X-User-Id", TestAuth.ADMIN.toString())
     }
 
-    private fun get(path: String): ResultActionsDsl = mockMvc.get("/api/t/$SLUG$path") { auth() }
+    private fun get(path: String): ResultActionsDsl = mockMvc.get("/api/t/${tenant.slug}$path") { auth() }
 
     private fun restore(kind: String, id: UUID): ResultActionsDsl =
-        mockMvc.post("/api/t/$SLUG/admin/trash/$kind/$id/restore") { auth() }
+        mockMvc.post("/api/t/${tenant.slug}/admin/trash/$kind/$id/restore") { auth() }
 
-    private fun deleteCategory(id: UUID) = mockMvc.delete("/api/t/$SLUG/admin/categories/$id") { auth() }
+    private fun deleteCategory(id: UUID) = mockMvc.delete("/api/t/${tenant.slug}/admin/categories/$id") { auth() }
 
     private fun deleteDifficulty(id: UUID) =
-        mockMvc.delete("/api/t/$SLUG/admin/categories/$category/difficulties/$id") { auth() }
+        mockMvc.delete("/api/t/${tenant.slug}/admin/categories/$category/difficulties/$id") { auth() }
 
-    private fun deleteQuiz(id: UUID) = mockMvc.delete("/api/t/$SLUG/admin/quizzes/$id") { auth() }
+    private fun deleteQuiz(id: UUID) = mockMvc.delete("/api/t/${tenant.slug}/admin/quizzes/$id") { auth() }
 }

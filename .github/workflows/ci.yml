@@ -43,6 +43,7 @@ jobs:
               - 'settings.gradle.kts'
               - '.mise.toml'
               - '.github/workflows/ci.yml'
+              - '.github/scripts/coverage-summary.py'
             frontend:
               - 'apps/**'
               - '.dockerignore'
@@ -73,6 +74,19 @@ jobs:
       # Testcontainers が PostgreSQL を起動する。ランナーには Docker が入っている
       - name: test
         run: ./gradlew :services:quiz-service:test
+
+      # 閾値では落とさない。数値はジョブのサマリーに出して、PR ごとの目安にする
+      - name: カバレッジを集計する
+        run: >-
+          python3 .github/scripts/coverage-summary.py
+          services/quiz-service/build/reports/jacoco/test/jacocoTestReport.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: カバレッジのレポートを保存する
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: services/quiz-service/build/reports/jacoco/test/html/
+          retention-days: 7
 
       - name: build
         run: ./gradlew :services:quiz-service:bootJar
