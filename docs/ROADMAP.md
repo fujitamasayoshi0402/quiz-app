@@ -106,15 +106,15 @@
 先に Cognito（マネージド）で一通り動かし、その後、自前の実装に差し替える。
 差し替えで作り直すのはログインの画面と認証の実装だけに留める。そのため、利用者の ID を Cognito の `sub` にせず、外部の ID と対応付けて持つ。
 
-- [ ] Cognito User Pool（パスキー / WebAuthn 有効化）、Group で `user` / `admin`
-- [ ] フロント: 登録 / ログイン / パスキー再登録、セッション管理
-- [ ] バックエンド: JWT 検証、メソッドレベルの認可、**テナント境界の認可**
-- [ ] Cognito のユーザーとテナントの対応付け（1 User Pool にするか、テナントごとに分けるか）
-- [ ] 管理画面のルートガード、管理者・一般ユーザーの招待フロー
-- [ ] スタブ認証の撤去、権限まわりの E2E テスト、dev のアクセス制限の見直し
-- [ ] ADR: パスキーの採用理由、Cognito と自前 WebAuthn 実装（webauthn4j）の比較
+- [x] ADR: Cognito で作る構成と、自前実装への差し替えに備えた設計（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）
+- [x] Cognito のユーザーとテナントの対応付け: User Pool は 1 つ。所属とロールは Cognito の Group ではなくアプリのデータで持つ
+- [ ] Cognito User Pool（Essentials、パスワード + パスキー、Managed Login）
+- [ ] フロント: Managed Login への遷移とコールバック、トークンを `HttpOnly` の Cookie に置くセッション、proxy が `Authorization` を付ける
+- [ ] バックエンド: JWT 検証、初回の要求での利用者の作成、**テナント境界の認可**
+- [ ] 管理画面のルートガード、管理者・一般ユーザーの招待フロー（リンクを画面に出して渡す）
+- [ ] スタブ認証の撤去、権限まわりの E2E テスト、dev のアクセス制限の見直し（ベーシック認証を外す）
 - [ ] コスト: ALB をやめ、API Gateway（HTTP API）から VPC リンクで quiz-service に届ける。JWT をどこで検証するかとあわせて決める
-- [ ] 自前実装: パスキーを webauthn4j で実装し、Cognito と差し替える（Cognito で動いてから。Phase 4 と並行してよい）
+- [ ] 自前実装: パスキーを webauthn4j で実装し、Cognito と差し替える。比べた結果を ADR に残す（Cognito で動いてから。Phase 4 と並行してよい）
 
 **デモできること**: パスキーでのログイン、権限によるアクセス制御
 
