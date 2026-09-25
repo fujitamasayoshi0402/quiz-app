@@ -8,11 +8,15 @@ locals {
   image = "${aws_ecr_repository.quiz_service.repository_url}:${var.image_tag}"
 
   # IAM 認証（ADR-0014）。AWS Advanced JDBC Wrapper の iam プラグインが、接続のたびにトークンを作ってパスワードに使う。
-  # パスワードは空にしておく。ローカル用の既定値（application.yml）が送られないように
+  # パスワードは空にしておく。ローカル用の既定値（application.yml）が送られないように。
+  #
+  # wrapperDialect=pg で、Aurora 用の機能を使わない。Aurora と判定させると、ラッパーがクラスタの構成を見張る接続を
+  # プールとは別に張り、最後の利用から 15 分ほど 30 秒ごとに問い合わせ続ける。その間 Aurora が一時停止しない（DEV-50）。
+  # フェイルオーバーのプラグインは使っていないため、構成の情報は要らない
   datasource_environment = [
     { name = "SPRING_DATASOURCE_DRIVER_CLASS_NAME", value = "software.amazon.jdbc.Driver" },
     { name = "SPRING_DATASOURCE_PASSWORD", value = "" },
-    { name = "SPRING_DATASOURCE_URL", value = "jdbc:aws-wrapper:postgresql://${var.db_endpoint}:${var.db_port}/${var.db_name}?wrapperPlugins=iam&sslmode=require" },
+    { name = "SPRING_DATASOURCE_URL", value = "jdbc:aws-wrapper:postgresql://${var.db_endpoint}:${var.db_port}/${var.db_name}?wrapperPlugins=iam&wrapperDialect=pg&sslmode=require" },
     { name = "SPRING_DATASOURCE_USERNAME", value = "quiz_app" },
   ]
 }

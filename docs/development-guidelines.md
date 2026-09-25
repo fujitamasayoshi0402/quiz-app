@@ -649,9 +649,18 @@ curl -H "X-Origin-Verify: $SECRET" -H "X-User-Id: 67d6db5a-9721-5d2e-b6ca-c39b2a
   - どちらもタスクを止めても課金が続き、Endpoint は必要な本数 × AZ 数で NAT Gateway より高くなる
   - タスクへの受信は SecurityGroup の参照だけで許し、CIDR では開けない。外からの入口は ALB だけ
 - Aurora Serverless v2 は **min 0 ACU**（自動一時停止）を採用。一時停止中はストレージ料金のみ
-  - 前提: PostgreSQL 16.3 以降 / 無活動時間は 5 分〜24 時間で設定可 / 復帰に約 15 秒
+  - 前提: PostgreSQL 16.3 以降 / 無活動時間は 5 分〜24 時間で設定可（dev は 5 分）/ 復帰に約 15 秒
   - **アプリが常時接続を張ると一時停止しない**ため、dev では HikariCP を `minimum-idle: 0` + 短い `idle-timeout` にする
   - 同じ理由で dev では RDS Proxy を使わない
+  - **AWS Advanced JDBC Wrapper は `wrapperDialect=pg` にする。** Aurora と判定させると、クラスタの構成を見張る接続を
+    プールとは別に張り、最後の利用から 15 分ほど保ち続ける。その間は一時停止しない
+  - 実測（DEV-50）: 最後の接続が切れてから 5 分で一時停止する。止まっている DB への最初の要求は、復帰（約 13 秒）を待って
+    約 19 秒で 200 が返る。2 回目からは通常の速さ
+  - 復帰を待つのはバックエンド。接続プールの `connection-timeout` を、復帰にかかる時間より長くしている（45 秒）。
+    24 時間を超えて止まっていると復帰に 30 秒を超えることがある。それでも間に合わなかった読み込みは、
+    画面の再試行（5xx と通信エラーを 2 回まで、`src/app/providers.tsx`）で拾う。止まったあとの最初の操作は、たいてい読み込み
+  - 一時停止しないときは、`DatabaseConnections` と RDS のイベント（クラスタ単位の「Initiated pause / resume」）を見る。
+    接続の中身は Data API で `pg_stat_activity` を読むと分かる。`rdsadmin` の接続は一時停止を妨げない
 - 通知は Lambda（イベント時のみ課金）で実装し、常駐サービスを増やさない
 - 開発環境の ECS タスクは夜間停止（EventBridge Scheduler で desiredCount=0）
 - **予算は月 30 ドル。** 実績が 85% と 100% を超えたとき、月末の予測が 100% を超えたときにメールで届く
