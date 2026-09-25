@@ -233,11 +233,15 @@ jobs:
 
   # develop に入ったら dev に載せる（DEV-48）。チェックがすべて通ったときだけ動く。
   # 変わったほうだけを載せる。どちらも変わっていなければ（ドキュメントだけなど）何もしない
+  #
+  # 結果は ci で判定する。条件に状態の関数を書かないと success() が付き、間接的な依存（backend など）が
+  # パスの出し分けでスキップされただけで、このジョブもスキップされる
   deploy-dev:
     name: deploy-dev
     needs: [changes, ci]
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/develop'
+      !cancelled() && needs.ci.result == 'success'
+      && github.event_name == 'push' && github.ref == 'refs/heads/develop'
       && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true')
     permissions:
       contents: read
