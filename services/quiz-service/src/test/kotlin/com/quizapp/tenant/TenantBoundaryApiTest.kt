@@ -63,6 +63,7 @@ class TenantBoundaryApiTest {
         private const val QUIZ_NOT_FOUND = "指定されたクイズは存在しません"
         private const val ATTEMPT_NOT_FOUND = "指定された挑戦は存在しません"
         private const val DELETED_NOT_FOUND = "削除済みの項目が見つかりません"
+        private const val IMPORT_REJECTED = "取り込めない行があります。1 件も取り込んでいません"
 
         private val TENANT_SCOPED = Regex("/api/t/\\{slug}/(admin|play)/.+")
 
@@ -169,7 +170,7 @@ class TenantBoundaryApiTest {
     // --- 検証ケース -----------------------------------------------------------
 
     private fun probes(ids: Ids): List<Probe> =
-        categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + trashProbes(ids) +
+        categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
             playCategoryProbes() + attemptProbes(ids)
 
     private fun categoryProbes(ids: Ids): List<Probe> {
@@ -271,6 +272,29 @@ class TenantBoundaryApiTest {
         )
     }
 
+    /** 取り込みはカテゴリと難易度を名前で指す。victim の名前は、自テナントの中では見つからない */
+    private fun quizImportProbes(): List<Probe> {
+        val base = "/api/t/{slug}/admin/quizzes/import"
+        return listOf(
+            Probe(
+                HttpMethod.POST,
+                base,
+                "victim のカテゴリと難易度の名前で取り込む",
+                body = importBody("$SECRET カテゴリ", "$SECRET 難易度"),
+                status = 400,
+                detail = IMPORT_REJECTED,
+            ),
+            Probe(
+                HttpMethod.POST,
+                base,
+                "自分のカテゴリに victim の難易度の名前で取り込む",
+                body = importBody("自分のカテゴリ", "$SECRET 難易度"),
+                status = 400,
+                detail = IMPORT_REJECTED,
+            ),
+        )
+    }
+
     private fun trashProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/trash"
         return listOf(
@@ -349,6 +373,15 @@ class TenantBoundaryApiTest {
         return """
             {"categoryId":"$categoryId","difficultyId":"$difficultyId",
              "question":"境界テスト","explanation":"解説","choices":[$choices],"status":"published"}
+        """.trimIndent()
+    }
+
+    /** 送った名前を応答で繰り返すと、victim の文字列が含まれて漏洩と判定される。繰り返さないことも確かめている */
+    private fun importBody(category: String, difficulty: String): String {
+        val choices = (1..4).joinToString(",") { """{"body":"選択肢 $it","isCorrect":${it == 1}}""" }
+        return """
+            {"quizzes":[{"category":"$category","difficulty":"$difficulty",
+             "question":"境界テスト","explanation":"解説","choices":[$choices],"status":"published"}]}
         """.trimIndent()
     }
 

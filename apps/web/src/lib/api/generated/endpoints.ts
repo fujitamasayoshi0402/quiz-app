@@ -38,6 +38,7 @@ import {
   CategoryResponse,
   DeletionImpact,
   DifficultyResponse,
+  ImportQuizzesResponse,
   MyTenantResponse,
   PlayableCategoryResponse,
   QuizResponse,
@@ -46,6 +47,7 @@ import {
 import type {
   AnswerRequest,
   CreateCategoryRequest,
+  ImportQuizzesRequest,
   ProblemDetail,
   SaveDifficultyRequest,
   SaveQuizRequest,
@@ -1574,6 +1576,97 @@ export const useCreateQuiz = <TError = ProblemDetail,
         TContext
       > => {
       return useMutation(getCreateQuizMutationOptions(options), queryClient);
+    }
+
+export const getImportQuizzesUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/quizzes/import`
+}
+
+/**
+ * 1 件でも取り込めない行があれば、1 件も取り込まずに 400 を返す。理由は `rows` に行ごとに入る
+ * @summary クイズをまとめて取り込む
+ */
+export const importQuizzes = async (slug: string,
+    importQuizzesRequest: ImportQuizzesRequest, options?: Parameters<typeof apiFetch>[1]): Promise<ImportQuizzesResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<ImportQuizzesResponse>(getImportQuizzesUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(importQuizzesRequest),
+    schema: ImportQuizzesResponse
+  }
+);}
+
+
+
+
+
+export const getImportQuizzesMutationKey = () => ['importQuizzes'] as const;
+
+export const getImportQuizzesMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importQuizzes>>, TError,ImportQuizzesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importQuizzes>>, TError,ImportQuizzesMutationVariables, TContext> => {
+
+const mutationKey = getImportQuizzesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importQuizzes>>, ImportQuizzesMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  importQuizzes(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportQuizzesMutationResult = NonNullable<Awaited<ReturnType<typeof importQuizzes>>>
+    export type ImportQuizzesMutationBody = ImportQuizzesRequest
+    export type ImportQuizzesMutationError = ProblemDetail
+    export type ImportQuizzesMutationVariables = {slug: string;data: ImportQuizzesRequest}
+
+    /**
+ * @summary クイズをまとめて取り込む
+ */
+export const useImportQuizzes = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importQuizzes>>, TError,ImportQuizzesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importQuizzes>>,
+        TError,
+        ImportQuizzesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportQuizzesMutationOptions(options), queryClient);
     }
 
 export const getDeleteQuizUrl = (slug: string,

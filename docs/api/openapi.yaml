@@ -664,6 +664,51 @@ paths:
       summary: クイズを作成
       tags:
       - クイズ（管理）
+  /api/t/{slug}/admin/quizzes/import:
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+    post:
+      description: 1 件でも取り込めない行があれば、1 件も取り込まずに 400 を返す。理由は `rows` に行ごとに入る
+      operationId: importQuizzes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportQuizzesRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportQuizzesResponse"
+          description: Created
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: クイズをまとめて取り込む
+      tags:
+      - クイズ（管理）
   /api/t/{slug}/admin/quizzes/{id}:
     delete:
       operationId: deleteQuiz
@@ -1500,6 +1545,46 @@ components:
       - level
       - name
       - sortOrder
+    ImportQuizRequest:
+      type: object
+      properties:
+        category:
+          type: string
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChoiceRequest"
+        difficulty:
+          type: string
+        explanation:
+          type: string
+        question:
+          type: string
+        status:
+          type: string
+      required:
+      - category
+      - difficulty
+      - question
+    ImportQuizzesRequest:
+      type: object
+      properties:
+        quizzes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportQuizRequest"
+          maxItems: 500
+          minItems: 1
+      required:
+      - quizzes
+    ImportQuizzesResponse:
+      type: object
+      properties:
+        importedCount:
+          type: integer
+          format: int32
+      required:
+      - importedCount
     MyTenantResponse:
       type: object
       properties:
