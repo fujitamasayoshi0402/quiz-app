@@ -60,6 +60,13 @@ module "quiz_service" {
   memory        = 1024
   desired_count = 1
 
+  # 使わない深夜は止める。ALB と Aurora のストレージは、止めている間も課金が続く
+  nightly_stop = {
+    stop     = "cron(0 2 * * ? *)"
+    start    = "cron(0 8 * * ? *)"
+    timezone = "Asia/Tokyo"
+  }
+
   # dev はデモに使う。スタブ認証とシードを有効にする（prod / stg では起動に失敗する）
   spring_profiles = ["dev"]
 

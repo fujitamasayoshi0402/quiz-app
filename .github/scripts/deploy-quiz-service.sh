@@ -5,7 +5,7 @@
 #
 # 1. マイグレーションのタスク定義に、新しいイメージのリビジョンを登録する
 # 2. マイグレーションを単発のタスクとして流す。終了コードが 0 でなければ、サービスは替えずに止める
-# 3. アプリのタスク定義に、新しいイメージのリビジョンを登録し、サービスを更新する
+# 3. アプリのタスク定義に、新しいイメージのリビジョンを登録し、サービスを更新する。夜間の停止中なら 1 つ起動する
 # 4. 入れ替えが終わるのを待つ。起動に失敗して前のリビジョンに戻ったら（サーキットブレーカー）、失敗にする
 #
 # タスク定義の形（環境変数、ロール、CPU など）は Terraform が持つ。ここでは最新のリビジョンのイメージだけを差し替える（ADR-0015）。
@@ -87,7 +87,17 @@ APP_FAMILY=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE
 APP_ARN=$(register "$APP_FAMILY")
 echo "アプリのタスク定義: ${APP_ARN##*/}"
 
+# 夜間の停止中（タスク数 0）なら、1 つ起動して載せる。止めたままでは、載せたものが動くかを確かめられない。
+# 次の停止の時刻に、スケジュールがまた止める（modules/quiz-service/schedule.tf）
+DESIRED=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+  --query 'services[0].desiredCount' --output text)
+if [[ "$DESIRED" == "0" ]]; then
+  echo "サービスが止まっているため、1 つ起動して載せます"
+  DESIRED=1
+fi
+
 DEPLOYMENT=$(aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$APP_ARN" \
+  --desired-count "$DESIRED" \
   --query "service.deployments[?status=='PRIMARY'] | [0].id" --output text)
 echo "サービスを入れ替えています: $DEPLOYMENT"
 

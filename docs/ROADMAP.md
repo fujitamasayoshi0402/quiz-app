@@ -92,7 +92,7 @@
 - [x] gitleaks による secret スキャンを CI と pre-commit に追加
 - [x] Postman コレクションと Newman による、デプロイ後のスモークテスト
 - [x] コスト: 予算のアラート（実績と予測）、コスト配分タグ
-- [ ] コスト: dev の夜間停止（EventBridge Scheduler）
+- [x] コスト: dev の夜間停止（EventBridge Scheduler）
 - [x] 画面のレスポンシブ対応（スマホから出題・回答・結果まで操作できる）
 
 **デモできること**: 公開 URL で動くアプリ、PR マージからデプロイまでの自動化、スマホからの回答

@@ -73,7 +73,21 @@ variable "memory" {
 }
 
 variable "desired_count" {
-  type = number
+  description = "動かすタスクの数。サービスを作るときと、夜間の停止から戻すときに使う"
+  type        = number
+}
+
+variable "nightly_stop" {
+  description = <<-EOT
+    夜間にサービスを止める時間帯。止める時刻（stop）と戻す時刻（start）を、EventBridge Scheduler の cron 式で渡す。
+    null なら止めない
+  EOT
+  type = object({
+    stop     = string
+    start    = string
+    timezone = string
+  })
+  default = null
 }
 
 variable "spring_profiles" {

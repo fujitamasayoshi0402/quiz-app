@@ -120,9 +120,10 @@ resource "aws_ecs_service" "app" {
   depends_on = [aws_lb_listener.https]
 
   # どのリビジョンを動かすかは、デプロイ（GitHub Actions）が決める（ADR-0015）。
-  # Terraform が登録したリビジョンは、次のデプロイで形の元として使われ、イメージだけが差し替わる
+  # Terraform が登録したリビジョンは、次のデプロイで形の元として使われ、イメージだけが差し替わる。
+  # タスクの数は、夜間の停止（schedule.tf）が変える。比べると、夜に apply したときに起動してしまう
   lifecycle {
-    ignore_changes = [task_definition]
+    ignore_changes = [task_definition, desired_count]
   }
 }
 
