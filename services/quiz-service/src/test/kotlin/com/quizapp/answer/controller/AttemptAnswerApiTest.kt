@@ -71,7 +71,7 @@ class AttemptAnswerApiTest {
         fixture.quiz(category, difficulty, "問題 1")
         val attempt = startAttempt()
 
-        answer(attempt.id(), attempt.quizId(0), attempt.choiceId(0, 0)).andExpect {
+        answer(attempt.id(), attempt.quizId(0), attempt.correctChoiceId(0)).andExpect {
             status { isOk() }
             jsonPath("$.isCorrect") { value(true) }
             jsonPath("$.explanation") { value("問題 1 の解説") }
@@ -86,11 +86,10 @@ class AttemptAnswerApiTest {
         fixture.quiz(category, difficulty, "問題 1")
         val attempt = startAttempt()
 
-        // 先頭が正解なので 2 番目を選ぶ
-        answer(attempt.id(), attempt.quizId(0), attempt.choiceId(0, 1)).andExpect {
+        answer(attempt.id(), attempt.quizId(0), attempt.wrongChoiceId(0)).andExpect {
             status { isOk() }
             jsonPath("$.isCorrect") { value(false) }
-            jsonPath("$.correctChoiceId") { value(attempt.choiceId(0, 0)) }
+            jsonPath("$.correctChoiceId") { value(attempt.correctChoiceId(0)) }
             jsonPath("$.explanation") { value("問題 1 の解説") }
         }
     }
@@ -101,8 +100,8 @@ class AttemptAnswerApiTest {
         fixture.quiz(category, difficulty, "問題 1")
         val attempt = startAttempt()
 
-        answer(attempt.id(), attempt.quizId(0), attempt.choiceId(0, 0)).andExpect { status { isOk() } }
-        answer(attempt.id(), attempt.quizId(0), attempt.choiceId(0, 1)).andExpect { status { isConflict() } }
+        answer(attempt.id(), attempt.quizId(0), attempt.correctChoiceId(0)).andExpect { status { isOk() } }
+        answer(attempt.id(), attempt.quizId(0), attempt.wrongChoiceId(0)).andExpect { status { isConflict() } }
     }
 
     @Test
@@ -112,7 +111,7 @@ class AttemptAnswerApiTest {
         val attempt = startAttempt()
         val outsider = fixture.quiz(category, difficulty, "出題されない問題")
 
-        answer(attempt.id(), outsider.toString(), attempt.choiceId(0, 0))
+        answer(attempt.id(), outsider.toString(), attempt.correctChoiceId(0))
             .andExpect { status { isBadRequest() } }
     }
 
@@ -124,7 +123,7 @@ class AttemptAnswerApiTest {
         val attempt = startAttempt()
 
         // 1 問目に対して 2 問目の選択肢を送る
-        answer(attempt.id(), attempt.quizId(0), attempt.choiceId(1, 0))
+        answer(attempt.id(), attempt.quizId(0), attempt.correctChoiceId(1))
             .andExpect { status { isBadRequest() } }
     }
 
@@ -135,7 +134,7 @@ class AttemptAnswerApiTest {
     fun cannotStartWhileInProgress() {
         repeat(2) { fixture.quiz(category, difficulty, "問題 $it") }
         val attempt = startAttempt()
-        answer(attempt.id(), attempt.quizId(0), attempt.choiceId(0, 0)).andExpect { status { isOk() } }
+        answer(attempt.id(), attempt.quizId(0), attempt.correctChoiceId(0)).andExpect { status { isOk() } }
 
         // 黙って破棄しない。件数を返して、再開するか破棄するかを選ばせる
         start("""{"scope":"all"}""").andExpect {
@@ -183,7 +182,7 @@ class AttemptAnswerApiTest {
     fun resumeKeepsOrderAndProgress() {
         repeat(3) { fixture.quiz(category, difficulty, "問題 $it") }
         val attempt = startAttempt()
-        answer(attempt.id(), attempt.quizId(0), attempt.choiceId(0, 0)).andExpect { status { isOk() } }
+        answer(attempt.id(), attempt.quizId(0), attempt.correctChoiceId(0)).andExpect { status { isOk() } }
 
         // ブラウザに何も保存していなくても、サーバーだけで続きが分かる
         mockMvc.get("/api/t/${tenant.slug}/play/attempts/${attempt.id()}") { header("X-User-Id", user.toString()) }
@@ -224,8 +223,8 @@ class AttemptAnswerApiTest {
     fun completeReturnsAllExplanations() {
         repeat(3) { fixture.quiz(category, difficulty, "問題 $it") }
         val attempt = startAttempt()
-        answer(attempt.id(), attempt.quizId(0), attempt.choiceId(0, 0)).andExpect { status { isOk() } }
-        answer(attempt.id(), attempt.quizId(1), attempt.choiceId(1, 1)).andExpect { status { isOk() } }
+        answer(attempt.id(), attempt.quizId(0), attempt.correctChoiceId(0)).andExpect { status { isOk() } }
+        answer(attempt.id(), attempt.quizId(1), attempt.wrongChoiceId(1)).andExpect { status { isOk() } }
 
         // 模試モードはここで初めて答え合わせをする。未回答の 1 問も並ぶ
         mockMvc.post("/api/t/${tenant.slug}/play/attempts/${attempt.id()}/complete") {
@@ -254,7 +253,7 @@ class AttemptAnswerApiTest {
             header("X-User-Id", user.toString())
         }.andExpect { status { isOk() } }
 
-        answer(attempt.id(), attempt.quizId(0), attempt.choiceId(0, 0))
+        answer(attempt.id(), attempt.quizId(0), attempt.correctChoiceId(0))
             .andExpect { status { isConflict() } }
         mockMvc.get("/api/t/${tenant.slug}/play/attempts/current") { header("X-User-Id", user.toString()) }
             .andExpect { status { isNoContent() } }
@@ -288,7 +287,7 @@ class AttemptAnswerApiTest {
 
         mockMvc.post("/api/t/${tenant.slug}/play/attempts/${attempt.id()}/answers") {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"quizId":"${attempt.quizId(0)}","choiceId":"${attempt.choiceId(0, 0)}"}"""
+            content = """{"quizId":"${attempt.quizId(0)}","choiceId":"${attempt.correctChoiceId(0)}"}"""
             header("X-User-Id", otherUser.toString())
         }.andExpect { status { isNotFound() } }
     }
@@ -318,6 +317,11 @@ class AttemptAnswerApiTest {
 
     private fun JsonNode.quizId(index: Int): String = this["quizzes"][index]["id"].asString()
 
-    private fun JsonNode.choiceId(quizIndex: Int, choiceIndex: Int): String =
-        this["quizzes"][quizIndex]["choices"][choiceIndex]["id"].asString()
+    /** 選択肢は出題のたびに並びが変わるため、位置ではなく本文で選ぶ。[PlayFixture] は「選択肢 1」を正解にする */
+    private fun JsonNode.correctChoiceId(quizIndex: Int): String = choiceId(quizIndex) { it == "選択肢 1" }
+
+    private fun JsonNode.wrongChoiceId(quizIndex: Int): String = choiceId(quizIndex) { it != "選択肢 1" }
+
+    private fun JsonNode.choiceId(quizIndex: Int, body: (String) -> Boolean): String =
+        this["quizzes"][quizIndex]["choices"].first { body(it["body"].asString()) }["id"].asString()
 }

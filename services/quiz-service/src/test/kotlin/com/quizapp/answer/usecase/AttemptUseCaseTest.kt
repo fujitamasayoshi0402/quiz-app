@@ -217,6 +217,16 @@ class AttemptUseCaseTest {
         }
 
         @Test
+        @DisplayName("選択肢の並びは、再開しても結果でも開始時と変わらない")
+        fun keepsChoiceOrder() {
+            val (attempt, _) = startWith(3)
+            val started = attempt.quizzes.map { it.choices }
+
+            assertThat(useCase.resume(attempt.id).quizzes.map { it.choices }).isEqualTo(started)
+            assertThat(useCase.complete(attempt.id).results.map { it.choices }).isEqualTo(started)
+        }
+
+        @Test
         @DisplayName("回答済みのクイズが分かる")
         fun answeredQuizIds() {
             val (attempt, quizzes) = startWith(3)
@@ -243,7 +253,8 @@ class AttemptUseCaseTest {
             val (attempt, quizzes) = startWith(1)
             val edited = catalog.edit(quizzes[0].id)
 
-            assertThat(useCase.resume(attempt.id).quizzes.single().choices).isEqualTo(edited.choices)
+            assertThat(useCase.resume(attempt.id).quizzes.single().choices)
+                .containsExactlyInAnyOrderElementsOf(edited.choices)
         }
 
         @Test
