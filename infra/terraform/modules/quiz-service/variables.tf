@@ -23,6 +23,16 @@ variable "service_security_group_id" {
   type        = string
 }
 
+variable "api_domain_name" {
+  description = "API を公開するドメイン名（例: api.dev.example.com）。証明書と DNS のレコードを作る"
+  type        = string
+}
+
+variable "hosted_zone_id" {
+  description = "api_domain_name のレコードを置く Route 53 のホストゾーン"
+  type        = string
+}
+
 # ---- データベース（modules/database） ----
 
 variable "db_endpoint" {

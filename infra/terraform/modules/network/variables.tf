@@ -17,9 +17,3 @@ variable "azs" {
     error_message = "ALB と Aurora の DB サブネットグループは 2 つ以上の AZ を要求する。"
   }
 }
-
-variable "alb_ingress_cidrs" {
-  description = "ALB への受信を許す CIDR。HTTPS が入るまでは手元の IP だけに絞る"
-  type        = list(string)
-  default     = []
-}

@@ -571,19 +571,32 @@ aws rds-data execute-statement \
 
 一時停止している間は `DatabaseResumingException` が返る。十数秒おいてやり直す。
 
+#### ドメイン
+
+Route 53 に登録済みのドメインを使う。**ドメイン名はリポジトリに書かず、`terraform.tfvars` の `domain_name` に置く**
+（Git の管理外。書き方は `terraform.tfvars.example`）。
+
+| 環境 | web | API |
+| --- | --- | --- |
+| dev | `dev.<ドメイン>`（Amplify、DEV-53） | `api.dev.<ドメイン>` |
+
+ホストゾーンはドメインの登録時に作られ、環境をまたいで使う。Terraform では作らず、参照してレコードを足すだけにする。
+ドメインの apex（`<ドメイン>`）には、このアプリ以外の既存のレコードがある。触らない。
+
 #### ECS（quiz-service）
 
 `modules/quiz-service` で作る。
 
 ```
-インターネット → ALB（HTTP 80）→ quiz-service（Fargate / arm64 / 0.5 vCPU・1 GB）→ Aurora（IAM 認証）
+インターネット → ALB（HTTPS、api.dev.<ドメイン>）→ quiz-service（Fargate / arm64 / 0.5 vCPU・1 GB）→ Aurora（IAM 認証）
 ```
 
 - **ALB は秘密のヘッダ（`X-Origin-Verify`）を持たない要求を 403 で返す。** スタブ認証の間、`X-User-Id` で誰にでもなりすませるため。
   ヘッダを付けるのは web（Amplify）の proxy だけで、値は Secrets Manager にある（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）
-- HTTPS が入るまでは、ヘッダが平文で流れる。**ALB の受信は `terraform.tfvars` の `alb_ingress_cidrs` の相手だけに許す。**
-  `terraform.tfvars` は Git の管理外。書き方は `terraform.tfvars.example`。
-  手元のグローバル IP は変わることがある。ALB に届かなくなったら、`curl -s https://checkip.amazonaws.com` で確かめて書き換え、apply する
+- **ALB は HTTPS だけを受ける。HTTP のリスナーは置かず、リダイレクトもしない。**
+  API を呼ぶのは web の proxy だけで、HTTP で届いた時点でヘッダが平文で流れてしまうため。
+  web（Amplify）の実行環境は送信元の IP が決まらないので、受信は IP では絞らず、ヘッダで決める
+- TLS は 1.2 / 1.3 だけを許す（`ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09`）。証明書は ACM が DNS 検証で自動更新する
 - アプリは起動時に DB へつながない（`spring.data.jdbc.dialect`）。マイグレーションのタスクは `quiz_app` に接続できず、
   アプリも起動のたびに一時停止中の Aurora を起こさずに済む
 - タスクはパブリックサブネットに置き、パブリック IP から ECR や CloudWatch Logs へ出る（[ADR-0013](adr/0013-run-ecs-tasks-in-public-subnets.md)）。

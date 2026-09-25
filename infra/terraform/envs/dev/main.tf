@@ -9,8 +9,6 @@ module "network" {
   name       = "quiz-app-dev"
   cidr_block = "10.0.0.0/16"
   azs        = ["ap-northeast-1a", "ap-northeast-1c"]
-
-  alb_ingress_cidrs = var.alb_ingress_cidrs
 }
 
 module "database" {
@@ -31,10 +29,19 @@ module "database" {
   apply_immediately     = true
 }
 
+# ドメインの登録時に作られたホストゾーン。環境をまたいで使うため、ここでは管理せず参照だけする
+data "aws_route53_zone" "this" {
+  name = var.domain_name
+}
+
 module "quiz_service" {
   source = "../../modules/quiz-service"
 
   name = "quiz-app-dev"
+
+  # dev は dev.<ドメイン> の下に置く。web（Amplify）は dev.<ドメイン>、API は api.dev.<ドメイン>
+  api_domain_name = "api.dev.${var.domain_name}"
+  hosted_zone_id  = data.aws_route53_zone.this.zone_id
 
   vpc_id                    = module.network.vpc_id
   public_subnet_ids         = module.network.public_subnet_ids
