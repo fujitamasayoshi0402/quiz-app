@@ -17,8 +17,9 @@ MIGRATE_FAMILY=$3
 IMAGE=$4
 
 CONTAINER=quiz-service
-# ヘルスチェックの猶予（180 秒）と JVM の起動、古いタスクの切り離しを合わせても、通常は 5 分ほどで終わる
-ROLLOUT_TIMEOUT_SECONDS=1200
+# ヘルスチェックの猶予（180 秒）と JVM の起動、古いタスクの切り離しを合わせても、通常は 5 分ほどで終わる。
+# 起動に失敗して前のリビジョンに戻るときは 15 分ほどかかる（イメージを取れないとき。DEV-48 で測った）
+ROLLOUT_TIMEOUT_SECONDS=1800
 
 summary() {
   if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then echo "$1" >> "$GITHUB_STEP_SUMMARY"; fi
