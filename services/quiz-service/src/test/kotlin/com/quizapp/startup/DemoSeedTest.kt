@@ -7,8 +7,10 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.core.io.ClassPathResource
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator
+import org.springframework.jdbc.datasource.init.ScriptUtils
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import java.sql.DriverManager
 
 /**
  * デモ用シードの検証。
@@ -68,6 +70,22 @@ class DemoSeedTest {
                 count("SELECT count(*) FROM core.tenant_members WHERE tenant_id IN $SEEDED"),
             ),
         ).isEqualTo(first)
+    }
+
+    @Test
+    @DisplayName("行レベルセキュリティが効くロールでも流せる")
+    fun seedPassesRowLevelSecurity() {
+        // Aurora でマイグレーションを流す quiz はスーパーユーザーではなく、FORCE ROW LEVEL SECURITY で
+        // 所有者にもポリシーが効く（ADR-0014）。ローカルとテストの quiz はスーパーユーザーなので、この条件を再現できない。
+        // 同じく RLS の対象になる quiz_app で流す。テナントを設定せずに入れようとすると、ここで拒否される。
+        // Flyway と同じく、全体を 1 つのトランザクションで流す
+        DriverManager.getConnection(TestPostgres.container.jdbcUrl, "quiz_app", "quiz_app").use { connection ->
+            connection.autoCommit = false
+            ScriptUtils.executeSqlScript(connection, seed)
+            connection.commit()
+        }
+
+        assertThat(count("SELECT count(*) FROM quiz.choices WHERE tenant_id IN $SEEDED")).isGreaterThan(0)
     }
 
     @Test

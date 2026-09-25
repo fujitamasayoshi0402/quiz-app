@@ -378,7 +378,8 @@ AWS では Amplify Hosting がソースからビルドする。SSR の実行時�
 | web | `apps/web/Dockerfile` | Next.js の standalone 出力。`node_modules` を丸ごと持たない |
 
 どちらもビルドコンテキストはリポジトリのルートで、root 以外の利用者で動く。
-quiz-service は Phase 2 の ECS でも同じイメージを使い、環境の違いは環境変数で渡す。
+quiz-service は Phase 2 の ECS でも同じイメージを使い、環境の違いは環境変数で渡す（[ECS](#ecsquiz-service)）。
+AWS では arm64（Graviton）で動かす。Mac（Apple シリコン）でビルドしたイメージがそのまま使える。
 web のイメージはローカル用。AWS では Amplify Hosting がソースからビルドする。
 
 ヘルスチェックは `GET /actuator/health`。**DB には問い合わせない。**
@@ -429,6 +430,11 @@ AWS の dev はデモに使うため `dev,migrate` でシードも流す。本�
 
 - 列やテーブルの追加は 1 回で行う。`NOT NULL` の列には既定値を付ける。古いタスクはその列を知らずに `INSERT` する
 - 削除と名前の変更は 2 回に分ける。先にアプリが使わないようにしてリリースし、次のリリースで消す
+
+**テナント配下の行を入れるマイグレーションは、先に `app.tenant_id` を設定する**（`set_config('app.tenant_id', ..., true)`。シードを参照）。
+Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SECURITY` によって所有者にもポリシーが効く。
+ローカルとテストの `quiz` はスーパーユーザーで RLS を素通りするため、設定を忘れても手元では気づけない。
+`DemoSeedTest` は、RLS の対象になる `quiz_app` でシードを流して確かめている。
 
 テストだけは、コンテキストの起動時に流す（`TestPostgres`）。手順を 1 つにするため。
 「アプリは流さない」「migrate は流して HTTP を受けない」は `MigrationProfileTest` が確かめる。
@@ -527,6 +533,11 @@ CI からの plan / apply は、OIDC のロールを作る課題で検討する�
 
 - 同時に操作すると、あとから始めたほうがロックで止まる（`Error acquiring the state lock`）。
   ロックは S3 上の `*.tflock` で、異常終了で残ったときは `terraform force-unlock <ID>` で外す
+- **apply の途中で SSO の認証が切れると、state を S3 に書けない。** 作ったリソースは手元の `errored.tfstate` にだけ記録され、ロックも残る。
+  `terraform force-unlock <ID>` のあと `terraform state push errored.tfstate` で戻す。
+  認証の有効期限は既定で 1 時間のため、長くかかる apply の前に `aws sso login` し直す
+- `-target` は、指定したリソースの依存もたどって巻き込む。ほかに保留中の変更があると、その一部だけが流れて途中で止まることがある。
+  plan が意図したリソースだけであることを確かめてから承認する
 - provider のバージョンは `.terraform.lock.hcl` で固定している。上げるときは
   `terraform init -upgrade` のあと、`terraform providers lock -platform=darwin_arm64 -platform=linux_amd64`
   で CI（Linux）の分も記録する
@@ -559,6 +570,69 @@ aws rds-data execute-statement \
 ```
 
 一時停止している間は `DatabaseResumingException` が返る。十数秒おいてやり直す。
+
+#### ECS（quiz-service）
+
+`modules/quiz-service` で作る。
+
+```
+インターネット → ALB（HTTP 80）→ quiz-service（Fargate / arm64 / 0.5 vCPU・1 GB）→ Aurora（IAM 認証）
+```
+
+- **ALB は秘密のヘッダ（`X-Origin-Verify`）を持たない要求を 403 で返す。** スタブ認証の間、`X-User-Id` で誰にでもなりすませるため。
+  ヘッダを付けるのは web（Amplify）の proxy だけで、値は Secrets Manager にある（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）
+- HTTPS が入るまでは、ヘッダが平文で流れる。**ALB の受信は `terraform.tfvars` の `alb_ingress_cidrs` の相手だけに許す。**
+  `terraform.tfvars` は Git の管理外。書き方は `terraform.tfvars.example`。
+  手元のグローバル IP は変わることがある。ALB に届かなくなったら、`curl -s https://checkip.amazonaws.com` で確かめて書き換え、apply する
+- アプリは起動時に DB へつながない（`spring.data.jdbc.dialect`）。マイグレーションのタスクは `quiz_app` に接続できず、
+  アプリも起動のたびに一時停止中の Aurora を起こさずに済む
+- タスクはパブリックサブネットに置き、パブリック IP から ECR や CloudWatch Logs へ出る（[ADR-0013](adr/0013-run-ecs-tasks-in-public-subnets.md)）。
+  受信は ALB からだけ
+- DB へは AWS Advanced JDBC Wrapper の `iam` プラグインで接続する。接続先の URL が `jdbc:aws-wrapper:postgresql:` のときだけ使われ、
+  ローカルは素の PostgreSQL ドライバのまま。違いはタスク定義の環境変数だけにある
+- ログは CloudWatch Logs の `/ecs/quiz-app-dev/quiz-service`（`app/` と `migrate/`）。14 日で消える
+- 起動に失敗したら、前のタスク定義に自動で戻る（デプロイサーキットブレーカー）
+
+デプロイは GitHub Actions で自動にする（DEV-48）。それまでは次の手順で行う。
+**マイグレーションを先に流し、アプリはそのあとで入れ替える**（[マイグレーション](#マイグレーション)）。
+
+```bash
+cd infra/terraform/envs/dev
+REPO=$(terraform output -raw quiz_service_ecr_repository_url)
+TAG=$(git rev-parse --short=12 HEAD)
+
+# 1. イメージを作って push する。タグは上書きできない
+aws ecr get-login-password | docker login --username AWS --password-stdin "${REPO%%/*}"
+docker build --platform linux/arm64 -f ../../../../services/quiz-service/Dockerfile -t "$REPO:$TAG" ../../../..
+docker push "$REPO:$TAG"
+
+# 2. terraform.tfvars の quiz_service_image_tag を $TAG にし、マイグレーションのタスク定義だけを先に更新する。
+#    plan がタスク定義の置き換えだけであることを確かめる
+terraform apply -target=module.quiz_service.aws_ecs_task_definition.migrate
+
+# 3. マイグレーションを流す。終了コードが 0 でなければ、ここで止める
+TASK=$(aws ecs run-task \
+  --cluster "$(terraform output -raw ecs_cluster_name)" \
+  --task-definition "$(terraform output -raw migrate_task_definition_arn)" \
+  --launch-type FARGATE \
+  --network-configuration "$(terraform output -raw migrate_network_configuration)" \
+  --query 'tasks[0].taskArn' --output text)
+aws ecs wait tasks-stopped --cluster "$(terraform output -raw ecs_cluster_name)" --tasks "$TASK"
+aws ecs describe-tasks --cluster "$(terraform output -raw ecs_cluster_name)" --tasks "$TASK" \
+  --query 'tasks[0].containers[0].exitCode'
+
+# 4. アプリを入れ替える
+terraform apply
+```
+
+動作を確かめるときは、秘密のヘッダを付けて呼ぶ。
+
+```bash
+SECRET=$(aws secretsmanager get-secret-value \
+  --secret-id "$(terraform output -raw origin_header_secret_arn)" --query SecretString --output text)
+curl -H "X-Origin-Verify: $SECRET" -H "X-User-Id: 67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab" \
+     "$(terraform output -raw quiz_service_url)/api/t/demo/admin/categories"
+```
 
 #### state のバケットを作り直すとき
 

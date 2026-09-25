@@ -27,6 +27,13 @@ spring:
     default-schema: core
     create-schemas: true
 
+  data:
+    jdbc:
+      # 既定では、起動時にアプリ用の接続で DB につなぎ、種類を調べる。これをさせない。
+      # マイグレーションのタスクは quiz_app で接続できない（ADR-0014）うえ、
+      # 起動のたびに一時停止している Aurora（min 0 ACU）を起こしてしまう
+      dialect: postgresql
+
   jackson:
     default-property-inclusion: non_null
 

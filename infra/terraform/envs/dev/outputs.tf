@@ -6,3 +6,32 @@ output "database_cluster_arn" {
 output "database_master_user_secret_arn" {
   value = module.database.master_user_secret_arn
 }
+
+output "quiz_service_url" {
+  value = "http://${module.quiz_service.alb_dns_name}"
+}
+
+output "quiz_service_ecr_repository_url" {
+  value = module.quiz_service.ecr_repository_url
+}
+
+output "origin_header_name" {
+  value = module.quiz_service.origin_header_name
+}
+
+output "origin_header_secret_arn" {
+  value = module.quiz_service.origin_header_secret_arn
+}
+
+# マイグレーションの単発タスク（aws ecs run-task）に渡す。開発ガイドラインの「ECS」を参照
+output "ecs_cluster_name" {
+  value = module.quiz_service.cluster_name
+}
+
+output "migrate_task_definition_arn" {
+  value = module.quiz_service.migrate_task_definition_arn
+}
+
+output "migrate_network_configuration" {
+  value = "awsvpcConfiguration={subnets=[${join(",", module.network.public_subnet_ids)}],securityGroups=[${module.network.security_group_ids.quiz_service}],assignPublicIp=ENABLED}"
+}

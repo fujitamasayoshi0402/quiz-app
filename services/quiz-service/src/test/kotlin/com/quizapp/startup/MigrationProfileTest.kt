@@ -42,9 +42,33 @@ class MigrationProfileTest {
     fun migrateProfileMigratesWithoutWebServer() {
         val database = createEmptyDatabase()
 
-        start(database, MIGRATE_PROFILE).use { context ->
+        start(database, listOf(MIGRATE_PROFILE)).use { context ->
             assertThat(context.environment.getProperty(LOCAL_SERVER_PORT)).isNull()
             assertThat(migrated(database)).isTrue()
+        }
+    }
+
+    @Test
+    @DisplayName("migrate プロファイルは、アプリ用の接続を使わない")
+    fun migrateProfileDoesNotUseApplicationConnection() {
+        val database = createEmptyDatabase()
+
+        // AWS のマイグレーションのタスクは quiz（所有者）にしか接続できない（ADR-0014）。
+        // アプリ用の接続（quiz_app）に一度でもつなぎに行くと、そこで起動に失敗する
+        start(database, listOf(MIGRATE_PROFILE), listOf(UNUSABLE_APPLICATION_PASSWORD)).use {
+            assertThat(migrated(database)).isTrue()
+        }
+    }
+
+    @Test
+    @DisplayName("アプリは起動するときに DB へつながない")
+    fun applicationStartsWithoutConnecting() {
+        val database = createEmptyDatabase()
+
+        // 起動のたびにつなぐと、一時停止している Aurora（min 0 ACU）を起こしてしまう。
+        // Spring Data JDBC は既定で接続して DB の種類を調べるため、application.yml で指定している
+        start(database, extraArgs = listOf(UNUSABLE_APPLICATION_PASSWORD)).use { context ->
+            assertThat(context.environment.getProperty(LOCAL_SERVER_PORT)).isNotNull()
         }
     }
 
@@ -58,10 +82,13 @@ class MigrationProfileTest {
      * コマンドライン引数で渡す。`SpringApplicationBuilder.properties` は優先度が最も低く、
      * `application.yml` の接続先に負ける。
      */
-    private fun start(database: String, vararg profiles: String): ConfigurableApplicationContext =
-        SpringApplicationBuilder(QuizServiceApplication::class.java)
-            .profiles(*profiles)
-            .run("--spring.datasource.url=${url(database)}", "--server.port=0")
+    private fun start(
+        database: String,
+        profiles: List<String> = emptyList(),
+        extraArgs: List<String> = emptyList(),
+    ): ConfigurableApplicationContext = SpringApplicationBuilder(QuizServiceApplication::class.java)
+        .profiles(*profiles.toTypedArray())
+        .run("--spring.datasource.url=${url(database)}", "--server.port=0", *extraArgs.toTypedArray())
 
     private fun migrated(database: String): Boolean {
         val jdbc = JdbcTemplate(
@@ -81,5 +108,8 @@ class MigrationProfileTest {
     private companion object {
         /** Web サーバーが起動したときにだけ設定される */
         const val LOCAL_SERVER_PORT = "local.server.port"
+
+        /** アプリ用の接続（quiz_app）を使えなくする。つなぎに行けば認証で失敗する */
+        const val UNUSABLE_APPLICATION_PASSWORD = "--spring.datasource.password=unusable"
     }
 }

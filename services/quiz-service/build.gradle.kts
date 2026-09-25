@@ -64,6 +64,12 @@ dependencies {
 
     runtimeOnly("org.postgresql:postgresql")
 
+    // AWS では Aurora へ IAM 認証で接続する（ADR-0014）。URL を jdbc:aws-wrapper:postgresql: にしたときだけ使われ、
+    // ローカルは素の PostgreSQL ドライバのまま。IAM のトークンを作るのに AWS SDK の rds モジュールが要る
+    runtimeOnly("software.amazon.jdbc:aws-advanced-jdbc-wrapper:4.4.0")
+    runtimeOnly(platform("software.amazon.awssdk:bom:2.55.4"))
+    runtimeOnly("software.amazon.awssdk:rds")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     // Spring Boot 4 では MockMvc のテスト支援が spring-boot-starter-test から分離されている
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
