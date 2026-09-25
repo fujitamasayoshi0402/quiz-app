@@ -49,3 +49,20 @@ output "web_basic_auth_password" {
   value     = module.web.basic_auth_password
   sensitive = true
 }
+
+output "auth_user_pool_id" {
+  value = module.auth.user_pool_id
+}
+
+output "auth_issuer" {
+  value = module.auth.issuer
+}
+
+output "auth_client_id" {
+  value = module.auth.client_id
+}
+
+output "auth_managed_login_url" {
+  description = "Managed Login の画面。手で確かめるときは、ここに /login?client_id=...&response_type=code&redirect_uri=... を付けて開く"
+  value       = module.auth.managed_login_url
+}

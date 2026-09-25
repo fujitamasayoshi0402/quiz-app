@@ -74,6 +74,21 @@ module "quiz_service" {
   force_delete_images = true
 }
 
+# 利用者の認証（ADR-0016）。ローカルの web も、この User Pool でログインする
+module "auth" {
+  source = "../../modules/auth"
+
+  name = "quiz-app-dev"
+
+  # Amplify の既定のドメインは入れない。web のアプリの属性で、web のアプリがこのモジュールの値を読むため循環する
+  app_origins = [
+    "https://dev.${var.domain_name}",
+    "http://localhost:3000",
+  ]
+
+  deletion_protection = false
+}
+
 module "web" {
   source = "../../modules/web"
 
@@ -86,6 +101,12 @@ module "web" {
 
   api_origin           = module.quiz_service.api_url
   origin_verify_secret = module.quiz_service.origin_verify_secret
+
+  auth = {
+    issuer        = module.auth.issuer
+    client_id     = module.auth.client_id
+    client_secret = module.auth.client_secret
+  }
 
   github_access_token = var.github_access_token
   basic_auth_username = "demo"
