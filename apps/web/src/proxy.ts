@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { USER_COOKIE } from "@/lib/auth/stub-users";
 
+const ORIGIN_VERIFY_HEADER = "x-origin-verify";
+
 /**
  * `/api` のリクエストをバックエンドへ中継し、利用者の識別を付ける。
  *
@@ -14,10 +16,19 @@ import { USER_COOKIE } from "@/lib/auth/stub-users";
 export function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.delete("x-user-id");
+  headers.delete(ORIGIN_VERIFY_HEADER);
 
   const userId = request.cookies.get(USER_COOKIE)?.value;
   if (userId) {
     headers.set("x-user-id", userId);
+  }
+
+  // AWS の ALB は、このヘッダを持たない要求をバックエンドに届けない（ADR-0012）。
+  // スタブ認証の間、X-User-Id を付けてよいのがこの proxy だけであることを、値を知っているかどうかで示す。
+  // ローカルでは設定しない。Phase 3 でバックエンドが JWT を検証するようになったら外す
+  const originSecret = process.env.ORIGIN_VERIFY_SECRET;
+  if (originSecret) {
+    headers.set(ORIGIN_VERIFY_HEADER, originSecret);
   }
 
   const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:8080";

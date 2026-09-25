@@ -85,8 +85,8 @@
 - [x] 実行基盤: ECR、ECS Fargate（arm64）、ALB。スタブ認証の間は、web の proxy だけが知る秘密のヘッダを ALB で確かめる
 - [x] 独自ドメインと HTTPS: ACM、Route 53。ALB は HTTPS だけを受ける
 - [x] フロント配信の方式: Amplify Hosting（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）
-- [ ] フロント配信: Amplify Hosting で web を dev に配る
-- [ ] アクセス制限: スタブ認証の間は、許可した相手以外が dev の画面と API に届かないようにする
+- [x] フロント配信: Amplify Hosting で web を dev に配る
+- [x] アクセス制限: スタブ認証の間は、画面をベーシック認証で、API を秘密のヘッダで守る
 - [ ] GitHub Actions: OIDC で AssumeRole、イメージ build/push、マイグレーション（ECS の単発タスク）、ECS デプロイ
 - [x] マイグレーション: アプリの起動から切り離す（アプリのタスクに DDL の権限を持たせない）
 - [x] gitleaks による secret スキャンを CI と pre-commit に追加
