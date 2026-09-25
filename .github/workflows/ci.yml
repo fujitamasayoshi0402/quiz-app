@@ -6,11 +6,12 @@ on:
   push:
     branches: [develop, main]
 
-# 同じブランチに新しく push されたら、動いている古い実行を止める。
-# Testcontainers を使うジョブは実行時間が長く、積み上がると待ち時間になる
+# PR に新しく push されたら、動いている古い実行を止める。
+# Testcontainers を使うジョブは実行時間が長く、積み上がると待ち時間になる。
+# develop / main への push は止めない。develop では最後に dev へのデプロイが走り、途中で止めると中途半端になる
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -45,16 +46,22 @@ jobs:
               - '.mise.toml'
               - '.github/workflows/ci.yml'
               - '.github/scripts/coverage-summary.py'
+              - '.github/workflows/deploy-dev.yml'
+              - '.github/scripts/deploy-quiz-service.sh'
             frontend:
               - 'apps/**'
               - '.dockerignore'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
+              # Amplify のビルドの手順。変えたら dev の web をビルドし直す
+              - 'amplify.yml'
               # 型は OpenAPI 定義から生成するため、定義が変われば作り直しが要る
               - 'docs/api/**'
               - '.mise.toml'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/deploy-dev.yml'
+              - '.github/scripts/build-web.sh'
             terraform:
               - 'infra/terraform/**'
               - '.mise.toml'
@@ -157,7 +164,7 @@ jobs:
       - name: コンテナイメージをビルドする
         run: docker build -f apps/web/Dockerfile .
 
-  # AWS には触れない。plan / apply は OIDC のロールができるまでローカルから行う
+  # AWS には触れない。plan / apply はローカルから行う（ADR-0015）。デプロイのロールにも Terraform を動かす権限はない
   terraform:
     name: terraform
     needs: changes
@@ -223,3 +230,19 @@ jobs:
           exit 1
 
       - run: echo "すべてのチェックを通過しました"
+
+  # develop に入ったら dev に載せる（DEV-48）。チェックがすべて通ったときだけ動く。
+  # 変わったほうだけを載せる。どちらも変わっていなければ（ドキュメントだけなど）何もしない
+  deploy-dev:
+    name: deploy-dev
+    needs: [changes, ci]
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/develop'
+      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true')
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-dev.yml
+    with:
+      backend: ${{ needs.changes.outputs.backend == 'true' }}
+      frontend: ${{ needs.changes.outputs.frontend == 'true' }}

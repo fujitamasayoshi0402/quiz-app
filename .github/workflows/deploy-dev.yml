@@ -1,0 +1,109 @@
+name: deploy-dev
+
+# develop に入ったものを dev に載せる。ci.yml が、develop への push でチェックが通ったあとに呼ぶ。
+# Actions の画面から手で流すこともできる（Terraform でタスク定義の形を変えたあとなど）。
+#
+# どちらも GitHub の Environment dev で動く。dev は develop からしか使えず、
+# AWS のロールも、この Environment のジョブにしか引き受けさせない（modules/deploy-role）
+on:
+  workflow_call:
+    inputs:
+      backend:
+        description: quiz-service をデプロイする
+        type: boolean
+        default: true
+      frontend:
+        description: web（Amplify）をビルドし直す
+        type: boolean
+        default: true
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: quiz-service をデプロイする
+        type: boolean
+        default: true
+      frontend:
+        description: web（Amplify）をビルドし直す
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  # OIDC のトークンを取り、AWS のロールを引き受ける。アクセスキーは使わない
+  id-token: write
+
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REPOSITORY: quiz-app-dev/quiz-service
+  ECS_CLUSTER: quiz-app-dev
+  ECS_SERVICE: quiz-service
+  MIGRATE_FAMILY: quiz-app-dev-quiz-service-migrate
+  AMPLIFY_BRANCH: develop
+
+jobs:
+  deploy:
+    name: deploy
+    # ECS のタスクは arm64（Graviton）。エミュレーションを挟まずにイメージを作る
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    environment:
+      name: dev
+      # 独自ドメインではなく Amplify の既定のドメインを載せる。どちらもベーシック認証がかかる
+      url: https://${{ env.AMPLIFY_BRANCH }}.${{ vars.AMPLIFY_APP_ID }}.amplifyapp.com
+    # 後から始まったデプロイは、先のデプロイが終わるまで待つ。追い越すと、古いコミットが後から載りうる。
+    # 動いているものは止めない。マイグレーションの途中で止めると、どこまで流れたかが分からなくなる
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          # リポジトリは Public で、ログも誰でも読める。イメージの URL などに含まれるアカウント ID を伏せる
+          mask-aws-account-id: true
+
+      - name: イメージを作って ECR に push する
+        if: inputs.backend
+        run: |
+          TAG="${GITHUB_SHA::12}"
+          REGISTRY="$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${AWS_REGION}.amazonaws.com"
+          echo "IMAGE=${REGISTRY}/${ECR_REPOSITORY}:${TAG}" >> "$GITHUB_ENV"
+
+          # タグは上書きできない。再実行で、同じコミットのイメージがすでにあれば作り直さない
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=${TAG}" > /dev/null 2>&1; then
+            echo "作成済みのイメージを使います: ${TAG}"
+            exit 0
+          fi
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
+          docker build -f services/quiz-service/Dockerfile -t "${REGISTRY}/${ECR_REPOSITORY}:${TAG}" .
+          docker push "${REGISTRY}/${ECR_REPOSITORY}:${TAG}"
+
+      # マイグレーションが失敗したら、サービスは替えずにここで止まる
+      - name: quiz-service をデプロイする
+        if: inputs.backend
+        run: .github/scripts/deploy-quiz-service.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$MIGRATE_FAMILY" "$IMAGE"
+
+      # quiz-service の後に流す。新しい画面が古い API を呼ばないように
+      - name: web をビルドする
+        if: inputs.frontend
+        run: .github/scripts/build-web.sh "$AMPLIFY_APP_ID" "$AMPLIFY_BRANCH" "$GITHUB_SHA"
+        env:
+          AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
+
+      - uses: jdx/mise-action@v2
+        with:
+          install_args: node npm:newman
+
+      # web → API → DB がつながっているかを、画面と同じ経路（Amplify のベーシック認証と proxy）で確かめる。
+      # 失敗するとワークフローが失敗し、GitHub から通知が届く
+      - name: スモークテスト
+        run: >-
+          newman run tests/api/quiz-app.postman_collection.json
+          --env-var "baseUrl=https://${AMPLIFY_BRANCH}.${AMPLIFY_APP_ID}.amplifyapp.com"
+          --env-var "basicAuth=${WEB_BASIC_AUTH}"
+        env:
+          AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
+          WEB_BASIC_AUTH: ${{ secrets.WEB_BASIC_AUTH }}

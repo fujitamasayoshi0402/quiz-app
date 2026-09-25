@@ -6,7 +6,7 @@ variable "domain_name" {
 }
 
 variable "quiz_service_image_tag" {
-  description = "quiz-service のイメージのタグ（git のコミット）"
+  description = "quiz-service のイメージのタグ（git のコミット）。サービスを作るときにだけ使う。以降のデプロイは GitHub Actions が行う"
   type        = string
 }
 

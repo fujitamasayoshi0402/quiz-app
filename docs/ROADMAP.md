@@ -87,10 +87,10 @@
 - [x] フロント配信の方式: Amplify Hosting（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）
 - [x] フロント配信: Amplify Hosting で web を dev に配る
 - [x] アクセス制限: スタブ認証の間は、画面をベーシック認証で、API を秘密のヘッダで守る
-- [ ] GitHub Actions: OIDC で AssumeRole、イメージ build/push、マイグレーション（ECS の単発タスク）、ECS デプロイ
+- [x] GitHub Actions: OIDC で AssumeRole、イメージ build/push、マイグレーション（ECS の単発タスク）、ECS デプロイ（[ADR-0015](adr/0015-deploy-by-registering-task-definitions-from-ci.md)）
 - [x] マイグレーション: アプリの起動から切り離す（アプリのタスクに DDL の権限を持たせない）
 - [x] gitleaks による secret スキャンを CI と pre-commit に追加
-- [ ] Postman コレクションと Newman による、デプロイ後のスモークテスト
+- [x] Postman コレクションと Newman による、デプロイ後のスモークテスト
 - [x] コスト: 予算のアラート（実績と予測）、コスト配分タグ
 - [ ] コスト: dev の夜間停止（EventBridge Scheduler）
 - [x] 画面のレスポンシブ対応（スマホから出題・回答・結果まで操作できる）
@@ -195,6 +195,7 @@
 | DB のコスト設計 | Aurora Serverless v2 を min 0 ACU で自動一時停止 | 常時起動。アクセスのない時間帯の課金が支配的になるため。代償として復帰に約 15 秒かかるので、dev に限定し、prod では min 0.5 ACU を検討する |
 | 接続プール | dev では RDS Proxy を使わず HikariCP を `minimum-idle: 0` にする | RDS Proxy 常用。接続が維持され続けると 0 ACU への一時停止が発動しない |
 | マイグレーションの実行 | デプロイのたびに、サービスを入れ替える前に単発のタスクで流す。アプリには読み書きの権限だけを渡す | アプリの起動時に流す。アプリがスキーマ所有者の権限を持ち続け、行レベルセキュリティを外せてしまう。タスクが複数あると、それぞれが流そうとする |
+| デプロイ | CI がタスク定義のリビジョンを登録してサービスを入れ替え、Terraform はタスク定義の形だけを持つ。CI のロールは OIDC で引き受け、ECR と ECS の更新に絞る | CI から `terraform apply`。ロールが state にあるすべてのリソースを扱える必要があり、実質的に管理者になる |
 | DB の認証 | IAM 認証。アプリとマイグレーションはパスワードを持たず、タスクロールに接続の権限を与える | Secrets Manager のパスワード。設定する SQL に平文が入り、state に残さない工夫も要る |
 | 通知基盤 | EventBridge + Lambda | 常駐コンテナでのポーリング。イベント頻度が低く、常時起動のコストに見合わない |
 | 認証 | Cognito のパスキー機能 | 自前の WebAuthn 実装。実装・保守コストが本筋のドメイン実装を圧迫する。比較検討は ADR に残す |

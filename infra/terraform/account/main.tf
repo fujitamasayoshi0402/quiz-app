@@ -1,4 +1,4 @@
-# アカウント全体に 1 つだけ置くもの（予算、コスト配分タグ）。環境（envs/*）に属さないため、ここで持つ。
+# アカウント全体に 1 つだけ置くもの（予算、コスト配分タグ、GitHub Actions の OIDC プロバイダ）。環境（envs/*）に属さないため、ここで持つ。
 #
 # 予算は Phase 0 にコンソールで作っていたものを、import で Terraform の管理に移した（DEV-51）。
 
@@ -63,4 +63,16 @@ resource "aws_ce_cost_allocation_tag" "this" {
 
   tag_key = each.key
   status  = "Active"
+}
+
+# ---- GitHub Actions の OIDC プロバイダ ----
+
+# GitHub Actions が、アクセスキーを持たずに AWS のロールを引き受けるためのもの（DEV-48）。
+# 同じ URL のプロバイダはアカウントに 1 つしか作れないため、環境ではなくここに置く。
+# 引き受けるロールと、その信頼の条件（リポジトリと Environment）は環境ごとに envs/ 側で持つ
+resource "aws_iam_openid_connect_provider" "github_actions" {
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+
+  # 証明書の拇印は指定しない。GitHub の IdP は、AWS が信頼済みの認証局で検証する
 }
