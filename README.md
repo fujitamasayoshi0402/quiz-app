@@ -123,7 +123,8 @@ Phase 1（ローカルで動く MVP）が完了し、Phase 2（AWS 基盤と継�
 テナントの分離は、行レベルセキュリティと、全エンドポイントを対象にしたテナント境界のテストで守っています。
 認証は、Phase 3 でパスキーに差し替えるまでスタブ（ログイン画面で利用者を選ぶ）です。
 
-Phase 2 では、Terraform の土台、secret の検出（commit の前と CI）、マイグレーションとアプリの起動の分離が済んでいます。
-次は AWS 上にネットワーク・Aurora・ECS を構築し、develop へのマージで dev 環境へ自動でデプロイされる状態を目指します。
+Phase 2 では、AWS 上に dev 環境（ネットワーク・Aurora Serverless v2・ECS Fargate・Amplify Hosting）を Terraform で構築しました。
+develop へのマージで dev 環境へ自動でデプロイされ、最後にスモークテストが流れます。AWS への認証は OIDC で、アクセスキーは発行していません。
+残りは、dev の ECS を夜間に止めてコストを下げる仕組みです。
 
 進捗は [ロードマップ](docs/ROADMAP.md) を参照してください。
