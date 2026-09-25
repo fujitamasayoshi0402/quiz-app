@@ -595,6 +595,24 @@ Route 53 に登録済みのドメインを使う。**ドメイン名はリポジ
 ホストゾーンはドメインの登録時に作られ、環境をまたいで使う。Terraform では作らず、参照してレコードを足すだけにする。
 ドメインの apex（`<ドメイン>`）には、このアプリ以外の既存のレコードがある。触らない。
 
+#### 認証（Cognito）
+
+`modules/auth` で作る（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。
+
+- User Pool は Essentials。サインインはパスワードとパスキーで、画面は Managed Login（Cognito のプレフィックスドメイン）
+- パスキーは、一度パスワードでサインインしてから登録する。サインアップの直後は、Managed Login が登録を勧める
+- 誰でもサインアップできる。所属とロールはアプリの DB にあり、所属がなければどのテナントのデータにも触れられない
+- メールは Cognito の既定の設定（1 日 50 通まで）。確認コードとパスワードの再設定にだけ使う
+- コールバックを許すのは `dev.<ドメイン>` と `http://localhost:3000` だけ。**Amplify の既定のドメインからはログインできない**
+- web のクライアントのシークレットと、Cookie の暗号鍵は、Amplify の環境変数（`AUTH_*`）に入る
+
+Managed Login の画面は、web をつながなくても開ける。ログインのあとは `redirect_uri` に戻る（開いていなければエラーの画面になるが、ログインはできている）。
+
+```bash
+cd infra/terraform/envs/dev
+echo "$(terraform output -raw auth_managed_login_url)/login?client_id=$(terraform output -raw auth_client_id)&response_type=code&scope=openid+email&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fcallback"
+```
+
 #### Amplify（web）
 
 `modules/web` で作る。ビルドの手順はリポジトリのルートの `amplify.yml` にある（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）。

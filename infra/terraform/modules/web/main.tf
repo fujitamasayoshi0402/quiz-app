@@ -24,6 +24,10 @@ resource "aws_amplify_app" "this" {
     AMPLIFY_MONOREPO_APP_ROOT = "apps/web"
     API_ORIGIN                = var.api_origin
     ORIGIN_VERIFY_SECRET      = var.origin_verify_secret
+    AUTH_ISSUER               = var.auth.issuer
+    AUTH_CLIENT_ID            = var.auth.client_id
+    AUTH_CLIENT_SECRET        = var.auth.client_secret
+    AUTH_SESSION_SECRET       = random_password.session.result
   }
 
   lifecycle {
@@ -59,6 +63,12 @@ resource "random_password" "basic_auth" {
 
 locals {
   basic_auth_credentials = base64encode("${var.basic_auth_username}:${random_password.basic_auth.result}")
+}
+
+# トークンを入れる Cookie を暗号化する鍵（ADR-0016）。入れ替えると、ログイン中の全員がログアウトされる
+resource "random_password" "session" {
+  length  = 64
+  special = false
 }
 
 # パスワードを作り直したときに、ブランチのベーシック認証を書き換える

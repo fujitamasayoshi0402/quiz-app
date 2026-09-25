@@ -32,6 +32,16 @@ variable "origin_verify_secret" {
   sensitive   = true
 }
 
+variable "auth" {
+  description = "ログイン（modules/auth）。web のサーバーが OIDC のクライアントとして使う"
+  type = object({
+    issuer        = string
+    client_id     = string
+    client_secret = string
+  })
+  sensitive = true
+}
+
 variable "github_access_token" {
   description = "Amplify を GitHub につなぐトークン（admin:repo_hook）。アプリを作るときにだけ渡し、作ったら失効させる"
   type        = string
