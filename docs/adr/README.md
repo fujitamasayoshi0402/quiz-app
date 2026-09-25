@@ -10,7 +10,7 @@
 | [0002](0002-use-kotlin-and-spring-boot.md) | バックエンドに Kotlin + Spring Boot を採用する | Accepted |
 | [0003](0003-use-nextjs-for-frontend.md) | フロントエンドに Next.js を採用する | Accepted |
 | [0004](0004-split-services-incrementally.md) | マイクロサービスへの分割は段階的に行う | Accepted |
-| [0005](0005-use-cognito-passkeys.md) | 認証に Amazon Cognito のパスキーを採用する | Accepted |
+| [0005](0005-use-cognito-passkeys.md) | 認証に Amazon Cognito のパスキーを採用する | Superseded by [0016](0016-authenticate-with-cognito-managed-login.md) |
 | [0006](0006-row-level-multi-tenancy.md) | マルチテナントをロウ単位の分離で実現する | Accepted |
 | [0007](0007-soft-delete-master-data.md) | マスタデータを論理削除する | Accepted |
 | [0008](0008-use-spring-boot-4.md) | Spring Boot 4 を採用する | Accepted |
@@ -21,6 +21,7 @@
 | [0013](0013-run-ecs-tasks-in-public-subnets.md) | ECS のタスクはパブリックサブネットに置き、NAT Gateway も VPC Endpoint も使わない | Accepted |
 | [0014](0014-connect-to-aurora-with-iam-auth.md) | Aurora へは IAM 認証で接続し、ロールは Data API で作る | Accepted |
 | [0015](0015-deploy-by-registering-task-definitions-from-ci.md) | dev へのデプロイは GitHub Actions がタスク定義のリビジョンを登録して行い、Terraform はタスク定義の形だけを持つ | Accepted |
+| [0016](0016-authenticate-with-cognito-managed-login.md) | 認証は Cognito の Managed Login とパスキーで作り、利用者の ID を Cognito から切り離す | Accepted |
 
 ## 運用ルール
 

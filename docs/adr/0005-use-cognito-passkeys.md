@@ -1,6 +1,6 @@
 # ADR-0005: 認証に Amazon Cognito のパスキーを採用する
 
-- ステータス: Accepted
+- ステータス: Superseded by [ADR-0016](0016-authenticate-with-cognito-managed-login.md)
 - 決定日: 2026-09-21
 
 ## 背景と課題
