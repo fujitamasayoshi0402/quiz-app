@@ -62,6 +62,11 @@ dependencies {
     // 3.x が Spring Boot 4 系の対応版。2.x は Boot 3 までなので上げられない
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
 
+    // Cognito が発行したアクセストークン（JWT）の署名と中身を確かめる（ADR-0016）。
+    // リソースサーバー（spring-boot-starter-oauth2-resource-server）は入れない。
+    // Spring Security のフィルタが前に立つと、401 の応答がアプリの形（RFC 9457）にならず、認可の判定も二重になる
+    implementation("org.springframework.security:spring-security-oauth2-jose")
+
     runtimeOnly("org.postgresql:postgresql")
 
     // AWS では Aurora へ IAM 認証で接続する（ADR-0014）。URL を jdbc:aws-wrapper:postgresql: にしたときだけ使われ、

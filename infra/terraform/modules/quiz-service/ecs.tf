@@ -23,6 +23,13 @@ locals {
     { name = "SPRING_DATASOURCE_URL", value = "jdbc:aws-wrapper:postgresql://${var.db_endpoint}:${var.db_port}/${var.db_name}?wrapperPlugins=iam&wrapperDialect=pg&sslmode=require" },
     { name = "SPRING_DATASOURCE_USERNAME", value = "quiz_app" },
   ]
+
+  # アクセストークンの発行者と、受け取る web のクライアント（ADR-0016）。無いとアプリが起動しない（AuthProperties）。
+  # マイグレーションのタスクも同じアプリとして起動するため、両方に渡す
+  auth_environment = [
+    { name = "AUTH_CLIENT_ID", value = var.auth_client_id },
+    { name = "AUTH_ISSUER", value = var.auth_issuer },
+  ]
 }
 
 resource "aws_ecs_cluster" "this" {
@@ -68,7 +75,7 @@ resource "aws_ecs_task_definition" "app" {
       protocol      = "tcp"
     }]
 
-    environment = concat(local.datasource_environment, [
+    environment = concat(local.auth_environment, local.datasource_environment, [
       { name = "SPRING_PROFILES_ACTIVE", value = join(",", var.spring_profiles) },
     ])
 
@@ -149,7 +156,7 @@ resource "aws_ecs_task_definition" "migrate" {
     image     = local.image
     essential = true
 
-    environment = concat(local.datasource_environment, [
+    environment = concat(local.auth_environment, local.datasource_environment, [
       { name = "SPRING_FLYWAY_PASSWORD", value = "" },
       { name = "SPRING_FLYWAY_USER", value = "quiz" },
       { name = "SPRING_PROFILES_ACTIVE", value = join(",", concat(var.spring_profiles, ["migrate"])) },

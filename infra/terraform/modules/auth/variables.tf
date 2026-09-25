@@ -11,6 +11,12 @@ variable "app_origins" {
   type        = list(string)
 }
 
+variable "smoke_user_email" {
+  description = "スモークテストが使う利用者のメールアドレス。null なら作らない"
+  type        = string
+  default     = null
+}
+
 variable "deletion_protection" {
   description = "User Pool を消せないようにする。消すと、利用者とパスキーがすべて失われる"
   type        = bool

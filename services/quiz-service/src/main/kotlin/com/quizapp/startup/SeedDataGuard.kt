@@ -10,10 +10,9 @@ import org.springframework.stereotype.Component
  *
  * シードは `application-dev.yml` でしか Flyway の locations に加わらないが、
  * `dev` と `prod` を同時に有効にすれば両方が効いてしまう。
- * 本番のデータベースにデモのテナントと利用者が入ると、**誰でもログインできる口ができる。**
+ * 本番のデータベースにデモのテナントと利用者が入ると、事前に登録した利用者（スモークテスト）に結び付く口ができる。
  *
- * [com.quizapp.auth.StubAuthenticatorGuard] と同じ考え方で、
- * 設定の誤りを起動時に落とす。
+ * プロファイルの指定の誤りは、そのまま本番のデータに効く。設定の誤りを起動時に落とす。
  */
 @Component
 class SeedDataGuard(private val environment: Environment) {

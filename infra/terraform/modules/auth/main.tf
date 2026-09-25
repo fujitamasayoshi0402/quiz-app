@@ -103,13 +103,15 @@ resource "aws_cognito_user_pool_client" "web" {
   allowed_oauth_flows                  = ["code"]
   supported_identity_providers         = ["COGNITO"]
 
-  # aws.cognito.signin.user.admin は、バックエンドがアクセストークンで確認済みのメールアドレスを取る（GetUser）ために要る
-  allowed_oauth_scopes = ["openid", "email", "aws.cognito.signin.user.admin"]
+  # 確認済みのメールアドレスは、バックエンドが OIDC の userinfo で取る。
+  # Cognito の API 用のスコープ（aws.cognito.signin.user.admin）は持たせない。トークンで利用者の属性を書き換えられてしまう
+  allowed_oauth_scopes = ["openid", "email"]
 
   callback_urls = [for origin in var.app_origins : "${origin}/auth/callback"]
   logout_urls   = [for origin in var.app_origins : "${origin}/"]
 
-  # パスキーとパスワードの選択（USER_AUTH）と、トークンの更新だけを許す
+  # パスキーとパスワードの選択（USER_AUTH）と、トークンの更新だけを許す。
+  # スモークテストも USER_AUTH で、パスワードを指定してトークンを取る（.github/scripts/smoke-token.sh）
   explicit_auth_flows = ["ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
 
   # 登録されていないメールアドレスでも、同じ応答を返す。誰が登録しているかを探らせない
@@ -132,4 +134,32 @@ resource "aws_cognito_managed_login_branding" "web" {
   client_id    = aws_cognito_user_pool_client.web.id
 
   use_cognito_provided_values = true
+}
+
+# ---- スモークテストの利用者 ----
+# デプロイの最後のスモークテスト（tests/api）が、この利用者でトークンを取る。
+# アプリの側は、同じメールアドレスで事前に登録した利用者（シードの R__smoke_data.sql）に、最初のログインで結び付く。
+# example.com は誰も受け取れないアドレスなので、確認コードでほかの人が同じアドレスを確かめることはできない
+
+resource "random_password" "smoke" {
+  count = var.smoke_user_email == null ? 0 : 1
+
+  length  = 32
+  special = false
+}
+
+resource "aws_cognito_user" "smoke" {
+  count = var.smoke_user_email == null ? 0 : 1
+
+  user_pool_id = aws_cognito_user_pool.this.id
+  username     = var.smoke_user_email
+  password     = random_password.smoke[0].result
+
+  attributes = {
+    email          = var.smoke_user_email
+    email_verified = "true"
+  }
+
+  # 作るときにメールを送らない
+  message_action = "SUPPRESS"
 }

@@ -111,7 +111,7 @@ class ApiExceptionHandler {
             title = "操作できない状態です"
         }
 
-    /** スタブ認証では `X-User-Id` ヘッダが無い場合にあたる。Phase 3 で JWT に差し替える。 */
+    /** アクセストークンが無いか、受け付けられなかった（署名、期限、発行先）。 */
     @ExceptionHandler(UserNotIdentifiedException::class)
     fun handleUserNotIdentified(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "利用者を特定できません").apply {

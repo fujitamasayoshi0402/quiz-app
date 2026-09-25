@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import { currentUser } from "@/lib/auth/session";
+import { currentUser } from "@/lib/auth/current-user";
 import { cn } from "@/lib/utils";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -18,7 +18,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ja" className={cn("font-sans", geist.variable)}>
       <body className="bg-muted/40 min-h-svh antialiased">
         {/* 利用者が替わったら、キャッシュごと作り直す。前の利用者の応答が画面に残らないようにする */}
-        <Providers key={user?.id ?? "anonymous"}>{children}</Providers>
+        <Providers key={user?.sub ?? "anonymous"}>{children}</Providers>
       </body>
     </html>
   );

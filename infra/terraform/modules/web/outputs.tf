@@ -15,12 +15,3 @@ output "branch_arn" {
 output "url" {
   value = "https://${var.subdomain_prefix}.${var.domain_name}"
 }
-
-output "basic_auth_username" {
-  value = var.basic_auth_username
-}
-
-output "basic_auth_password" {
-  value     = random_password.basic_auth.result
-  sensitive = true
-}

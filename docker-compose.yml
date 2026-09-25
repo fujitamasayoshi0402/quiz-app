@@ -71,6 +71,9 @@ services:
       SPRING_PROFILES_ACTIVE: dev,migrate
       # コンテナの中では localhost ではなくサービス名で DB に届く
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/quiz
+      # ログインは dev の Cognito を使う（ADR-0016）。無いと起動しない。値は .env に置く（.env.example）
+      AUTH_ISSUER: ${AUTH_ISSUER:?.env に AUTH_ISSUER を設定してください（.env.example）}
+      AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:?.env に AUTH_CLIENT_ID を設定してください（.env.example）}
     depends_on:
       # アプリロールの作成（init スクリプト）が済むまで待つ。権限を与えるマイグレーションがロールを前提にする
       postgres:
@@ -84,6 +87,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/quiz
+      AUTH_ISSUER: ${AUTH_ISSUER:?.env に AUTH_ISSUER を設定してください（.env.example）}
+      AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:?.env に AUTH_CLIENT_ID を設定してください（.env.example）}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
@@ -109,6 +114,10 @@ services:
     environment:
       # /api の中継先。実行時に読むので、イメージを作り直さずに変えられる
       API_ORIGIN: http://quiz-service:8080
+      AUTH_ISSUER: ${AUTH_ISSUER:?.env に AUTH_ISSUER を設定してください（.env.example）}
+      AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:?.env に AUTH_CLIENT_ID を設定してください（.env.example）}
+      AUTH_CLIENT_SECRET: ${AUTH_CLIENT_SECRET:?.env に AUTH_CLIENT_SECRET を設定してください（.env.example）}
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:?.env に AUTH_SESSION_SECRET を設定してください（.env.example）}
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:

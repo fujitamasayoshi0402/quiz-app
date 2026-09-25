@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { TenantPicker } from "@/components/tenant/tenant-picker";
-import { currentUser } from "@/lib/auth/session";
+import { currentUser } from "@/lib/auth/current-user";
 
 /** テナントの選択。所属の数で出し分ける（要件定義「テナント未指定のとき」） */
 export default async function Home() {

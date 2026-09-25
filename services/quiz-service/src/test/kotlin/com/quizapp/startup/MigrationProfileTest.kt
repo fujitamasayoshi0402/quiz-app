@@ -3,6 +3,7 @@ package com.quizapp.startup
 import com.quizapp.MIGRATE_PROFILE
 import com.quizapp.QuizServiceApplication
 import com.quizapp.quiz.support.TestPostgres
+import com.quizapp.support.TestJwt
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -88,7 +89,14 @@ class MigrationProfileTest {
         extraArgs: List<String> = emptyList(),
     ): ConfigurableApplicationContext = SpringApplicationBuilder(QuizServiceApplication::class.java)
         .profiles(*profiles.toTypedArray())
-        .run("--spring.datasource.url=${url(database)}", "--server.port=0", *extraArgs.toTypedArray())
+        .run(
+            "--spring.datasource.url=${url(database)}",
+            "--server.port=0",
+            // 認証基盤の設定が無いと起動しない（AuthProperties）。つながないので、値は何でもよい
+            "--app.auth.issuer=${TestJwt.ISSUER}",
+            "--app.auth.client-id=${TestJwt.CLIENT_ID}",
+            *extraArgs.toTypedArray(),
+        )
 
     private fun migrated(database: String): Boolean {
         val jdbc = JdbcTemplate(

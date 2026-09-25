@@ -157,20 +157,22 @@ class AttemptAnswerApiTest {
 
         assert(first.id() != second.id()) { "破棄したのに同じ挑戦が返っている" }
         // 破棄した挑戦は再開できない
-        mockMvc.get("/api/t/${tenant.slug}/play/attempts/${first.id()}") { header("X-User-Id", user.toString()) }
+        mockMvc.get("/api/t/${tenant.slug}/play/attempts/${first.id()}") {
+            header("Authorization", TestAuth.bearer(user))
+        }
             .andExpect { jsonPath("$.status") { value("abandoned") } }
     }
 
     @Test
     @DisplayName("中断中の挑戦を取得できる。無ければ 204")
     fun currentAttempt() {
-        mockMvc.get("/api/t/${tenant.slug}/play/attempts/current") { header("X-User-Id", user.toString()) }
+        mockMvc.get("/api/t/${tenant.slug}/play/attempts/current") { header("Authorization", TestAuth.bearer(user)) }
             .andExpect { status { isNoContent() } }
 
         fixture.quiz(category, difficulty, "問題 1")
         val attempt = startAttempt()
 
-        mockMvc.get("/api/t/${tenant.slug}/play/attempts/current") { header("X-User-Id", user.toString()) }
+        mockMvc.get("/api/t/${tenant.slug}/play/attempts/current") { header("Authorization", TestAuth.bearer(user)) }
             .andExpect {
                 status { isOk() }
                 jsonPath("$.id") { value(attempt.id()) }
@@ -185,7 +187,9 @@ class AttemptAnswerApiTest {
         answer(attempt.id(), attempt.quizId(0), attempt.correctChoiceId(0)).andExpect { status { isOk() } }
 
         // ブラウザに何も保存していなくても、サーバーだけで続きが分かる
-        mockMvc.get("/api/t/${tenant.slug}/play/attempts/${attempt.id()}") { header("X-User-Id", user.toString()) }
+        mockMvc.get("/api/t/${tenant.slug}/play/attempts/${attempt.id()}") {
+            header("Authorization", TestAuth.bearer(user))
+        }
             .andExpect {
                 status { isOk() }
                 jsonPath("$.quizzes.length()") { value(3) }
@@ -204,11 +208,13 @@ class AttemptAnswerApiTest {
         val attempt = startAttempt()
 
         mockMvc.delete("/api/t/${tenant.slug}/admin/quizzes/${attempt.quizId(1)}") {
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isNoContent() } }
 
         // 出題リストに外部キーを貼っていないため、参照先は消えうる。件数で伝える
-        mockMvc.get("/api/t/${tenant.slug}/play/attempts/${attempt.id()}") { header("X-User-Id", user.toString()) }
+        mockMvc.get("/api/t/${tenant.slug}/play/attempts/${attempt.id()}") {
+            header("Authorization", TestAuth.bearer(user))
+        }
             .andExpect {
                 status { isOk() }
                 jsonPath("$.quizzes.length()") { value(1) }
@@ -228,7 +234,7 @@ class AttemptAnswerApiTest {
 
         // 模試モードはここで初めて答え合わせをする。未回答の 1 問も並ぶ
         mockMvc.post("/api/t/${tenant.slug}/play/attempts/${attempt.id()}/complete") {
-            header("X-User-Id", user.toString())
+            header("Authorization", TestAuth.bearer(user))
         }.andExpect {
             status { isOk() }
             jsonPath("$.status") { value("completed") }
@@ -250,12 +256,12 @@ class AttemptAnswerApiTest {
         val attempt = startAttempt()
 
         mockMvc.post("/api/t/${tenant.slug}/play/attempts/${attempt.id()}/complete") {
-            header("X-User-Id", user.toString())
+            header("Authorization", TestAuth.bearer(user))
         }.andExpect { status { isOk() } }
 
         answer(attempt.id(), attempt.quizId(0), attempt.correctChoiceId(0))
             .andExpect { status { isConflict() } }
-        mockMvc.get("/api/t/${tenant.slug}/play/attempts/current") { header("X-User-Id", user.toString()) }
+        mockMvc.get("/api/t/${tenant.slug}/play/attempts/current") { header("Authorization", TestAuth.bearer(user)) }
             .andExpect { status { isNoContent() } }
     }
 
@@ -267,7 +273,7 @@ class AttemptAnswerApiTest {
 
         repeat(2) {
             mockMvc.post("/api/t/${tenant.slug}/play/attempts/${attempt.id()}/complete") {
-                header("X-User-Id", user.toString())
+                header("Authorization", TestAuth.bearer(user))
             }.andExpect { status { isOk() } }
         }
     }
@@ -282,13 +288,13 @@ class AttemptAnswerApiTest {
 
         // 権限エラーと区別すると、ID が存在することが分かってしまう
         mockMvc.get("/api/t/${tenant.slug}/play/attempts/${attempt.id()}") {
-            header("X-User-Id", otherUser.toString())
+            header("Authorization", TestAuth.bearer(otherUser))
         }.andExpect { status { isNotFound() } }
 
         mockMvc.post("/api/t/${tenant.slug}/play/attempts/${attempt.id()}/answers") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"quizId":"${attempt.quizId(0)}","choiceId":"${attempt.correctChoiceId(0)}"}"""
-            header("X-User-Id", otherUser.toString())
+            header("Authorization", TestAuth.bearer(otherUser))
         }.andExpect { status { isNotFound() } }
     }
 
@@ -297,7 +303,7 @@ class AttemptAnswerApiTest {
     private fun start(body: String): ResultActionsDsl = mockMvc.post("/api/t/${tenant.slug}/play/attempts") {
         contentType = MediaType.APPLICATION_JSON
         content = body
-        header("X-User-Id", user.toString())
+        header("Authorization", TestAuth.bearer(user))
     }
 
     /** 並びを固定して、テストから出題順を指定できるようにする。 */
@@ -310,7 +316,7 @@ class AttemptAnswerApiTest {
         mockMvc.post("/api/t/${tenant.slug}/play/attempts/$attemptId/answers") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"quizId":"$quizId","choiceId":"$choiceId"}"""
-            header("X-User-Id", user.toString())
+            header("Authorization", TestAuth.bearer(user))
         }
 
     private fun JsonNode.id(): String = this["id"].asString()

@@ -49,6 +49,3 @@ variable "github_access_token" {
   default     = null
 }
 
-variable "basic_auth_username" {
-  type = string
-}

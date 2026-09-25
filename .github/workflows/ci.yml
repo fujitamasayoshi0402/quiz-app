@@ -48,6 +48,7 @@ jobs:
               - '.github/scripts/coverage-summary.py'
               - '.github/workflows/deploy-dev.yml'
               - '.github/scripts/deploy-quiz-service.sh'
+              - '.github/scripts/smoke-token.sh'
             frontend:
               - 'apps/**'
               - '.dockerignore'
@@ -62,6 +63,7 @@ jobs:
               - '.github/workflows/ci.yml'
               - '.github/workflows/deploy-dev.yml'
               - '.github/scripts/build-web.sh'
+              - '.github/scripts/smoke-token.sh'
             terraform:
               - 'infra/terraform/**'
               - '.mise.toml'

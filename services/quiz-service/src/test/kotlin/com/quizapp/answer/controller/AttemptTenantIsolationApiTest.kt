@@ -65,7 +65,7 @@ class AttemptTenantIsolationApiTest {
         start(mike.slug).andExpect { status { isCreated() } }
 
         mockMvc.get("/api/t/${lima.slug}/play/attempts/current") {
-            header("X-User-Id", player.toString())
+            header("Authorization", TestAuth.bearer(player))
         }.andExpect { status { isNoContent() } }
     }
 
@@ -78,7 +78,7 @@ class AttemptTenantIsolationApiTest {
         val body = """{"quizId":"${quiz["id"].asString()}","choiceId":"${quiz["choices"][0]["id"].asString()}"}"""
 
         mockMvc.get("/api/t/${lima.slug}/play/attempts/$id") {
-            header("X-User-Id", player.toString())
+            header("Authorization", TestAuth.bearer(player))
         }.andExpect { status { isNotFound() } }
         post(lima.slug, "/$id/answers", body).andExpect { status { isNotFound() } }
         post(lima.slug, "/$id/complete").andExpect { status { isNotFound() } }
@@ -109,7 +109,7 @@ class AttemptTenantIsolationApiTest {
                 contentType = MediaType.APPLICATION_JSON
                 content = body
             }
-            header("X-User-Id", player.toString())
+            header("Authorization", TestAuth.bearer(player))
         }
 
     private fun statusOf(attemptId: String): String? = TestPostgres.adminJdbcTemplate.queryForObject(

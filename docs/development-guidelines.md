@@ -268,18 +268,23 @@ JaCoCo で計測し、CI のジョブサマリーに出す。**閾値でビル�
 Postman のコレクション（`tests/api/`）を Newman で流し、**デプロイした環境で主要な導線が通るか**を確かめる。
 管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → テナントの境界 → 片付け、の順に 18 本を呼ぶ。
 
+スモークテストの利用者（`smoke@example.com`、Terraform の `modules/auth` が作る）でアクセストークンを取り、`Authorization` に付けて呼ぶ。
+web の proxy は、ログインのセッションが無い要求の `Authorization` をそのまま渡す。ローカルも dev の Cognito の利用者を使う。
+
 ```bash
+cd infra/terraform/envs/dev
+TOKEN=$(AUTH_CLIENT_SECRET="$(terraform output -raw auth_client_secret)" \
+  SMOKE_USER_PASSWORD="$(terraform output -raw smoke_user_password)" \
+  ../../../../.github/scripts/smoke-token.sh "$(terraform output -raw auth_client_id)" smoke@example.com)
+cd -
+
 docker compose up -d
-pnpm test:api                                              # web の proxy を通して呼ぶ
-pnpm test:api --env-var baseUrl=http://localhost:8080      # API を直接呼ぶ
+pnpm test:api --env-var accessToken=$TOKEN                                               # web の proxy を通して呼ぶ
+pnpm test:api --env-var accessToken=$TOKEN --env-var baseUrl=http://localhost:8080        # API を直接呼ぶ
+pnpm test:api --env-var accessToken=$TOKEN --env-var baseUrl=https://develop.<Amplify のアプリの ID>.amplifyapp.com   # dev
 ```
 
-dev では、デプロイの最後に自動で流れる（[デプロイ](#デプロイ)）。手元から dev に流すときは、ベーシック認証の資格情報を渡す。
-渡したときだけ `Authorization` を付ける。
-
-```bash
-pnpm test:api --env-var baseUrl=https://develop.<Amplify のアプリの ID>.amplifyapp.com --env-var basicAuth=<利用者名>:<パスワード>
-```
+dev では、デプロイの最後に自動で流れる（[デプロイ](#デプロイ)）。トークンの期限は 1 時間。
 
 **JUnit の API テストと守備範囲を重ねない。** 細かい仕様や境界値は JUnit が見る。
 こちらは「つながっているか」（web → API → DB、利用者の識別、マイグレーション）だけを見る。
@@ -287,7 +292,7 @@ pnpm test:api --env-var baseUrl=https://develop.<Amplify のアプリの ID>.amp
 
 - **専用のテナント `smoke` で動く**（シード `R__smoke_data.sql`）。デプロイのたびに作っては消すので、
   デモのテナントでやるとゴミ箱にたまる。作ったものは最後に消し、途中で失敗しても片付けの段は実行される
-- 利用者の識別は、`X-User-Id` と Cookie の両方を付ける。web を通すと Cookie、API を直接呼ぶと `X-User-Id` が使われる
+- スモークテストの利用者は、シードでメールアドレスだけを登録してある。最初のトークンが届いたときに結び付き、`smoke` テナントの管理者になる（[最初の管理者](#最初の管理者)と同じ仕組み）
 - **コレクションは手で書く。** OpenAPI から生成すると、呼ぶ順番と、作った ID を次の要求で使う流れを表せない。
   生成したものに検証を書き足しても、生成し直すと消える
 - Postman のアプリでそのまま開ける。書き換えたら、ローカルで流してから commit する
@@ -355,16 +360,27 @@ mise exec -- lefthook install                    # commit の前に secret を�
 
 ### 起動
 
+**ログインは、ローカルでも dev の Cognito を使う**（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。
+先に `.env` を作り、`AUTH_*` を埋める（書き方は `.env.example`）。無いと、docker compose もアプリも起動しない。
+インターネットにつながっていないとログインできない。
+
+```bash
+cp .env.example .env
+cd infra/terraform/envs/dev
+terraform output -raw auth_issuer; terraform output -raw auth_client_id; terraform output -raw auth_client_secret
+```
+
 **アプリ一式をコンテナで動かす**（動作確認・デモ向け）。
 
 ```bash
 docker compose up                                             # http://localhost:3000
 ```
 
-**アプリをホストで動かす**（開発向け）。依存サービスだけをコンテナで起動する。
+**アプリをホストで動かす**（開発向け）。依存サービスだけをコンテナで起動する。`.env` をシェルに読み込んでから起動する。
 
 ```bash
 docker compose up -d postgres localstack
+set -a && source .env && set +a
 SPRING_PROFILES_ACTIVE=dev,migrate ./gradlew :services:quiz-service:bootRun   # マイグレーションとシードを流して終わる
 SPRING_PROFILES_ACTIVE=dev ./gradlew :services:quiz-service:bootRun
 pnpm --filter web dev                                         # http://localhost:3000
@@ -462,60 +478,77 @@ Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SEC
 | クイズ | 公開 12 問、下書き 1 問 | 公開 3 問 |
 
 2 つ目のテナントは、テナントの選択と、テナントごとにロールが違うことを見せるためにある。
-利用者は所属の数が 0 / 1 / 2 の 3 人で、`/` の出し分けをすべて試せる（下の表）。
+利用者は所属の数が 0 / 1 / 2 の 3 人で、`/` の出し分けをすべて試せる（[最初の管理者](#最初の管理者)の表）。
+**シードの利用者のままではログインできない。** 使うときは、自分のメールアドレスを割り当てる（[最初の管理者](#最初の管理者)）。
 
 ほかに、スモークテスト専用のテナント `smoke` と、その管理者が入る（`R__smoke_data.sql`）。
-カテゴリやクイズはテストが作って消すため、シードでは入れない。ログイン画面にも出さない。
+管理者はメールアドレス（`smoke@example.com`）だけで登録してあり、同じアドレスの Cognito の利用者（Terraform が作る）が最初にログインしたときに結び付く。
+カテゴリやクイズはテストが作って消すため、シードでは入れない。
 
 同じ内容を何度流しても増えない。repeatable マイグレーションは**内容を変えるたびに再実行される**ため、
 識別子を固定して `ON CONFLICT DO NOTHING` で入れている。
 
-### 認証（Phase 1 のスタブ）
+### 認証
 
-Phase 3 までは `X-User-Id` ヘッダの値をそのまま利用者とみなす。
-シードで入る利用者の識別子は次のとおり。
+ログインは Cognito の Managed Login で、パスワードとパスキーを使う（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。
 
-| 利用者 | `X-User-Id` | 所属 |
-| --- | --- | --- |
-| デモ管理者 | `67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab` | `demo`（管理者）、`geo-club`（一般ユーザー） |
-| デモ利用者 | `957d085e-3b87-5fa7-9283-5eb6229216b1` | `demo`（一般ユーザー） |
-| デモ未所属 | `7918a5c2-30ee-56c8-b76c-57c6a79774e3` | なし |
-
-```bash
-curl -H "X-User-Id: 67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab" \
-     http://localhost:8080/api/t/demo/admin/categories
+```
+ブラウザ → web（/auth/login）→ Managed Login → web（/auth/callback）→ トークンを暗号化して HttpOnly の Cookie に置く
+ブラウザ → web の proxy（Cookie からアクセストークンを取り出して Authorization に付ける）→ quiz-service（JWT を検証する）
 ```
 
-**ロールと所属はヘッダでは指定できない。** `core.tenant_members` から引く。
-認証方式が変わっても認可の仕組みを変えずに済むよう、ロールは Cognito ではなく
-アプリケーションのデータとして持つ。ロールを切り替えたいときは所属行を変える。
+**アプリの利用者の ID は Cognito から切り離す。** `core.users.id` がアプリの ID で、Cognito の `sub` は `external_id` に入る。
+初めてのアクセストークンが届いたとき、バックエンドが利用者を作り、確認済みのメールアドレスを OIDC の userinfo から取って持つ。
+認証の方式を替えても、回答の履歴と所属が残る。
+
+**ロールと所属はトークンでは決まらない。** `core.tenant_members` から引く。ロールを切り替えたいときは所属行を変える。
 
 ```sql
 UPDATE core.tenant_members SET role = 'member'
 WHERE user_id = '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab';
 ```
 
-スタブは `prod` / `stg` プロファイルでは無効になり、**それでも有効なら起動に失敗する**。
-誰にでもなりすませるため、設定の誤りが全テナントの情報漏洩に直結する。
+バックエンドが確かめるのは、署名（発行者の JWKS）、発行者、期限、アクセストークンであること（`token_use`）、
+web のクライアントに発行されたこと（`client_id`）。Spring Security のリソースサーバーは使わず、JWT の検証の部品だけを使う。
+フィルタが前に立つと、401 の応答がアプリの形（RFC 9457）にならず、認可の判定も二重になるため（`auth/AccessTokens.kt`）。
 
-Phase 3 で差し替えるのは `auth/StubAuthenticator.kt` と `auth/StubAuthenticatorGuard.kt` の削除、
-`Authenticator` を実装する Cognito 版の追加だけ。
+同じメールアドレスの利用者が、すでに別の Cognito の利用者に結び付いているときは、401 で拒否する（Cognito で利用者を作り直したときなど）。
+別の利用者として作ると、所属と履歴が黙って分かれる。結び直すときは `external_id` を書き換える。
+
+#### 最初の管理者
+
+招待（DEV-66）の前に、管理者を入れる手順。**メールアドレスだけを持つ利用者に、所属を付けておく。**
+同じアドレスで Cognito にサインアップし、最初にログインしたときに結び付く。
+
+シードのデモ管理者を自分にする例（ローカルは `docker compose exec postgres psql -U quiz`、AWS は [Data API](#aurora)）。
+
+```sql
+UPDATE core.users SET email = '<自分のメールアドレス>', external_id = NULL
+WHERE id = '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab';
+```
+
+| 利用者 | ID | 所属 |
+| --- | --- | --- |
+| デモ管理者 | `67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab` | `demo`（管理者）、`geo-club`（一般ユーザー） |
+| デモ利用者 | `957d085e-3b87-5fa7-9283-5eb6229216b1` | `demo`（一般ユーザー） |
+| デモ未所属 | `7918a5c2-30ee-56c8-b76c-57c6a79774e3` | なし |
 
 #### フロントエンド
 
-`http://localhost:3000/login` で利用者を選ぶと、Cookie に識別子が入る。
-**`X-User-Id` を付けるのは Next.js の proxy（`src/proxy.ts`）だけ**で、ブラウザが付けたヘッダは捨てる。
+トークンは web のサーバーが受け取り、暗号化して `HttpOnly` の Cookie に置く（`src/lib/auth/session.ts`）。**ブラウザの JavaScript からは読めない。**
+`Authorization` を付けるのは Next.js の proxy（`src/proxy.ts`）だけで、期限が近ければリフレッシュトークンで更新する。
 画面のコードは認証を意識せずに API を呼ぶ。
-AWS では、proxy が秘密のヘッダ（`X-Origin-Verify`）も付ける。値は環境変数 `ORIGIN_VERIFY_SECRET` から読み、ローカルでは付けない（[Amplify](#amplifyweb)）。
+
+- ログインの始まり（`/auth/login`）で、`state` と PKCE の verifier を暗号化した Cookie に置き、コールバックで照合する
+- ログアウト（`/auth/logout`）は POST だけを受ける。リフレッシュトークンを失効させ、Cognito のセッションも終える
+- ログインのセッションが無い要求は、`Authorization` をそのまま渡す。スモークテストのように、トークンを自分で取る呼び出し元のため
+- AWS では、proxy が秘密のヘッダ（`X-Origin-Verify`）も付ける。値は環境変数 `ORIGIN_VERIFY_SECRET` から読み、ローカルでは付けない（[Amplify](#amplifyweb)）
 
 `/` は所属テナントの数で出し分ける（0 件: 招待を受けていない旨 / 1 件: そのテナントへ / 2 件以上: 選択画面）。
-所属の一覧はブラウザから取る。サーバーで取ると、proxy 以外でも利用者の識別を付けることになる。
+所属の一覧はブラウザから取る。サーバーで取ると、proxy 以外でもトークンを付けることになる。
 
 **利用者が替わると、TanStack Query のキャッシュを作り直す**（ルートレイアウトで `Providers` に利用者をキーとして渡す）。
 残すと、前の利用者の応答が次の利用者の画面に出る。
-
-Phase 3 では proxy を「セッションから Cognito のトークンを取り出して `Authorization` に付ける」に替え、
-`src/lib/auth/stub-users.ts` とログイン画面を削除する。
 
 ### インフラ（Terraform）
 
@@ -605,6 +638,9 @@ Route 53 に登録済みのドメインを使う。**ドメイン名はリポジ
 - メールは Cognito の既定の設定（1 日 50 通まで）。確認コードとパスワードの再設定にだけ使う
 - コールバックを許すのは `dev.<ドメイン>` と `http://localhost:3000` だけ。**Amplify の既定のドメインからはログインできない**
 - web のクライアントのシークレットと、Cookie の暗号鍵は、Amplify の環境変数（`AUTH_*`）に入る
+- web のクライアントのスコープは `openid email` だけ。確認済みのメールアドレスは、バックエンドが OIDC の userinfo で取る。
+  Cognito の API 用のスコープ（`aws.cognito.signin.user.admin`）は、トークンで利用者の属性を書き換えられるため持たせない
+- スモークテストの利用者（`smoke@example.com`）も Terraform が作る。パスワードは `terraform output -raw smoke_user_password`
 
 Managed Login の画面は、web をつながなくても開ける。ログインのあとは `redirect_uri` に戻る（開いていなければエラーの画面になるが、ログインはできている）。
 
@@ -618,11 +654,12 @@ echo "$(terraform output -raw auth_managed_login_url)/login?client_id=$(terrafor
 `modules/web` で作る。ビルドの手順はリポジトリのルートの `amplify.yml` にある（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）。
 
 ```
-ブラウザ → Amplify（dev.<ドメイン>、ベーシック認証）→ SSR の proxy → ALB（秘密のヘッダ）→ quiz-service
+ブラウザ → Amplify（dev.<ドメイン>）→ SSR の proxy（アクセストークンを付ける）→ ALB（秘密のヘッダ）→ quiz-service
 ```
 
-- **スタブ認証の間は、画面をベーシック認証で、API を秘密のヘッダで守る。** どちらも Phase 3 で見直す
-- SSR の実行時には Amplify の環境変数が渡らない。`amplify.yml` がビルドの中で、サーバー側で読む値（`API_ORIGIN`、`ORIGIN_VERIFY_SECRET`）だけを `.env.production` に書き出す。
+- **画面にベーシック認証はかけない。** データはログインとテナントの所属で守られる（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。
+  スタブ認証の間は、誰にでもなりすませるためかけていた
+- SSR の実行時には Amplify の環境変数が渡らない。`amplify.yml` がビルドの中で、サーバー側で読む値（`API_ORIGIN`、`ORIGIN_VERIFY_SECRET`、`AUTH_*`）だけを `.env.production` に書き出す。
   `NEXT_PUBLIC_` を付けないので、ブラウザ向けのコードには入らない
 - pnpm は、ビルドの中でだけ `nodeLinker: hoisted` にする。既定の配置では Amplify が `next` を見つけられない
 - **push でビルドしない。** デプロイのワークフローが、quiz-service の後に起動する（[デプロイ](#デプロイ)）。ビルドは約 3 分。
@@ -634,15 +671,7 @@ aws amplify start-job --app-id "$(terraform output -raw web_amplify_app_id)" \
   --branch-name develop --job-type RELEASE
 ```
 
-ベーシック認証の利用者名とパスワードは、Terraform が作る。
-
-```bash
-terraform output -raw web_basic_auth_username
-terraform output -raw web_basic_auth_password
-```
-
-入れ替えるときは `terraform apply -replace=module.web.random_password.basic_auth`。スモークテストが使う GitHub の secret（`WEB_BASIC_AUTH`）も入れ替える。
-Amplify はパスワードをハッシュにして保存するので、Terraform はブランチの値を比べない。作り直したときだけ、`terraform_data` が API で書き換える。
+Cookie の暗号鍵を入れ替えるときは `terraform apply -replace=module.web.random_password.session` のあと、ビルドし直す。ログイン中の全員がログアウトされる。
 
 **GitHub のトークンは、アプリを作るときにだけ渡す。** 接続に `admin:repo_hook` の権限が 1 回だけ要る。
 ファイルには書かず、環境変数で渡し、作成後はすぐに失効させる。state には残るが、失効していれば使えない。
@@ -666,8 +695,10 @@ aws amplify start-job ...   # 新しい値でビルドし直す
 インターネット → ALB（HTTPS、api.dev.<ドメイン>）→ quiz-service（Fargate / arm64 / 0.5 vCPU・1 GB）→ Aurora（IAM 認証）
 ```
 
-- **ALB は秘密のヘッダ（`X-Origin-Verify`）を持たない要求を 403 で返す。** スタブ認証の間、`X-User-Id` で誰にでもなりすませるため。
-  ヘッダを付けるのは web（Amplify）の proxy だけで、値は Secrets Manager にある（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）
+- **ALB は秘密のヘッダ（`X-Origin-Verify`）を持たない要求を 403 で返す。** API を web の proxy 以外から呼ばせない。
+  ヘッダを付けるのは web（Amplify）の proxy だけで、値は Secrets Manager にある（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）。
+  ALB をやめるとき（DEV-56）に見直す
+- アクセストークンの発行者と web のクライアントは、タスク定義の環境変数（`AUTH_ISSUER`、`AUTH_CLIENT_ID`）で渡す。マイグレーションのタスクにも渡す。無いと起動しない
 - **ALB は HTTPS だけを受ける。HTTP のリスナーは置かず、リダイレクトもしない。**
   API を呼ぶのは web の proxy だけで、HTTP で届いた時点でヘッダが平文で流れてしまうため。
   web（Amplify）の実行環境は送信元の IP が決まらないので、受信は IP では絞らず、ヘッダで決める
@@ -693,13 +724,13 @@ aws ecs update-service --cluster quiz-app-dev --service quiz-service --desired-c
 **デプロイは GitHub Actions が行う**（[デプロイ](#デプロイ)）。Terraform が持つのはタスク定義の形（環境変数、ロール、CPU など）までで、
 どのイメージを動かすかは持たない。サービスが参照するリビジョンの変化は、Terraform では無視している。
 
-動作を確かめるときは、秘密のヘッダを付けて呼ぶ。
+動作を確かめるときは、秘密のヘッダとアクセストークンを付けて呼ぶ。トークンはスモークテストの利用者で取る（[スモークテスト](#スモークテスト)）。
 
 ```bash
 SECRET=$(aws secretsmanager get-secret-value \
   --secret-id "$(terraform output -raw origin_header_secret_arn)" --query SecretString --output text)
-curl -H "X-Origin-Verify: $SECRET" -H "X-User-Id: 67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab" \
-     "$(terraform output -raw quiz_service_url)/api/t/demo/admin/categories"
+curl -H "X-Origin-Verify: $SECRET" -H "Authorization: Bearer $TOKEN" \
+     "$(terraform output -raw quiz_service_url)/api/t/smoke/admin/categories"
 ```
 
 #### デプロイ
@@ -754,18 +785,21 @@ Environment `dev` には、次を置く。値は Terraform の出力から入れ
 | 名前 | 種類 | 値 |
 | --- | --- | --- |
 | `AWS_ROLE_ARN` | secret | 引き受けるロール |
-| `WEB_BASIC_AUTH` | secret | スモークテストが通るベーシック認証（`利用者名:パスワード`） |
+| `AUTH_CLIENT_SECRET` | secret | web のクライアントのシークレット。スモークテストがトークンを取るのに使う |
+| `SMOKE_USER_PASSWORD` | secret | スモークテストの利用者のパスワード |
 | `AMPLIFY_APP_ID` | variable | ビルドを起動する Amplify のアプリ |
+| `AUTH_CLIENT_ID` | variable | web のクライアント |
 
 ```bash
 cd infra/terraform/envs/dev
 gh secret set AWS_ROLE_ARN --env dev --body "$(terraform output -raw deploy_role_arn)"
-gh secret set WEB_BASIC_AUTH --env dev \
-  --body "$(terraform output -raw web_basic_auth_username):$(terraform output -raw web_basic_auth_password)"
+gh secret set AUTH_CLIENT_SECRET --env dev --body "$(terraform output -raw auth_client_secret)"
+gh secret set SMOKE_USER_PASSWORD --env dev --body "$(terraform output -raw smoke_user_password)"
 gh variable set AMPLIFY_APP_ID --env dev --body "$(terraform output -raw web_amplify_app_id)"
+gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_client_id)"
 ```
 
-ベーシック認証のパスワードを入れ替えたら、`WEB_BASIC_AUTH` も入れ替える。
+クライアントのシークレットやスモークテストの利用者を作り直したら、secret も入れ替える。
 
 **環境を作り直すときは、先にイメージを push し、そのタグを `quiz_service_image_tag` に入れて apply する。**
 この値はサービスを作るときにだけ使う。以降は変えても、動くタスクは替わらない。

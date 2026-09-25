@@ -16,6 +16,8 @@ INSERT INTO core.tenants (id, slug, name) VALUES
     ('9efd94a0-e517-573b-b46e-0f1ae96fc342', 'geo-club', '地理の勉強会')
     ON CONFLICT (id) DO NOTHING;
 
+-- この利用者のままではログインできない（external_id は Cognito の利用者ではない）。
+-- 使うときは、自分のメールアドレスを割り当てて結び付ける（開発ガイドライン「最初の管理者」）
 INSERT INTO core.users (id, external_id, display_name) VALUES
     ('67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab',  'demo-admin',  'デモ管理者'),
     ('957d085e-3b87-5fa7-9283-5eb6229216b1', 'demo-member', 'デモ利用者'),

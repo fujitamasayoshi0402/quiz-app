@@ -15,7 +15,7 @@ servers:
 - description: アプリケーションと同じオリジン
   url: /
 security:
-- stubUser: []
+- bearerAuth: []
 tags:
 - description: カテゴリ配下の難易度を CRUD する。体系はカテゴリごとに決める
   name: 難易度
@@ -1841,8 +1841,8 @@ components:
       required:
       - name
   securitySchemes:
-    stubUser:
-      description: Phase 1 のスタブ認証。利用者の UUID をそのまま渡す。Phase 3 で Cognito の JWT に差し替える
-      in: header
-      name: X-User-Id
-      type: apiKey
+    bearerAuth:
+      bearerFormat: JWT
+      description: Cognito のアクセストークン。画面から呼ぶときは、web の proxy がログインのセッションから付ける（ADR-0016）
+      scheme: bearer
+      type: http

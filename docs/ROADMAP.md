@@ -74,7 +74,7 @@
 
 ---
 
-## Phase 2: AWS 基盤と継続的デリバリ 🚧 進行中
+## Phase 2: AWS 基盤と継続的デリバリ ✅ 完了
 
 **ゴール: develop への merge で dev 環境に自動デプロイされる**
 
@@ -99,7 +99,7 @@
 
 ---
 
-## Phase 3: パスキー認証とロール分離
+## Phase 3: パスキー認証とロール分離 🚧 進行中
 
 **ゴール: 本物の認証でユーザーと管理者を分離する**
 
@@ -108,11 +108,12 @@
 
 - [x] ADR: Cognito で作る構成と、自前実装への差し替えに備えた設計（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）
 - [x] Cognito のユーザーとテナントの対応付け: User Pool は 1 つ。所属とロールは Cognito の Group ではなくアプリのデータで持つ
-- [ ] Cognito User Pool（Essentials、パスワード + パスキー、Managed Login）
-- [ ] フロント: Managed Login への遷移とコールバック、トークンを `HttpOnly` の Cookie に置くセッション、proxy が `Authorization` を付ける
-- [ ] バックエンド: JWT 検証、初回の要求での利用者の作成、**テナント境界の認可**
+- [x] Cognito User Pool（Essentials、パスワード + パスキー、Managed Login）
+- [x] フロント: Managed Login への遷移とコールバック、トークンを `HttpOnly` の Cookie に置くセッション、proxy が `Authorization` を付ける
+- [x] バックエンド: JWT 検証、初回の要求での利用者の作成、**テナント境界の認可**
 - [ ] 管理画面のルートガード、管理者・一般ユーザーの招待フロー（リンクを画面に出して渡す）
-- [ ] スタブ認証の撤去、権限まわりの E2E テスト、dev のアクセス制限の見直し（ベーシック認証を外す）
+- [x] スタブ認証の撤去、dev のアクセス制限の見直し（ベーシック認証を外す）
+- [ ] 権限まわりの E2E テスト
 - [ ] コスト: ALB をやめ、API Gateway（HTTP API）から VPC リンクで quiz-service に届ける。JWT をどこで検証するかとあわせて決める
 - [ ] 自前実装: パスキーを webauthn4j で実装し、Cognito と差し替える。比べた結果を ADR に残す（Cognito で動いてから。Phase 4 と並行してよい）
 

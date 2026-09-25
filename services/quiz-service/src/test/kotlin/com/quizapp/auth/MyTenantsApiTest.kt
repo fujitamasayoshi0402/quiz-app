@@ -84,7 +84,7 @@ class MyTenantsApiTest {
     }
 
     private fun tenantsOf(userId: UUID): List<Triple<String, String, String>> = mockMvc.get("/api/me/tenants") {
-        header("X-User-Id", userId.toString())
+        header("Authorization", TestAuth.bearer(userId))
     }.andExpect { status { isOk() } }
         .andReturn().response.contentAsString
         .let(objectMapper::readTree)
