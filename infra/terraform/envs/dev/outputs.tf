@@ -8,7 +8,7 @@ output "database_master_user_secret_arn" {
 }
 
 output "quiz_service_url" {
-  value = "http://${module.quiz_service.alb_dns_name}"
+  value = module.quiz_service.api_url
 }
 
 output "quiz_service_ecr_repository_url" {

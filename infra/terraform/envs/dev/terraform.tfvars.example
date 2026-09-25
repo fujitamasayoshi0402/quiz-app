@@ -1,7 +1,7 @@
 # cp terraform.tfvars.example terraform.tfvars で写して値を入れる。terraform.tfvars は Git の管理外
 
-# 手元のグローバル IP。curl -s https://checkip.amazonaws.com で調べる
-alb_ingress_cidrs = ["203.0.113.10/32"]
+# Route 53 に登録済みのドメイン（ホストゾーンの名前）
+domain_name = "example.com"
 
 # ECR に push したイメージのタグ（git rev-parse --short=12 HEAD）
 quiz_service_image_tag = "0123456789ab"

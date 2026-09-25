@@ -9,11 +9,10 @@
 # スタブ認証の間、ALB は web の proxy だけが知る秘密のヘッダを確かめる（modules/quiz-service）。
 
 locals {
-  alb_port          = 80
+  alb_port          = 443
   quiz_service_port = 8080
   db_port           = 5432
 
-  # ECR からのイメージの取得、CloudWatch Logs。いずれも公開エンドポイントへ HTTPS で出る
   anywhere = "0.0.0.0/0"
 }
 
@@ -31,17 +30,16 @@ resource "aws_security_group" "alb" {
   }
 }
 
-# HTTPS（DEV-47）が入るまでは HTTP のため、秘密のヘッダも X-User-Id も平文で流れる。
-# それまでは、受信を許す相手を alb_ingress_cidrs で絞る
-resource "aws_vpc_security_group_ingress_rule" "alb_http" {
-  for_each = toset(var.alb_ingress_cidrs)
-
+# HTTPS だけを受け、誰からでも受ける。web（Amplify）の実行環境は送信元の IP が決まらないため、IP では絞れない。
+# アプリに届くかどうかは、ALB のリスナーが秘密のヘッダで決める（modules/quiz-service）。
+# HTTP は受けない。HTTP で届いた時点で、ヘッダが平文で流れてしまう
+resource "aws_vpc_security_group_ingress_rule" "alb_https" {
   security_group_id = aws_security_group.alb.id
-  cidr_ipv4         = each.value
+  cidr_ipv4         = local.anywhere
   ip_protocol       = "tcp"
   from_port         = local.alb_port
   to_port           = local.alb_port
-  description       = "HTTP until HTTPS is in place"
+  description       = "HTTPS from anywhere"
 }
 
 resource "aws_vpc_security_group_egress_rule" "alb_to_quiz_service" {
@@ -84,6 +82,7 @@ resource "aws_vpc_security_group_egress_rule" "quiz_service_to_db" {
   description                  = "To Aurora"
 }
 
+# ECR からのイメージの取得、CloudWatch Logs。いずれも公開エンドポイントへ HTTPS で出る
 resource "aws_vpc_security_group_egress_rule" "quiz_service_https" {
   security_group_id = aws_security_group.quiz_service.id
   cidr_ipv4         = local.anywhere

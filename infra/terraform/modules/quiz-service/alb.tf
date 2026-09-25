@@ -41,11 +41,16 @@ resource "aws_lb_target_group" "quiz_service" {
   }
 }
 
-# HTTPS（DEV-47）が入るまでは HTTP。受信する相手は SecurityGroup で絞る（modules/network）
-resource "aws_lb_listener" "http" {
+# HTTPS だけを受ける。HTTP のリスナーは置かない（リダイレクトもしない）。
+# API を呼ぶのは web の proxy だけで、HTTP で届いた時点で秘密のヘッダが平文で流れてしまう
+resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.this.arn
-  port              = 80
-  protocol          = "HTTP"
+  port              = 443
+  protocol          = "HTTPS"
+  certificate_arn   = aws_acm_certificate_validation.api.certificate_arn
+
+  # TLS 1.2 / 1.3 だけを許し、暗号スイートを絞る。鍵交換は耐量子のハイブリッドを優先する（相手が対応していなければ従来の方式）
+  ssl_policy = "ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09"
 
   # 秘密のヘッダを持たない要求は、すべてここで止まる
   default_action {
@@ -60,7 +65,7 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_lb_listener_rule" "origin_verified" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = aws_lb_listener.https.arn
   priority     = 10
 
   condition {

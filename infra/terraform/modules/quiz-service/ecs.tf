@@ -109,7 +109,7 @@ resource "aws_ecs_service" "app" {
   propagate_tags = "SERVICE"
 
   # ALB にリスナーがない間にサービスを作ると、ターゲットグループを紐付けられない
-  depends_on = [aws_lb_listener.http]
+  depends_on = [aws_lb_listener.https]
 }
 
 # ---- migrate ----

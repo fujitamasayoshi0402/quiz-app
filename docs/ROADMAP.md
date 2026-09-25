@@ -83,7 +83,7 @@
 - [x] データ: Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止）。アプリとマイグレーションはパスワードを持たず、IAM 認証で接続する（[ADR-0014](adr/0014-connect-to-aurora-with-iam-auth.md)）
 - [ ] 0 ACU 検証: 一時停止の発動条件、復帰時間、HikariCP の `minimum-idle: 0` 設定、初回アクセスのリトライ
 - [x] 実行基盤: ECR、ECS Fargate（arm64）、ALB。スタブ認証の間は、web の proxy だけが知る秘密のヘッダを ALB で確かめる
-- [ ] 独自ドメインと HTTPS: ACM、Route 53
+- [x] 独自ドメインと HTTPS: ACM、Route 53。ALB は HTTPS だけを受ける
 - [x] フロント配信の方式: Amplify Hosting（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）
 - [ ] フロント配信: Amplify Hosting で web を dev に配る
 - [ ] アクセス制限: スタブ認証の間は、許可した相手以外が dev の画面と API に届かないようにする
