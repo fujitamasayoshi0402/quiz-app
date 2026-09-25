@@ -49,7 +49,7 @@ class AttemptUseCase(
             id = requireNotNull(attempt.id),
             status = attempt.status.label(),
             scope = attempt.scope.label(),
-            quizzes = quizzes,
+            quizzes = quizzes.map(attempt::arrange),
             answeredQuizIds = emptyList(),
             excludedCount = 0,
         )
@@ -141,7 +141,7 @@ class AttemptUseCase(
     private fun view(attempt: Attempt): AttemptView {
         val deliverable = catalog.findDeliverable(attempt.quizIds).associateBy { it.id }
         // findDeliverable は順序を保証しない。出題順は挑戦が持っている
-        val quizzes = attempt.quizIds.mapNotNull { deliverable[it] }
+        val quizzes = attempt.quizIds.mapNotNull { deliverable[it] }.map(attempt::arrange)
 
         return AttemptView(
             id = requireNotNull(attempt.id),
@@ -160,7 +160,7 @@ class AttemptUseCase(
         val keys = catalog.findAnswerKeys(attempt.quizIds)
 
         val results = attempt.quizIds.mapNotNull { quizId ->
-            val quiz = quizzes[quizId] ?: return@mapNotNull null
+            val quiz = quizzes[quizId]?.let(attempt::arrange) ?: return@mapNotNull null
             val key = keys[quizId] ?: return@mapNotNull null
             QuizResult(
                 quizId = quizId,

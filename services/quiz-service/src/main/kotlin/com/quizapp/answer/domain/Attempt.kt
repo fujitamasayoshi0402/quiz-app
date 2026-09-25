@@ -1,8 +1,11 @@
 package com.quizapp.answer.domain
 
+import com.quizapp.quiz.domain.DeliveredQuiz
 import com.quizapp.quiz.domain.DeliveryCriteria
 import com.quizapp.quiz.domain.DeliveryScope
 import java.time.Instant
+import java.util.Objects
+import java.util.Random
 import java.util.UUID
 
 enum class AttemptStatus {
@@ -45,6 +48,19 @@ data class Attempt(
     val finishedAt: Instant? = null,
 ) {
     val isInProgress: Boolean get() = status == AttemptStatus.IN_PROGRESS
+
+    /**
+     * 選択肢を、この挑戦での並びにして返す。
+     *
+     * 登録した順のまま出すと、正解を先頭に書くといった癖から、問題を読まずに当てられる。
+     * **並びは挑戦とクイズの ID から決め、保存しない。** 開始・再開・結果のどれでも同じ並びになる。
+     * 毎回ランダムにすると再読み込みのたびに入れ替わり、保存すると出題後の編集で選択肢の ID が変わったときに引けなくなる。
+     */
+    fun arrange(quiz: DeliveredQuiz): DeliveredQuiz {
+        // java.util.Random は、同じシードから出る値の並びが仕様で決まっている。Kotlin の Random(seed) は将来の版で変わりうる
+        val seed = Objects.hash(requireNotNull(id), quiz.id).toLong()
+        return quiz.copy(choices = quiz.choices.shuffled(Random(seed)))
+    }
 
     companion object {
         fun start(userId: UUID, criteria: DeliveryCriteria, quizIds: List<UUID>) = Attempt(
