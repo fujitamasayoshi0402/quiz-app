@@ -73,9 +73,14 @@ export function QuizList({ slug }: { slug: string }) {
             <SelectItem value="draft">下書き</SelectItem>
           </SelectContent>
         </Select>
-        <Button asChild className="ml-auto">
-          <Link href={`/t/${slug}/admin/quizzes/new`}>クイズを作る</Link>
-        </Button>
+        <div className="ml-auto flex gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/t/${slug}/admin/quizzes/import`}>まとめて取り込む</Link>
+          </Button>
+          <Button asChild>
+            <Link href={`/t/${slug}/admin/quizzes/new`}>クイズを作る</Link>
+          </Button>
+        </div>
       </div>
 
       {quizzes.isPending ? (
