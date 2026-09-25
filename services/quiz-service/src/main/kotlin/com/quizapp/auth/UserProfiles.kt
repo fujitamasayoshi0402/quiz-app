@@ -1,10 +1,12 @@
 package com.quizapp.auth
 
-import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
+import tools.jackson.databind.ObjectMapper
+import java.net.URI
 import java.time.Duration
 
 /**
@@ -21,13 +23,18 @@ interface UserProfiles {
 data class UserProfile(val email: String?)
 
 /**
- * OIDC の userinfo から引く。
+ * Cognito の `GetUser` で引く。アクセストークンで呼べる API で、AWS の認証情報は要らない。
  *
- * Cognito の API（`GetUser`）ではなく標準の OIDC を使う。認証基盤を替えても（ADR-0016）、ここは変わらない。
- * `GetUser` に要るスコープ（`aws.cognito.signin.user.admin`）は、トークンで利用者の属性を書き換えられるため、web に持たせない。
+ * 標準の OIDC の userinfo は使わない。userinfo は `openid` のスコープを持つトークンしか受け付けず、
+ * API（InitiateAuth）で取ったトークン（スモークテストが使う）はこのスコープを持てない。
+ * `GetUser` に要るスコープ（`aws.cognito.signin.user.admin`）は、トークンで自分の属性を書き換えられるが、
+ * トークンはブラウザに渡らない（web のサーバーが持つ）ため、書き換えに使われる経路がない（ADR-0016）。
  */
 @Component
-class OidcUserProfiles(private val properties: AuthProperties) : UserProfiles {
+class CognitoUserProfiles(properties: AuthProperties, private val objectMapper: ObjectMapper) : UserProfiles {
+
+    /** User Pool の API のエンドポイント。発行者（`https://cognito-idp.<リージョン>.amazonaws.com/<User Pool の ID>`）と同じホスト */
+    private val endpoint: URI = URI.create(properties.issuer).resolve("/")
 
     private val client = RestClient.builder()
         .requestFactory(
@@ -38,28 +45,27 @@ class OidcUserProfiles(private val properties: AuthProperties) : UserProfiles {
         )
         .build()
 
-    /** userinfo の場所は発行者の設定（discovery）にある。最初に使うときに一度だけ読む */
-    private val userInfoEndpoint: String by lazy {
-        val configuration = client.get()
-            .uri("${properties.issuer}/.well-known/openid-configuration")
-            .retrieve()
-            .body<Map<String, Any?>>()
-        requireNotNull(configuration?.get("userinfo_endpoint") as? String) { "発行者の設定に userinfo_endpoint がありません" }
-    }
-
+    /**
+     * 要求も応答も文字列で扱う。Cognito の API は `application/x-amz-json-1.1` で、
+     * JSON の変換器（`application/json` と `+json` だけを扱う）が受け付けない
+     */
     override fun fetch(accessToken: String): UserProfile {
-        val claims = client.get()
-            .uri(userInfoEndpoint)
-            .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken")
+        val response = client.post()
+            .uri(endpoint)
+            .header("X-Amz-Target", "AWSCognitoIdentityProviderService.GetUser")
+            .contentType(AMZ_JSON)
+            .body(objectMapper.writeValueAsString(mapOf("AccessToken" to accessToken)))
             .retrieve()
-            .body<Map<String, Any?>>()
+            .body<String>()
             .orEmpty()
-        // Cognito は email_verified を文字列（"true"）で返す
-        val verified = claims["email_verified"].toString().toBoolean()
-        return UserProfile(email = (claims["email"] as? String)?.takeIf { verified })
+        val attributes = objectMapper.readTree(response).path("UserAttributes")
+            .associate { it.path("Name").asString() to it.path("Value").asString() }
+        val verified = attributes["email_verified"].toBoolean()
+        return UserProfile(email = attributes["email"]?.takeIf { verified && it.isNotBlank() })
     }
 
     private companion object {
         val TIMEOUT: Duration = Duration.ofSeconds(5)
+        val AMZ_JSON: MediaType = MediaType.parseMediaType("application/x-amz-json-1.1")
     }
 }

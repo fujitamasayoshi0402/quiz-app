@@ -103,9 +103,10 @@ resource "aws_cognito_user_pool_client" "web" {
   allowed_oauth_flows                  = ["code"]
   supported_identity_providers         = ["COGNITO"]
 
-  # 確認済みのメールアドレスは、バックエンドが OIDC の userinfo で取る。
-  # Cognito の API 用のスコープ（aws.cognito.signin.user.admin）は持たせない。トークンで利用者の属性を書き換えられてしまう
-  allowed_oauth_scopes = ["openid", "email"]
+  # aws.cognito.signin.user.admin は、バックエンドが確認済みのメールアドレスを取る（GetUser）ために要る。
+  # OIDC の userinfo は、API で取ったトークン（スモークテスト）が openid のスコープを持てないため使えない。
+  # このスコープのトークンは自分の属性を書き換えられるが、トークンはブラウザに渡らない（web のサーバーが持つ）
+  allowed_oauth_scopes = ["openid", "email", "aws.cognito.signin.user.admin"]
 
   callback_urls = [for origin in var.app_origins : "${origin}/auth/callback"]
   logout_urls   = [for origin in var.app_origins : "${origin}/"]

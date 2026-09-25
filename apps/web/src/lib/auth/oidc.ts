@@ -24,7 +24,8 @@ export type TokenSet = {
 /** ID トークンから取る、画面に出す利用者の情報 */
 export type Identity = { sub: string; email?: string };
 
-export const SCOPES = "openid email";
+/** aws.cognito.signin.user.admin は、バックエンドが確認済みのメールアドレスを取る（Cognito の GetUser）ために要る */
+export const SCOPES = "openid email aws.cognito.signin.user.admin";
 
 function env(name: string): string {
   const value = process.env[name];
