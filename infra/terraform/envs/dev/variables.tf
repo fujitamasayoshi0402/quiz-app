@@ -9,3 +9,11 @@ variable "quiz_service_image_tag" {
   description = "quiz-service のイメージのタグ（git のコミット）"
   type        = string
 }
+
+# ファイルには書かず、アプリを作るときだけ環境変数（TF_VAR_github_access_token）で渡す
+variable "github_access_token" {
+  description = "Amplify を GitHub につなぐトークン（admin:repo_hook）。作成後は失効させる"
+  type        = string
+  sensitive   = true
+  default     = null
+}

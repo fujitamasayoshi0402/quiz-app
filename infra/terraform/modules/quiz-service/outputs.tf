@@ -30,3 +30,9 @@ output "origin_header_secret_arn" {
 output "log_group_name" {
   value = aws_cloudwatch_log_group.quiz_service.name
 }
+
+output "origin_verify_secret" {
+  description = "web（Amplify）の proxy に渡す"
+  value       = random_password.origin_verify.result
+  sensitive   = true
+}

@@ -66,3 +66,20 @@ module "quiz_service" {
   log_retention_days  = 14
   force_delete_images = true
 }
+
+module "web" {
+  source = "../../modules/web"
+
+  name           = "quiz-app-dev-web"
+  repository_url = "https://github.com/fujitamasayoshi0402/quiz-app"
+  branch_name    = "develop"
+
+  domain_name      = var.domain_name
+  subdomain_prefix = "dev"
+
+  api_origin           = module.quiz_service.api_url
+  origin_verify_secret = module.quiz_service.origin_verify_secret
+
+  github_access_token = var.github_access_token
+  basic_auth_username = "demo"
+}

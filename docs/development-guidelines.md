@@ -495,6 +495,7 @@ Phase 3 で差し替えるのは `auth/StubAuthenticator.kt` と `auth/StubAuthe
 `http://localhost:3000/login` で利用者を選ぶと、Cookie に識別子が入る。
 **`X-User-Id` を付けるのは Next.js の proxy（`src/proxy.ts`）だけ**で、ブラウザが付けたヘッダは捨てる。
 画面のコードは認証を意識せずに API を呼ぶ。
+AWS では、proxy が秘密のヘッダ（`X-Origin-Verify`）も付ける。値は環境変数 `ORIGIN_VERIFY_SECRET` から読み、ローカルでは付けない（[Amplify](#amplifyweb)）。
 
 `/` は所属テナントの数で出し分ける（0 件: 招待を受けていない旨 / 1 件: そのテナントへ / 2 件以上: 選択画面）。
 所属の一覧はブラウザから取る。サーバーで取ると、proxy 以外でも利用者の識別を付けることになる。
@@ -578,10 +579,54 @@ Route 53 に登録済みのドメインを使う。**ドメイン名はリポジ
 
 | 環境 | web | API |
 | --- | --- | --- |
-| dev | `dev.<ドメイン>`（Amplify、DEV-53） | `api.dev.<ドメイン>` |
+| dev | `dev.<ドメイン>`（Amplify） | `api.dev.<ドメイン>` |
 
 ホストゾーンはドメインの登録時に作られ、環境をまたいで使う。Terraform では作らず、参照してレコードを足すだけにする。
 ドメインの apex（`<ドメイン>`）には、このアプリ以外の既存のレコードがある。触らない。
+
+#### Amplify（web）
+
+`modules/web` で作る。ビルドの手順はリポジトリのルートの `amplify.yml` にある（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）。
+
+```
+ブラウザ → Amplify（dev.<ドメイン>、ベーシック認証）→ SSR の proxy → ALB（秘密のヘッダ）→ quiz-service
+```
+
+- **スタブ認証の間は、画面をベーシック認証で、API を秘密のヘッダで守る。** どちらも Phase 3 で見直す
+- SSR の実行時には Amplify の環境変数が渡らない。`amplify.yml` がビルドの中で、サーバー側で読む値（`API_ORIGIN`、`ORIGIN_VERIFY_SECRET`）だけを `.env.production` に書き出す。
+  `NEXT_PUBLIC_` を付けないので、ブラウザ向けのコードには入らない
+- pnpm は、ビルドの中でだけ `nodeLinker: hoisted` にする。既定の配置では Amplify が `next` を見つけられない
+- **push でビルドしない。** 起動は次のコマンドで行う（CI からの起動は DEV-48）。ビルドは約 3 分
+
+```bash
+cd infra/terraform/envs/dev
+aws amplify start-job --app-id "$(terraform output -raw web_amplify_app_id)" \
+  --branch-name develop --job-type RELEASE
+```
+
+ベーシック認証の利用者名とパスワードは、Terraform が作る。
+
+```bash
+terraform output -raw web_basic_auth_username
+terraform output -raw web_basic_auth_password
+```
+
+入れ替えるときは `terraform apply -replace=module.web.random_password.basic_auth`。
+Amplify はパスワードをハッシュにして保存するので、Terraform はブランチの値を比べない。作り直したときだけ、`terraform_data` が API で書き換える。
+
+**GitHub のトークンは、アプリを作るときにだけ渡す。** 接続に `admin:repo_hook` の権限が 1 回だけ要る。
+ファイルには書かず、環境変数で渡し、作成後はすぐに失効させる。state には残るが、失効していれば使えない。
+
+```bash
+TF_VAR_github_access_token=<トークン> terraform apply
+```
+
+秘密のヘッダの値を入れ替えるときは、ALB と web を続けて更新する。間は web から API に届かない。
+
+```bash
+terraform apply -replace=module.quiz_service.random_password.origin_verify
+aws amplify start-job ...   # 新しい値でビルドし直す
+```
 
 #### ECS（quiz-service）
 
