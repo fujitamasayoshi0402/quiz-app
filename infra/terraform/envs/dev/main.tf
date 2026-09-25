@@ -88,9 +88,9 @@ module "web" {
 module "deploy_role" {
   source = "../../modules/deploy-role"
 
-  name               = "quiz-app-dev"
-  github_repository  = "fujitamasayoshi0402/quiz-app"
-  github_environment = "dev"
+  name                  = "quiz-app-dev"
+  github_subject_prefix = "repo:fujitamasayoshi0402@62087486/quiz-app@1379474045"
+  github_environment    = "dev"
 
   ecr_repository_arn       = module.quiz_service.ecr_repository_arn
   ecs_cluster_arn          = module.quiz_service.cluster_arn

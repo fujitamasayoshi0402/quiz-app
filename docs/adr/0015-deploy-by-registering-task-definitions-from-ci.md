@@ -124,3 +124,13 @@ A はロールの権限が大きすぎる。C は、Terraform が作る値をタ
 - マイグレーションが失敗したとき、サービスが更新されずにデプロイが失敗すること
 - アプリが起動できずに前のリビジョンへ戻ったとき、デプロイが失敗すること
 - Environment `dev` を使わないジョブ（PR や他のブランチ）から、ロールを引き受けられないこと
+
+## 追記: トークンの `sub` の表記
+
+このリポジトリでは、GitHub が OIDC のトークンの `sub` に、名前だけでなく所有者とリポジトリの ID を入れる（immutable subject）。
+決定に書いた `repo:<owner>/<name>:environment:dev` ではなく、`repo:<owner>@<ID>/<name>@<ID>:environment:dev` になる。
+最初の自動デプロイで、ロールを引き受けられずに失敗して分かった。
+
+信頼の条件はこの表記に合わせた。**決定（リポジトリと Environment で、完全一致で絞る）は変わらない。**
+ID が入るぶん、同じ名前でリポジトリを作り直されても引き受けられず、名前だけで絞るより強い。
+表記は `gh api repos/<owner>/<name>/actions/oidc/customization/sub` の `sub_claim_prefix` で確かめられる。

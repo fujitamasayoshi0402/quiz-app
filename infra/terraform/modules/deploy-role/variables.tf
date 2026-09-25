@@ -5,8 +5,8 @@ variable "name" {
 
 # ---- 信頼の条件 ----
 
-variable "github_repository" {
-  description = "ロールを引き受けられるリポジトリ（owner/name）"
+variable "github_subject_prefix" {
+  description = "ロールを引き受けられるリポジトリ。OIDC のトークンの sub に入る表記（gh api repos/<owner>/<name>/actions/oidc/customization/sub の sub_claim_prefix）"
   type        = string
 }
 
