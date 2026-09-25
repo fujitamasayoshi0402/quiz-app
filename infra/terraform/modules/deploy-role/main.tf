@@ -10,7 +10,9 @@ data "aws_iam_openid_connect_provider" "github_actions" {
 }
 
 # 引き受けられるのは、指定したリポジトリの、指定した Environment で動くジョブだけ。
-# Environment を使うジョブのトークンは、sub が repo:<owner>/<name>:environment:<name> になる。
+# Environment を使うジョブのトークンは、sub が <リポジトリの表記>:environment:<name> になる。
+# リポジトリの表記は、名前に所有者とリポジトリの ID が付く（repo:<owner>@<ID>/<name>@<ID>。GitHub の immutable subject）。
+# 同じ名前でリポジトリを作り直されても、ID が違うので引き受けられない
 # ブランチではなく Environment で絞るのは、どのブランチから使えるかを GitHub 側でまとめて決められるため（dev は develop だけ）
 data "aws_iam_policy_document" "assume" {
   statement {
@@ -31,7 +33,7 @@ data "aws_iam_policy_document" "assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:environment:${var.github_environment}"]
+      values   = ["${var.github_subject_prefix}:environment:${var.github_environment}"]
     }
   }
 }
