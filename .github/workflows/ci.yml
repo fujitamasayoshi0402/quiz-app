@@ -54,6 +54,8 @@ jobs:
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
+              # Amplify のビルドの手順。変えたら dev の web をビルドし直す
+              - 'amplify.yml'
               # 型は OpenAPI 定義から生成するため、定義が変われば作り直しが要る
               - 'docs/api/**'
               - '.mise.toml'
