@@ -498,7 +498,8 @@ Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SEC
 ```
 
 **アプリの利用者の ID は Cognito から切り離す。** `core.users.id` がアプリの ID で、Cognito の `sub` は `external_id` に入る。
-初めてのアクセストークンが届いたとき、バックエンドが利用者を作り、確認済みのメールアドレスを OIDC の userinfo から取って持つ。
+初めてのアクセストークンが届いたとき、バックエンドが利用者を作り、確認済みのメールアドレスを Cognito の `GetUser` で取って持つ。
+OIDC の userinfo は使わない。API で取ったトークン（スモークテスト）は `openid` のスコープを持てず、userinfo が受け付けない。
 認証の方式を替えても、回答の履歴と所属が残る。
 
 **ロールと所属はトークンでは決まらない。** `core.tenant_members` から引く。ロールを切り替えたいときは所属行を変える。
@@ -638,8 +639,8 @@ Route 53 に登録済みのドメインを使う。**ドメイン名はリポジ
 - メールは Cognito の既定の設定（1 日 50 通まで）。確認コードとパスワードの再設定にだけ使う
 - コールバックを許すのは `dev.<ドメイン>` と `http://localhost:3000` だけ。**Amplify の既定のドメインからはログインできない**
 - web のクライアントのシークレットと、Cookie の暗号鍵は、Amplify の環境変数（`AUTH_*`）に入る
-- web のクライアントのスコープは `openid email` だけ。確認済みのメールアドレスは、バックエンドが OIDC の userinfo で取る。
-  Cognito の API 用のスコープ（`aws.cognito.signin.user.admin`）は、トークンで利用者の属性を書き換えられるため持たせない
+- web のクライアントのスコープは `openid email aws.cognito.signin.user.admin`。最後のものは、バックエンドが確認済みのメールアドレスを取る（`GetUser`）ために要る。
+  このスコープのトークンは自分の属性を書き換えられるが、トークンはブラウザに渡らない
 - スモークテストの利用者（`smoke@example.com`）も Terraform が作る。パスワードは `terraform output -raw smoke_user_password`
 
 Managed Login の画面は、web をつながなくても開ける。ログインのあとは `redirect_uri` に戻る（開いていなければエラーの画面になるが、ログインはできている）。

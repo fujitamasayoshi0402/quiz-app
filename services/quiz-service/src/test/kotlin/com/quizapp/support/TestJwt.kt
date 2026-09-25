@@ -21,7 +21,7 @@ object TestJwt {
     const val ISSUER = "https://issuer.test/pool"
     const val CLIENT_ID = "test-web-client"
 
-    /** userinfo の代わりに、確認済みのメールアドレスをトークンに入れて渡す（[TestAuthConfiguration]） */
+    /** Cognito の GetUser の代わりに、確認済みのメールアドレスをトークンに入れて渡す（[TestAuthConfiguration]） */
     const val EMAIL_CLAIM = "test_email"
 
     private val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(KEY_SIZE) }.generateKeyPair()

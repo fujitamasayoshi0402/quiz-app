@@ -36,7 +36,7 @@ variable "hosted_zone_id" {
 # ---- 認証（modules/auth） ----
 
 variable "auth_issuer" {
-  description = "アクセストークンの発行者。JWT の iss と比べ、署名の鍵（JWKS）と userinfo の場所もここから引く"
+  description = "アクセストークンの発行者。JWT の iss と比べ、署名の鍵（JWKS）と GetUser のエンドポイントもここから引く"
   type        = string
 }
 

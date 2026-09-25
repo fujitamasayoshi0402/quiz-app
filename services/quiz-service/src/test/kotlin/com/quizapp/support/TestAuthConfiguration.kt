@@ -28,7 +28,7 @@ class TestAuthConfiguration {
             setJwtValidator(AccessTokens.validator(properties))
         }
 
-    /** userinfo の代わりに、トークンに入れたメールアドレスを返す。入っていなければ未確認として扱う */
+    /** Cognito の GetUser の代わりに、トークンに入れたメールアドレスを返す。入っていなければ未確認として扱う */
     @Bean
     @Primary
     fun testUserProfiles(): UserProfiles = object : UserProfiles {
