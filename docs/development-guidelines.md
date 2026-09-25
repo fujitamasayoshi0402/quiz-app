@@ -765,6 +765,8 @@ gh variable set AMPLIFY_APP_ID --env dev --body "$(terraform output -raw web_amp
   - マイグレーション（Flyway）も、止まっている DB を起こす。接続を試し直す回数を 6 回にしている（`application-migrate.yml`）。
     既定の 0 回では、復帰の途中で失敗する
   - 復帰を待つのはバックエンド。接続プールの `connection-timeout` を、復帰にかかる時間より長くしている（45 秒）。
+    プールを作るときの接続の試み（`initialization-fail-timeout`）は外している。デプロイで替わったタスクが止まっている DB に初めてつなぐと、
+    既定では 1 回の失敗ですぐに 500 を返す
     24 時間を超えて止まっていると復帰に 30 秒を超えることがある。それでも間に合わなかった読み込みは、
     画面の再試行（5xx と通信エラーを 2 回まで、`src/app/providers.tsx`）で拾う。止まったあとの最初の操作は、たいてい読み込み
   - 一時停止しないときは、`DatabaseConnections` と RDS のイベント（クラスタ単位の「Initiated pause / resume」）を見る。
