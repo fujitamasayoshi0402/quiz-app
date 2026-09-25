@@ -611,6 +611,9 @@ terraform output -raw web_basic_auth_username
 terraform output -raw web_basic_auth_password
 ```
 
+入れ替えるときは `terraform apply -replace=module.web.random_password.basic_auth`。
+Amplify はパスワードをハッシュにして保存するので、Terraform はブランチの値を比べない。作り直したときだけ、`terraform_data` が API で書き換える。
+
 **GitHub のトークンは、アプリを作るときにだけ渡す。** 接続に `admin:repo_hook` の権限が 1 回だけ要る。
 ファイルには書かず、環境変数で渡し、作成後はすぐに失効させる。state には残るが、失効していれば使えない。
 

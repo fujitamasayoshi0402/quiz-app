@@ -41,13 +41,40 @@ resource "aws_amplify_branch" "this" {
 
   # スタブ認証の間は、ログイン画面で誰にでもなりすませる。画面そのものを見せる相手を絞る
   enable_basic_auth      = true
-  basic_auth_credentials = base64encode("${var.basic_auth_username}:${random_password.basic_auth.result}")
+  basic_auth_credentials = local.basic_auth_credentials
+
+  # Amplify はパスワードをハッシュにして保存し、読み出すとハッシュが返る。
+  # そのまま比べると apply のたびに差分になるため、ここでは比べない。値を変えたときは下の terraform_data が書き換える
+  lifecycle {
+    ignore_changes = [basic_auth_credentials]
+  }
 }
 
-# デモを見せる相手に渡す。記号を含めると、口頭やチャットで伝えるときに崩れやすい
+# デモを見せる相手に渡す。記号を含めると、口頭やチャットで伝えるときに崩れやすい。
+# 入れ替えるときは terraform apply -replace=module.web.random_password.basic_auth
 resource "random_password" "basic_auth" {
   length  = 20
   special = false
+}
+
+locals {
+  basic_auth_credentials = base64encode("${var.basic_auth_username}:${random_password.basic_auth.result}")
+}
+
+# パスワードを作り直したときに、ブランチのベーシック認証を書き換える
+resource "terraform_data" "basic_auth" {
+  triggers_replace = [sha256(local.basic_auth_credentials)]
+
+  provisioner "local-exec" {
+    command = "aws amplify update-branch --region \"$REGION\" --app-id \"$APP_ID\" --branch-name \"$BRANCH\" --enable-basic-auth --basic-auth-credentials \"$CREDENTIALS\" > /dev/null"
+
+    environment = {
+      REGION      = data.aws_region.current.region
+      APP_ID      = aws_amplify_app.this.id
+      BRANCH      = aws_amplify_branch.this.branch_name
+      CREDENTIALS = local.basic_auth_credentials
+    }
+  }
 }
 
 # ホストゾーンが同じアカウントの Route 53 にあるため、証明書の検証とサブドメインのレコードは Amplify が作る。
