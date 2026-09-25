@@ -31,6 +31,15 @@ INSERT INTO core.tenant_members (tenant_id, user_id, role) VALUES
     ('9efd94a0-e517-573b-b46e-0f1ae96fc342', '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab',  'member')
     ON CONFLICT DO NOTHING;
 
+-- テナント配下の行は、テナントを決めてから入れる --------------------------------
+-- quiz 配下のテーブルは FORCE ROW LEVEL SECURITY で、所有者（マイグレーションを流す quiz）にもポリシーが効く。
+-- アプリと同じく app.tenant_id を設定しないと、行を入れられない（TenantSession）。
+-- 第 3 引数の true で、このマイグレーションのトランザクションの中だけに効く。
+--
+-- ローカルでは quiz がスーパーユーザーのため RLS を素通りし、設定しなくても入ってしまう。
+-- Aurora の quiz はスーパーユーザーではないので、設定しないと拒否される（ADR-0014）。
+SELECT set_config('app.tenant_id', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', true);
+
 -- カテゴリ --------------------------------------------------------------------
 INSERT INTO quiz.categories (id, tenant_id, name, description, sort_order) VALUES
     ('63b3c609-bfa5-5db4-bc9a-ec709936969d', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', 'AWS / インフラ', 'クラウド基盤の設計と運用', 1),
@@ -201,6 +210,8 @@ INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order) 
 
 -- 地理の勉強会 ----------------------------------------------------------------
 -- 扱う分野がテナントごとに違ってよいことを示す。アプリは分野を前提にしない
+SELECT set_config('app.tenant_id', '9efd94a0-e517-573b-b46e-0f1ae96fc342', true);
+
 INSERT INTO quiz.categories (id, tenant_id, name, description, sort_order) VALUES
     ('c6e82f53-2040-54ae-aa18-38a0c3ed1190', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '世界の首都', '最大の都市と首都が違う国', 1)
     ON CONFLICT (id) DO NOTHING;
