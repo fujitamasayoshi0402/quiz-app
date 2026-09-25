@@ -42,6 +42,8 @@ dist/
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+# plan には変数の値（通知先など）がそのまま入る
+*.tfplan
 crash.log
 crash.*.log
 # .terraform.lock.hcl は意図的に追跡する（プロバイダのバージョンとハッシュを固定し、

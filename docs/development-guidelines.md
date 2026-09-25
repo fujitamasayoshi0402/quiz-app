@@ -507,6 +507,7 @@ state の置き場所と環境の分け方は [ADR-0011](adr/0011-terraform-stat
 | ディレクトリ | 内容 | state のキー |
 | --- | --- | --- |
 | `infra/terraform/bootstrap` | tfstate のバケット | `bootstrap/terraform.tfstate` |
+| `infra/terraform/account` | アカウントに 1 つだけ置くもの（予算、コスト配分タグ） | `account/terraform.tfstate` |
 | `infra/terraform/envs/dev` | dev 環境 | `dev/terraform.tfstate` |
 | `infra/terraform/envs/prod` | prod 環境 | `prod/terraform.tfstate` |
 | `infra/terraform/modules` | 環境で共有する部品 | — |
@@ -579,3 +580,8 @@ aws rds-data execute-statement \
   - 同じ理由で dev では RDS Proxy を使わない
 - 通知は Lambda（イベント時のみ課金）で実装し、常駐サービスを増やさない
 - 開発環境の ECS タスクは夜間停止（EventBridge Scheduler で desiredCount=0）
+- **予算は月 30 ドル。** 実績が 85% と 100% を超えたとき、月末の予測が 100% を超えたときにメールで届く
+  （`infra/terraform/account`）。通知先は公開リポジトリに載せないため、`terraform.tfvars`（Git の管理外）で渡す
+  - 予測でも知らせるのは、月の途中で止める判断をするため。実績だけだと、気づいたときには超えている
+  - クレジットと返金は差し引かずに数える。相殺されて、使った量が見えなくなるのを避ける
+- 全リソースに付けている `Project` / `Env` のタグで、Cost Explorer から環境ごとの費用を見る（コスト配分タグ）

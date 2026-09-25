@@ -180,7 +180,7 @@ jobs:
       - name: 検証（terraform validate）
         run: |
           mkdir -p "$TF_PLUGIN_CACHE_DIR"
-          for dir in infra/terraform/bootstrap infra/terraform/envs/*/; do
+          for dir in infra/terraform/bootstrap infra/terraform/account infra/terraform/envs/*/; do
             echo "::group::$dir"
             terraform -chdir="$dir" init -backend=false -input=false -lockfile=readonly
             terraform -chdir="$dir" validate
