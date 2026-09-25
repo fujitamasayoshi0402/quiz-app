@@ -189,11 +189,15 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
 | `ci` | 先行ジョブの結果を集約する |
+| `deploy-dev` | develop への push で、`ci` が通ったあとに dev へ載せる（`deploy-dev.yml`。[デプロイ](#デプロイ)） |
 
 **Ruleset の必須チェックには `ci` だけを指定する。** ジョブを足すたびに設定を触らずに済み、
 パスの出し分けでスキップされたジョブが「報告されないまま待ち続ける」状態にもならない。
 
 ツールのバージョンは CI でも `.mise.toml` から取る。CI 側で別に指定すると二重管理になる。
+
+PR に新しく push すると、動いている古い実行は止まる。develop / main への push では止めない。
+develop では最後にデプロイが走り、マイグレーションの途中で止めると、どこまで流れたかが分からなくなる。
 
 ### secret の検出
 
@@ -268,6 +272,13 @@ Postman のコレクション（`tests/api/`）を Newman で流し、**デプ�
 docker compose up -d
 pnpm test:api                                              # web の proxy を通して呼ぶ
 pnpm test:api --env-var baseUrl=http://localhost:8080      # API を直接呼ぶ
+```
+
+dev では、デプロイの最後に自動で流れる（[デプロイ](#デプロイ)）。手元から dev に流すときは、ベーシック認証の資格情報を渡す。
+渡したときだけ `Authorization` を付ける。
+
+```bash
+pnpm test:api --env-var baseUrl=https://develop.<Amplify のアプリの ID>.amplifyapp.com --env-var basicAuth=<利用者名>:<パスワード>
 ```
 
 **JUnit の API テストと守備範囲を重ねない。** 細かい仕様や境界値は JUnit が見る。
@@ -514,7 +525,7 @@ state の置き場所と環境の分け方は [ADR-0011](adr/0011-terraform-stat
 | ディレクトリ | 内容 | state のキー |
 | --- | --- | --- |
 | `infra/terraform/bootstrap` | tfstate のバケット | `bootstrap/terraform.tfstate` |
-| `infra/terraform/account` | アカウントに 1 つだけ置くもの（予算、コスト配分タグ） | `account/terraform.tfstate` |
+| `infra/terraform/account` | アカウントに 1 つだけ置くもの（予算、コスト配分タグ、GitHub Actions の OIDC プロバイダ） | `account/terraform.tfstate` |
 | `infra/terraform/envs/dev` | dev 環境 | `dev/terraform.tfstate` |
 | `infra/terraform/envs/prod` | prod 環境 | `prod/terraform.tfstate` |
 | `infra/terraform/modules` | 環境で共有する部品 | — |
@@ -529,8 +540,8 @@ terraform plan
 terraform apply
 ```
 
-**apply はローカルから行う。** CI は整形と `validate` だけで、AWS には触れない。
-CI からの plan / apply は、OIDC のロールを作る課題で検討する。
+**apply はローカルから行う。** CI は整形と `validate` だけで、Terraform からは AWS に触れない。
+デプロイに使うロールにも、Terraform を動かす権限は与えていない（[ADR-0015](adr/0015-deploy-by-registering-task-definitions-from-ci.md)）。
 
 - 同時に操作すると、あとから始めたほうがロックで止まる（`Error acquiring the state lock`）。
   ロックは S3 上の `*.tflock` で、異常終了で残ったときは `terraform force-unlock <ID>` で外す
@@ -596,7 +607,8 @@ Route 53 に登録済みのドメインを使う。**ドメイン名はリポジ
 - SSR の実行時には Amplify の環境変数が渡らない。`amplify.yml` がビルドの中で、サーバー側で読む値（`API_ORIGIN`、`ORIGIN_VERIFY_SECRET`）だけを `.env.production` に書き出す。
   `NEXT_PUBLIC_` を付けないので、ブラウザ向けのコードには入らない
 - pnpm は、ビルドの中でだけ `nodeLinker: hoisted` にする。既定の配置では Amplify が `next` を見つけられない
-- **push でビルドしない。** 起動は次のコマンドで行う（CI からの起動は DEV-48）。ビルドは約 3 分
+- **push でビルドしない。** デプロイのワークフローが、quiz-service の後に起動する（[デプロイ](#デプロイ)）。ビルドは約 3 分。
+  手で起動するときは次のコマンドを使う
 
 ```bash
 cd infra/terraform/envs/dev
@@ -611,7 +623,7 @@ terraform output -raw web_basic_auth_username
 terraform output -raw web_basic_auth_password
 ```
 
-入れ替えるときは `terraform apply -replace=module.web.random_password.basic_auth`。
+入れ替えるときは `terraform apply -replace=module.web.random_password.basic_auth`。スモークテストが使う GitHub の secret（`WEB_BASIC_AUTH`）も入れ替える。
 Amplify はパスワードをハッシュにして保存するので、Terraform はブランチの値を比べない。作り直したときだけ、`terraform_data` が API で書き換える。
 
 **GitHub のトークンは、アプリを作るときにだけ渡す。** 接続に `admin:repo_hook` の権限が 1 回だけ要る。
@@ -651,37 +663,8 @@ aws amplify start-job ...   # 新しい値でビルドし直す
 - ログは CloudWatch Logs の `/ecs/quiz-app-dev/quiz-service`（`app/` と `migrate/`）。14 日で消える
 - 起動に失敗したら、前のタスク定義に自動で戻る（デプロイサーキットブレーカー）
 
-デプロイは GitHub Actions で自動にする（DEV-48）。それまでは次の手順で行う。
-**マイグレーションを先に流し、アプリはそのあとで入れ替える**（[マイグレーション](#マイグレーション)）。
-
-```bash
-cd infra/terraform/envs/dev
-REPO=$(terraform output -raw quiz_service_ecr_repository_url)
-TAG=$(git rev-parse --short=12 HEAD)
-
-# 1. イメージを作って push する。タグは上書きできない
-aws ecr get-login-password | docker login --username AWS --password-stdin "${REPO%%/*}"
-docker build --platform linux/arm64 -f ../../../../services/quiz-service/Dockerfile -t "$REPO:$TAG" ../../../..
-docker push "$REPO:$TAG"
-
-# 2. terraform.tfvars の quiz_service_image_tag を $TAG にし、マイグレーションのタスク定義だけを先に更新する。
-#    plan がタスク定義の置き換えだけであることを確かめる
-terraform apply -target=module.quiz_service.aws_ecs_task_definition.migrate
-
-# 3. マイグレーションを流す。終了コードが 0 でなければ、ここで止める
-TASK=$(aws ecs run-task \
-  --cluster "$(terraform output -raw ecs_cluster_name)" \
-  --task-definition "$(terraform output -raw migrate_task_definition_arn)" \
-  --launch-type FARGATE \
-  --network-configuration "$(terraform output -raw migrate_network_configuration)" \
-  --query 'tasks[0].taskArn' --output text)
-aws ecs wait tasks-stopped --cluster "$(terraform output -raw ecs_cluster_name)" --tasks "$TASK"
-aws ecs describe-tasks --cluster "$(terraform output -raw ecs_cluster_name)" --tasks "$TASK" \
-  --query 'tasks[0].containers[0].exitCode'
-
-# 4. アプリを入れ替える
-terraform apply
-```
+**デプロイは GitHub Actions が行う**（[デプロイ](#デプロイ)）。Terraform が持つのはタスク定義の形（環境変数、ロール、CPU など）までで、
+どのイメージを動かすかは持たない。サービスが参照するリビジョンの変化は、Terraform では無視している。
 
 動作を確かめるときは、秘密のヘッダを付けて呼ぶ。
 
@@ -691,6 +674,71 @@ SECRET=$(aws secretsmanager get-secret-value \
 curl -H "X-Origin-Verify: $SECRET" -H "X-User-Id: 67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab" \
      "$(terraform output -raw quiz_service_url)/api/t/demo/admin/categories"
 ```
+
+#### デプロイ
+
+develop にマージすると、CI（`ci.yml`）のチェックが通ったあとに、`deploy-dev.yml` が dev に載せる
+（[ADR-0015](adr/0015-deploy-by-registering-task-definitions-from-ci.md)）。
+
+```
+イメージを作る（arm64）→ ECR に push → マイグレーション（単発タスク）→ サービスの入れ替え → web のビルド（Amplify）→ スモークテスト
+```
+
+- **変わったほうだけを載せる。** quiz-service は `backend`、web は `frontend` の変更で動く（`changes` の判定）。
+  ドキュメントだけの変更では動かない
+- **マイグレーションが失敗したら、サービスは替えない。** 入れ替えで起動に失敗し、前のリビジョンに戻ったときも失敗にする
+- タスク定義は、ファミリーの最新のリビジョンからイメージだけを差し替えて登録する。
+  **Terraform で形（環境変数など）を変えたら、デプロイを手で流して反映する**
+- 後から始まったデプロイは、先のものが終わるまで待つ。途中で止めない
+- 失敗すると GitHub から通知が届く。マイグレーションのログは CloudWatch Logs の `migrate/quiz-service/<タスク ID>` にある
+- イメージのタグはコミットの SHA（先頭 12 桁）。ECR には直近 10 個が残る
+
+手で流すとき（形を変えたあと、失敗をやり直すときなど）。
+
+```bash
+gh workflow run deploy-dev.yml --ref develop                    # quiz-service と web
+gh workflow run deploy-dev.yml --ref develop -f frontend=false   # quiz-service だけ
+```
+
+GitHub Actions が使えないときは、手元から同じスクリプトで流せる。
+
+```bash
+cd infra/terraform/envs/dev
+REPO=$(terraform output -raw quiz_service_ecr_repository_url)
+TAG=$(git rev-parse --short=12 HEAD)
+
+aws ecr get-login-password | docker login --username AWS --password-stdin "${REPO%%/*}"
+docker build --platform linux/arm64 -f ../../../../services/quiz-service/Dockerfile -t "$REPO:$TAG" ../../../..
+docker push "$REPO:$TAG"
+../../../../.github/scripts/deploy-quiz-service.sh quiz-app-dev quiz-service quiz-app-dev-quiz-service-migrate "$REPO:$TAG"
+```
+
+**GitHub Actions は OIDC でロールを引き受ける。アクセスキーは使わない**（`modules/deploy-role`）。
+
+- 引き受けられるのは、このリポジトリの Environment `dev` で動くジョブだけ。`dev` は develop からしか使えない（GitHub の設定）
+- ロールにできるのは、ECR への push、2 つのタスク定義の登録、マイグレーションの起動、サービスの更新、Amplify のビルドの起動だけ
+- OIDC のプロバイダはアカウントに 1 つだけ作れる。`infra/terraform/account` に置いている
+
+Environment `dev` には、次を置く。値は Terraform の出力から入れる。
+
+| 名前 | 種類 | 値 |
+| --- | --- | --- |
+| `AWS_ROLE_ARN` | secret | 引き受けるロール |
+| `WEB_BASIC_AUTH` | secret | スモークテストが通るベーシック認証（`利用者名:パスワード`） |
+| `AMPLIFY_APP_ID` | variable | ビルドを起動する Amplify のアプリ |
+
+```bash
+cd infra/terraform/envs/dev
+gh secret set AWS_ROLE_ARN --env dev --body "$(terraform output -raw deploy_role_arn)"
+gh secret set WEB_BASIC_AUTH --env dev \
+  --body "$(terraform output -raw web_basic_auth_username):$(terraform output -raw web_basic_auth_password)"
+gh variable set AMPLIFY_APP_ID --env dev --body "$(terraform output -raw web_amplify_app_id)"
+```
+
+ベーシック認証のパスワードを入れ替えたら、`WEB_BASIC_AUTH` も入れ替える。
+
+**環境を作り直すときは、先にイメージを push し、そのタグを `quiz_service_image_tag` に入れて apply する。**
+この値はサービスを作るときにだけ使う。以降は変えても、動くタスクは替わらない。
 
 #### state のバケットを作り直すとき
 

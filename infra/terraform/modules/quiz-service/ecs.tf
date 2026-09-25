@@ -3,6 +3,10 @@
 # 同じイメージから 2 つのタスク定義を作る。
 #   app     … サービスとして常時動かす。ALB のターゲットになる
 #   migrate … デプロイのたびに、サービスを入れ替える前に単発で流す（run-task）。流し終えたら止まる
+#
+# ここで決めるのはタスク定義の形（環境変数、ロール、CPU など）まで。
+# デプロイは、最新のリビジョンのイメージだけを差し替えて登録し直す（ADR-0015）。
+# 形を変えて apply しても、動いているタスクは替わらない。次のデプロイで反映される
 
 locals {
   image = "${aws_ecr_repository.quiz_service.repository_url}:${var.image_tag}"
@@ -114,6 +118,12 @@ resource "aws_ecs_service" "app" {
 
   # ALB にリスナーがない間にサービスを作ると、ターゲットグループを紐付けられない
   depends_on = [aws_lb_listener.https]
+
+  # どのリビジョンを動かすかは、デプロイ（GitHub Actions）が決める（ADR-0015）。
+  # Terraform が登録したリビジョンは、次のデプロイで形の元として使われ、イメージだけが差し替わる
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
 
 # ---- migrate ----

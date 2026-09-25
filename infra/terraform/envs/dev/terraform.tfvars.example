@@ -3,5 +3,6 @@
 # Route 53 に登録済みのドメイン（ホストゾーンの名前）
 domain_name = "example.com"
 
-# ECR に push したイメージのタグ（git rev-parse --short=12 HEAD）
+# ECR に push したイメージのタグ（git rev-parse --short=12 HEAD）。
+# サービスを作るときにだけ使う。以降のデプロイは GitHub Actions が行い、この値を変えても動くタスクは替わらない
 quiz_service_image_tag = "0123456789ab"

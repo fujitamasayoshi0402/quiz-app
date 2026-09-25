@@ -83,3 +83,20 @@ module "web" {
   github_access_token = var.github_access_token
   basic_auth_username = "demo"
 }
+
+# GitHub Actions が dev へのデプロイに使うロール。develop にだけ使わせる（GitHub の Environment dev で絞る）
+module "deploy_role" {
+  source = "../../modules/deploy-role"
+
+  name               = "quiz-app-dev"
+  github_repository  = "fujitamasayoshi0402/quiz-app"
+  github_environment = "dev"
+
+  ecr_repository_arn       = module.quiz_service.ecr_repository_arn
+  ecs_cluster_arn          = module.quiz_service.cluster_arn
+  ecs_service_arn          = module.quiz_service.service_arn
+  task_definition_families = module.quiz_service.task_definition_families
+  task_role_arns           = module.quiz_service.task_role_arns
+
+  amplify_branch_arn = module.web.branch_arn
+}

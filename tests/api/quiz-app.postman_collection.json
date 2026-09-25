@@ -14,7 +14,14 @@
           "// web の proxy を通るときは Cookie から付け直され、API を直接呼ぶときは X-User-Id がそのまま使われる",
           "const userId = pm.collectionVariables.get(\"userId\");",
           "pm.request.headers.upsert({ key: \"X-User-Id\", value: userId });",
-          "pm.request.headers.upsert({ key: \"Cookie\", value: `quiz-user=${userId}` });"
+          "pm.request.headers.upsert({ key: \"Cookie\", value: `quiz-user=${userId}` });",
+          "",
+          "// dev（Amplify）は画面をベーシック認証で守っている。資格情報（利用者名:パスワード）を渡されたときだけ付ける。",
+          "// リポジトリには置かず、実行時に --env-var basicAuth=... で渡す",
+          "const basicAuth = pm.variables.get(\"basicAuth\");",
+          "if (basicAuth) {",
+          "  pm.request.headers.upsert({ key: \"Authorization\", value: `Basic ${Buffer.from(basicAuth).toString(\"base64\")}` });",
+          "}"
         ]
       }
     }

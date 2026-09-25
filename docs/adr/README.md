@@ -20,6 +20,7 @@
 | [0012](0012-serve-frontend-on-amplify-hosting.md) | フロントは Amplify Hosting で配る | Accepted |
 | [0013](0013-run-ecs-tasks-in-public-subnets.md) | ECS のタスクはパブリックサブネットに置き、NAT Gateway も VPC Endpoint も使わない | Accepted |
 | [0014](0014-connect-to-aurora-with-iam-auth.md) | Aurora へは IAM 認証で接続し、ロールは Data API で作る | Accepted |
+| [0015](0015-deploy-by-registering-task-definitions-from-ci.md) | dev へのデプロイは GitHub Actions がタスク定義のリビジョンを登録して行い、Terraform はタスク定義の形だけを持つ | Accepted |
 
 ## 運用ルール
 

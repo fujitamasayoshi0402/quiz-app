@@ -58,7 +58,7 @@ variable "iam_db_user_arns" {
 # ---- タスク ----
 
 variable "image_tag" {
-  description = "動かすイメージのタグ（git のコミット）。タグは上書きできないため、同じタグは同じ中身を指す"
+  description = "Terraform がタスク定義を登録するときのイメージのタグ（git のコミット）。サービスを作るときにだけ動く。以降はデプロイが差し替える"
   type        = string
 }
 
