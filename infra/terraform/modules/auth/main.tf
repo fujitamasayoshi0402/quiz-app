@@ -41,9 +41,10 @@ resource "aws_cognito_user_pool" "this" {
     allowed_first_auth_factors = ["PASSWORD", "WEB_AUTHN"]
   }
 
+  # RP ID は指定しない。独自ドメインがなければ、プレフィックスドメイン（local.domain_fqdn）になる。
+  # 指定すると、User Pool を作る時点ではまだドメインがないため、Cognito が受け付けない。
+  # 一度決まった RP ID を変えると、利用者はパスキーを登録し直す
   web_authn_configuration {
-    # 一度決めて変えると、利用者はパスキーを登録し直す
-    relying_party_id = local.domain_fqdn
     # 必須にすると、生体認証や PIN を持たない認証器で登録できない
     user_verification = "preferred"
   }
