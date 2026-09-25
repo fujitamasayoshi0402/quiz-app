@@ -66,7 +66,7 @@ class AttemptDeliveryApiTest {
     private fun start(body: String): ResultActionsDsl = mockMvc.post("/api/t/${tenant.slug}/play/attempts") {
         contentType = MediaType.APPLICATION_JSON
         content = body
-        header("X-User-Id", user.toString())
+        header("Authorization", TestAuth.bearer(user))
     }
 
     /** 中断中は 1 件までなので、続けて始めるテストでは毎回破棄する。 */

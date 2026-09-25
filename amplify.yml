@@ -24,8 +24,8 @@ applications:
         build:
           commands:
             # SSR の実行時には、Amplify の環境変数が渡らない。サーバー側で読む値だけを .env.production に書き出す。
-            # NEXT_PUBLIC_ を付けないので、ブラウザ向けのコードには入らない
-            - env | grep -E '^(API_ORIGIN|ORIGIN_VERIFY_SECRET)=' >> apps/web/.env.production
+            # NEXT_PUBLIC_ を付けないので、ブラウザ向けのコードには入らない。AUTH_* はログイン（ADR-0016）
+            - env | grep -E '^(API_ORIGIN|ORIGIN_VERIFY_SECRET|AUTH_[A-Z_]+)=' >> apps/web/.env.production
             - pnpm --filter web build
       artifacts:
         baseDirectory: apps/web/.next

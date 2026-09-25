@@ -74,3 +74,10 @@ management:
 logging:
   level:
     org.flywaydb: INFO
+
+app:
+  auth:
+    # アクセストークンの発行者と、トークンを受け取る web のクライアント（ADR-0016）。無ければ起動しない（AuthProperties）。
+    # AWS ではタスク定義の環境変数、ローカルでは .env から渡す
+    issuer: ${AUTH_ISSUER:}
+    client-id: ${AUTH_CLIENT_ID:}

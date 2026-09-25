@@ -73,10 +73,10 @@ class AuthorizationApiTest {
     }
 
     @Test
-    @DisplayName("利用者として読めない値を渡しても 401")
-    fun malformedUserIsUnauthorized() {
+    @DisplayName("トークンとして読めない値を渡しても 401")
+    fun malformedTokenIsUnauthorized() {
         mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
-            header("X-User-Id", "not-a-uuid")
+            header("Authorization", "Bearer not-a-jwt")
         }.andExpect { status { isUnauthorized() } }
     }
 
@@ -87,7 +87,7 @@ class AuthorizationApiTest {
     fun outsiderSeesNotFound() {
         // 403 を返すと、そのテナントが実在することが分かってしまう
         mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
-            header("X-User-Id", TestAuth.OUTSIDER.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.OUTSIDER))
         }.andExpect {
             status { isNotFound() }
             jsonPath("$.detail") { value("指定されたテナントは存在しません") }
@@ -98,7 +98,7 @@ class AuthorizationApiTest {
     @DisplayName("管理者でも、所属していない別テナントは 404")
     fun adminCannotReachAnotherTenant() {
         mockMvc.get("/api/t/${otherTenant.slug}/admin/categories") {
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isNotFound() } }
     }
 
@@ -106,7 +106,7 @@ class AuthorizationApiTest {
     @DisplayName("存在しない slug も 404")
     fun unknownTenantIsNotFound() {
         mockMvc.get("/api/t/unknown/admin/categories") {
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isNotFound() } }
     }
 
@@ -116,7 +116,7 @@ class AuthorizationApiTest {
     @DisplayName("一般ユーザーは管理 API を使えない")
     fun memberCannotUseAdminApi() {
         mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
-            header("X-User-Id", TestAuth.MEMBER.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.MEMBER))
         }.andExpect {
             status { isForbidden() }
             jsonPath("$.title") { value("権限がありません") }
@@ -125,7 +125,7 @@ class AuthorizationApiTest {
         mockMvc.post("/api/t/${tenant.slug}/admin/categories") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"勝手に作ったカテゴリ"}"""
-            header("X-User-Id", TestAuth.MEMBER.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.MEMBER))
         }.andExpect { status { isForbidden() } }
     }
 
@@ -135,7 +135,7 @@ class AuthorizationApiTest {
         mockMvc.post("/api/t/${tenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"scope":"all"}"""
-            header("X-User-Id", TestAuth.MEMBER.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.MEMBER))
         }.andExpect { status { isCreated() } }
     }
 
@@ -143,13 +143,13 @@ class AuthorizationApiTest {
     @DisplayName("管理者は管理 API も出題 API も使える")
     fun adminCanUseBoth() {
         mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isOk() } }
 
         mockMvc.post("/api/t/${tenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"scope":"all"}"""
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isCreated() } }
     }
 
@@ -157,7 +157,7 @@ class AuthorizationApiTest {
     @DisplayName("所属を外すと、それまで使えていた API が 404 になる")
     fun leavingTenantRevokesAccess() {
         mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isOk() } }
 
         // 論理削除された所属は参照しない
@@ -168,7 +168,7 @@ class AuthorizationApiTest {
         )
 
         mockMvc.get("/api/t/${tenant.slug}/admin/categories") {
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isNotFound() } }
     }
 }

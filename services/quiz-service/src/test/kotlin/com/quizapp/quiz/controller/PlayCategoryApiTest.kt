@@ -94,7 +94,7 @@ class PlayCategoryApiTest {
         val auth = fixture.category("認証認可")
         val deleted = fixture.quiz(auth, fixture.difficulty(auth, "基礎", 1), "削除する問題")
         mockMvc.delete("/api/t/${tenant.slug}/admin/quizzes/$deleted") {
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isNoContent() } }
 
         list().andExpect { jsonPath("$.length()") { value(0) } }
@@ -102,6 +102,6 @@ class PlayCategoryApiTest {
 
     private fun list() = mockMvc.get("/api/t/${tenant.slug}/play/categories") {
         // 一般ユーザーが使う API なので、管理者ではない利用者で呼ぶ
-        header("X-User-Id", TestAuth.MEMBER.toString())
+        header("Authorization", TestAuth.bearer(TestAuth.MEMBER))
     }
 }

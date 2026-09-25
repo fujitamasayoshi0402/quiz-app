@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ApiError } from "@/lib/api/fetcher";
@@ -6,7 +5,7 @@ import { ApiError } from "@/lib/api/fetcher";
 /**
  * API のエラーを利用者に伝える。
  *
- * - 401 … 利用者の選び直しへ誘導する
+ * - 401 … ログインへ誘導する（セッションが切れた、または更新できなかった）
  * - 400 の入力エラー … バックエンドが項目ごとの理由（`errors`）を返すので、それを並べる
  * - 理由のないエラー … 通信の失敗や、バックエンドに届く前に返った応答。時間をおいて試すよう伝える。
  *   AWS では、夜間にバックエンドを止めている間、ALB が本文のない 503 を返す
@@ -34,9 +33,9 @@ export function ApiErrorAlert({ error }: { error: unknown }) {
           </p>
         )}
         {apiError?.status === 401 && (
-          <Link href="/login" className="underline underline-offset-4">
-            利用者を選ぶ
-          </Link>
+          <a href="/auth/login" className="underline underline-offset-4">
+            ログインし直す
+          </a>
         )}
       </AlertDescription>
     </Alert>

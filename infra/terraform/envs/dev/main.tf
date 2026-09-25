@@ -48,6 +48,9 @@ module "quiz_service" {
   alb_security_group_id     = module.network.security_group_ids.alb
   service_security_group_id = module.network.security_group_ids.quiz_service
 
+  auth_issuer    = module.auth.issuer
+  auth_client_id = module.auth.client_id
+
   db_endpoint      = module.database.cluster_endpoint
   db_port          = module.database.port
   db_name          = module.database.database_name
@@ -86,6 +89,9 @@ module "auth" {
     "http://localhost:3000",
   ]
 
+  # スモークテスト（tests/api）の利用者。シードが同じアドレスでスモークテストのテナントの管理者を用意している
+  smoke_user_email = "smoke@example.com"
+
   deletion_protection = false
 }
 
@@ -109,7 +115,6 @@ module "web" {
   }
 
   github_access_token = var.github_access_token
-  basic_auth_username = "demo"
 }
 
 # GitHub Actions が dev へのデプロイに使うロール。develop にだけ使わせる（GitHub の Environment dev で絞る）

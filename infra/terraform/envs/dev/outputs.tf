@@ -40,15 +40,6 @@ output "web_amplify_app_id" {
   value = module.web.app_id
 }
 
-# ベーシック認証。terraform output -raw web_basic_auth_password で取り出す
-output "web_basic_auth_username" {
-  value = module.web.basic_auth_username
-}
-
-output "web_basic_auth_password" {
-  value     = module.web.basic_auth_password
-  sensitive = true
-}
 
 output "auth_user_pool_id" {
   value = module.auth.user_pool_id
@@ -65,4 +56,19 @@ output "auth_client_id" {
 output "auth_managed_login_url" {
   description = "Managed Login の画面。手で確かめるときは、ここに /login?client_id=...&response_type=code&redirect_uri=... を付けて開く"
   value       = module.auth.managed_login_url
+}
+
+# スモークテストがトークンを取るのに使う（GitHub の Environment dev の secret にも入れる）
+output "auth_client_secret" {
+  value     = module.auth.client_secret
+  sensitive = true
+}
+
+output "smoke_user_email" {
+  value = module.auth.smoke_user_email
+}
+
+output "smoke_user_password" {
+  value     = module.auth.smoke_user_password
+  sensitive = true
 }

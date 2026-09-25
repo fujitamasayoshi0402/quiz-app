@@ -200,6 +200,6 @@ class DifficultyApiTest {
 
     /** テナント配下のエンドポイントは所属していないと触れない。既定は共有管理者。 */
     private fun MockHttpServletRequestDsl.auth(user: UUID = TestAuth.ADMIN) {
-        header("X-User-Id", user.toString())
+        header("Authorization", TestAuth.bearer(user))
     }
 }

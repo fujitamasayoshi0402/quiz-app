@@ -51,18 +51,17 @@ class OpenApiConfiguration {
         .components(
             Components()
                 .addSecuritySchemes(
-                    STUB_AUTH,
+                    BEARER_AUTH,
                     SecurityScheme()
-                        .type(SecurityScheme.Type.APIKEY)
-                        .`in`(SecurityScheme.In.HEADER)
-                        .name("X-User-Id")
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT")
                         .description(
-                            "Phase 1 のスタブ認証。利用者の UUID をそのまま渡す。" +
-                                "Phase 3 で Cognito の JWT に差し替える",
+                            "Cognito のアクセストークン。画面から呼ぶときは、web の proxy がログインのセッションから付ける（ADR-0016）",
                         ),
                 ),
         )
-        .addSecurityItem(SecurityRequirement().addList(STUB_AUTH))
+        .addSecurityItem(SecurityRequirement().addList(BEARER_AUTH))
 
     /**
      * テナント配下の全エンドポイントに共通のエラー応答を足す。
@@ -132,7 +131,7 @@ class OpenApiConfiguration {
     private companion object {
         /** API の互換性を表す。破壊的な変更を入れたときに上げる */
         const val API_VERSION = "0.1.0"
-        const val STUB_AUTH = "stubUser"
+        const val BEARER_AUTH = "bearerAuth"
         const val PROBLEM_DETAIL = "ProblemDetail"
         const val PROBLEM_JSON = "application/problem+json"
         const val TENANT_SCOPED_PREFIX = "/api/t/"

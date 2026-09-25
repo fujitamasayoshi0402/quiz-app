@@ -5,7 +5,7 @@
 管理者はそれぞれ独立したクイズ空間（テナント）を持ちます。管理者が登録したカテゴリ・クイズは
 そのテナントの中だけに存在し、他のテナントからは見えません。
 一般ユーザーは所属するテナントのクイズに回答し、正誤判定と解説を確認できます。
-認証にはパスキー（WebAuthn）を採用します。
+ログインにはパスキー（WebAuthn）とパスワードを使えます。
 
 デモ環境には技術系のクイズ（AWS / インフラ、イベント駆動・マイクロサービス設計、認証認可、
 バックエンド設計など）を収録しています。
@@ -20,7 +20,7 @@
 | バックエンド | Kotlin 2.3 + Spring Boot 4.1 (Java 21) |
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui |
 | DB | Aurora PostgreSQL Serverless v2 (min 0 ACU) |
-| 認証 | Amazon Cognito（パスキー / WebAuthn） |
+| 認証 | Amazon Cognito（Managed Login、パスキー + パスワード） |
 | 実行基盤 | ECS Fargate + ALB（API）、Amplify Hosting（フロント） |
 | 非同期 / 通知 | EventBridge + Lambda + Slack Webhook |
 | IaC | Terraform |
@@ -39,6 +39,7 @@
 ├── infra/
 │   └── terraform/
 │       ├── bootstrap/           # tfstate を置く S3 バケット
+│       ├── account/             # アカウントに 1 つだけ置くもの（予算、OIDC のプロバイダ）
 │       ├── modules/             # 再利用するモジュール
 │       └── envs/                # dev / prod の環境定義
 ├── tests/
@@ -56,15 +57,17 @@
 
 ## 動かしてみる
 
-Docker だけで起動できます。
+アプリ一式を Docker で起動できます。**ログインには Amazon Cognito の User Pool が要ります**（ローカルでも同じ）。
+User Pool は Terraform（`infra/terraform/envs/dev`）で作り、その出力を `.env` に入れます。
 
 ```bash
+cp .env.example .env          # AUTH_* を埋める（書き方は .env.example）
 docker compose up
 ```
 
-`http://localhost:3000` を開き、利用者を選ぶと、デモ用のクイズに回答できます。
-「デモ管理者」を選ぶと、所属する 2 つのテナントから入る先を選べます。
-管理者として所属するテナントでは、ヘッダの「管理」からクイズやカテゴリを編集できます。
+`http://localhost:3000` を開き、ログインの画面（Cognito）でアカウントを作ると、最初は「招待を受けていない」と表示されます。
+デモ用のテナントに入るには、シードのデモ管理者に自分のメールアドレスを割り当てます
+（[最初の管理者](docs/development-guidelines.md#最初の管理者)）。管理者として所属するテナントでは、ヘッダの「管理」からクイズやカテゴリを編集できます。
 
 | | 場所 |
 | --- | --- |
@@ -73,7 +76,7 @@ docker compose up
 | PostgreSQL | `localhost:5432` |
 | LocalStack | `localhost:4566` |
 
-ポートがほかのアプリと重なるときは、`.env.example` を `.env` にコピーして変えてください。
+ポートがほかのアプリと重なるときは、`.env` で変えてください。
 
 ## ローカル開発
 
@@ -87,6 +90,7 @@ mise install                                     # .mise.toml のバージョン
 mise exec -- lefthook install                    # commit の前に secret を探すフックを入れる
 
 docker compose up -d postgres localstack
+set -a && source .env && set +a                  # ログインの設定（AUTH_*）を読み込む
 SPRING_PROFILES_ACTIVE=dev,migrate ./gradlew :services:quiz-service:bootRun   # マイグレーションを流して終了する
 SPRING_PROFILES_ACTIVE=dev ./gradlew :services:quiz-service:bootRun
 pnpm install && pnpm --filter web dev
@@ -117,14 +121,14 @@ pnpm install && pnpm --filter web dev
 
 ## ステータス
 
-Phase 1（ローカルで動く MVP）が完了し、Phase 2（AWS 基盤と継続的デリバリ）を進めています。
+Phase 1（ローカルで動く MVP）と Phase 2（AWS 基盤と継続的デリバリ）を終え、Phase 3（パスキー認証とロール分離）を進めています。
 
-ローカルでは、クイズ・カテゴリ・難易度の管理から、出題・回答・結果の確認までひと通り動きます。スマホの幅でも操作できます。
-テナントの分離は、行レベルセキュリティと、全エンドポイントを対象にしたテナント境界のテストで守っています。
-認証は、Phase 3 でパスキーに差し替えるまでスタブ（ログイン画面で利用者を選ぶ）です。
-
-Phase 2 では、AWS 上に dev 環境（ネットワーク・Aurora Serverless v2・ECS Fargate・Amplify Hosting）を Terraform で構築しました。
-develop へのマージで dev 環境へ自動でデプロイされ、最後にスモークテストが流れます。AWS への認証は OIDC で、アクセスキーは発行していません。
-残りは、dev の ECS を夜間に止めてコストを下げる仕組みです。
+- クイズ・カテゴリ・難易度の管理から、出題・回答・結果の確認までひと通り動きます。スマホの幅でも操作できます
+- テナントの分離は、行レベルセキュリティと、全エンドポイントを対象にしたテナント境界のテストで守っています
+- AWS 上の dev 環境（ネットワーク・Aurora Serverless v2・ECS Fargate・Amplify Hosting）は Terraform で構築しています。
+  develop へのマージで自動でデプロイされ、最後にスモークテストが流れます。AWS への認証は OIDC で、アクセスキーは発行していません
+- ログインは Amazon Cognito（Managed Login、パスキー + パスワード）です。トークンはブラウザに渡さず、web のサーバーが暗号化した Cookie に持ちます。
+  利用者の ID は Cognito から切り離してあり、あとで自前のパスキーの実装に差し替えます（[ADR-0016](docs/adr/0016-authenticate-with-cognito-managed-login.md)）
+- 次は、管理者が一般ユーザーと管理者を招待する流れです
 
 進捗は [ロードマップ](docs/ROADMAP.md) を参照してください。

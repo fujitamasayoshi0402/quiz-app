@@ -97,13 +97,19 @@ jobs:
         with:
           install_args: node npm:newman
 
-      # web → API → DB がつながっているかを、画面と同じ経路（Amplify のベーシック認証と proxy）で確かめる。
+      # web → API → DB がつながっているかを、画面と同じ経路（Amplify と proxy）で確かめる。
+      # スモークテストの利用者（Terraform の modules/auth が作る）でトークンを取り、Authorization に付けて呼ぶ。
       # 失敗するとワークフローが失敗し、GitHub から通知が届く
       - name: スモークテスト
-        run: >-
-          newman run tests/api/quiz-app.postman_collection.json
-          --env-var "baseUrl=https://${AMPLIFY_BRANCH}.${AMPLIFY_APP_ID}.amplifyapp.com"
-          --env-var "basicAuth=${WEB_BASIC_AUTH}"
+        run: |
+          TOKEN=$(.github/scripts/smoke-token.sh "$AUTH_CLIENT_ID" "$SMOKE_USER_EMAIL")
+          echo "::add-mask::$TOKEN"
+          newman run tests/api/quiz-app.postman_collection.json \
+            --env-var "baseUrl=https://${AMPLIFY_BRANCH}.${AMPLIFY_APP_ID}.amplifyapp.com" \
+            --env-var "accessToken=${TOKEN}"
         env:
           AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
-          WEB_BASIC_AUTH: ${{ secrets.WEB_BASIC_AUTH }}
+          AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+          AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
+          SMOKE_USER_EMAIL: smoke@example.com
+          SMOKE_USER_PASSWORD: ${{ secrets.SMOKE_USER_PASSWORD }}

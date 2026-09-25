@@ -160,7 +160,7 @@ class TenantBoundaryApiTest {
         assertThat(url).describedAs("パス変数が埋まっていない").doesNotContain("{")
 
         val request = MockMvcRequestBuilders.request(probe.method, url)
-            .header("X-User-Id", TestAuth.ADMIN.toString())
+            .header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         probe.query.forEach { (name, id) -> request.queryParam(name, id.toString()) }
         probe.body?.let { request.contentType(MediaType.APPLICATION_JSON).content(it) }
         return mockMvc.perform(request).andReturn()
@@ -377,14 +377,14 @@ class TenantBoundaryApiTest {
         val deletedDifficulty = victimFixture.difficulty(deletedCategory, "$SECRET 削除済み難易度", 1)
         val deletedQuiz = victimFixture.quiz(deletedCategory, deletedDifficulty, "$SECRET 削除済み問題")
         mockMvc.delete("/api/t/${victimTenant.slug}/admin/categories/$deletedCategory") {
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isNoContent() } }
 
         // 攻撃者自身が victim で挑戦を中断している
         val attempt = mockMvc.post("/api/t/${victimTenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"scope":"all"}"""
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isCreated() } }.andReturn().response.contentAsString.let(objectMapper::readTree)
 
         return Ids(

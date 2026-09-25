@@ -33,6 +33,18 @@ variable "hosted_zone_id" {
   type        = string
 }
 
+# ---- 認証（modules/auth） ----
+
+variable "auth_issuer" {
+  description = "アクセストークンの発行者。JWT の iss と比べ、署名の鍵（JWKS）と userinfo の場所もここから引く"
+  type        = string
+}
+
+variable "auth_client_id" {
+  description = "トークンを受け取る web のクライアント。ほかのクライアントに発行されたトークンは受け付けない"
+  type        = string
+}
+
 # ---- データベース（modules/database） ----
 
 variable "db_endpoint" {

@@ -26,7 +26,7 @@ class PlayFixture(
         val result = mockMvc.post("/api/t/$slug/admin/categories") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"$name"}"""
-            header("X-User-Id", admin.toString())
+            header("Authorization", TestAuth.bearer(admin))
         }.andExpect { }.andReturn()
         return objectMapper.readValue(result.response.contentAsString, CategoryResponse::class.java).id
     }
@@ -35,7 +35,7 @@ class PlayFixture(
         val result = mockMvc.post("/api/t/$slug/admin/categories/$categoryId/difficulties") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"$name","level":$level}"""
-            header("X-User-Id", admin.toString())
+            header("Authorization", TestAuth.bearer(admin))
         }.andExpect { }.andReturn()
         return objectMapper.readValue(result.response.contentAsString, DifficultyResponse::class.java).id
     }
@@ -50,7 +50,7 @@ class PlayFixture(
                  "question":"$question","explanation":"$question の解説",
                  "choices":[$choices],"status":"$status"}
             """.trimIndent()
-            header("X-User-Id", admin.toString())
+            header("Authorization", TestAuth.bearer(admin))
         }.andExpect { }.andReturn()
         return objectMapper.readValue(result.response.contentAsString, QuizResponse::class.java).id
     }

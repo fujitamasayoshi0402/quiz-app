@@ -54,6 +54,12 @@ object TestAuth {
         return id
     }
 
+    /**
+     * 利用者として API を呼ぶときの `Authorization` の値。
+     * 利用者は `test-<ID>` を認証基盤の ID として持つ（[ensureUsers]、[createUser]）
+     */
+    fun bearer(userId: UUID): String = "Bearer ${TestJwt.issue("test-$userId")}"
+
     fun join(tenantId: UUID, userId: UUID, role: String) {
         TestPostgres.adminJdbcTemplate.update(
             "INSERT INTO core.tenant_members (tenant_id, user_id, role) VALUES (?, ?, ?)",

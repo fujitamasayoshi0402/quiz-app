@@ -300,7 +300,8 @@ erDiagram
     }
     users {
         uuid id PK
-        string external_id UK "Cognito のユーザー識別子"
+        string external_id UK "認証基盤の利用者の ID（sub）"
+        string email UK "確認済みのメールアドレス"
     }
     categories {
         uuid id PK

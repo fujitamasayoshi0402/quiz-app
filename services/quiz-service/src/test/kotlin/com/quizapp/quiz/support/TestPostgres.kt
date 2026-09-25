@@ -56,5 +56,7 @@ object TestPostgres {
         registry.add("spring.flyway.enabled") { "true" }
         registry.add("spring.flyway.user") { "quiz" }
         registry.add("spring.flyway.password") { "quiz" }
+        registry.add("app.auth.issuer") { com.quizapp.support.TestJwt.ISSUER }
+        registry.add("app.auth.client-id") { com.quizapp.support.TestJwt.CLIENT_ID }
     }
 }

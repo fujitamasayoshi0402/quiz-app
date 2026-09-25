@@ -106,15 +106,20 @@ CREATE UNIQUE INDEX tenants_slug_key ON core.tenants (slug) WHERE deleted_at IS 
 
 | カラム | 型 | 制約 |
 | --- | --- | --- |
-| `id` | uuid | PK |
-| `external_id` | text | NOT NULL, UNIQUE。Cognito のユーザー識別子（`sub`） |
+| `id` | uuid | PK。アプリの利用者の ID |
+| `external_id` | text | UNIQUE。認証基盤（Cognito）の利用者の ID（`sub`）。事前に登録した利用者は、最初にログインするまで NULL |
+| `email` | text | `lower(email)` で UNIQUE。認証基盤で確認済みのメールアドレス |
 | `display_name` | text | NOT NULL |
 | `created_at` / `updated_at` | timestamptz | NOT NULL |
 
-Phase 1 のスタブ認証では、`external_id` に任意の文字列を入れて動かします。
-Phase 3 で Cognito の `sub` に置き換えますが、**カラムの意味は変わらないため移行はデータの入れ替えだけで済みます。**
+`external_id` と `email` のどちらかは必ず持つ（`users_identifiable`）。
 
-パスワードやパスキーの情報はここに持ちません。認証は Cognito に委ねます（[ADR-0005](adr/0005-use-cognito-passkeys.md)）。
+**アプリの利用者の ID は認証基盤から切り離します**（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。
+Cognito の `sub` を ID にすると、認証の方式を替えたときに回答の履歴と所属が付け替えになります。
+初めてのアクセストークンが届いたときに行を作り、以降は `external_id` で引きます。
+メールアドレスだけを持つ行（事前に登録した利用者）があれば、同じ確認済みのアドレスで最初にログインした人に結び付けます。
+
+パスワードやパスキーの情報はここに持ちません。認証は Cognito に委ねます。
 
 ### core.tenant_members
 

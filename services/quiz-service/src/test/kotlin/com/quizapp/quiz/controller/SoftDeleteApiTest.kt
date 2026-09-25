@@ -90,7 +90,7 @@ class SoftDeleteApiTest {
         mockMvc.post("/api/t/${tenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"scope":"all"}"""
-            header("X-User-Id", player.toString())
+            header("Authorization", TestAuth.bearer(player))
         }.andExpect { status { isUnprocessableEntity() } }
     }
 
@@ -279,7 +279,7 @@ class SoftDeleteApiTest {
     // --- ヘルパー -------------------------------------------------------------
 
     private fun MockHttpServletRequestDsl.auth() {
-        header("X-User-Id", TestAuth.ADMIN.toString())
+        header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
     }
 
     private fun get(path: String): ResultActionsDsl = mockMvc.get("/api/t/${tenant.slug}$path") { auth() }

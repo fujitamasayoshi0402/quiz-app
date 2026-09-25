@@ -10,17 +10,12 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// 利用者の識別（Phase 3 まではスタブ）。両方を付けておき、経路に応じてどちらかが使われる。",
-          "// web の proxy を通るときは Cookie から付け直され、API を直接呼ぶときは X-User-Id がそのまま使われる",
-          "const userId = pm.collectionVariables.get(\"userId\");",
-          "pm.request.headers.upsert({ key: \"X-User-Id\", value: userId });",
-          "pm.request.headers.upsert({ key: \"Cookie\", value: `quiz-user=${userId}` });",
-          "",
-          "// dev（Amplify）は画面をベーシック認証で守っている。資格情報（利用者名:パスワード）を渡されたときだけ付ける。",
-          "// リポジトリには置かず、実行時に --env-var basicAuth=... で渡す",
-          "const basicAuth = pm.variables.get(\"basicAuth\");",
-          "if (basicAuth) {",
-          "  pm.request.headers.upsert({ key: \"Authorization\", value: `Basic ${Buffer.from(basicAuth).toString(\"base64\")}` });",
+          "// 利用者の識別。Cognito のアクセストークンを Authorization に付ける（ADR-0016）。",
+          "// web の proxy は、ログインのセッションが無い要求の Authorization をそのまま渡す。API を直接呼ぶときも同じトークンで通る。",
+          "// トークンはリポジトリに置かず、実行時に --env-var accessToken=... で渡す（.github/scripts/smoke-token.sh で取る）",
+          "const accessToken = pm.variables.get(\"accessToken\");",
+          "if (accessToken) {",
+          "  pm.request.headers.upsert({ key: \"Authorization\", value: `Bearer ${accessToken}` });",
           "}"
         ]
       }
@@ -31,11 +26,6 @@
       "key": "slug",
       "value": "smoke",
       "description": "スモークテスト専用のテナント"
-    },
-    {
-      "key": "userId",
-      "value": "0b520e9c-a1d8-53e6-90c7-26376e1f7927",
-      "description": "smoke の管理者"
     },
     {
       "key": "otherSlug",
@@ -648,8 +638,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "// コレクションで付けた識別を外す",
-                  "pm.request.headers.remove(\"X-User-Id\");",
-                  "pm.request.headers.remove(\"Cookie\");"
+                  "pm.request.headers.remove(\"Authorization\");"
                 ]
               }
             },
