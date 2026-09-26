@@ -1,9 +1,11 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.usecase.QuizImportRejectedException
 import com.quizapp.quiz.usecase.QuizImportRow
 import com.quizapp.quiz.usecase.QuizImportUseCase
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Size
@@ -68,6 +70,7 @@ data class ImportQuizRequest(
     val category: String,
     val difficulty: String,
     val question: String,
+    @field:Schema(description = Quiz.EXPLANATION_FORMAT)
     val explanation: String = "",
     val choices: List<ChoiceRequest> = emptyList(),
     val status: String = "draft",

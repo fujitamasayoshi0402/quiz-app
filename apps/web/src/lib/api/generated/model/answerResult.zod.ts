@@ -17,7 +17,7 @@ import * as zod from 'zod';
 export const AnswerResult = zod.object({
   "answeredCount": zod.int(),
   "correctChoiceId": zod.uuid(),
-  "explanation": zod.string(),
+  "explanation": zod.string().describe('解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の HTML と画像は表示しない'),
   "isCorrect": zod.boolean(),
   "totalCount": zod.int()
 })

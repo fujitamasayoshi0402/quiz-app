@@ -1752,6 +1752,8 @@ components:
           format: uuid
         explanation:
           type: string
+          description: 解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の
+            HTML と画像は表示しない
         isCorrect:
           type: boolean
         totalCount:
@@ -2129,6 +2131,8 @@ components:
           type: string
         explanation:
           type: string
+          description: 解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の
+            HTML と画像は表示しない
         question:
           type: string
         status:
@@ -2277,6 +2281,8 @@ components:
           format: uuid
         explanation:
           type: string
+          description: 解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の
+            HTML と画像は表示しない
         id:
           type: string
           format: uuid
@@ -2304,6 +2310,8 @@ components:
           format: uuid
         explanation:
           type: string
+          description: 解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の
+            HTML と画像は表示しない
         isCorrect:
           type: boolean
         question:
@@ -2378,6 +2386,8 @@ components:
           format: uuid
         explanation:
           type: string
+          description: 解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の
+            HTML と画像は表示しない
         question:
           type: string
           maxLength: 2000

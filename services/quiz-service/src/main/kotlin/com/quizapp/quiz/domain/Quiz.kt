@@ -69,5 +69,9 @@ data class Quiz(
     companion object {
         const val CHOICE_COUNT = 4
         const val MAX_QUESTION_LENGTH = 2000
+
+        /** 解説の書き方。API 定義の説明に使う。表示する側が守ること（ADR-0018） */
+        const val EXPLANATION_FORMAT = "解説。Markdown（GitHub Flavored Markdown）で書く。" +
+            "改行はそのまま改行として表示する。生の HTML と画像は表示しない"
     }
 }
