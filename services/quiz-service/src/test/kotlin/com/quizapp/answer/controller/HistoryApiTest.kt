@@ -122,7 +122,8 @@ class HistoryApiTest {
 
         assertThat(first["items"].size()).isEqualTo(HistoryUseCase.PAGE_SIZE)
         assertThat(second.has("nextCursor")).isFalse()
-        assertThat((first["items"].values() + second["items"].values()).map { it["id"].asString() }).isEqualTo(created.reversed())
+        val listed = (first["items"].values() + second["items"].values()).map { it["id"].asString() }
+        assertThat(listed).isEqualTo(created.reversed())
     }
 
     @Test
