@@ -17,12 +17,7 @@ import {
 } from "@/lib/api/generated/endpoints";
 import { type FeedbackMode, rememberMode } from "@/lib/play/mode";
 import { rangeOptions, toCriteria } from "@/lib/play/range";
-
-const SCOPES = [
-  { value: "all", label: "すべて", hint: "回答済みの問題も含める" },
-  { value: "unanswered", label: "未回答を優先", hint: "足りない分は回答済みで埋める" },
-  { value: "unanswered_only", label: "未回答のみ", hint: "一周したいときに" },
-];
+import { SCOPES } from "@/lib/play/scope";
 
 const ORDERS = [
   { value: "random", label: "ランダム" },

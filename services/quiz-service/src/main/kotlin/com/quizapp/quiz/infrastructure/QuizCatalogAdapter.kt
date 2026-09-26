@@ -4,6 +4,8 @@ import com.quizapp.answer.domain.QuizCatalog
 import com.quizapp.quiz.domain.AnswerKey
 import com.quizapp.quiz.domain.DeliveredQuiz
 import com.quizapp.quiz.domain.DeliveryCriteria
+import com.quizapp.quiz.domain.PlayableCategory
+import com.quizapp.quiz.domain.PlayableCategoryQuery
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.usecase.QuizDeliveryUseCase
 import org.springframework.stereotype.Component
@@ -19,6 +21,7 @@ import java.util.UUID
 class QuizCatalogAdapter(
     private val deliveryUseCase: QuizDeliveryUseCase,
     private val quizRepository: QuizRepository,
+    private val playableCategories: PlayableCategoryQuery,
 ) : QuizCatalog {
 
     override fun select(criteria: DeliveryCriteria, userId: UUID): List<DeliveredQuiz> =
@@ -43,4 +46,9 @@ class QuizCatalogAdapter(
                 explanation = quiz.explanation,
             )
         }.toMap()
+
+    override fun findPlayableCategories(): List<PlayableCategory> = playableCategories.findAll()
+
+    override fun findCategoryIds(quizIds: Collection<UUID>): Map<UUID, UUID> =
+        playableCategories.findCategoryIds(quizIds)
 }
