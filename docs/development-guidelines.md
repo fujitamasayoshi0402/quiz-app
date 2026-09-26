@@ -187,6 +187,7 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | `backend` | ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド |
 | `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → build → イメージのビルド |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
+| `e2e` | docker compose でアプリ一式を起動し、Playwright で権限まわりの流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
 | `ci` | 先行ジョブの結果を集約する |
 | `deploy-dev` | develop への push で、`ci` が通ったあとに dev へ載せる（`deploy-dev.yml`。[デプロイ](#デプロイ)） |
@@ -235,6 +236,7 @@ develop では最後にデプロイが走り、マイグレーションの途中
 | API テスト | コントローラから DB まで。Testcontainers の PostgreSQL を使う | `quiz/controller/QuizApiTest.kt` |
 | 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest` |
 | スモークテスト | デプロイした環境で、主要な導線が通るか。Newman で流す | `tests/api/` |
+| E2E テスト | 画面をまたいだ流れ（ログイン、招待、ロールによる出し分け）。Playwright で流す | `tests/e2e/` |
 
 **単体テストにするのは、分岐や不変条件を持つものだけ。** リポジトリへ素通しするだけのユースケースには書かない。
 SQL が担うこと（絞り込み・並び順・行レベルセキュリティ・連鎖削除）は、フェイクでは確かめられないので API テストで見る。
@@ -297,6 +299,45 @@ dev では、デプロイの最後に自動で流れる（[デプロイ](#デプ
   生成したものに検証を書き足しても、生成し直すと消える
 - Postman のアプリでそのまま開ける。書き換えたら、ローカルで流してから commit する
 - Newman は `.mise.toml` で固定している（`mise install` で入る）
+
+#### E2E テスト
+
+[Playwright](https://playwright.dev/) で、**権限まわりの流れを画面から**確かめる（`tests/e2e/`）。
+ログインのあとに元の画面へ戻るか、ロールによって管理画面に入れるか、招待のリンクで招待された人だけが参加できるか。
+API の細かい仕様は JUnit、デプロイした環境のつながりはスモークテストが見る。ここは画面をまたいだ流れだけを見る。
+
+```bash
+cd infra/terraform/envs/dev
+export E2E_USER_PASSWORD="$(terraform output -raw e2e_user_password)"
+cd -
+
+docker compose up -d                                  # ローカルの一式に向けて流す
+pnpm --filter e2e exec playwright install chromium    # 初回だけ
+pnpm test:e2e
+```
+
+- **ログインは、利用者ごとに 1 回だけ Managed Login の画面で行い、Cookie を保存して使い回す**（`auth.setup.ts`）。
+  本物のログインの流れを毎回通しつつ、Cognito の画面に依存するのを `support/sign-in.ts` の 1 か所に閉じ込める。
+  認証を自前の実装に替えたら（DEV-59）、ここを書き換える
+- API でトークンを取ってセッションの Cookie を作る方法は採らなかった。速いが、ログインの画面とコールバックを通らず、テストが Cookie の暗号鍵を持つことになる
+- 利用者は、管理者・一般ユーザー・未所属・招待される人の 4 人。Cognito の利用者は Terraform（`modules/auth` の `e2e_user_emails`）が作り、パスワードは全員で共通
+- **所属とロールは、テストの前に DB に作る**（`fixtures.sql` を `global-setup.ts` が docker compose の postgres に流す）。
+  そのため、docker compose で起動した一式（ローカルと CI）にだけ向ける。dev の DB には E2E の所属がなく、dev でログインしてもどこにも入れない
+- 招待される人の所属は、テストの前に外す。何度流しても、同じ状態から始まる
+- テスト同士が状態を共有する（招待を受け入れると所属が増える）ため、並列にせず、やり直しもしない
+- **パスワードを入力するプロジェクト（setup と login）では、トレースもスクリーンショットも残さない。**
+  トレースにも、失敗したときの画面の記録（アクセシビリティのツリー）にも入力した値が残り、CI の成果物は公開リポジトリでは誰でも取り出せる。
+  CI が保存するのは、保存した Cookie を使うテスト（e2e のプロジェクト）の結果だけ。ログインの操作が失敗したときは、パスワードの欄を空にしてから失敗させる
+
+CI では `e2e` ジョブが、バックエンドか画面か E2E に関わるものが変わったときに流す。フォークからの PR には secret が渡らないため動かさない。
+ローカルと同じく dev の Cognito でログインするため、リポジトリ（Environment ではない）に次を置く。PR のジョブは Environment `dev` を使えない（develop からだけ使える）。
+
+| 名前 | 種類 | 値 |
+| --- | --- | --- |
+| `AUTH_ISSUER` | variable | `terraform output -raw auth_issuer` |
+| `AUTH_CLIENT_ID` | variable | `terraform output -raw auth_client_id` |
+| `AUTH_CLIENT_SECRET` | secret | `terraform output -raw auth_client_secret` |
+| `E2E_USER_PASSWORD` | secret | `terraform output -raw e2e_user_password` |
 
 ### OpenAPI
 
@@ -569,6 +610,8 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 - ログインの始まり（`/auth/login`）で、`state` と PKCE の verifier を暗号化した Cookie に置き、コールバックで照合する
 - ログアウト（`/auth/logout`）は POST だけを受ける。リフレッシュトークンを失効させ、Cognito のセッションも終える
 - ログインのセッションが無い要求は、`Authorization` をそのまま渡す。スモークテストのように、トークンを自分で取る呼び出し元のため
+- ログインが要る画面（`/t/...`、`/invitations/...`）を未ログインで開くと、proxy が**開こうとしたパスとクエリ**を戻り先にしてログインへ移す。
+  レイアウトは開いているパスを知らないため、そこで戻り先を決めると、テナントのトップにしか戻せない
 - AWS では、proxy が秘密のヘッダ（`X-Origin-Verify`）も付ける。値は環境変数 `ORIGIN_VERIFY_SECRET` から読み、ローカルでは付けない（[Amplify](#amplifyweb)）
 
 `/` は所属テナントの数で出し分ける（0 件: 招待を受けていない旨 / 1 件: そのテナントへ / 2 件以上: 選択画面）。
@@ -673,6 +716,7 @@ Route 53 に登録済みのドメインを使う。**ドメイン名はリポジ
 - web のクライアントのスコープは `openid email aws.cognito.signin.user.admin`。最後のものは、バックエンドが確認済みのメールアドレスを取る（`GetUser`）ために要る。
   このスコープのトークンは自分の属性を書き換えられるが、トークンはブラウザに渡らない
 - スモークテストの利用者（`smoke@example.com`）も Terraform が作る。パスワードは `terraform output -raw smoke_user_password`
+- E2E テストの利用者（`e2e-*@example.com` の 4 人）も同じ。パスワードは全員で共通で、`terraform output -raw e2e_user_password`（[E2E テスト](#e2e-テスト)）
 
 Managed Login の画面は、web をつながなくても開ける。ログインのあとは `redirect_uri` に戻る（開いていなければエラーの画面になるが、ログインはできている）。
 
