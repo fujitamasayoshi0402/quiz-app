@@ -28,6 +28,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       terraform: ${{ steps.filter.outputs.terraform }}
+      e2e: ${{ steps.filter.outputs.e2e }}
     steps:
       - uses: actions/checkout@v4
 
@@ -67,6 +68,14 @@ jobs:
             terraform:
               - 'infra/terraform/**'
               - '.mise.toml'
+              - '.github/workflows/ci.yml'
+            # バックエンドか画面が変わったときにも流す（e2e ジョブの条件）。ここはそれ以外で E2E に関わるもの
+            e2e:
+              - 'tests/e2e/**'
+              - 'docker-compose.yml'
+              - 'infra/docker/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
               - '.github/workflows/ci.yml'
 
   backend:
@@ -169,6 +178,78 @@ jobs:
       - name: コンテナイメージをビルドする
         run: docker build -f apps/web/Dockerfile .
 
+  # 権限まわりの E2E テスト（DEV-77）。docker compose でアプリ一式を起動し、Playwright で画面から確かめる。
+  # ログインは dev の Cognito を使う（ADR-0016）。クライアントのシークレットとテストの利用者のパスワードは、リポジトリの secret にある。
+  # フォークからの PR には secret が渡らないので動かさない
+  e2e:
+    name: e2e
+    needs: changes
+    if: >-
+      (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.e2e == 'true')
+      && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AUTH_ISSUER: ${{ vars.AUTH_ISSUER }}
+      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
+      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: pnpm ストアの場所を調べる
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: 依存を入れる
+        run: pnpm install --frozen-lockfile
+
+      - name: 型チェック
+        run: pnpm --filter e2e typecheck
+
+      # Cookie の暗号鍵は、この実行の中でだけ使う。後の段も docker compose を呼ぶ（DB の準備、ログ）ため、ジョブの環境変数にする。
+      # docker compose は呼ぶたびに設定ファイル全体を読み、値が無いと止まる
+      - name: Cookie の暗号鍵を作る
+        run: |
+          secret="$(openssl rand -base64 48)"
+          echo "::add-mask::$secret"
+          echo "AUTH_SESSION_SECRET=$secret" >> "$GITHUB_ENV"
+
+      # depends_on の条件（マイグレーションの成功、quiz-service の healthy）を待ってから web を起動する
+      - name: アプリ一式を起動する
+        run: |
+          docker compose up --build --detach web
+          curl --silent --fail --retry 30 --retry-all-errors --retry-delay 2 --output /dev/null http://localhost:3000/login
+
+      - name: Playwright のブラウザを入れる
+        run: pnpm --filter e2e exec playwright install --with-deps chromium
+
+      - name: E2E テスト
+        run: pnpm test:e2e
+
+      - name: 起動の記録を出す
+        if: failure()
+        run: docker compose logs --no-color --tail 200 migrate quiz-service web
+
+      # 保存した Cookie を使うテスト（e2e のプロジェクト）の結果だけを残す。
+      # ログインするプロジェクト（setup と login）の結果は残さない。失敗したときの画面の記録に、入力したパスワードが入りうる。
+      # Cookie は、この実行の中でだけ使う暗号鍵で守られていて、あとから使えない
+      - name: テストの結果を保存する
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: tests/e2e/test-results/*-e2e/
+          retention-days: 7
+
   # AWS には触れない。plan / apply はローカルから行う（ADR-0015）。デプロイのロールにも Terraform を動かす権限はない
   terraform:
     name: terraform
@@ -225,7 +306,7 @@ jobs:
   ci:
     name: ci
     if: always()
-    needs: [changes, backend, frontend, terraform, secrets]
+    needs: [changes, backend, frontend, e2e, terraform, secrets]
     runs-on: ubuntu-latest
     steps:
       - name: 先行ジョブの結果を確かめる
