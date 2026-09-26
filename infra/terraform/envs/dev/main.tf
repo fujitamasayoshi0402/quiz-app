@@ -117,6 +117,14 @@ module "auth" {
   # スモークテスト（tests/api）の利用者。シードが同じアドレスでスモークテストのテナントの管理者を用意している
   smoke_user_email = "smoke@example.com"
 
+  # E2E テスト（tests/e2e）の利用者。役割はテストがローカルの DB で割り当てる（管理者 / 一般ユーザー / 未所属 / 招待される人）
+  e2e_user_emails = [
+    "e2e-admin@example.com",
+    "e2e-member@example.com",
+    "e2e-outsider@example.com",
+    "e2e-invitee@example.com",
+  ]
+
   deletion_protection = false
 }
 

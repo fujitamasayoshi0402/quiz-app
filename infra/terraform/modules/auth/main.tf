@@ -164,3 +164,30 @@ resource "aws_cognito_user" "smoke" {
   # 作るときにメールを送らない
   message_action = "SUPPRESS"
 }
+
+# ---- E2E テストの利用者 ----
+# E2E テスト（tests/e2e）が、Managed Login の画面からこの利用者でログインする。
+# 所属とロールは、テストがローカルの DB に作る。dev の DB には所属がないので、dev でログインしてもどのテナントにも入れない。
+# パスワードは全員で共通にする。役割ごとに分けても守るものは変わらず、GitHub の secret が増えるだけ
+
+resource "random_password" "e2e" {
+  count = length(var.e2e_user_emails) == 0 ? 0 : 1
+
+  length  = 32
+  special = false
+}
+
+resource "aws_cognito_user" "e2e" {
+  for_each = var.e2e_user_emails
+
+  user_pool_id = aws_cognito_user_pool.this.id
+  username     = each.value
+  password     = random_password.e2e[0].result
+
+  attributes = {
+    email          = each.value
+    email_verified = "true"
+  }
+
+  message_action = "SUPPRESS"
+}

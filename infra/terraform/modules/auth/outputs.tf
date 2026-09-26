@@ -28,3 +28,8 @@ output "smoke_user_password" {
   value     = one(random_password.smoke[*].result)
   sensitive = true
 }
+
+output "e2e_user_password" {
+  value     = one(random_password.e2e[*].result)
+  sensitive = true
+}

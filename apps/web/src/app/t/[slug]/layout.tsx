@@ -6,6 +6,7 @@ import { currentUser } from "@/lib/auth/current-user";
 export default async function TenantLayout({ children, params }: LayoutProps<"/t/[slug]">) {
   const { slug } = await params;
   const user = await currentUser();
+  // ふつうは proxy が、開こうとした画面を戻り先にしてログインへ移している。ここは proxy を通らなかったときの守り
   if (!user) {
     redirect(`/login?returnTo=${encodeURIComponent(`/t/${slug}`)}`);
   }
