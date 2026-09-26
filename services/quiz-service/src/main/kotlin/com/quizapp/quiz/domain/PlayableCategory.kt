@@ -36,4 +36,7 @@ interface PlayableCategoryQuery {
      * **[findAll] と同じ条件で絞る。** 返したカテゴリは、必ず [findAll] にも現れる。
      */
     fun findCategoryIds(quizIds: Collection<UUID>): Map<UUID, UUID>
+
+    /** いま出題できるクイズの ID。[findAll] と同じ条件で絞る。 */
+    fun findQuizIds(): Set<UUID>
 }
