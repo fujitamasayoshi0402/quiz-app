@@ -2,10 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { DeleteDialog } from "@/components/admin/delete-dialog";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
@@ -13,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateQuiz, useDeleteQuiz, useGetQuiz, useUpdateQuiz } from "@/lib/api/generated/endpoints";
 import { useCatalog } from "@/lib/admin/catalog";
@@ -67,6 +70,8 @@ function QuizEditor({
   const form = useForm<QuizFormValues>({ resolver: zodResolver(QuizFormSchema), defaultValues: initial });
   const { errors } = form.formState;
   const categoryId = useWatch({ control: form.control, name: "categoryId" });
+  const explanation = useWatch({ control: form.control, name: "explanation" });
+  const [explanationTab, setExplanationTab] = useState("write");
 
   const create = useCreateQuiz({ mutation: { onSuccess: toList } });
   const update = useUpdateQuiz({ mutation: { onSuccess: toList } });
@@ -76,11 +81,17 @@ function QuizEditor({
 
   const save = (status: QuizStatus) => {
     form.setValue("status", status);
-    void form.handleSubmit((values) => {
-      const data = toSaveQuizRequest(values);
-      if (quizId) update.mutate({ slug, id: quizId, data });
-      else create.mutate({ slug, data });
-    })();
+    void form.handleSubmit(
+      (values) => {
+        const data = toSaveQuizRequest(values);
+        if (quizId) update.mutate({ slug, id: quizId, data });
+        else create.mutate({ slug, data });
+      },
+      // プレビューを開いたままだと、誤りのある入力欄が見えない
+      (invalid) => {
+        if (invalid.explanation) setExplanationTab("write");
+      },
+    )();
   };
 
   return (
@@ -190,7 +201,32 @@ function QuizEditor({
 
           <Field data-invalid={!!errors.explanation}>
             <FieldLabel htmlFor="explanation">解説</FieldLabel>
-            <Textarea id="explanation" rows={5} aria-invalid={!!errors.explanation} {...form.register("explanation")} />
+            <FieldDescription>
+              Markdown で書けます（見出し、箇条書き、コード、リンク、表）。HTML と画像は表示されません。
+            </FieldDescription>
+            <Tabs value={explanationTab} onValueChange={setExplanationTab}>
+              <TabsList>
+                <TabsTrigger value="write">書く</TabsTrigger>
+                <TabsTrigger value="preview">プレビュー</TabsTrigger>
+              </TabsList>
+              {/* 入力欄は外さずに隠す。外すと、戻ったときにカーソルの位置や元に戻す履歴が消える */}
+              <TabsContent value="write" forceMount className="data-[state=inactive]:hidden">
+                <Textarea
+                  id="explanation"
+                  rows={8}
+                  className="font-mono"
+                  aria-invalid={!!errors.explanation}
+                  {...form.register("explanation")}
+                />
+              </TabsContent>
+              <TabsContent value="preview" className="min-h-40 rounded-lg border px-3 py-2">
+                {explanation.trim() ? (
+                  <Markdown>{explanation}</Markdown>
+                ) : (
+                  <p className="text-muted-foreground text-sm">解説がまだありません。</p>
+                )}
+              </TabsContent>
+            </Tabs>
             <FieldError errors={[errors.explanation]} />
           </Field>
         </CardContent>
