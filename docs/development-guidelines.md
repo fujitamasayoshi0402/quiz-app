@@ -528,6 +528,14 @@ UPDATE core.users SET email = '<自分のメールアドレス>', external_id = 
 WHERE id = '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab';
 ```
 
+すでにログインしたあと（自分の利用者ができている）なら、自分の利用者に所属を足す。
+
+```sql
+INSERT INTO core.tenant_members (tenant_id, user_id, role)
+SELECT t.id, u.id, 'admin' FROM core.tenants t, core.users u
+WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレス>');
+```
+
 | 利用者 | ID | 所属 |
 | --- | --- | --- |
 | デモ管理者 | `67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab` | `demo`（管理者）、`geo-club`（一般ユーザー） |
