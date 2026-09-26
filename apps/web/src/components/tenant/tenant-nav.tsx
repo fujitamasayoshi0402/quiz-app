@@ -18,6 +18,7 @@ import { roleLabel } from "@/lib/auth/roles";
  *
  * 「管理」は管理者として所属しているテナントでだけ出す。**表示の都合であって、権限の判定ではない。**
  * 判定はバックエンドが行い、一般ユーザーが管理画面の URL を直接開いても API が 403 を返す。
+ * 画面の入口でも、管理者でなければ案内を出して止める（`AdminGuard`）。
  */
 export function TenantNav({ slug }: { slug: string }) {
   const tenants = useListMyTenants();
