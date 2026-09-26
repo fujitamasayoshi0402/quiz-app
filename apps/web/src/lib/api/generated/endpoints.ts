@@ -46,8 +46,10 @@ import {
   ImportQuizzesResponse,
   InvitationResponse,
   MyTenantResponse,
+  Participation,
   PlayableCategoryResponse,
   QuizResponse,
+  RankingView,
   ReceivedInvitationResponse,
   Trash
 } from './model';
@@ -56,8 +58,10 @@ import type {
   CreateCategoryRequest,
   CreateFigureRequest,
   CreateInvitationRequest,
+  GetRankingParams,
   ImportQuizzesRequest,
   ListCompletedAttemptsParams,
+  ParticipateRequest,
   ProblemDetail,
   SaveDifficultyRequest,
   SaveQuizRequest,
@@ -3981,3 +3985,291 @@ export function useListCategoryScores<TData = Awaited<ReturnType<typeof listCate
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
+export const getGetRankingUrl = (slug: string,
+    params?: GetRankingParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/t/${slug}/play/ranking?${stringifiedParams}` : `/api/t/${slug}/play/ranking`
+}
+
+/**
+ * @summary ランキングを取得
+ */
+export const getRanking = async (slug: string,
+    params?: GetRankingParams, options?: Parameters<typeof apiFetch>[1]): Promise<RankingView> => {
+
+  return apiFetch<RankingView>(getGetRankingUrl(slug,params),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: RankingView
+  }
+);}
+
+
+
+
+
+export const getGetRankingQueryKey = (slug: string,
+    params?: GetRankingParams,) => {
+    return [
+    `/api/t/${slug}/play/ranking`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetRankingQueryOptions = <TData = Awaited<ReturnType<typeof getRanking>>, TError = ProblemDetail>(slug: string,
+    params?: GetRankingParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRanking>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRankingQueryKey(slug,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRanking>>> = ({ signal }) => getRanking(slug,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRanking>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRankingQueryResult = NonNullable<Awaited<ReturnType<typeof getRanking>>>
+export type GetRankingQueryError = ProblemDetail
+
+
+export function useGetRanking<TData = Awaited<ReturnType<typeof getRanking>>, TError = ProblemDetail>(
+ slug: string,
+    params: undefined |  GetRankingParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRanking>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRanking>>,
+          TError,
+          Awaited<ReturnType<typeof getRanking>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRanking<TData = Awaited<ReturnType<typeof getRanking>>, TError = ProblemDetail>(
+ slug: string,
+    params?: GetRankingParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRanking>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRanking>>,
+          TError,
+          Awaited<ReturnType<typeof getRanking>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRanking<TData = Awaited<ReturnType<typeof getRanking>>, TError = ProblemDetail>(
+ slug: string,
+    params?: GetRankingParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRanking>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary ランキングを取得
+ */
+
+export function useGetRanking<TData = Awaited<ReturnType<typeof getRanking>>, TError = ProblemDetail>(
+ slug: string,
+    params?: GetRankingParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRanking>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRankingQueryOptions(slug,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getLeaveRankingUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/ranking/participation`
+}
+
+/**
+ * @summary ランキングへの参加をやめる
+ */
+export const leaveRanking = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getLeaveRankingUrl(slug),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getLeaveRankingMutationKey = () => ['leaveRanking'] as const;
+
+export const getLeaveRankingMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveRanking>>, TError,LeaveRankingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof leaveRanking>>, TError,LeaveRankingMutationVariables, TContext> => {
+
+const mutationKey = getLeaveRankingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof leaveRanking>>, LeaveRankingMutationVariables> = (props) => {
+          const {slug} = props ?? {};
+
+          return  leaveRanking(slug,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LeaveRankingMutationResult = NonNullable<Awaited<ReturnType<typeof leaveRanking>>>
+
+    export type LeaveRankingMutationError = ProblemDetail
+    export type LeaveRankingMutationVariables = {slug: string}
+
+    /**
+ * @summary ランキングへの参加をやめる
+ */
+export const useLeaveRanking = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveRanking>>, TError,LeaveRankingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof leaveRanking>>,
+        TError,
+        LeaveRankingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLeaveRankingMutationOptions(options), queryClient);
+    }
+
+export const getParticipateInRankingUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/ranking/participation`
+}
+
+/**
+ * 参加していれば名前を変える。同じテナントで使われている名前は 409
+ * @summary ランキングに参加する
+ */
+export const participateInRanking = async (slug: string,
+    participateRequest: ParticipateRequest, options?: Parameters<typeof apiFetch>[1]): Promise<Participation> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<Participation>(getParticipateInRankingUrl(slug),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(participateRequest),
+    schema: Participation
+  }
+);}
+
+
+
+
+
+export const getParticipateInRankingMutationKey = () => ['participateInRanking'] as const;
+
+export const getParticipateInRankingMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof participateInRanking>>, TError,ParticipateInRankingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof participateInRanking>>, TError,ParticipateInRankingMutationVariables, TContext> => {
+
+const mutationKey = getParticipateInRankingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof participateInRanking>>, ParticipateInRankingMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  participateInRanking(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ParticipateInRankingMutationResult = NonNullable<Awaited<ReturnType<typeof participateInRanking>>>
+    export type ParticipateInRankingMutationBody = ParticipateRequest
+    export type ParticipateInRankingMutationError = ProblemDetail
+    export type ParticipateInRankingMutationVariables = {slug: string;data: ParticipateRequest}
+
+    /**
+ * @summary ランキングに参加する
+ */
+export const useParticipateInRanking = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof participateInRanking>>, TError,ParticipateInRankingMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof participateInRanking>>,
+        TError,
+        ParticipateInRankingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getParticipateInRankingMutationOptions(options), queryClient);
+    }
