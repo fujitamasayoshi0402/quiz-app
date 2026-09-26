@@ -8,6 +8,7 @@ const ITEMS = [
   { segment: "quizzes", label: "クイズ" },
   { segment: "categories", label: "カテゴリ" },
   { segment: "trash", label: "削除済み" },
+  { segment: "invitations", label: "招待" },
 ];
 
 export function AdminNav({ slug }: { slug: string }) {

@@ -62,7 +62,7 @@ $$ LANGUAGE plpgsql;
 
 | スキーマ | テーブル | 将来の分離先 |
 | --- | --- | --- |
-| `core` | `tenants` / `users` / `tenant_members` | 分離しない（共通） |
+| `core` | `tenants` / `users` / `tenant_members` / `invitations` | 分離しない（共通） |
 | `quiz` | `categories` / `difficulties` / `quizzes` / `choices` | quiz-service |
 | `answer` | `attempts` / `attempt_quizzes` / `answers` | answer-service |
 
@@ -139,6 +139,33 @@ CREATE INDEX tenant_members_user_idx ON core.tenant_members (user_id) WHERE dele
 ```
 
 `user_id` のインデックスは「所属テナント一覧」の取得に使います（`/` へのアクセス時）。
+
+### core.invitations
+
+テナントへの招待（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。管理者が作り、招待された人がリンクから受け入れます。
+
+| カラム | 型 | 制約 |
+| --- | --- | --- |
+| `id` | uuid | PK |
+| `tenant_id` | uuid | NOT NULL, FK → `core.tenants(id)` |
+| `email` | text | NOT NULL。招待したメールアドレス。受け入れる人の確認済みのアドレスと比べる |
+| `role` | text | NOT NULL, `CHECK (role IN ('admin','member'))` |
+| `token_hash` | text | NOT NULL, UNIQUE。リンクに入れるトークンの SHA-256（16 進） |
+| `invited_by` | uuid | NOT NULL, FK → `core.users(id)` |
+| `expires_at` | timestamptz | NOT NULL。作ってから 7 日 |
+| `accepted_at` / `accepted_by` | timestamptz / uuid | 受け入れたとき。両方あるか、両方ないか |
+| `revoked_at` | timestamptz | 取り消したとき。受け入れと両立しない |
+| `created_at` / `updated_at` | timestamptz | NOT NULL |
+
+```sql
+CREATE UNIQUE INDEX invitations_open_email_key
+  ON core.invitations (tenant_id, lower(email)) WHERE accepted_at IS NULL AND revoked_at IS NULL;
+```
+
+**トークンそのものは持ちません。** 作った直後の応答で 1 回だけ返します。DB やバックアップが漏れても、そこからリンクは作れません。
+256 ビットの乱数なので、ハッシュに塩やストレッチは要りません。パスワードと違い、候補を絞って総当たりできる値ではありません。
+
+受け入れ待ちの招待は、同じテナントの同じアドレスへ 1 つだけです。招待し直すと、前のものを取り消してから作ります。
 
 ### quiz.categories
 
@@ -389,15 +416,17 @@ Spring Boot では `spring.datasource` に `quiz_app`、`spring.flyway.user` に
 `nullif` で `NULL` に揃えることで、どちらの場合も「0 件」で一貫します。
 設定漏れを検知する仕組みはアプリケーション層に置きます。
 
-### core.tenants と core.tenant_members には設定しない
+### core.tenants と core.tenant_members と core.invitations には設定しない
 
-この 2 つは**テナント境界の中にあるデータではなく、境界そのものを定義するテーブル**です。
+この 3 つは**テナント境界の中にあるデータではなく、境界そのものを定義するテーブル**です。
 
 所属テナント一覧の取得は、どのテナントで作業するかが決まる**前**に行われます。
 この時点では `app.tenant_id` を設定できないため、ポリシーをかけると一覧が取れず、
 複数テナントに所属するユーザーが最初の画面から先へ進めなくなります。
 
-参照できる範囲はアプリケーション層で `user_id` により制御します。
+招待の受け入れも同じで、招待された人はまだ所属しておらず、どのテナントの招待かはトークンから引くまで分かりません。
+
+参照できる範囲はアプリケーション層で制御します。所属は `user_id`、招待は管理者の操作なら `tenant_id`、受け入れならトークンと本人のメールアドレスで絞ります。
 
 ### 論理削除の条件は含めない
 
