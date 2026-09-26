@@ -76,13 +76,13 @@ class QuizImportApiTest {
 
     private fun import(vararg rows: Map<String, Any>): ResultActionsDsl =
         mockMvc.post("/api/t/${tenant.slug}/admin/quizzes/import") {
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("quizzes" to rows.toList()))
         }
 
     private fun quizzesIn(categoryId: UUID) = mockMvc.get("/api/t/${tenant.slug}/admin/quizzes") {
-        header("X-User-Id", TestAuth.ADMIN.toString())
+        header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         param("categoryId", categoryId.toString())
     }
 
@@ -188,7 +188,7 @@ class QuizImportApiTest {
         val deleted = fixture.category("削除したカテゴリ")
         fixture.difficulty(deleted, "初級", 1)
         mockMvc.delete("/api/t/${tenant.slug}/admin/categories/$deleted") {
-            header("X-User-Id", TestAuth.ADMIN.toString())
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isNoContent() } }
 
         import(row("問題", category = "削除したカテゴリ", difficulty = "初級")).andExpect {
