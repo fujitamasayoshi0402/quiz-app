@@ -32,7 +32,7 @@
 ### 一般ユーザー
 - パスキー（WebAuthn）でユーザー登録・ログイン
 - 所属するテナントのカテゴリ / 難易度を選択してクイズに挑戦
-- 4 択問題に回答、正誤判定と解説（文章 + draw.io 図解）の閲覧
+- 4 択問題に回答、正誤判定と解説（Markdown の文章 + draw.io 図解）の閲覧
 - 回答履歴・スコアの確認
 
 ### 管理者
@@ -53,7 +53,7 @@
 | バックエンド | Kotlin 2.3 + Spring Boot 4.1 (Java 21) | Gradle Kotlin DSL。[ADR-0008](adr/0008-use-spring-boot-4.md) |
 | DB | Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止） | サービスごとにスキーマ分離。コスト最優先 |
 | マイグレーション | Flyway | |
-| フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui | TanStack Query / Zod |
+| フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui | TanStack Query / Zod。単体テストは Vitest |
 | 認証 | Amazon Cognito（Managed Login、パスワード + パスキー） | ロールはアプリのデータで持つ。後で自前実装に差し替える（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)） |
 | コンテナ基盤 | ECS Fargate + ALB | Kubernetes は採用しない |
 | フロントの配信 | Amplify Hosting | [ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md) |
@@ -185,7 +185,7 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | --- | --- |
 | `changes` | 変更パスを見て後続を出し分ける |
 | `backend` | ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド |
-| `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → build → イメージのビルド |
+| `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → 単体テスト → build → イメージのビルド |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
 | `ci` | 先行ジョブの結果を集約する |
@@ -227,6 +227,7 @@ develop では最後にデプロイが走り、マイグレーションの途中
 
 ```bash
 ./gradlew :services:quiz-service:test   # レポート: services/quiz-service/build/reports/jacoco/test/html/index.html
+pnpm --filter web test                  # web の単体テスト（Vitest）
 ```
 
 | 種類 | 対象 | 置き場所の例 |
@@ -235,9 +236,11 @@ develop では最後にデプロイが走り、マイグレーションの途中
 | API テスト | コントローラから DB まで。Testcontainers の PostgreSQL を使う | `quiz/controller/QuizApiTest.kt` |
 | 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest` |
 | スモークテスト | デプロイした環境で、主要な導線が通るか。Newman で流す | `tests/api/` |
+| web の単体テスト | 画面の部品が守る性質。DOM を使わず、HTML の文字列にして確かめる | `apps/web/src/components/markdown.test.tsx` |
 
 **単体テストにするのは、分岐や不変条件を持つものだけ。** リポジトリへ素通しするだけのユースケースには書かない。
 SQL が担うこと（絞り込み・並び順・行レベルセキュリティ・連鎖削除）は、フェイクでは確かめられないので API テストで見る。
+web も同じで、見た目や画面をまたぐ操作ではなく、崩れると困る性質（解説で HTML を通さないなど）を持つ部品にだけ書く。
 
 #### テストデータ
 
@@ -334,6 +337,8 @@ http://localhost:8080/swagger-ui.html
 ### コード
 - バックエンド: レイヤード（controller / usecase / domain / infrastructure）、テストは JUnit5 + Testcontainers
 - フロント: Server Components 優先、API 呼び出しは生成した TanStack Query のフック、応答は Zod で検証
+- 管理者が書いた文章（解説）は `components/markdown.tsx` で表示する。**`dangerouslySetInnerHTML` は使わない。**
+  生の HTML を通さず、画像も読み込まない（[ADR-0018](adr/0018-write-explanations-in-markdown-and-render-on-screen.md)）
 - フォーム: react-hook-form + 生成した Zod スキーマ。**定義に表れない規則だけを足す**（空白だけの入力、公開の条件など）。最終的な判定はバックエンド
 - 画面の幅: **360px まで崩さない**（一般的なスマホの下限）。320px でも横スクロールを出さない。
   テーブルは狭い幅で列を減らし、畳んだ列は主となる列の下に小さく出す（`hidden sm:table-cell` と `sm:hidden`）
