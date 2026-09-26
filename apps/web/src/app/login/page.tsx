@@ -13,6 +13,8 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
   const params = await searchParams;
   const returnTo = safeReturnTo(typeof params.returnTo === "string" ? params.returnTo : undefined);
   const failed = params.error !== undefined;
+  // 招待のリンクから来た。別のアドレスでログインすると、招待を受け入れられない
+  const invited = returnTo.startsWith("/invitations/");
 
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col justify-center gap-6 px-4 py-8">
@@ -33,6 +35,11 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
           <CardDescription>
             ログインの画面（Amazon Cognito）へ移ります。はじめての方は、そこでアカウントを作れます。
             作ったあとにパスキーを登録すると、次からはパスワードなしで入れます。
+            {invited && (
+              <strong className="text-foreground mt-2 block">
+                招待されたメールアドレスで、ログインまたはアカウントの作成をしてください。
+              </strong>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>

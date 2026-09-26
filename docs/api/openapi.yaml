@@ -31,9 +31,49 @@ tags:
   name: クイズ（管理）
 - description: 管理者がカテゴリを CRUD する
   name: カテゴリ
+- description: テナントへの招待を作り、取り消す。招待のトークンは作った直後にだけ返す
+  name: 招待
 - description: 論理削除したカテゴリ・難易度・クイズの一覧と復活
   name: 削除済み
 paths:
+  /api/me/invitations/{token}:
+    get:
+      operationId: getReceivedInvitation
+      parameters:
+      - in: path
+        name: token
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceivedInvitationResponse"
+          description: OK
+      summary: 受け取った招待。受け入れる前に招待先を確かめる
+      tags:
+      - 利用者
+  /api/me/invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      parameters:
+      - in: path
+        name: token
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyTenantResponse"
+          description: OK
+      summary: 招待を受け入れ、テナントに所属する
+      tags:
+      - 利用者
   /api/me/tenants:
     get:
       operationId: listMyTenants
@@ -565,6 +605,123 @@ paths:
       summary: 削除したときに巻き込む範囲
       tags:
       - カテゴリ
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+  /api/t/{slug}/admin/invitations:
+    get:
+      operationId: listInvitations
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InvitationResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 受け入れを待っている招待（期限切れを含む）
+      tags:
+      - 招待
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: createInvitation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitationRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedInvitationResponse"
+          description: Created
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 招待を作る。同じアドレスへの受け入れ待ちの招待は取り消される
+      tags:
+      - 招待
+  /api/t/{slug}/admin/invitations/{id}:
+    delete:
+      operationId: revokeInvitation
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 招待を取り消す
+      tags:
+      - 招待
     parameters:
     - description: テナントの識別子（URL 用の短い名前）
       in: path
@@ -1631,6 +1788,29 @@ components:
           format: int32
       required:
       - name
+    CreateInvitationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          minLength: 0
+        role:
+          type: string
+          pattern: admin|member
+      required:
+      - email
+    CreatedInvitationResponse:
+      type: object
+      properties:
+        invitation:
+          $ref: "#/components/schemas/InvitationResponse"
+        token:
+          type: string
+      required:
+      - invitation
+      - token
     DeletedItem:
       type: object
       properties:
@@ -1764,6 +1944,31 @@ components:
           format: int32
       required:
       - importedCount
+    InvitationResponse:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        email:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+        status:
+          type: string
+      required:
+      - createdAt
+      - email
+      - expiresAt
+      - id
+      - role
+      - status
     MyTenantResponse:
       type: object
       properties:
@@ -1906,6 +2111,23 @@ components:
       - isCorrect
       - question
       - quizId
+    ReceivedInvitationResponse:
+      type: object
+      properties:
+        expiresAt:
+          type: string
+          format: date-time
+        role:
+          type: string
+        status:
+          type: string
+        tenantName:
+          type: string
+      required:
+      - expiresAt
+      - role
+      - status
+      - tenantName
     SaveDifficultyRequest:
       type: object
       properties:

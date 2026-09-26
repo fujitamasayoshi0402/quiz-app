@@ -40,7 +40,9 @@ export function TenantPicker() {
       <Card>
         <CardHeader>
           <CardTitle>所属しているテナントがありません</CardTitle>
-          <CardDescription>管理者から招待を受けると、ここから入れるようになります。</CardDescription>
+          <CardDescription>
+            管理者から招待のリンクを受け取ったら、そのリンクを開いてください。参加すると、ここから入れるようになります。
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <SignOutButton />

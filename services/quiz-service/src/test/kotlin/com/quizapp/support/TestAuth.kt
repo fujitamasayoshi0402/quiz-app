@@ -42,13 +42,17 @@ object TestAuth {
         }
     }
 
-    /** テスト専用の利用者を作る。共有の利用者と区別したいときに使う。片付けない */
-    fun createUser(name: String = "テスト利用者"): UUID {
+    /**
+     * テスト専用の利用者を作る。共有の利用者と区別したいときに使う。片付けない。
+     * [email] は認証基盤で確認済みのメールアドレスとして持つ（招待の照合に使う）
+     */
+    fun createUser(name: String = "テスト利用者", email: String? = null): UUID {
         val id = UUID.randomUUID()
         TestPostgres.adminJdbcTemplate.update(
-            "INSERT INTO core.users (id, external_id, display_name) VALUES (?, ?, ?)",
+            "INSERT INTO core.users (id, external_id, email, display_name) VALUES (?, ?, ?, ?)",
             id,
             "test-$id",
+            email,
             name,
         )
         return id
