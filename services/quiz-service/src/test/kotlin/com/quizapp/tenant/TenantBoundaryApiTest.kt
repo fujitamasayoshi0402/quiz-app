@@ -58,12 +58,19 @@ class TenantBoundaryApiTest {
         /** victim の文字列にはすべてこれを含める。応答に現れたら漏洩 */
         private const val SECRET = "VICTIM-SECRET"
 
+        /**
+         * victim が招待したアドレス。攻撃者も同じアドレスへ招待するため、[SECRET] を含めない（自分の応答に出る）。
+         * victim の招待が応答に出たことは、ID で検出する
+         */
+        private const val VICTIM_INVITEE = "invitee@example.test"
+
         private const val CATEGORY_NOT_FOUND = "指定されたカテゴリは存在しません"
         private const val DIFFICULTY_NOT_FOUND = "指定された難易度は存在しません"
         private const val QUIZ_NOT_FOUND = "指定されたクイズは存在しません"
         private const val ATTEMPT_NOT_FOUND = "指定された挑戦は存在しません"
         private const val DELETED_NOT_FOUND = "削除済みの項目が見つかりません"
         private const val IMPORT_REJECTED = "取り込めない行があります。1 件も取り込んでいません"
+        private const val INVITATION_NOT_FOUND = "指定された招待は存在しません"
 
         private val TENANT_SCOPED = Regex("/api/t/\\{slug}/(admin|play)/.+")
 
@@ -75,6 +82,10 @@ class TenantBoundaryApiTest {
         private val OUTSIDE_TENANT = mapOf(
             "GET /api/me/tenants" to
                 "テナントを選ぶ前に呼ぶ。参照するのは RLS の対象外の core だけで、範囲は利用者本人に絞る（MyTenantsApiTest）",
+            "GET /api/me/invitations/{token}" to
+                "招待された人はまだ所属していない。範囲はトークンと本人のメールアドレスで絞る（InvitationApiTest）",
+            "POST /api/me/invitations/{token}/accept" to
+                "招待された人はまだ所属していない。範囲はトークンと本人のメールアドレスで絞る（InvitationApiTest）",
         )
     }
 
@@ -171,7 +182,7 @@ class TenantBoundaryApiTest {
 
     private fun probes(ids: Ids): List<Probe> =
         categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
-            playCategoryProbes() + attemptProbes(ids)
+            playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids)
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -368,6 +379,29 @@ class TenantBoundaryApiTest {
         )
     }
 
+    private fun invitationProbes(ids: Ids): List<Probe> {
+        val base = "/api/t/{slug}/admin/invitations"
+        return listOf(
+            Probe(HttpMethod.GET, base, "一覧に出ない", status = 200),
+            // 招待し直すと、同じアドレスへの前の招待を取り消す。victim の招待まで取り消さないこと
+            Probe(
+                HttpMethod.POST,
+                base,
+                "victim と同じアドレスへ招待する",
+                body = """{"email":"$VICTIM_INVITEE","role":"admin"}""",
+                status = 201,
+            ),
+            Probe(
+                HttpMethod.DELETE,
+                "$base/{id}",
+                "",
+                mapOf("id" to ids.victimInvitation),
+                status = 404,
+                detail = INVITATION_NOT_FOUND,
+            ),
+        )
+    }
+
     private fun quizBody(categoryId: UUID, difficultyId: UUID): String {
         val choices = (1..4).joinToString(",") { """{"body":"選択肢 $it","isCorrect":${it == 1}}""" }
         return """
@@ -413,6 +447,12 @@ class TenantBoundaryApiTest {
             header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isNoContent() } }
 
+        val invitation = mockMvc.post("/api/t/${victimTenant.slug}/admin/invitations") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"email":"$VICTIM_INVITEE"}"""
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isCreated() } }.andReturn().response.contentAsString.let(objectMapper::readTree)
+
         // 攻撃者自身が victim で挑戦を中断している
         val attempt = mockMvc.post("/api/t/${victimTenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
@@ -432,6 +472,7 @@ class TenantBoundaryApiTest {
             deletedCategory = deletedCategory,
             deletedDifficulty = deletedDifficulty,
             deletedQuiz = deletedQuiz,
+            victimInvitation = UUID.fromString(invitation["invitation"]["id"].asString()),
         )
     }
 
@@ -522,10 +563,11 @@ class TenantBoundaryApiTest {
         val deletedCategory: UUID,
         val deletedDifficulty: UUID,
         val deletedQuiz: UUID,
+        val victimInvitation: UUID,
     ) {
         companion object {
             /** 網羅性の検査用。ケースの一覧が作れればよく、値は使わない */
-            fun placeholder(): Ids = UUID(0, 0).let { Ids(it, it, it, it, it, it, it, it, it, it, it) }
+            fun placeholder(): Ids = UUID(0, 0).let { Ids(it, it, it, it, it, it, it, it, it, it, it, it) }
         }
     }
 }

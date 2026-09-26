@@ -18,6 +18,15 @@ interface TenantMemberships {
 
     /** 利用者が所属するテナント。テナントの名前順に返す。 */
     fun findTenantsOf(userId: UUID): List<Membership>
+
+    /** そのメールアドレスを持つ利用者が、テナントに所属しているか */
+    fun hasMemberWithEmail(tenantId: UUID, email: String): Boolean
+
+    /**
+     * 所属させる。**すでに所属していれば何もしない。** ロールも変えない。
+     * ロールを変えるのは所属の管理であり、招待の受け入れではない。
+     */
+    fun join(tenantId: UUID, userId: UUID, role: TenantRole)
 }
 
 /** 所属先のテナントと、そこでの役割。 */
@@ -55,4 +64,28 @@ class TenantMembershipsJdbc(private val jdbcTemplate: JdbcTemplate) : TenantMemb
         { rs, _ -> Membership(rs.getString("slug"), rs.getString("name"), TenantRole.from(rs.getString("role"))) },
         userId,
     )
+
+    override fun hasMemberWithEmail(tenantId: UUID, email: String): Boolean = jdbcTemplate.queryForObject(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM core.tenant_members m JOIN core.users u ON u.id = m.user_id
+            WHERE m.tenant_id = ? AND lower(u.email) = lower(?) AND m.deleted_at IS NULL
+        )
+        """,
+        Boolean::class.java,
+        tenantId,
+        email,
+    ) == true
+
+    override fun join(tenantId: UUID, userId: UUID, role: TenantRole) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO core.tenant_members (tenant_id, user_id, role) VALUES (?, ?, ?)
+            ON CONFLICT (tenant_id, user_id) WHERE deleted_at IS NULL DO NOTHING
+            """,
+            tenantId,
+            userId,
+            role.name.lowercase(),
+        )
+    }
 }
