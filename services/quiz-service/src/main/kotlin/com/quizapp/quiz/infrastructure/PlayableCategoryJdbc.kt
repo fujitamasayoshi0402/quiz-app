@@ -3,7 +3,7 @@ package com.quizapp.quiz.infrastructure
 import com.quizapp.quiz.domain.PlayableCategory
 import com.quizapp.quiz.domain.PlayableCategoryQuery
 import com.quizapp.quiz.domain.PlayableDifficulty
-import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Component
 import java.util.UUID
 
@@ -14,7 +14,7 @@ import java.util.UUID
  * 内部結合なので、公開済みのクイズがない難易度とカテゴリは結果に現れない。
  */
 @Component
-class PlayableCategoryJdbc(private val jdbcTemplate: JdbcTemplate) : PlayableCategoryQuery {
+class PlayableCategoryJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) : PlayableCategoryQuery {
 
     override fun findAll(): List<PlayableCategory> = jdbcTemplate.query(
         """
@@ -52,6 +52,23 @@ class PlayableCategoryJdbc(private val jdbcTemplate: JdbcTemplate) : PlayableCat
                 difficulties = rows.map { it.difficulty },
             )
         }
+
+    override fun findCategoryIds(quizIds: Collection<UUID>): Map<UUID, UUID> {
+        // IN 句に空のリストを渡すと SQL が壊れる
+        if (quizIds.isEmpty()) return emptyMap()
+
+        return jdbcTemplate.query(
+            """
+            SELECT q.id, q.category_id
+            FROM quiz.quizzes q
+            JOIN quiz.categories c ON c.id = q.category_id AND c.deleted_at IS NULL
+            JOIN quiz.difficulties d ON d.id = q.difficulty_id AND d.deleted_at IS NULL
+            WHERE q.id IN (:quizIds) AND q.deleted_at IS NULL AND q.status = 'published'
+            """,
+            mapOf("quizIds" to quizIds),
+        ) { rs, _ -> rs.getObject("id", UUID::class.java) to rs.getObject("category_id", UUID::class.java) }
+            .toMap()
+    }
 
     private data class Row(
         val categoryId: UUID,

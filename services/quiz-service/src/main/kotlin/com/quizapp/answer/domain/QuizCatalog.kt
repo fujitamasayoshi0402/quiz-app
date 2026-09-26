@@ -3,6 +3,7 @@ package com.quizapp.answer.domain
 import com.quizapp.quiz.domain.AnswerKey
 import com.quizapp.quiz.domain.DeliveredQuiz
 import com.quizapp.quiz.domain.DeliveryCriteria
+import com.quizapp.quiz.domain.PlayableCategory
 import java.util.UUID
 
 /**
@@ -36,4 +37,15 @@ interface QuizCatalog {
      * 判定そのものは answer 側で行う。
      */
     fun findAnswerKeys(quizIds: List<UUID>): Map<UUID, AnswerKey>
+
+    /** 出題できるカテゴリ。公開済みのクイズがあるものだけを、並び順どおりに返す。 */
+    fun findPlayableCategories(): List<PlayableCategory>
+
+    /**
+     * 指定したクイズのうち、いま出題できるものが属するカテゴリ。
+     *
+     * 履歴の集計に使う。**削除・非公開のクイズは返らない。**
+     * 返したカテゴリは、必ず [findPlayableCategories] にも現れる。
+     */
+    fun findCategoryIds(quizIds: Collection<UUID>): Map<UUID, UUID>
 }
