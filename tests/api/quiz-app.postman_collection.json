@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "quiz-app スモークテスト",
-    "description": "デプロイした環境で、主要な導線が通るかを確かめる。細かい仕様の検証は JUnit の API テストが担う。\n\n専用のテナント `smoke` の管理者として動く（シード `R__smoke_data.sql`）。作ったカテゴリとクイズは最後に消すので、デモのテナントには何も残らない。\n\n`baseUrl` に web を指定すると、web の proxy を通して API を呼ぶ。API を直接指定してもよい。",
+    "description": "デプロイした環境で、主要な導線が通るかを確かめる。細かい仕様の検証は JUnit の API テストが担う。\n\n専用のテナント `smoke` の管理者として動く（シード `R__smoke_data.sql`）。作ったカテゴリ・クイズ・解説図は最後に消すので、デモのテナントには何も残らない。\n\n`baseUrl` に web を指定すると、web の proxy を通して API を呼ぶ。API を直接指定してもよい。",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -548,6 +548,181 @@
       ]
     },
     {
+      "name": "解説図",
+      "description": "図を置き、署名付き URL から SVG を取る（ADR-0017）。SVG は web や API のオリジンからは返らない",
+      "item": [
+        {
+          "name": "図を置く",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/figures",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "figures"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"<mxfile><diagram name=\\\"smoke\\\">smoke-{{runId}}</diagram></mxfile>\",\n  \"svg\": \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"120\\\" height=\\\"20\\\"><text y=\\\"15\\\">smoke-{{runId}}</text></svg>\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 を返す\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"figureId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "図の署名付き URL へ送られる",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/figures/{{figureId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "figures",
+                "{{figureId}}"
+              ]
+            },
+            "description": "302 を追わずに受け取る。web の proxy と Amplify が、302 をそのままブラウザへ返すことも確かめる"
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"302 で送る\", () => pm.response.to.have.status(302));",
+                  "pm.test(\"利用者ごとの応答として、共有のキャッシュに置かせない\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"private\");",
+                  "});",
+                  "const location = pm.response.headers.get(\"Location\") ?? \"\";",
+                  "pm.test(\"送り先は、テナントの下の SVG\", () => {",
+                  "  pm.expect(location).to.include(`/svg/`).and.include(`/${pm.collectionVariables.get(\"figureId\")}.svg`);",
+                  "});",
+                  "pm.collectionVariables.set(\"figureUrl\", location);",
+                  "pm.collectionVariables.set(\"figureUnsignedUrl\", location.split(\"?\")[0]);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "送り先から SVG が返る",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{figureUrl}}",
+              "host": [
+                "{{figureUrl}}"
+              ]
+            },
+            "description": "AWS では CloudFront、ローカルでは LocalStack の S3。どちらも web と API とは別のオリジン"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// アクセストークンは API にだけ渡す。署名付き URL は、署名だけで取れる",
+                  "pm.request.headers.remove(\"Authorization\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 で SVG を返す\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"image/svg+xml\");",
+                  "  pm.expect(pm.response.text()).to.include(`smoke-${pm.collectionVariables.get(\"runId\")}`);",
+                  "});",
+                  "// ローカル（LocalStack）には CloudFront がなく、応答ヘッダは付かない",
+                  "if (pm.request.url.protocol === \"https\") {",
+                  "  pm.test(\"SVG のスクリプトを止めるヘッダが付く\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Security-Policy\")).to.include(\"sandbox\");",
+                  "    pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\");",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "署名がなければ取れない",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{figureUnsignedUrl}}",
+              "host": [
+                "{{figureUnsignedUrl}}"
+              ]
+            },
+            "description": "CloudFront は、キーグループの鍵で署名された URL だけを通す"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.remove(\"Authorization\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ローカルの LocalStack は署名を確かめない",
+                  "if (pm.request.url.protocol === \"https\") {",
+                  "  pm.test(\"403 を返す\", () => pm.response.to.have.status(403));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "テナントの境界",
       "description": "テナントの外は、存在しないものとして扱われる",
       "item": [
@@ -659,6 +834,73 @@
       "name": "片付け",
       "description": "作ったものを消す。途中で失敗しても、この段は実行される",
       "item": [
+        {
+          "name": "図を消す",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/figures/{{figureId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "figures",
+                "{{figureId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 を返す\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "消した図へは送らない",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/figures/{{figureId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "figures",
+                "{{figureId}}"
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 を返す\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "カテゴリを消す",
           "request": {
