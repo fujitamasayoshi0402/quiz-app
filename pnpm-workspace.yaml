@@ -1,5 +1,7 @@
 packages:
   - apps/*
+  # E2E テスト（Playwright）。アプリではないが、依存の固定を同じ lockfile で行う
+  - tests/e2e
 
 # 依存パッケージのインストールスクリプトは既定で実行しない（サプライチェーン対策）。
 # 以下はいずれもプラットフォーム別のバイナリを optionalDependencies で受け取るため、スクリプトが不要
