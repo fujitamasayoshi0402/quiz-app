@@ -67,6 +67,22 @@ variable "iam_db_user_arns" {
   })
 }
 
+# ---- 解説図（modules/figures） ----
+
+variable "figures" {
+  description = <<-EOT
+    解説図の置き場所と、署名付き URL の作り方（ADR-0017）。アプリのタスクにだけ渡す。
+    base_url と key_pair_id は CloudFront、private_key_parameter_arn は署名の秘密鍵を置いた SSM のパラメータ
+  EOT
+  type = object({
+    bucket_name               = string
+    bucket_arn                = string
+    base_url                  = string
+    key_pair_id               = string
+    private_key_parameter_arn = string
+  })
+}
+
 # ---- タスク ----
 
 variable "image_tag" {

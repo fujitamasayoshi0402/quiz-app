@@ -21,6 +21,8 @@ tags:
   name: 難易度
 - description: 出題・回答・結果。**出題の応答に正解と解説を含まない**
   name: 挑戦
+- description: 管理者が解説図（draw.io の原本と SVG）を置く
+  name: 解説図
 - description: ログインしている利用者自身の情報
   name: 利用者
 - description: 公開済みのクイズがあるカテゴリと難易度
@@ -29,6 +31,8 @@ tags:
   name: 履歴
 - description: 管理者がクイズを CRUD する。**応答に正解を含む**
   name: クイズ（管理）
+- description: 利用者が解説図を見る
+  name: 解説図（出題）
 - description: 管理者がカテゴリを CRUD する
   name: カテゴリ
 - description: テナントへの招待を作り、取り消す。招待のトークンは作った直後にだけ返す
@@ -605,6 +609,138 @@ paths:
       summary: 削除したときに巻き込む範囲
       tags:
       - カテゴリ
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+  /api/t/{slug}/admin/figures:
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+    post:
+      description: SVG は無害化しない。配るときに、アプリと別のオリジンから、スクリプトを止めるヘッダを付けて返す
+      operationId: createFigure
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFigureRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FigureResponse"
+          description: Created
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 解説図を置く
+      tags:
+      - 解説図
+  /api/t/{slug}/admin/figures/{id}:
+    delete:
+      description: 論理削除ではない。発行済みの URL は期限（最長 10 分）まで使える
+      operationId: deleteFigure
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 解説図を消す
+      tags:
+      - 解説図
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+  /api/t/{slug}/admin/figures/{id}/source:
+    get:
+      operationId: getFigureSource
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FigureSourceResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 解説図の原本（draw.io）を取得
+      tags:
+      - 解説図
     parameters:
     - description: テナントの識別子（URL 用の短い名前）
       in: path
@@ -1456,6 +1592,54 @@ paths:
       required: true
       schema:
         type: string
+  /api/t/{slug}/play/figures/{id}:
+    get:
+      operationId: getFigure
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "302":
+          description: 期限（5〜10 分）つきの署名付き URL へ送る
+          headers:
+            Location:
+              description: SVG の署名付き URL
+              schema:
+                type: string
+                format: uri
+              style: simple
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 解説図（SVG）へ送る
+      tags:
+      - 解説図（出題）
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
   /api/t/{slug}/play/history/attempts:
     get:
       description: 途中でやめた挑戦は含まない。続きは、前の応答の `nextCursor` を `cursor` に渡して取る
@@ -1788,6 +1972,18 @@ components:
           format: int32
       required:
       - name
+    CreateFigureRequest:
+      type: object
+      properties:
+        source:
+          type: string
+          description: draw.io の原本（`<mxfile>` の XML）。1 MB まで
+        svg:
+          type: string
+          description: 書き出した SVG。ルートが SVG の名前空間の `svg` 要素であること。1 MB まで
+      required:
+      - source
+      - svg
     CreateInvitationRequest:
       type: object
       properties:
@@ -1904,6 +2100,22 @@ components:
       - level
       - name
       - sortOrder
+    FigureResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+      required:
+      - id
+    FigureSourceResponse:
+      type: object
+      properties:
+        source:
+          type: string
+          description: draw.io の原本。描き直すときに draw.io へ読み込ませる
+      required:
+      - source
     ImportQuizRequest:
       type: object
       properties:

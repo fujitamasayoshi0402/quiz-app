@@ -58,7 +58,7 @@
 | コンテナ基盤 | ECS Fargate + ALB | Kubernetes は採用しない |
 | フロントの配信 | Amplify Hosting | [ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md) |
 | 非同期 / 通知 | EventBridge → Lambda → Slack Incoming Webhook（DLQ に SQS） | 常駐リソースを増やさない |
-| ファイル | S3 + CloudFront（`.drawio` 原本と SVG） | |
+| ファイル | S3 + CloudFront（`.drawio` 原本と SVG） | API が出す署名付き URL で配る（[ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md)） |
 | IaC | Terraform（tfstate は S3 + ロック） | |
 | CI/CD | GitHub Actions（AWS 認証は OIDC、アクセスキー禁止） | |
 | 監視 | CloudWatch Logs / Metrics、OpenTelemetry | |
@@ -266,7 +266,7 @@ JaCoCo で計測し、CI のジョブサマリーに出す。**閾値でビル�
 #### スモークテスト
 
 Postman のコレクション（`tests/api/`）を Newman で流し、**デプロイした環境で主要な導線が通るか**を確かめる。
-管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → 招待 → テナントの境界 → 片付け、の順に 22 本を呼ぶ。
+管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → 解説図 → 招待 → テナントの境界 → 片付け、の順に 28 本を呼ぶ。
 
 スモークテストの利用者（`smoke@example.com`、Terraform の `modules/auth` が作る）でアクセストークンを取り、`Authorization` に付けて呼ぶ。
 web の proxy は、ログインのセッションが無い要求の `Authorization` をそのまま渡す。ローカルも dev の Cognito の利用者を使う。
@@ -423,7 +423,7 @@ ALB が定期的に叩くと、Aurora Serverless v2 の自動一時停止（min 
 | quiz-service | 8080 | `dev` プロファイル。migrate が成功してから起動する |
 | migrate | なし | quiz-service と同じイメージを `dev,migrate` で起動する。マイグレーションとシードを流して終了する |
 | PostgreSQL | 5432 | ユーザー / パスワード / DB 名はすべて `quiz` |
-| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda |
+| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda。起動のたびに解説図のバケットを作る（中身は再起動で消える） |
 
 PostgreSQL は本番の Aurora とメジャーバージョンを揃えて 16 系を使う（min 0 ACU は 16.3 以降が前提）。
 タイムゾーンは本番との差異を減らすため UTC に固定している。
@@ -457,6 +457,10 @@ AWS の dev はデモに使うため `dev,migrate` でシードも流す。本�
 
 - 列やテーブルの追加は 1 回で行う。`NOT NULL` の列には既定値を付ける。古いタスクはその列を知らずに `INSERT` する
 - 削除と名前の変更は 2 回に分ける。先にアプリが使わないようにしてリリースし、次のリリースで消す
+
+**番号は、develop にあるどれよりも大きくする。** 並行するブランチで番号がぶつかったら、後からマージする側が付け直す。
+develop の最大より小さい番号を後から足すと、dev ではすでに先の番号まで流れているため、Flyway が検証で止まる（順番を飛ばしたマイグレーションは流さない）。
+CI は空の DB から流すので、この失敗は dev へのデプロイまで分からない。
 
 **テナント配下の行を入れるマイグレーションは、先に `app.tenant_id` を設定する**（`set_config('app.tenant_id', ..., true)`。シードを参照）。
 Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SECURITY` によって所有者にもポリシーが効く。
@@ -644,9 +648,9 @@ aws rds-data execute-statement \
 Route 53 に登録済みのドメインを使う。**ドメイン名はリポジトリに書かず、`terraform.tfvars` の `domain_name` に置く**
 （Git の管理外。書き方は `terraform.tfvars.example`）。
 
-| 環境 | web | API |
-| --- | --- | --- |
-| dev | `dev.<ドメイン>`（Amplify） | `api.dev.<ドメイン>` |
+| 環境 | web | API | 解説図 |
+| --- | --- | --- | --- |
+| dev | `dev.<ドメイン>`（Amplify） | `api.dev.<ドメイン>` | `figures.dev.<ドメイン>`（CloudFront） |
 
 ホストゾーンはドメインの登録時に作られ、環境をまたいで使う。Terraform では作らず、参照してレコードを足すだけにする。
 ドメインの apex（`<ドメイン>`）には、このアプリ以外の既存のレコードがある。触らない。
@@ -754,6 +758,34 @@ SECRET=$(aws secretsmanager get-secret-value \
   --secret-id "$(terraform output -raw origin_header_secret_arn)" --query SecretString --output text)
 curl -H "X-Origin-Verify: $SECRET" -H "Authorization: Bearer $TOKEN" \
      "$(terraform output -raw quiz_service_url)/api/t/smoke/admin/categories"
+```
+
+#### 解説図（S3 + CloudFront）
+
+`modules/figures` で作る（[ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md)）。
+
+```
+管理者 → web の proxy → quiz-service → S3（原本と SVG）と quiz.figures（行）
+利用者 → <img src="/api/t/{slug}/play/figures/{id}"> → web の proxy → quiz-service（所属と行を確かめる）
+       → 302（署名付き URL、期限 5〜10 分）→ CloudFront（figures.dev.<ドメイン>）→ OAC → S3
+```
+
+- **誰に見せるかは quiz-service が決める。** CloudFront は署名を確かめるだけで、署名のない要求と期限の切れた要求は 403 で返す
+- **SVG はアプリのオリジンから返さない。** SVG はスクリプトを含められる。CloudFront が CSP（`sandbox`）と `nosniff` を付けて返す
+- キーにテナントを含める（`svg/{テナントの ID}/{図の ID}.svg`、`drawio/...`）。CloudFront が読めるのは `svg/` の下だけで、原本は API を通して管理者にだけ返す
+- **図は変えない。** 描き直した図は新しい ID になる。キャッシュを無効にする操作は要らない
+- 署名の秘密鍵は Terraform が作り、SSM Parameter Store（SecureString）に置く。アプリのタスクに ECS の `secrets` で渡す
+- 証明書は CloudFront のため us-east-1 に置く（`aws.us_east_1` の provider）
+- ローカルには CloudFront がない。LocalStack の S3 の署名付き URL を返す。応答ヘッダと署名の検証は、dev のスモークテストで確かめる
+
+鍵を入れ替えるときは、`modules/figures` に新しい鍵の組を足してキーグループに加え、アプリのタスクの鍵を替えてデプロイしてから、古い公開鍵を外す。
+発行済みの URL は最長 10 分で切れる。
+
+中身を見るときは、バケットを直接読む。**CloudFront の URL は、API が出したものでないと開けない。**
+
+```bash
+cd infra/terraform/envs/dev
+aws s3 ls "s3://$(terraform output -raw figures_bucket_name)/svg/" --recursive
 ```
 
 #### デプロイ
@@ -870,6 +902,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 | ALB | 約 17.7 ドル（1 時間 0.0243 ドル） | 続く |
 | ALB のパブリック IPv4（2 つの AZ に 1 つずつ） | 約 7.3 ドル（1 時間 1 つ 0.005 ドル） | 続く |
 | Secrets Manager（秘密のヘッダ、Aurora のマスター） | 0.8 ドル | 続く |
+| 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
 | ECS のタスク（0.5 vCPU / 1 GB） | 約 13.5 ドル（1 時間 0.0246 ドル × 1 日 18 時間） | 止まる |

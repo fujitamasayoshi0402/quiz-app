@@ -30,6 +30,15 @@ locals {
     { name = "AUTH_CLIENT_ID", value = var.auth_client_id },
     { name = "AUTH_ISSUER", value = var.auth_issuer },
   ]
+
+  # 解説図（ADR-0017）。アプリのタスクにだけ渡す。マイグレーションは図に触れない。
+  # S3 の接続先を空にして、ローカル用の既定値（LocalStack）を使わせない。空なら AWS の S3 に接続する
+  figures_environment = [
+    { name = "FIGURES_BUCKET", value = var.figures.bucket_name },
+    { name = "FIGURES_CLOUDFRONT_KEY_PAIR_ID", value = var.figures.key_pair_id },
+    { name = "FIGURES_CLOUDFRONT_URL", value = var.figures.base_url },
+    { name = "FIGURES_S3_ENDPOINT", value = "" },
+  ]
 }
 
 resource "aws_ecs_cluster" "this" {
@@ -75,9 +84,14 @@ resource "aws_ecs_task_definition" "app" {
       protocol      = "tcp"
     }]
 
-    environment = concat(local.auth_environment, local.datasource_environment, [
+    environment = concat(local.auth_environment, local.datasource_environment, local.figures_environment, [
       { name = "SPRING_PROFILES_ACTIVE", value = join(",", var.spring_profiles) },
     ])
+
+    # 署名の秘密鍵は、起動のときに ECS が SSM から読んで環境変数に入れる。タスク定義には値が残らない
+    secrets = [
+      { name = "FIGURES_CLOUDFRONT_PRIVATE_KEY", valueFrom = var.figures.private_key_parameter_arn },
+    ]
 
     logConfiguration = {
       logDriver = "awslogs"

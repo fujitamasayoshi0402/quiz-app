@@ -67,12 +67,17 @@ dependencies {
     // Spring Security のフィルタが前に立つと、401 の応答がアプリの形（RFC 9457）にならず、認可の判定も二重になる
     implementation("org.springframework.security:spring-security-oauth2-jose")
 
+    // 解説図を S3 に置き、CloudFront の署名付き URL で配る（ADR-0017）。
+    // 署名は SDK の CloudFrontUtilities に任せる。ローカルは LocalStack の S3 の署名付き URL を使う
+    implementation(platform("software.amazon.awssdk:bom:2.55.4"))
+    implementation("software.amazon.awssdk:s3")
+    implementation("software.amazon.awssdk:cloudfront")
+
     runtimeOnly("org.postgresql:postgresql")
 
     // AWS では Aurora へ IAM 認証で接続する（ADR-0014）。URL を jdbc:aws-wrapper:postgresql: にしたときだけ使われ、
     // ローカルは素の PostgreSQL ドライバのまま。IAM のトークンを作るのに AWS SDK の rds モジュールが要る
     runtimeOnly("software.amazon.jdbc:aws-advanced-jdbc-wrapper:4.4.0")
-    runtimeOnly(platform("software.amazon.awssdk:bom:2.55.4"))
     runtimeOnly("software.amazon.awssdk:rds")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")

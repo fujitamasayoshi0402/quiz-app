@@ -43,11 +43,13 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
     ports:
-      - "4566:4566"
+      - "${LOCALSTACK_PORT:-4566}:4566"
     volumes:
       - localstack-data:/var/lib/localstack
       # Lambda を LocalStack から起動するために必要
       - /var/run/docker.sock:/var/run/docker.sock
+      # 起動したあとに流す。解説図のバケットを作る
+      - ./infra/docker/localstack/init:/etc/localstack/init/ready.d:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health || exit 1"]
       interval: 10s
@@ -89,10 +91,16 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/quiz
       AUTH_ISSUER: ${AUTH_ISSUER:?.env に AUTH_ISSUER を設定してください（.env.example）}
       AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:?.env に AUTH_CLIENT_ID を設定してください（.env.example）}
+      # 解説図は LocalStack の S3 に置く（ADR-0017）。アプリからは localstack、ブラウザからは localhost で届く。
+      # 署名付き URL はブラウザが開くため、localhost の側で作る
+      FIGURES_S3_ENDPOINT: http://localstack:4566
+      FIGURES_S3_PUBLIC_ENDPOINT: http://localhost:${LOCALSTACK_PORT:-4566}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      localstack:
         condition: service_healthy
       # マイグレーションが成功してから起動する。失敗したらアプリも起動しない
       migrate:
