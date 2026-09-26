@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import java.util.UUID
 
@@ -183,7 +184,7 @@ class TenantBoundaryApiTest {
 
     private fun probes(ids: Ids): List<Probe> =
         categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
-            figureProbes(ids) + playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids)
+            figureProbes(ids) + playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids) + historyProbes()
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -402,6 +403,15 @@ class TenantBoundaryApiTest {
         )
     }
 
+    /** 攻撃者は victim で挑戦を終え、回答も残している。それが own の履歴と正答率に現れないこと */
+    private fun historyProbes(): List<Probe> {
+        val base = "/api/t/{slug}/play/history"
+        return listOf(
+            Probe(HttpMethod.GET, "$base/attempts", "victim で終えた挑戦が出ない", status = 200),
+            Probe(HttpMethod.GET, "$base/categories", "victim の回答とカテゴリが出ない", status = 200),
+        )
+    }
+
     private fun invitationProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/invitations"
         return listOf(
@@ -490,12 +500,22 @@ class TenantBoundaryApiTest {
             header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isCreated() } }.andReturn().response.contentAsString.let(objectMapper::readTree)
 
-        // 攻撃者自身が victim で挑戦を中断している
-        val attempt = mockMvc.post("/api/t/${victimTenant.slug}/play/attempts") {
+        // 攻撃者自身が victim で挑戦を終えている。履歴の検証に使う
+        val finished = startVictimAttempt()
+        val finishedId = finished["id"].asString()
+        val quizId = finished["quizzes"][0]["id"].asString()
+        val choiceId = finished["quizzes"][0]["choices"][0]["id"].asString()
+        mockMvc.post("/api/t/${victimTenant.slug}/play/attempts/$finishedId/answers") {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"scope":"all"}"""
+            content = """{"quizId":"$quizId","choiceId":"$choiceId"}"""
             header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
-        }.andExpect { status { isCreated() } }.andReturn().response.contentAsString.let(objectMapper::readTree)
+        }.andExpect { status { isOk() } }
+        mockMvc.post("/api/t/${victimTenant.slug}/play/attempts/$finishedId/complete") {
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isOk() } }
+
+        // 攻撃者自身が victim で挑戦を中断している
+        val attempt = startVictimAttempt()
 
         return Ids(
             ownCategory = ownCategory,
@@ -513,6 +533,12 @@ class TenantBoundaryApiTest {
             victimInvitation = UUID.fromString(invitation["invitation"]["id"].asString()),
         )
     }
+
+    private fun startVictimAttempt(): JsonNode = mockMvc.post("/api/t/${victimTenant.slug}/play/attempts") {
+        contentType = MediaType.APPLICATION_JSON
+        content = """{"scope":"all"}"""
+        header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+    }.andExpect { status { isCreated() } }.andReturn().response.contentAsString.let(objectMapper::readTree)
 
     /** アプリケーションのエンドポイント。`GET /api/t/{slug}/admin/categories` の形で返す。 */
     private fun endpoints(): Set<String> = handlerMapping.handlerMethods

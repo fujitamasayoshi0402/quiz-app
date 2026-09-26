@@ -56,6 +56,9 @@ export function TenantNav({ slug }: { slug: string }) {
         <Link href={`/t/${slug}/play`} className="text-muted-foreground hover:text-foreground py-2">
           解く
         </Link>
+        <Link href={`/t/${slug}/history`} className="text-muted-foreground hover:text-foreground py-2">
+          履歴
+        </Link>
         {current?.role === "admin" && (
           <Link href={`/t/${slug}/admin`} className="text-muted-foreground hover:text-foreground py-2">
             管理

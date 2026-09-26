@@ -29,4 +29,11 @@ data class PlayableDifficulty(
 interface PlayableCategoryQuery {
     /** カテゴリの並び順、難易度のレベル順・並び順で返す。 */
     fun findAll(): List<PlayableCategory>
+
+    /**
+     * 指定したクイズのうち、いま出題できるものが属するカテゴリ。クイズの ID からカテゴリの ID を引ける形で返す。
+     *
+     * **[findAll] と同じ条件で絞る。** 返したカテゴリは、必ず [findAll] にも現れる。
+     */
+    fun findCategoryIds(quizIds: Collection<UUID>): Map<UUID, UUID>
 }

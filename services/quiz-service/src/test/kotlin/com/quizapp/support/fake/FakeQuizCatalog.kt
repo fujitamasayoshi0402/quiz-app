@@ -5,6 +5,8 @@ import com.quizapp.quiz.domain.AnswerKey
 import com.quizapp.quiz.domain.DeliveredChoice
 import com.quizapp.quiz.domain.DeliveredQuiz
 import com.quizapp.quiz.domain.DeliveryCriteria
+import com.quizapp.quiz.domain.PlayableCategory
+import com.quizapp.quiz.domain.PlayableDifficulty
 import java.util.UUID
 
 /**
@@ -18,12 +20,25 @@ class FakeQuizCatalog : QuizCatalog {
 
     private val quizzes = linkedMapOf<UUID, DeliveredQuiz>()
     private val keys = mutableMapOf<UUID, AnswerKey>()
+    private val categories = linkedMapOf<UUID, String>()
+    private val difficulties = linkedMapOf<UUID, Pair<UUID, String>>()
 
-    /** 出題できるクイズを足す。**先頭の選択肢が正解。** */
-    fun add(question: String = "問題"): DeliveredQuiz {
+    /** カテゴリを足す。出題できるクイズが 1 問もなければ、[findPlayableCategories] には現れない */
+    fun category(name: String): UUID = UUID.randomUUID().also { categories[it] = name }
+
+    fun difficulty(categoryId: UUID, name: String): UUID =
+        UUID.randomUUID().also { difficulties[it] = categoryId to name }
+
+    /**
+     * 出題できるクイズを足す。**先頭の選択肢が正解。**
+     *
+     * [difficultyId] を省くと、どのカテゴリにも属さないクイズになる。カテゴリを見ないテストのため。
+     */
+    fun add(question: String = "問題", difficultyId: UUID? = null): DeliveredQuiz {
         val id = UUID.randomUUID()
         val choices = (1..CHOICES).map { DeliveredChoice(UUID.randomUUID(), "$question の選択肢 $it") }
-        val quiz = DeliveredQuiz(id, UUID.randomUUID(), UUID.randomUUID(), question, choices)
+        val categoryId = difficultyId?.let { requireNotNull(difficulties[it]).first } ?: UUID.randomUUID()
+        val quiz = DeliveredQuiz(id, categoryId, difficultyId ?: UUID.randomUUID(), question, choices)
         quizzes[id] = quiz
         keys[id] = AnswerKey(id, choices.first().id, choices.map { it.id }.toSet(), "$question の解説")
         return quiz
@@ -56,6 +71,18 @@ class FakeQuizCatalog : QuizCatalog {
 
     override fun findAnswerKeys(quizIds: List<UUID>): Map<UUID, AnswerKey> =
         quizIds.mapNotNull { keys[it] }.associateBy { it.quizId }
+
+    /** 本物と同じく、出題できるクイズが 1 問以上ある難易度とカテゴリだけを返す */
+    override fun findPlayableCategories(): List<PlayableCategory> = categories.mapNotNull { (categoryId, name) ->
+        val playable = difficulties.filterValues { it.first == categoryId }.mapNotNull { (id, difficulty) ->
+            val count = quizzes.values.count { it.difficultyId == id }
+            if (count == 0) null else PlayableDifficulty(id, difficulty.second, 1, null, count)
+        }
+        if (playable.isEmpty()) null else PlayableCategory(categoryId, name, null, playable)
+    }
+
+    override fun findCategoryIds(quizIds: Collection<UUID>): Map<UUID, UUID> =
+        quizIds.mapNotNull { quizzes[it] }.filter { it.categoryId in categories }.associate { it.id to it.categoryId }
 
     private companion object {
         const val CHOICES = 4

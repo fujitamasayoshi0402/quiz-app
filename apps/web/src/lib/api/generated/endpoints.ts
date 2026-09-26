@@ -33,9 +33,11 @@ import type {
 
 import {
   AnswerResult,
+  AttemptHistoryPage,
   AttemptResult,
   AttemptView,
   CategoryResponse,
+  CategoryScore,
   CreatedInvitationResponse,
   DeletionImpact,
   DifficultyResponse,
@@ -55,6 +57,7 @@ import type {
   CreateFigureRequest,
   CreateInvitationRequest,
   ImportQuizzesRequest,
+  ListCompletedAttemptsParams,
   ProblemDetail,
   SaveDifficultyRequest,
   SaveQuizRequest,
@@ -3752,6 +3755,227 @@ export function useGetFigure<TData = Awaited<ReturnType<typeof getFigure>>, TErr
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetFigureQueryOptions(slug,id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListCompletedAttemptsUrl = (slug: string,
+    params?: ListCompletedAttemptsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/t/${slug}/play/history/attempts?${stringifiedParams}` : `/api/t/${slug}/play/history/attempts`
+}
+
+/**
+ * 途中でやめた挑戦は含まない。続きは、前の応答の `nextCursor` を `cursor` に渡して取る
+ * @summary 完了した挑戦の一覧（新しい順）
+ */
+export const listCompletedAttempts = async (slug: string,
+    params?: ListCompletedAttemptsParams, options?: Parameters<typeof apiFetch>[1]): Promise<AttemptHistoryPage> => {
+
+  return apiFetch<AttemptHistoryPage>(getListCompletedAttemptsUrl(slug,params),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: AttemptHistoryPage
+  }
+);}
+
+
+
+
+
+export const getListCompletedAttemptsQueryKey = (slug: string,
+    params?: ListCompletedAttemptsParams,) => {
+    return [
+    `/api/t/${slug}/play/history/attempts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCompletedAttemptsQueryOptions = <TData = Awaited<ReturnType<typeof listCompletedAttempts>>, TError = ProblemDetail>(slug: string,
+    params?: ListCompletedAttemptsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompletedAttempts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCompletedAttemptsQueryKey(slug,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCompletedAttempts>>> = ({ signal }) => listCompletedAttempts(slug,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCompletedAttempts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCompletedAttemptsQueryResult = NonNullable<Awaited<ReturnType<typeof listCompletedAttempts>>>
+export type ListCompletedAttemptsQueryError = ProblemDetail
+
+
+export function useListCompletedAttempts<TData = Awaited<ReturnType<typeof listCompletedAttempts>>, TError = ProblemDetail>(
+ slug: string,
+    params: undefined |  ListCompletedAttemptsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompletedAttempts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCompletedAttempts>>,
+          TError,
+          Awaited<ReturnType<typeof listCompletedAttempts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCompletedAttempts<TData = Awaited<ReturnType<typeof listCompletedAttempts>>, TError = ProblemDetail>(
+ slug: string,
+    params?: ListCompletedAttemptsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompletedAttempts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCompletedAttempts>>,
+          TError,
+          Awaited<ReturnType<typeof listCompletedAttempts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCompletedAttempts<TData = Awaited<ReturnType<typeof listCompletedAttempts>>, TError = ProblemDetail>(
+ slug: string,
+    params?: ListCompletedAttemptsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompletedAttempts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 完了した挑戦の一覧（新しい順）
+ */
+
+export function useListCompletedAttempts<TData = Awaited<ReturnType<typeof listCompletedAttempts>>, TError = ProblemDetail>(
+ slug: string,
+    params?: ListCompletedAttemptsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompletedAttempts>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCompletedAttemptsQueryOptions(slug,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListCategoryScoresUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/history/categories`
+}
+
+/**
+ * いま出題できるクイズへの、最新の回答だけで数える。回答していないカテゴリも含む
+ * @summary カテゴリ別の正答率
+ */
+export const listCategoryScores = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<CategoryScore[]> => {
+
+  return apiFetch<CategoryScore[]>(getListCategoryScoresUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: zod.array(CategoryScore)
+  }
+);}
+
+
+
+
+
+export const getListCategoryScoresQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/play/history/categories`
+    ] as const;
+    }
+
+
+export const getListCategoryScoresQueryOptions = <TData = Awaited<ReturnType<typeof listCategoryScores>>, TError = ProblemDetail>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCategoryScores>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCategoryScoresQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCategoryScores>>> = ({ signal }) => listCategoryScores(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCategoryScores>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCategoryScoresQueryResult = NonNullable<Awaited<ReturnType<typeof listCategoryScores>>>
+export type ListCategoryScoresQueryError = ProblemDetail
+
+
+export function useListCategoryScores<TData = Awaited<ReturnType<typeof listCategoryScores>>, TError = ProblemDetail>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCategoryScores>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCategoryScores>>,
+          TError,
+          Awaited<ReturnType<typeof listCategoryScores>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCategoryScores<TData = Awaited<ReturnType<typeof listCategoryScores>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCategoryScores>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCategoryScores>>,
+          TError,
+          Awaited<ReturnType<typeof listCategoryScores>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCategoryScores<TData = Awaited<ReturnType<typeof listCategoryScores>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCategoryScores>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary カテゴリ別の正答率
+ */
+
+export function useListCategoryScores<TData = Awaited<ReturnType<typeof listCategoryScores>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCategoryScores>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCategoryScoresQueryOptions(slug,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
