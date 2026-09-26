@@ -9,6 +9,31 @@ const ORIGIN_VERIFY_HEADER = "x-origin-verify";
 const REFRESH_MARGIN_SECONDS = 60;
 
 /**
+ * 画面と API の入口。
+ *
+ * - `/api` … バックエンドへ中継し、利用者のアクセストークンを付ける（{@link proxyApi}）
+ * - ログインが要る画面 … ログインしていなければ、開こうとした画面を戻り先にしてログインへ移す（{@link requireLogin}）
+ */
+export async function proxy(request: NextRequest) {
+  return request.nextUrl.pathname.startsWith("/api/") ? proxyApi(request) : requireLogin(request);
+}
+
+/**
+ * ログインしていなければ、開こうとした画面（パスとクエリ）を戻り先にしてログインへ移す。
+ *
+ * レイアウトでも同じ判定をしているが、レイアウトは開いているパスを知らない。
+ * そこで戻り先を決めると、テナントのトップ（`/t/{slug}`）にしか戻せず、共有されたリンクの画面に着かない。
+ * 認可ではない。セッションがあるかどうかだけを見て、中身の判定はバックエンドに任せる
+ */
+async function requireLogin(request: NextRequest) {
+  if (await readSession(request.cookies)) return NextResponse.next();
+
+  const login = new URL("/login", appOrigin(request));
+  login.searchParams.set("returnTo", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+  return NextResponse.redirect(login);
+}
+
+/**
  * `/api` のリクエストをバックエンドへ中継し、利用者のアクセストークンを付ける（ADR-0016）。
  *
  * **トークンを付けるのはこの proxy だけ**にする。トークンは暗号化した `HttpOnly` の Cookie にあり、
@@ -20,7 +45,7 @@ const REFRESH_MARGIN_SECONDS = 60;
  * 中継先は**実行時の環境変数**から読む。`next.config.ts` の rewrites はビルド時に固定されるため、
  * 同じイメージを dev と本番で使い回せない。
  */
-export async function proxy(request: NextRequest) {
+async function proxyApi(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.delete(ORIGIN_VERIFY_HEADER);
   // セッションの Cookie はバックエンドに要らない。トークンを余計な経路に流さない
@@ -67,5 +92,6 @@ async function refresh(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  // 画面はログインが要るものだけ。/login と /auth は含めない（含めると、ログインへ移す先でまたログインを求める）
+  matcher: ["/api/:path*", "/t/:path*", "/invitations/:path*"],
 };
