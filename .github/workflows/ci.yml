@@ -212,11 +212,17 @@ jobs:
       - name: 型チェック
         run: pnpm --filter e2e typecheck
 
-      # depends_on の条件（マイグレーションの成功、quiz-service の healthy）を待ってから web を起動する。
-      # Cookie の暗号鍵は、この実行の中でだけ使う
+      # Cookie の暗号鍵は、この実行の中でだけ使う。後の段も docker compose を呼ぶ（DB の準備、ログ）ため、ジョブの環境変数にする。
+      # docker compose は呼ぶたびに設定ファイル全体を読み、値が無いと止まる
+      - name: Cookie の暗号鍵を作る
+        run: |
+          secret="$(openssl rand -base64 48)"
+          echo "::add-mask::$secret"
+          echo "AUTH_SESSION_SECRET=$secret" >> "$GITHUB_ENV"
+
+      # depends_on の条件（マイグレーションの成功、quiz-service の healthy）を待ってから web を起動する
       - name: アプリ一式を起動する
         run: |
-          export AUTH_SESSION_SECRET="$(openssl rand -base64 48)"
           docker compose up --build --detach web
           curl --silent --fail --retry 30 --retry-all-errors --retry-delay 2 --output /dev/null http://localhost:3000/login
 
