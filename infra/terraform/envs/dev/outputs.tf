@@ -80,3 +80,9 @@ output "smoke_user_password" {
   value     = module.auth.smoke_user_password
   sensitive = true
 }
+
+# E2E テストの利用者の共通のパスワード（GitHub のリポジトリの secret E2E_USER_PASSWORD にも入れる）
+output "e2e_user_password" {
+  value     = module.auth.e2e_user_password
+  sensitive = true
+}
