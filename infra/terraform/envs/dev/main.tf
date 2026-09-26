@@ -51,6 +51,14 @@ module "quiz_service" {
   auth_issuer    = module.auth.issuer
   auth_client_id = module.auth.client_id
 
+  figures = {
+    bucket_name               = module.figures.bucket_name
+    bucket_arn                = module.figures.bucket_arn
+    base_url                  = module.figures.base_url
+    key_pair_id               = module.figures.key_pair_id
+    private_key_parameter_arn = module.figures.private_key_parameter_arn
+  }
+
   db_endpoint      = module.database.cluster_endpoint
   db_port          = module.database.port
   db_name          = module.database.database_name
@@ -75,6 +83,23 @@ module "quiz_service" {
 
   log_retention_days  = 14
   force_delete_images = true
+}
+
+# 解説図の置き場所と配信（ADR-0017）。web は dev.<ドメイン>、図は figures.dev.<ドメイン> から配る
+module "figures" {
+  source = "../../modules/figures"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  name           = "quiz-app-dev"
+  domain_name    = "figures.dev.${var.domain_name}"
+  hosted_zone_id = data.aws_route53_zone.this.zone_id
+
+  # dev の図はデモとスモークテストのもの。環境ごと作り直せるようにする
+  force_destroy = true
 }
 
 # 利用者の認証（ADR-0016）。ローカルの web も、この User Pool でログインする

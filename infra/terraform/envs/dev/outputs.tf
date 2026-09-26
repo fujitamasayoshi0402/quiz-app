@@ -32,6 +32,14 @@ output "deploy_role_arn" {
   value = module.deploy_role.role_arn
 }
 
+output "figures_bucket_name" {
+  value = module.figures.bucket_name
+}
+
+output "figures_url" {
+  value = module.figures.base_url
+}
+
 output "web_url" {
   value = module.web.url
 }
