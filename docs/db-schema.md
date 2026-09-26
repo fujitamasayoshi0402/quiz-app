@@ -349,6 +349,27 @@ CREATE INDEX answers_user_time_idx ON answer.answers (user_id, answered_at DESC)
 
 論理削除もしません。履歴そのものであり、削除する操作を設けないためです。
 
+### answer.ranking_entries
+
+ランキングへの参加。**参加を選んだ人だけが行を持ちます**（[要件定義](requirements.md#ランキングphase-4)）。
+
+| カラム | 型 | 制約 |
+| --- | --- | --- |
+| `tenant_id` | uuid | PK, FK → `core.tenants(id)` |
+| `user_id` | uuid | PK, FK → `core.users(id)` |
+| `name` | text | NOT NULL, 1〜20 文字 |
+| `created_at` / `updated_at` | timestamptz | NOT NULL |
+
+```sql
+-- 同じテナントで同じ名前を使わせない
+CREATE UNIQUE INDEX ranking_entries_name_key ON answer.ranking_entries (tenant_id, lower(name));
+```
+
+名前は `core.users.display_name` を使わず、テナントごとに本人が決めます。表示名はメールアドレスから作っているためです。
+参加をやめたら行を消します。回答の履歴ではなく本人の設定なので、論理削除にしません。
+所属（`core.tenant_members`）へは外部キーを貼りません。所属は論理削除のため、外部キーでは「外れた」を表せません。
+所属から外れた人を載せないことは、ランキングを返すときに確かめます。
+
 ---
 
 ## RLS ポリシー
