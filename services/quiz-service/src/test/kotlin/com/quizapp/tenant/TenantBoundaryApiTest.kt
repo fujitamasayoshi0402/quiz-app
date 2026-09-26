@@ -64,6 +64,7 @@ class TenantBoundaryApiTest {
         private const val ATTEMPT_NOT_FOUND = "指定された挑戦は存在しません"
         private const val DELETED_NOT_FOUND = "削除済みの項目が見つかりません"
         private const val IMPORT_REJECTED = "取り込めない行があります。1 件も取り込んでいません"
+        private const val FIGURE_NOT_FOUND = "指定された図は存在しません"
 
         private val TENANT_SCOPED = Regex("/api/t/\\{slug}/(admin|play)/.+")
 
@@ -171,7 +172,7 @@ class TenantBoundaryApiTest {
 
     private fun probes(ids: Ids): List<Probe> =
         categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
-            playCategoryProbes() + attemptProbes(ids)
+            figureProbes(ids) + playCategoryProbes() + attemptProbes(ids)
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -326,6 +327,28 @@ class TenantBoundaryApiTest {
         )
     }
 
+    /**
+     * 解説図（ADR-0017）。図の本体は S3 にあり、victimSnapshot には現れない。
+     * 本体のキーは要求のテナントから組み立てるため、victim の図を指しても自テナントの下しか触れない
+     */
+    private fun figureProbes(ids: Ids): List<Probe> {
+        val base = "/api/t/{slug}/admin/figures"
+        val victim = mapOf("id" to ids.victimFigure)
+        return listOf(
+            Probe(HttpMethod.POST, base, "作成は自テナントに入る", body = figureBody("境界テスト"), status = 201),
+            Probe(HttpMethod.GET, "$base/{id}/source", "", victim, status = 404, detail = FIGURE_NOT_FOUND),
+            Probe(HttpMethod.DELETE, "$base/{id}", "", victim, status = 404, detail = FIGURE_NOT_FOUND),
+            Probe(
+                HttpMethod.GET,
+                "/api/t/{slug}/play/figures/{id}",
+                "署名付き URL を出さない",
+                victim,
+                status = 404,
+                detail = FIGURE_NOT_FOUND,
+            ),
+        )
+    }
+
     private fun playCategoryProbes(): List<Probe> = listOf(
         Probe(HttpMethod.GET, "/api/t/{slug}/play/categories", "出題条件の選択肢に出ない", status = 200),
     )
@@ -385,6 +408,13 @@ class TenantBoundaryApiTest {
         """.trimIndent()
     }
 
+    private fun figureBody(label: String): String = objectMapper.writeValueAsString(
+        mapOf(
+            "source" to "<mxfile><diagram>$label</diagram></mxfile>",
+            "svg" to """<svg xmlns="http://www.w3.org/2000/svg"><text>$label</text></svg>""",
+        ),
+    )
+
     // --- 準備 -----------------------------------------------------------------
 
     /**
@@ -413,6 +443,13 @@ class TenantBoundaryApiTest {
             header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isNoContent() } }
 
+        val victimFigure = mockMvc.post("/api/t/${victimTenant.slug}/admin/figures") {
+            contentType = MediaType.APPLICATION_JSON
+            content = figureBody("$SECRET 図")
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isCreated() } }.andReturn().response.contentAsString
+            .let { UUID.fromString(objectMapper.readTree(it)["id"].asString()) }
+
         // 攻撃者自身が victim で挑戦を中断している
         val attempt = mockMvc.post("/api/t/${victimTenant.slug}/play/attempts") {
             contentType = MediaType.APPLICATION_JSON
@@ -432,6 +469,7 @@ class TenantBoundaryApiTest {
             deletedCategory = deletedCategory,
             deletedDifficulty = deletedDifficulty,
             deletedQuiz = deletedQuiz,
+            victimFigure = victimFigure,
         )
     }
 
@@ -522,10 +560,11 @@ class TenantBoundaryApiTest {
         val deletedCategory: UUID,
         val deletedDifficulty: UUID,
         val deletedQuiz: UUID,
+        val victimFigure: UUID,
     ) {
         companion object {
             /** 網羅性の検査用。ケースの一覧が作れればよく、値は使わない */
-            fun placeholder(): Ids = UUID(0, 0).let { Ids(it, it, it, it, it, it, it, it, it, it, it) }
+            fun placeholder(): Ids = UUID(0, 0).let { Ids(it, it, it, it, it, it, it, it, it, it, it, it) }
         }
     }
 }

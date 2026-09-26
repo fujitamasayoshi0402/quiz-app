@@ -38,6 +38,8 @@ import {
   CategoryResponse,
   DeletionImpact,
   DifficultyResponse,
+  FigureResponse,
+  FigureSourceResponse,
   ImportQuizzesResponse,
   MyTenantResponse,
   PlayableCategoryResponse,
@@ -47,6 +49,7 @@ import {
 import type {
   AnswerRequest,
   CreateCategoryRequest,
+  CreateFigureRequest,
   ImportQuizzesRequest,
   ProblemDetail,
   SaveDifficultyRequest,
@@ -1359,6 +1362,284 @@ export function useCategoryDeletionImpact<TData = Awaited<ReturnType<typeof cate
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getCategoryDeletionImpactQueryOptions(slug,id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateFigureUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/figures`
+}
+
+/**
+ * SVG は無害化しない。配るときに、アプリと別のオリジンから、スクリプトを止めるヘッダを付けて返す
+ * @summary 解説図を置く
+ */
+export const createFigure = async (slug: string,
+    createFigureRequest: CreateFigureRequest, options?: Parameters<typeof apiFetch>[1]): Promise<FigureResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<FigureResponse>(getCreateFigureUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createFigureRequest),
+    schema: FigureResponse
+  }
+);}
+
+
+
+
+
+export const getCreateFigureMutationKey = () => ['createFigure'] as const;
+
+export const getCreateFigureMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFigure>>, TError,CreateFigureMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFigure>>, TError,CreateFigureMutationVariables, TContext> => {
+
+const mutationKey = getCreateFigureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFigure>>, CreateFigureMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  createFigure(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFigureMutationResult = NonNullable<Awaited<ReturnType<typeof createFigure>>>
+    export type CreateFigureMutationBody = CreateFigureRequest
+    export type CreateFigureMutationError = ProblemDetail
+    export type CreateFigureMutationVariables = {slug: string;data: CreateFigureRequest}
+
+    /**
+ * @summary 解説図を置く
+ */
+export const useCreateFigure = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFigure>>, TError,CreateFigureMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createFigure>>,
+        TError,
+        CreateFigureMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateFigureMutationOptions(options), queryClient);
+    }
+
+export const getDeleteFigureUrl = (slug: string,
+    id: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/figures/${id}`
+}
+
+/**
+ * 論理削除ではない。発行済みの URL は期限（最長 10 分）まで使える
+ * @summary 解説図を消す
+ */
+export const deleteFigure = async (slug: string,
+    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getDeleteFigureUrl(slug,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteFigureMutationKey = () => ['deleteFigure'] as const;
+
+export const getDeleteFigureMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFigure>>, TError,DeleteFigureMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFigure>>, TError,DeleteFigureMutationVariables, TContext> => {
+
+const mutationKey = getDeleteFigureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFigure>>, DeleteFigureMutationVariables> = (props) => {
+          const {slug,id} = props ?? {};
+
+          return  deleteFigure(slug,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFigureMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFigure>>>
+
+    export type DeleteFigureMutationError = ProblemDetail
+    export type DeleteFigureMutationVariables = {slug: string;id: string}
+
+    /**
+ * @summary 解説図を消す
+ */
+export const useDeleteFigure = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFigure>>, TError,DeleteFigureMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFigure>>,
+        TError,
+        DeleteFigureMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteFigureMutationOptions(options), queryClient);
+    }
+
+export const getGetFigureSourceUrl = (slug: string,
+    id: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/figures/${id}/source`
+}
+
+/**
+ * @summary 解説図の原本（draw.io）を取得
+ */
+export const getFigureSource = async (slug: string,
+    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<FigureSourceResponse> => {
+
+  return apiFetch<FigureSourceResponse>(getGetFigureSourceUrl(slug,id),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: FigureSourceResponse
+  }
+);}
+
+
+
+
+
+export const getGetFigureSourceQueryKey = (slug: string,
+    id: string,) => {
+    return [
+    `/api/t/${slug}/admin/figures/${id}/source`
+    ] as const;
+    }
+
+
+export const getGetFigureSourceQueryOptions = <TData = Awaited<ReturnType<typeof getFigureSource>>, TError = ProblemDetail>(slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigureSource>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFigureSourceQueryKey(slug,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFigureSource>>> = ({ signal }) => getFigureSource(slug,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFigureSource>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFigureSourceQueryResult = NonNullable<Awaited<ReturnType<typeof getFigureSource>>>
+export type GetFigureSourceQueryError = ProblemDetail
+
+
+export function useGetFigureSource<TData = Awaited<ReturnType<typeof getFigureSource>>, TError = ProblemDetail>(
+ slug: string,
+    id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigureSource>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFigureSource>>,
+          TError,
+          Awaited<ReturnType<typeof getFigureSource>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFigureSource<TData = Awaited<ReturnType<typeof getFigureSource>>, TError = ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigureSource>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFigureSource>>,
+          TError,
+          Awaited<ReturnType<typeof getFigureSource>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFigureSource<TData = Awaited<ReturnType<typeof getFigureSource>>, TError = ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigureSource>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 解説図の原本（draw.io）を取得
+ */
+
+export function useGetFigureSource<TData = Awaited<ReturnType<typeof getFigureSource>>, TError = ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigureSource>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFigureSourceQueryOptions(slug,id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2913,6 +3194,115 @@ export function useListPlayableCategories<TData = Awaited<ReturnType<typeof list
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListPlayableCategoriesQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetFigureUrl = (slug: string,
+    id: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/figures/${id}`
+}
+
+/**
+ * @summary 解説図（SVG）へ送る
+ */
+export const getFigure = async (slug: string,
+    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getGetFigureUrl(slug,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFigureQueryKey = (slug: string,
+    id: string,) => {
+    return [
+    `/api/t/${slug}/play/figures/${id}`
+    ] as const;
+    }
+
+
+export const getGetFigureQueryOptions = <TData = Awaited<ReturnType<typeof getFigure>>, TError = void | ProblemDetail>(slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigure>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFigureQueryKey(slug,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFigure>>> = ({ signal }) => getFigure(slug,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFigure>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFigureQueryResult = NonNullable<Awaited<ReturnType<typeof getFigure>>>
+export type GetFigureQueryError = void | ProblemDetail
+
+
+export function useGetFigure<TData = Awaited<ReturnType<typeof getFigure>>, TError = void | ProblemDetail>(
+ slug: string,
+    id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigure>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFigure>>,
+          TError,
+          Awaited<ReturnType<typeof getFigure>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFigure<TData = Awaited<ReturnType<typeof getFigure>>, TError = void | ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigure>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFigure>>,
+          TError,
+          Awaited<ReturnType<typeof getFigure>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFigure<TData = Awaited<ReturnType<typeof getFigure>>, TError = void | ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigure>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 解説図（SVG）へ送る
+ */
+
+export function useGetFigure<TData = Awaited<ReturnType<typeof getFigure>>, TError = void | ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigure>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFigureQueryOptions(slug,id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

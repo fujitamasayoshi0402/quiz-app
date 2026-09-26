@@ -81,3 +81,15 @@ app:
     # AWS ではタスク定義の環境変数、ローカルでは .env から渡す
     issuer: ${AUTH_ISSUER:}
     client-id: ${AUTH_CLIENT_ID:}
+  figures:
+    # 解説図の置き場所と、配る URL の作り方（ADR-0017、FigureProperties）。
+    # 既定値はローカル（LocalStack）向け。AWS ではアプリのタスク定義の環境変数で、S3 の接続先を空にし、CloudFront の設定を入れる
+    bucket: ${FIGURES_BUCKET:quiz-app-figures}
+    region: ${AWS_REGION:ap-northeast-1}
+    s3:
+      endpoint: ${FIGURES_S3_ENDPOINT:http://localhost:4566}
+      public-endpoint: ${FIGURES_S3_PUBLIC_ENDPOINT:}
+    cloudfront:
+      url: ${FIGURES_CLOUDFRONT_URL:}
+      key-pair-id: ${FIGURES_CLOUDFRONT_KEY_PAIR_ID:}
+      private-key: ${FIGURES_CLOUDFRONT_PRIVATE_KEY:}
