@@ -10,6 +10,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorAlert } from "@/components/api-error-alert";
+import { Markdown } from "@/components/markdown";
 import { ChoiceList } from "@/components/play/choice-list";
 import { ApiError } from "@/lib/api/fetcher";
 import { useAnswerQuiz, useResumeAttempt } from "@/lib/api/generated/endpoints";
@@ -135,7 +136,7 @@ function Explanation({ result }: { result: AnswerResult }) {
       <p className={result.isCorrect ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
         {result.isCorrect ? "正解" : "不正解"}
       </p>
-      <p className="text-sm leading-relaxed whitespace-pre-wrap">{result.explanation}</p>
+      <Markdown>{result.explanation}</Markdown>
     </div>
   );
 }

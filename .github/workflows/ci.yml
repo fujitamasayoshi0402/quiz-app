@@ -159,6 +159,9 @@ jobs:
       - name: lint
         run: pnpm --filter web lint
 
+      - name: 単体テスト
+        run: pnpm --filter web test
+
       # 型チェックと lint では、Server / Client Components の境界の誤りやビルド設定の問題が分からない
       - name: ビルド
         run: pnpm --filter web build
