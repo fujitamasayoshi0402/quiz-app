@@ -164,6 +164,9 @@ D は条件を満たさない。E は Cookie の配り方が構成を縛る。
 
 ## 検証事項
 
-- 302 の応答が、web の proxy（Next.js）と Amplify を通っても、ブラウザにそのまま届くこと（proxy が後を追わないこと）
-- CloudFront が、署名のない要求と期限の切れた要求を拒否すること
+- ~~302 の応答が、web の proxy（Next.js）と Amplify を通っても、ブラウザにそのまま届くこと（proxy が後を追わないこと）~~
+  DEV-62 で確認した。ローカル（docker compose）と dev のスモークテストで、302 と署名付き URL がそのまま返った。
+  送り先の CloudFront からは、CSP（`sandbox`）と `nosniff` の付いた SVG が返った
+- CloudFront が、署名のない要求と期限の切れた要求を拒否すること。
+  署名のない要求は DEV-62 で確認した（403）。HTTP は 403、TLS 1.1 は接続できなかった。**期限の切れた要求は未確認**
 - draw.io の SVG が、CSP の下でも崩れずに表示されること（DEV-70）
