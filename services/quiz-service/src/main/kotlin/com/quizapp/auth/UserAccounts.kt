@@ -14,6 +14,9 @@ interface UserAccounts {
 
     fun findIdByExternalId(externalId: String): UUID?
 
+    /** 利用者の確認済みのメールアドレス。認証基盤で確認できていなければ null */
+    fun emailOf(userId: UUID): String?
+
     /**
      * 事前に登録した利用者（メールアドレスだけを持ち、まだ誰にも結び付いていない）に結び付ける。無ければ null。
      *
@@ -35,6 +38,12 @@ class UserAccountsJdbc(private val jdbcTemplate: JdbcTemplate) : UserAccounts {
         "SELECT id FROM core.users WHERE external_id = ?",
         { rs, _ -> rs.getObject("id", UUID::class.java) },
         externalId,
+    ).firstOrNull()
+
+    override fun emailOf(userId: UUID): String? = jdbcTemplate.query(
+        "SELECT email FROM core.users WHERE id = ?",
+        { rs, _ -> rs.getString("email") },
+        userId,
     ).firstOrNull()
 
     override fun claimByEmail(externalId: String, email: String): UUID? = jdbcTemplate.query(
