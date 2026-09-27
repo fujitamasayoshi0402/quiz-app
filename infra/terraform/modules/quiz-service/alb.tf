@@ -5,7 +5,6 @@
 # Phase 3 でアプリが JWT を検証するようになったら、この確認は外せる。
 
 locals {
-  quiz_service_port  = 8080
   origin_header_name = "X-Origin-Verify"
 }
 

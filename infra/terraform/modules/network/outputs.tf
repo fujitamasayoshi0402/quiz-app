@@ -16,6 +16,7 @@ output "security_group_ids" {
   description = "役割ごとの SecurityGroup"
   value = {
     alb          = aws_security_group.alb.id
+    vpc_link     = aws_security_group.vpc_link.id
     quiz_service = aws_security_group.quiz_service.id
     db           = aws_security_group.db.id
   }
