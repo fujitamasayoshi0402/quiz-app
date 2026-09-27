@@ -182,7 +182,7 @@ AWS の資格のように、**同じ難度帯に複数の種類が並ぶ**体系
 
 ## 解説図
 
-- 種類は 3 つ。draw.io（原本と、書き出した SVG の組）、画像（PNG・JPEG）、PDF（[ADR-0019](adr/0019-reference-figures-from-explanations-and-add-images-and-pdfs.md)）
+- 種類は 3 つ。draw.io（原本と、書き出した SVG の組）、画像（PNG・JPEG）、PDF（[ADR-0020](adr/0020-reference-figures-from-explanations-and-add-images-and-pdfs.md)）
 - 本体は S3 に置き、DB には行だけを持つ（[ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md)）
 - **一度置いたら変えない。** 描き直した図は、新しい図として置く
 - テナントに属する。別テナントの図は、ID を指定しても見えない
