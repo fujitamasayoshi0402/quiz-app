@@ -27,6 +27,7 @@ data class SaveQuizRequest(
     @field:NotBlank(message = "問題文を入力してください")
     @field:Size(max = Quiz.MAX_QUESTION_LENGTH, message = "問題文は {max} 文字以内で入力してください")
     val question: String,
+    @field:Schema(description = Quiz.EXPLANATION_FORMAT)
     val explanation: String = "",
     // 下書きでは選択肢が揃っていなくてよいため、件数の検証はドメイン側で状態に応じて行う
     @field:Valid
@@ -50,6 +51,7 @@ data class QuizResponse(
     val categoryId: UUID,
     val difficultyId: UUID,
     val question: String,
+    @field:Schema(description = Quiz.EXPLANATION_FORMAT)
     val explanation: String,
     val choices: List<ChoiceResponse>,
     val status: String,

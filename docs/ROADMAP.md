@@ -126,7 +126,7 @@
 
 **ゴール: 図解つき解説まで含めたクイズ管理**
 
-- [ ] 解説エディタ（Markdown）
+- [x] 解説エディタ（Markdown）: 原文で持ち、画面で変換する。生の HTML は通さない（[ADR-0018](adr/0018-write-explanations-in-markdown-and-render-on-screen.md)）
 - [ ] draw.io 連携: 管理画面に embed.diagrams.net を埋め込み、`.drawio` を S3 に保存
 - [x] 解説図の置き場所と配信: 非公開の S3 に置き、API が出す CloudFront の署名付き URL で配る（[ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md)）
 - [ ] ユーザー側の解説表示（図を含む）

@@ -23,6 +23,7 @@
 | [0015](0015-deploy-by-registering-task-definitions-from-ci.md) | dev へのデプロイは GitHub Actions がタスク定義のリビジョンを登録して行い、Terraform はタスク定義の形だけを持つ | Accepted |
 | [0016](0016-authenticate-with-cognito-managed-login.md) | 認証は Cognito の Managed Login とパスキーで作り、利用者の ID を Cognito から切り離す | Accepted |
 | [0017](0017-deliver-figures-with-cloudfront-signed-urls.md) | 解説図は非公開の S3 に置き、API が出す CloudFront の署名付き URL で配る | Accepted |
+| [0018](0018-write-explanations-in-markdown-and-render-on-screen.md) | 解説は Markdown の原文で持ち、画面で変換する。生の HTML は通さない | Accepted |
 
 ## 運用ルール
 

@@ -20,7 +20,7 @@ export const QuizResult = zod.object({
   "id": zod.uuid()
 })),
   "correctChoiceId": zod.uuid(),
-  "explanation": zod.string(),
+  "explanation": zod.string().describe('解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の HTML と画像は表示しない'),
   "isCorrect": zod.boolean(),
   "question": zod.string(),
   "quizId": zod.uuid(),

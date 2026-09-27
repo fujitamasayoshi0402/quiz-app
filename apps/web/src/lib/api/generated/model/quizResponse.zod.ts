@@ -22,7 +22,7 @@ export const QuizResponse = zod.object({
   "isCorrect": zod.boolean()
 })),
   "difficultyId": zod.uuid(),
-  "explanation": zod.string(),
+  "explanation": zod.string().describe('解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の HTML と画像は表示しない'),
   "id": zod.uuid(),
   "question": zod.string(),
   "status": zod.string()

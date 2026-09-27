@@ -10,6 +10,7 @@ import com.quizapp.quiz.domain.DeliveredChoice
 import com.quizapp.quiz.domain.DeliveredQuiz
 import com.quizapp.quiz.domain.DeliveryCriteria
 import com.quizapp.quiz.domain.DeliveryScope
+import com.quizapp.quiz.domain.Quiz
 import com.quizapp.tenant.TenantTransaction
 import io.swagger.v3.oas.annotations.media.Schema
 import org.springframework.stereotype.Service
@@ -215,6 +216,7 @@ data class AnswerResult(
     @get:Schema(name = "isCorrect")
     val isCorrect: Boolean,
     val correctChoiceId: UUID,
+    @field:Schema(description = Quiz.EXPLANATION_FORMAT)
     val explanation: String,
     val answeredCount: Int,
     val totalCount: Int,
@@ -240,6 +242,7 @@ data class QuizResult(
     // Jackson は Kotlin のプロパティ名で出すため、明示しないと定義と実際の JSON がずれる
     @get:Schema(name = "isCorrect")
     val isCorrect: Boolean,
+    @field:Schema(description = Quiz.EXPLANATION_FORMAT)
     val explanation: String,
 )
 

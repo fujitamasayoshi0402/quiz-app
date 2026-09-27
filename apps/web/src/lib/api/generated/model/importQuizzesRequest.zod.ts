@@ -28,7 +28,7 @@ export const ImportQuizzesRequest = zod.object({
   "isCorrect": zod.boolean().optional()
 })).optional(),
   "difficulty": zod.string(),
-  "explanation": zod.string().optional(),
+  "explanation": zod.string().optional().describe('解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の HTML と画像は表示しない'),
   "question": zod.string(),
   "status": zod.string().optional()
 })).min(1).max(importQuizzesRequestQuizzesMax)

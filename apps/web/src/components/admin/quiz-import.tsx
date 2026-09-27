@@ -193,6 +193,7 @@ function FormatHelp() {
           <strong>JSON</strong>: クイズの配列です。各クイズに category, difficulty, question, choices（body と isCorrect の配列）,
           explanation, status を書きます。
         </p>
+        <p>解説は、クイズの編集と同じく Markdown で書けます。</p>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => download("quiz-import-sample.csv", SAMPLE_CSV, "text/csv")}>
             CSV のサンプル
