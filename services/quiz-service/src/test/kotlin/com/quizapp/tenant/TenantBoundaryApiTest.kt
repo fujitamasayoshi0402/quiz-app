@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
 import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.post
+import org.springframework.test.web.servlet.put
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
 import tools.jackson.databind.JsonNode
@@ -184,7 +185,8 @@ class TenantBoundaryApiTest {
 
     private fun probes(ids: Ids): List<Probe> =
         categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
-            figureProbes(ids) + playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids) + historyProbes()
+            figureProbes(ids) + playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids) + historyProbes() +
+            rankingProbes()
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -403,6 +405,22 @@ class TenantBoundaryApiTest {
         )
     }
 
+    /** 攻撃者は victim のランキングに、victim で解いた成績とともに参加している。それが own に現れないこと */
+    private fun rankingProbes(): List<Probe> {
+        val base = "/api/t/{slug}/play/ranking"
+        return listOf(
+            Probe(HttpMethod.GET, base, "victim の参加者と成績が出ない", status = 200),
+            Probe(
+                HttpMethod.PUT,
+                "$base/participation",
+                "自テナントで参加しても victim の参加は変わらない",
+                body = """{"name":"境界テスト"}""",
+                status = 200,
+            ),
+            Probe(HttpMethod.DELETE, "$base/participation", "やめても victim の参加は残る", status = 204),
+        )
+    }
+
     /** 攻撃者は victim で挑戦を終え、回答も残している。それが own の履歴と正答率に現れないこと */
     private fun historyProbes(): List<Probe> {
         val base = "/api/t/{slug}/play/history"
@@ -500,19 +518,7 @@ class TenantBoundaryApiTest {
             header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isCreated() } }.andReturn().response.contentAsString.let(objectMapper::readTree)
 
-        // 攻撃者自身が victim で挑戦を終えている。履歴の検証に使う
-        val finished = startVictimAttempt()
-        val finishedId = finished["id"].asString()
-        val quizId = finished["quizzes"][0]["id"].asString()
-        val choiceId = finished["quizzes"][0]["choices"][0]["id"].asString()
-        mockMvc.post("/api/t/${victimTenant.slug}/play/attempts/$finishedId/answers") {
-            contentType = MediaType.APPLICATION_JSON
-            content = """{"quizId":"$quizId","choiceId":"$choiceId"}"""
-            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
-        }.andExpect { status { isOk() } }
-        mockMvc.post("/api/t/${victimTenant.slug}/play/attempts/$finishedId/complete") {
-            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
-        }.andExpect { status { isOk() } }
+        recordVictimActivity()
 
         // 攻撃者自身が victim で挑戦を中断している
         val attempt = startVictimAttempt()
@@ -532,6 +538,32 @@ class TenantBoundaryApiTest {
             victimFigure = victimFigure,
             victimInvitation = UUID.fromString(invitation["invitation"]["id"].asString()),
         )
+    }
+
+    /**
+     * 攻撃者自身が victim で挑戦を終え、ランキングにも参加している。
+     * 履歴とランキングが own にそれを出さないことの検証に使う
+     */
+    private fun recordVictimActivity() {
+        val finished = startVictimAttempt()
+        val finishedId = finished["id"].asString()
+        val quizId = finished["quizzes"][0]["id"].asString()
+        val choiceId = finished["quizzes"][0]["choices"][0]["id"].asString()
+        mockMvc.post("/api/t/${victimTenant.slug}/play/attempts/$finishedId/answers") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"quizId":"$quizId","choiceId":"$choiceId"}"""
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isOk() } }
+        mockMvc.post("/api/t/${victimTenant.slug}/play/attempts/$finishedId/complete") {
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isOk() } }
+
+        // 上で解いた 1 問で順位が付く
+        mockMvc.put("/api/t/${victimTenant.slug}/play/ranking/participation") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"$SECRET"}"""
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isOk() } }
     }
 
     private fun startVictimAttempt(): JsonNode = mockMvc.post("/api/t/${victimTenant.slug}/play/attempts") {

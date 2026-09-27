@@ -70,6 +70,17 @@ class PlayableCategoryJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate)
             .toMap()
     }
 
+    override fun findQuizIds(): Set<UUID> = jdbcTemplate.query(
+        """
+        SELECT q.id
+        FROM quiz.quizzes q
+        JOIN quiz.categories c ON c.id = q.category_id AND c.deleted_at IS NULL
+        JOIN quiz.difficulties d ON d.id = q.difficulty_id AND d.deleted_at IS NULL
+        WHERE q.deleted_at IS NULL AND q.status = 'published'
+        """,
+    ) { rs, _ -> rs.getObject("id", UUID::class.java) }
+        .toSet()
+
     private data class Row(
         val categoryId: UUID,
         val categoryName: String,

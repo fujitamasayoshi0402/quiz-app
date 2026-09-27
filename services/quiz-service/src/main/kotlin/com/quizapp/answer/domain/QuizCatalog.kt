@@ -48,4 +48,11 @@ interface QuizCatalog {
      * 返したカテゴリは、必ず [findPlayableCategories] にも現れる。
      */
     fun findCategoryIds(quizIds: Collection<UUID>): Map<UUID, UUID>
+
+    /**
+     * いま出題できるクイズの ID。ランキングの集計に使う。
+     *
+     * 履歴と同じく、削除・非公開のクイズへの回答を数えないため。
+     */
+    fun findPlayableQuizIds(): Set<UUID>
 }

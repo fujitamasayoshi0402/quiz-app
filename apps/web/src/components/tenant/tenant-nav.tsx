@@ -60,6 +60,11 @@ export function TenantNav({ slug }: { slug: string }) {
         <Link href={`/t/${slug}/history`} className="text-muted-foreground hover:text-foreground py-2">
           履歴
         </Link>
+        {/* 320px の幅でテナント名が押し出されないよう、狭い幅では短く出す */}
+        <Link href={`/t/${slug}/ranking`} className="text-muted-foreground hover:text-foreground py-2">
+          <span className="sm:hidden">順位</span>
+          <span className="hidden sm:inline">ランキング</span>
+        </Link>
         {current?.role === "admin" && (
           <Link href={`/t/${slug}/admin`} className="text-muted-foreground hover:text-foreground py-2">
             管理

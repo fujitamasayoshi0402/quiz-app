@@ -81,6 +81,8 @@ class FakeQuizCatalog : QuizCatalog {
         if (playable.isEmpty()) null else PlayableCategory(categoryId, name, null, playable)
     }
 
+    override fun findPlayableQuizIds(): Set<UUID> = quizzes.keys.toSet()
+
     override fun findCategoryIds(quizIds: Collection<UUID>): Map<UUID, UUID> =
         quizIds.mapNotNull { quizzes[it] }.filter { it.categoryId in categories }.associate { it.id to it.categoryId }
 

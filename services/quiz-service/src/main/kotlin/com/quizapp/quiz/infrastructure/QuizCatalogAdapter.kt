@@ -51,4 +51,6 @@ class QuizCatalogAdapter(
 
     override fun findCategoryIds(quizIds: Collection<UUID>): Map<UUID, UUID> =
         playableCategories.findCategoryIds(quizIds)
+
+    override fun findPlayableQuizIds(): Set<UUID> = playableCategories.findQuizIds()
 }

@@ -35,6 +35,8 @@ tags:
   name: 解説図（出題）
 - description: 管理者がカテゴリを CRUD する
   name: カテゴリ
+- description: 参加を選んだ人だけが載る。期間内に正解したクイズの数で並べる
+  name: ランキング
 - description: テナントへの招待を作り、取り消す。招待のトークンは作った直後にだけ返す
   name: 招待
 - description: 論理削除したカテゴリ・難易度・クイズの一覧と復活
@@ -1727,6 +1729,123 @@ paths:
       required: true
       schema:
         type: string
+  /api/t/{slug}/play/ranking:
+    get:
+      operationId: getRanking
+      parameters:
+      - description: '`7d`（直近 7 日）/ `30d`（直近 30 日）/ `all`（全期間）'
+        in: query
+        name: period
+        required: false
+        schema:
+          type: string
+          default: 30d
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RankingView"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: ランキングを取得
+      tags:
+      - ランキング
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+  /api/t/{slug}/play/ranking/participation:
+    delete:
+      operationId: leaveRanking
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: ランキングへの参加をやめる
+      tags:
+      - ランキング
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+    put:
+      description: 参加していれば名前を変える。同じテナントで使われている名前は 409
+      operationId: participateInRanking
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipateRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participation"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: ランキングに参加する
+      tags:
+      - ランキング
 components:
   schemas:
     AnswerRequest:
@@ -2185,6 +2304,17 @@ components:
       - id
       - role
       - status
+    MyRanking:
+      type: object
+      properties:
+        entry:
+          oneOf:
+          - $ref: "#/components/schemas/RankingEntry"
+          - type: "null"
+        name:
+          type:
+          - string
+          - "null"
     MyTenantResponse:
       type: object
       properties:
@@ -2198,6 +2328,22 @@ components:
       - name
       - role
       - slug
+    ParticipateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 20
+          minLength: 0
+      required:
+      - name
+    Participation:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+      - name
     PlayableCategoryResponse:
       type: object
       properties:
@@ -2331,6 +2477,43 @@ components:
       - isCorrect
       - question
       - quizId
+    RankingEntry:
+      type: object
+      properties:
+        answeredCount:
+          type: integer
+          format: int32
+        correctCount:
+          type: integer
+          format: int32
+        isMe:
+          type: boolean
+        name:
+          type: string
+        rank:
+          type: integer
+          format: int32
+      required:
+      - answeredCount
+      - correctCount
+      - isMe
+      - name
+      - rank
+    RankingView:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RankingEntry"
+        me:
+          $ref: "#/components/schemas/MyRanking"
+        period:
+          type: string
+      required:
+      - entries
+      - me
+      - period
     ReceivedInvitationResponse:
       type: object
       properties:
