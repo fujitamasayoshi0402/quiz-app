@@ -5,6 +5,7 @@ import com.quizapp.quiz.domain.CategoryRepository
 import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.DifficultyRepository
+import com.quizapp.quiz.domain.FigureRepository
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
@@ -48,6 +49,7 @@ class QuizImportUseCase(
     private val quizRepository: QuizRepository,
     private val categoryRepository: CategoryRepository,
     private val difficultyRepository: DifficultyRepository,
+    private val figureRepository: FigureRepository,
     private val tenantTransaction: TenantTransaction,
 ) {
     fun import(rows: List<QuizImportRow>): Int = tenantTransaction.execute {
@@ -97,6 +99,7 @@ class QuizImportUseCase(
         if (category != null && quiz != null) {
             resolver.claim(category, quiz.question, index)?.let { messages += it }
         }
+        if (quiz != null && !resolver.figuresExist(quiz.figureIds())) messages += Quiz.FIGURE_NOT_FOUND
 
         return (quiz.takeIf { messages.isEmpty() }) to messages
     }
@@ -110,6 +113,7 @@ class QuizImportUseCase(
         private val difficulties = mutableMapOf<UUID, Map<String, Difficulty>>()
         private val existingQuestions = mutableMapOf<UUID, Set<String>>()
         private val claimed = mutableMapOf<Pair<UUID, String>, Int>()
+        private val figures = mutableMapOf<UUID, Boolean>()
 
         fun category(name: String): Category? = categories[name]
 
@@ -136,6 +140,16 @@ class QuizImportUseCase(
 
                 else -> null
             }
+        }
+
+        /** 解説が指す図が、すべてこのテナントにあるか。一度確かめた図は覚えておく */
+        fun figuresExist(ids: Set<UUID>): Boolean {
+            val unknown = ids - figures.keys
+            if (unknown.isNotEmpty()) {
+                val existing = figureRepository.findExisting(unknown)
+                unknown.forEach { figures[it] = it in existing }
+            }
+            return ids.all { figures.getValue(it) }
         }
 
         private fun Category.persistedId(): UUID = requireNotNull(id) { "永続化されたカテゴリには ID があるはずです" }

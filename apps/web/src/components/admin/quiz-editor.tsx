@@ -2,11 +2,13 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { DeleteDialog } from "@/components/admin/delete-dialog";
+import { FigureEditor } from "@/components/admin/figure-editor";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { FigureImage } from "@/components/figure-image";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateQuiz, useDeleteQuiz, useGetQuiz, useUpdateQuiz } from "@/lib/api/generated/endpoints";
+import { getFigureSource, useCreateQuiz, useDeleteQuiz, useGetQuiz, useUpdateQuiz } from "@/lib/api/generated/endpoints";
 import { useCatalog } from "@/lib/admin/catalog";
 import { useInvalidateTenant } from "@/lib/admin/invalidate";
 import {
@@ -29,6 +31,7 @@ import {
   toQuizForm,
   toSaveQuizRequest,
 } from "@/lib/admin/quiz-form";
+import { figureIdsIn, figureUrl, insertFigure, replaceFigure } from "@/lib/figures";
 
 /** 既存のクイズを読み込んでから編集フォームを出す */
 export function EditQuiz({ slug, quizId }: { slug: string; quizId: string }) {
@@ -72,6 +75,10 @@ function QuizEditor({
   const categoryId = useWatch({ control: form.control, name: "categoryId" });
   const explanation = useWatch({ control: form.control, name: "explanation" });
   const [explanationTab, setExplanationTab] = useState("write");
+  const figures = useExplanationFigures(slug, form.getValues, (value) =>
+    form.setValue("explanation", value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted }),
+  );
+  const { ref: registerExplanation, ...explanationField } = form.register("explanation");
 
   const create = useCreateQuiz({ mutation: { onSuccess: toList } });
   const update = useUpdateQuiz({ mutation: { onSuccess: toList } });
@@ -202,26 +209,43 @@ function QuizEditor({
           <Field data-invalid={!!errors.explanation}>
             <FieldLabel htmlFor="explanation">解説</FieldLabel>
             <FieldDescription>
-              Markdown で書けます（見出し、箇条書き、コード、リンク、表）。HTML と画像は表示されません。
+              Markdown で書けます（見出し、箇条書き、コード、リンク、表）。図は「図を描く」で描いて入れます。HTML
+              と、ほかの場所の画像は表示されません。
             </FieldDescription>
             <Tabs value={explanationTab} onValueChange={setExplanationTab}>
-              <TabsList>
-                <TabsTrigger value="write">書く</TabsTrigger>
-                <TabsTrigger value="preview">プレビュー</TabsTrigger>
-              </TabsList>
+              <div className="flex flex-wrap items-center gap-2">
+                <TabsList>
+                  <TabsTrigger value="write">書く</TabsTrigger>
+                  <TabsTrigger value="preview">プレビュー</TabsTrigger>
+                </TabsList>
+                <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={figures.drawNew}>
+                  図を描く
+                </Button>
+              </div>
               {/* 入力欄は外さずに隠す。外すと、戻ったときにカーソルの位置や元に戻す履歴が消える */}
-              <TabsContent value="write" forceMount className="data-[state=inactive]:hidden">
+              <TabsContent value="write" forceMount className="space-y-3 data-[state=inactive]:hidden">
                 <Textarea
                   id="explanation"
                   rows={8}
                   className="font-mono"
                   aria-invalid={!!errors.explanation}
-                  {...form.register("explanation")}
+                  {...explanationField}
+                  ref={(element) => {
+                    registerExplanation(element);
+                    figures.bindTextarea(element);
+                  }}
+                />
+                <ExplanationFigures
+                  slug={slug}
+                  ids={figureIdsIn(explanation)}
+                  loading={figures.loading}
+                  error={figures.error}
+                  onRedraw={figures.redraw}
                 />
               </TabsContent>
               <TabsContent value="preview" className="min-h-40 rounded-lg border px-3 py-2">
                 {explanation.trim() ? (
-                  <Markdown>{explanation}</Markdown>
+                  <Markdown tenant={slug}>{explanation}</Markdown>
                 ) : (
                   <p className="text-muted-foreground text-sm">解説がまだありません。</p>
                 )}
@@ -229,6 +253,13 @@ function QuizEditor({
             </Tabs>
             <FieldError errors={[errors.explanation]} />
           </Field>
+          <FigureEditor
+            slug={slug}
+            source={figures.drawing?.source}
+            open={figures.drawing !== null}
+            onOpenChange={(open) => !open && figures.close()}
+            onSaved={figures.saved}
+          />
         </CardContent>
       </Card>
 
@@ -252,5 +283,96 @@ function QuizEditor({
         </div>
       </div>
     </form>
+  );
+}
+
+/**
+ * 解説に図を描いて入れる・描き直す（ADR-0020）。
+ *
+ * 新しい図はカーソルの位置に入れる。描き直した図は新しい ID になるので、本文の参照を差し替える。
+ * 前の図は消さない。保存する前に編集をやめると、保存済みの解説は前の図を指したままになる。
+ */
+function useExplanationFigures(
+  slug: string,
+  getValues: (name: "explanation") => string,
+  setExplanation: (value: string) => void,
+) {
+  const textarea = useRef<HTMLTextAreaElement | null>(null);
+  const cursor = useRef<number | null>(null);
+  const [drawing, setDrawing] = useState<{ source?: string; replaces?: string } | null>(null);
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+
+  return {
+    /** 入力欄を覚えておく。図を入れる位置（カーソル）を読むため */
+    bindTextarea: (element: HTMLTextAreaElement | null) => {
+      textarea.current = element;
+    },
+    drawing,
+    loading,
+    error,
+    drawNew: () => {
+      // ダイアログを開くと入力欄からフォーカスが外れる。入れる位置は、開く前に覚えておく
+      cursor.current = textarea.current?.selectionStart ?? null;
+      setError(null);
+      setDrawing({});
+    },
+    redraw: async (id: string) => {
+      setError(null);
+      setLoading(id);
+      try {
+        const { source } = await getFigureSource(slug, id);
+        setDrawing({ source, replaces: id });
+      } catch (e) {
+        setError(e);
+      } finally {
+        setLoading(null);
+      }
+    },
+    saved: (id: string) => {
+      const current = getValues("explanation");
+      setExplanation(drawing?.replaces ? replaceFigure(current, drawing.replaces, id) : insertFigure(current, cursor.current, id));
+    },
+    close: () => setDrawing(null),
+  };
+}
+
+/** 解説が指している図の一覧。描き直すときは、ここから選ぶ */
+function ExplanationFigures({
+  slug,
+  ids,
+  loading,
+  error,
+  onRedraw,
+}: {
+  slug: string;
+  ids: string[];
+  loading: string | null;
+  error: unknown;
+  onRedraw: (id: string) => void;
+}) {
+  if (ids.length === 0 && !error) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">解説の図</p>
+      <ul className="flex flex-wrap gap-3">
+        {ids.map((id, index) => (
+          <li key={id} className="w-32 space-y-1">
+            <FigureImage src={figureUrl(slug, id)} alt={`${index + 1} つ目の図`} className="h-24 w-full object-contain" />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              disabled={loading !== null}
+              onClick={() => onRedraw(id)}
+            >
+              {loading === id ? "読み込んでいます…" : "描き直す"}
+            </Button>
+          </li>
+        ))}
+      </ul>
+      {error !== null && <ApiErrorAlert error={error} />}
+    </div>
   );
 }

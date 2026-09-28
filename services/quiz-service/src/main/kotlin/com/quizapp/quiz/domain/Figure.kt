@@ -31,6 +31,22 @@ class FigureContent(val source: String, val svg: String) {
 }
 
 /**
+ * 解説の本文から図を指す書き方（ADR-0020）。`![代替テキスト](figure:<図の ID>)` と `[文字](figure:<図の ID>)`。
+ *
+ * Markdown としては読まず、文字列から拾う。コードブロックの中に書いたものも拾う。
+ * 拾いすぎても、確かめる対象が増えるだけで、見せてはいけない図を見せることにはならない。
+ */
+object FigureReferences {
+    private val PATTERN = Regex(
+        "figure:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?![0-9a-f-])",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** 本文が指す図の ID。同じ図を何度指していても 1 つにまとめる */
+    fun findIn(text: String): Set<UUID> = PATTERN.findAll(text).map { UUID.fromString(it.groupValues[1]) }.toSet()
+}
+
+/**
  * 図の行。**誰に返すかは、この行が見えるかどうかで決める**（行レベルセキュリティ）。
  *
  * テナントは引数で受け取らず、要求の文脈から決める。引数にすると、別テナントの図を指せる経路ができる。
@@ -39,6 +55,9 @@ interface FigureRepository {
     fun add(id: UUID)
 
     fun exists(id: UUID): Boolean
+
+    /** [ids] のうち、見える（このテナントにある）もの */
+    fun findExisting(ids: Collection<UUID>): Set<UUID>
 
     /** 消したら true。見えない（無い、別テナント）なら false */
     fun delete(id: UUID): Boolean

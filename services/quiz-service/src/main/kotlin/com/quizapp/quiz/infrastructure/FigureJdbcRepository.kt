@@ -27,6 +27,15 @@ class FigureJdbcRepository(private val jdbcTemplate: NamedParameterJdbcTemplate)
         Boolean::class.java,
     ) == true
 
+    override fun findExisting(ids: Collection<UUID>): Set<UUID> {
+        if (ids.isEmpty()) return emptySet()
+        return jdbcTemplate.queryForList(
+            "SELECT id FROM quiz.figures WHERE id IN (:ids)",
+            mapOf("ids" to ids),
+            UUID::class.java,
+        ).filterNotNull().toSet()
+    }
+
     override fun delete(id: UUID): Boolean =
         jdbcTemplate.update("DELETE FROM quiz.figures WHERE id = :id", mapOf("id" to id)) > 0
 }
