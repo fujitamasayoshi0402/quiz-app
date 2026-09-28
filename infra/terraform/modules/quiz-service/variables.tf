@@ -10,12 +10,8 @@ variable "vpc_id" {
 }
 
 variable "public_subnet_ids" {
-  description = "ALB とタスクを置く。タスクはパブリック IP から AWS の API へ出る（ADR-0013）"
+  description = "タスクを置く。タスクはパブリック IP から AWS の API へ出る（ADR-0013）"
   type        = list(string)
-}
-
-variable "alb_security_group_id" {
-  type = string
 }
 
 variable "service_security_group_id" {

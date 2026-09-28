@@ -1,9 +1,9 @@
 # web（Next.js）を Amplify Hosting で配る（ADR-0012）。ビルドの手順はリポジトリの amplify.yml にある。
 #
-#   ブラウザ → Amplify → SSR の proxy（アクセストークンを付ける）→ ALB（秘密のヘッダ）→ quiz-service
+#   ブラウザ → Amplify → SSR の proxy（アクセストークンを付ける）→ API Gateway → quiz-service
 #
 # 画面は誰でも開ける。データは、ログイン（modules/auth）とテナントの所属で守られる（ADR-0016）。
-# API は、ALB が秘密のヘッダで web の proxy からの要求だけを通す（ADR-0012）。
+# API は、quiz-service がアクセストークンを検証して守る（ADR-0019）。
 
 resource "aws_amplify_app" "this" {
   name       = var.name
@@ -24,7 +24,6 @@ resource "aws_amplify_app" "this" {
   environment_variables = {
     AMPLIFY_MONOREPO_APP_ROOT = "apps/web"
     API_ORIGIN                = var.api_origin
-    ORIGIN_VERIFY_SECRET      = var.origin_verify_secret
     AUTH_ISSUER               = var.auth.issuer
     AUTH_CLIENT_ID            = var.auth.client_id
     AUTH_CLIENT_SECRET        = var.auth.client_secret

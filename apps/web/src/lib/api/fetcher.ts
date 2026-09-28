@@ -44,7 +44,15 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * バックエンドのエラーだけを読む。手前の API Gateway が返す応答（送り先がない 503、時間切れの 504 など）は、
+ * JSON でも `{"message": ...}` という別の形で、ProblemDetail ではない。読むと、画面が理由のあるエラーとして扱い、
+ * 「サーバーが止まっているか、起動の途中です」の案内を出さなくなる
+ */
 async function readProblem(response: Response): Promise<Problem | null> {
+  if (!response.headers.get("content-type")?.startsWith("application/problem+json")) {
+    return null;
+  }
   try {
     return (await response.json()) as Problem;
   } catch {

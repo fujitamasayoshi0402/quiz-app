@@ -88,7 +88,8 @@ resource "aws_ecs_task_definition" "app" {
     # ECS がタスクの状態を決め、Cloud Map に伝える（api.tf）。通るまで API Gateway は要求を送らない。
     # デプロイの入れ替えとサーキットブレーカーも、この結果で判断する。
     # アクチュエータは DB に問い合わせない（application.yml）。叩き続けても Aurora の一時停止を妨げない。
-    # startPeriod の間の失敗は数えない（通れば、その時点で HEALTHY になる）。JVM の起動を待つ長さで、サービスの猶予と揃えている
+    # startPeriod の間の失敗は数えない（通れば、その時点で HEALTHY になる）。JVM の起動を待つ。
+    # 短いと、起動の途中でヘルスチェックに落とされ、入れ替えが繰り返される
     healthCheck = {
       command     = ["CMD-SHELL", "curl -sf http://localhost:${local.quiz_service_port}/actuator/health || exit 1"]
       interval    = 15
@@ -130,21 +131,12 @@ resource "aws_ecs_service" "app" {
     assign_public_ip = true
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.quiz_service.arn
-    container_name   = "quiz-service"
-    container_port   = local.quiz_service_port
-  }
-
   # タスクの IP とポートを Cloud Map に登録する。API Gateway はここから送り先を引く（api.tf）
   service_registries {
     registry_arn   = aws_service_discovery_service.quiz_service.arn
     container_name = "quiz-service"
     container_port = local.quiz_service_port
   }
-
-  # JVM の起動を待つ。短いと、起動中にヘルスチェックで落とされて入れ替えが繰り返される
-  health_check_grace_period_seconds = 180
 
   # 新しいタスクが動くのを確かめてから古いタスクを止める。起動に失敗したら、前のタスク定義に自動で戻す
   deployment_minimum_healthy_percent = 100
@@ -156,9 +148,6 @@ resource "aws_ecs_service" "app" {
   }
 
   propagate_tags = "SERVICE"
-
-  # ALB にリスナーがない間にサービスを作ると、ターゲットグループを紐付けられない
-  depends_on = [aws_lb_listener.https]
 
   # どのリビジョンを動かすかは、デプロイ（GitHub Actions）が決める（ADR-0015）。
   # Terraform が登録したリビジョンは、次のデプロイで形の元として使われ、イメージだけが差し替わる。

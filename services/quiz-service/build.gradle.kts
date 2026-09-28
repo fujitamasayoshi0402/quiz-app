@@ -44,7 +44,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    // コンテナのヘルスチェック（docker compose / 将来の ALB）に使う
+    // コンテナのヘルスチェック（docker compose / ECS）に使う
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     // Kotlin の data class をデシリアライズするために必要。

@@ -55,7 +55,7 @@
 | マイグレーション | Flyway | |
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui | TanStack Query / Zod。単体テストは Vitest |
 | 認証 | Amazon Cognito（Managed Login、パスワード + パスキー） | ロールはアプリのデータで持つ。後で自前実装に差し替える（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)） |
-| コンテナ基盤 | ECS Fargate + ALB | Kubernetes は採用しない |
+| コンテナ基盤 | ECS Fargate + API Gateway（HTTP API） | Kubernetes は採用しない。ロードバランサーは置かない（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)） |
 | フロントの配信 | Amplify Hosting | [ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md) |
 | 非同期 / 通知 | EventBridge → Lambda → Slack Incoming Webhook（DLQ に SQS） | 常駐リソースを増やさない |
 | ファイル | S3 + CloudFront（`.drawio` 原本と SVG） | API が出す署名付き URL で配る（[ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md)） |
@@ -456,7 +456,7 @@ AWS では arm64（Graviton）で動かす。Mac（Apple シリコン）でビ�
 web のイメージはローカル用。AWS では Amplify Hosting がソースからビルドする。
 
 ヘルスチェックは `GET /actuator/health`。**DB には問い合わせない。**
-ALB が定期的に叩くと、Aurora Serverless v2 の自動一時停止（min 0 ACU）が発動しなくなるため。
+ECS のコンテナのヘルスチェックが定期的に叩くと、Aurora Serverless v2 の自動一時停止（min 0 ACU）が発動しなくなるため。
 
 **`dev,migrate` で流すと、デモ用のシードが入る。** `dev` を付けないとカテゴリもクイズも空のまま立ち上がる。
 シードは Flyway の repeatable マイグレーション（`db/seed/`）で、`dev` のときだけ locations に加わる。
@@ -617,7 +617,6 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 - ログインのセッションが無い要求は、`Authorization` をそのまま渡す。スモークテストのように、トークンを自分で取る呼び出し元のため
 - ログインが要る画面（`/t/...`、`/invitations/...`）を未ログインで開くと、proxy が**開こうとしたパスとクエリ**を戻り先にしてログインへ移す。
   レイアウトは開いているパスを知らないため、そこで戻り先を決めると、テナントのトップにしか戻せない
-- AWS では、proxy が秘密のヘッダ（`X-Origin-Verify`）も付ける。値は環境変数 `ORIGIN_VERIFY_SECRET` から読み、ローカルでは付けない（[Amplify](#amplifyweb)）
 
 `/` は所属テナントの数で出し分ける（0 件: 招待を受けていない旨 / 1 件: そのテナントへ / 2 件以上: 選択画面）。
 所属の一覧はブラウザから取る。サーバーで取ると、proxy 以外でもトークンを付けることになる。
@@ -735,12 +734,12 @@ echo "$(terraform output -raw auth_managed_login_url)/login?client_id=$(terrafor
 `modules/web` で作る。ビルドの手順はリポジトリのルートの `amplify.yml` にある（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）。
 
 ```
-ブラウザ → Amplify（dev.<ドメイン>）→ SSR の proxy（アクセストークンを付ける）→ ALB（秘密のヘッダ）→ quiz-service
+ブラウザ → Amplify（dev.<ドメイン>）→ SSR の proxy（アクセストークンを付ける）→ API Gateway → quiz-service
 ```
 
 - **画面にベーシック認証はかけない。** データはログインとテナントの所属で守られる（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。
   スタブ認証の間は、誰にでもなりすませるためかけていた
-- SSR の実行時には Amplify の環境変数が渡らない。`amplify.yml` がビルドの中で、サーバー側で読む値（`API_ORIGIN`、`ORIGIN_VERIFY_SECRET`、`AUTH_*`）だけを `.env.production` に書き出す。
+- SSR の実行時には Amplify の環境変数が渡らない。`amplify.yml` がビルドの中で、サーバー側で読む値（`API_ORIGIN`、`AUTH_*`）だけを `.env.production` に書き出す。
   `NEXT_PUBLIC_` を付けないので、ブラウザ向けのコードには入らない
 - pnpm は、ビルドの中でだけ `nodeLinker: hoisted` にする。既定の配置では Amplify が `next` を見つけられない
 - **push でビルドしない。** デプロイのワークフローが、quiz-service の後に起動する（[デプロイ](#デプロイ)）。ビルドは約 3 分。
@@ -761,39 +760,35 @@ Cookie の暗号鍵を入れ替えるときは `terraform apply -replace=module.
 TF_VAR_github_access_token=<トークン> terraform apply
 ```
 
-秘密のヘッダの値を入れ替えるときは、ALB と web を続けて更新する。間は web から API に届かない。
-
-```bash
-terraform apply -replace=module.quiz_service.random_password.origin_verify
-aws amplify start-job ...   # 新しい値でビルドし直す
-```
-
 #### ECS（quiz-service）
 
-`modules/quiz-service` で作る。
+`modules/quiz-service` で作る。入口は API Gateway の HTTP API で、ロードバランサーは置かない（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)）。
 
 ```
-インターネット → ALB（HTTPS、api.dev.<ドメイン>）→ quiz-service（Fargate / arm64 / 0.5 vCPU・1 GB）→ Aurora（IAM 認証）
+インターネット → API Gateway（HTTPS、api.dev.<ドメイン>）→ VPC リンク → quiz-service（Fargate / arm64 / 0.5 vCPU・1 GB）→ Aurora（IAM 認証）
 ```
 
-- **ALB は秘密のヘッダ（`X-Origin-Verify`）を持たない要求を 403 で返す。** API を web の proxy 以外から呼ばせない。
-  ヘッダを付けるのは web（Amplify）の proxy だけで、値は Secrets Manager にある（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）。
-  ALB をやめるとき（DEV-56）に見直す
+- API Gateway は、ECS が Cloud Map に登録したタスクを引き、VPC リンクから直接送る。ポートまで引けるように SRV レコードで登録している
+- **入口では認証しない。** アクセストークンはアプリが検証する（[認証](#認証)）。トークンを持たない要求もタスクまで届き、アプリが DB に触れずに 401 を返す。
+  以前は ALB が秘密のヘッダ（`X-Origin-Verify`）で web の proxy からの要求だけを通していたが、やめた。proxy はセッションの無い要求の `Authorization` をそのまま中継するため、ヘッダで守れるものがなかった
+- 通すのは `/api/{proxy+}` だけ。アクチュエータなどは API Gateway が 404 を返す。既定のエンドポイント（`*.execute-api.amazonaws.com`）は閉じている
+- **送り先の待ち時間は最大 30 秒**（HTTP API の上限）。超えると 504 が返り、画面が再試行する。止まっている Aurora の復帰は、たいてい 20 秒ほどで済む
+- スロットリングは 10 件/秒、バースト 30。超えると 429 が返る。叩かれ続けたときの費用に上限を付けている
+- TLS は 1.2 / 1.3（HTTP API で選べるのは `TLS_1_2` のポリシーだけ）。証明書は ACM が DNS 検証で自動更新する
+- アクセスログは CloudWatch Logs の `/aws/apigateway/quiz-app-dev`。**パスは残さない。** 招待を受け入れる API のパスにはトークンが入る
+- **タスクの状態は、コンテナのヘルスチェック（中から `curl` でアクチュエータを叩く）で決まる。** 通るまで Cloud Map で UNHEALTHY のままで、API Gateway は要求を送らない。
+  デプロイの入れ替えとサーキットブレーカーも、この結果で判断する
 - アクセストークンの発行者と web のクライアントは、タスク定義の環境変数（`AUTH_ISSUER`、`AUTH_CLIENT_ID`）で渡す。マイグレーションのタスクにも渡す。無いと起動しない
-- **ALB は HTTPS だけを受ける。HTTP のリスナーは置かず、リダイレクトもしない。**
-  API を呼ぶのは web の proxy だけで、HTTP で届いた時点でヘッダが平文で流れてしまうため。
-  web（Amplify）の実行環境は送信元の IP が決まらないので、受信は IP では絞らず、ヘッダで決める
-- TLS は 1.2 / 1.3 だけを許す（`ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09`）。証明書は ACM が DNS 検証で自動更新する
 - アプリは起動時に DB へつながない（`spring.data.jdbc.dialect`）。マイグレーションのタスクは `quiz_app` に接続できず、
   アプリも起動のたびに一時停止中の Aurora を起こさずに済む
 - タスクはパブリックサブネットに置き、パブリック IP から ECR や CloudWatch Logs へ出る（[ADR-0013](adr/0013-run-ecs-tasks-in-public-subnets.md)）。
-  受信は ALB からだけ
+  受信は API Gateway の VPC リンクからだけ
 - DB へは AWS Advanced JDBC Wrapper の `iam` プラグインで接続する。接続先の URL が `jdbc:aws-wrapper:postgresql:` のときだけ使われ、
   ローカルは素の PostgreSQL ドライバのまま。違いはタスク定義の環境変数だけにある
 - ログは CloudWatch Logs の `/ecs/quiz-app-dev/quiz-service`（`app/` と `migrate/`）。14 日で消える
 - 起動に失敗したら、前のタスク定義に自動で戻る（デプロイサーキットブレーカー）
 - **深夜（2:00〜8:00、日本時間）は止める。** EventBridge Scheduler がタスクの数を 0 にし、朝に 1 に戻す（`schedule.tf`）。
-  止まっている間、API は ALB が 503 を返し、画面には「サーバーが止まっているか、起動の途中です」と出る。
+  止まっている間、API は API Gateway が 503 を返し（送り先のタスクがない）、画面には「サーバーが止まっているか、起動の途中です」と出る。
   タスクの数は Terraform では無視している。夜に apply しても起動しない
 
 止まっている間に使うときは、手で起動する。次の停止の時刻（2:00）にまた止まる。
@@ -805,13 +800,10 @@ aws ecs update-service --cluster quiz-app-dev --service quiz-service --desired-c
 **デプロイは GitHub Actions が行う**（[デプロイ](#デプロイ)）。Terraform が持つのはタスク定義の形（環境変数、ロール、CPU など）までで、
 どのイメージを動かすかは持たない。サービスが参照するリビジョンの変化は、Terraform では無視している。
 
-動作を確かめるときは、秘密のヘッダとアクセストークンを付けて呼ぶ。トークンはスモークテストの利用者で取る（[スモークテスト](#スモークテスト)）。
+動作を確かめるときは、アクセストークンを付けて呼ぶ。トークンはスモークテストの利用者で取る（[スモークテスト](#スモークテスト)）。
 
 ```bash
-SECRET=$(aws secretsmanager get-secret-value \
-  --secret-id "$(terraform output -raw origin_header_secret_arn)" --query SecretString --output text)
-curl -H "X-Origin-Verify: $SECRET" -H "Authorization: Bearer $TOKEN" \
-     "$(terraform output -raw quiz_service_url)/api/t/smoke/admin/categories"
+curl -H "Authorization: Bearer $TOKEN" "$(terraform output -raw quiz_service_url)/api/t/smoke/admin/categories"
 ```
 
 #### 解説図（S3 + CloudFront）
@@ -926,7 +918,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 
 - NAT Gateway も VPC Endpoint も使わず、ECS のタスクをパブリックサブネットに置く（[ADR-0013](adr/0013-run-ecs-tasks-in-public-subnets.md)）
   - どちらもタスクを止めても課金が続き、Endpoint は必要な本数 × AZ 数で NAT Gateway より高くなる
-  - タスクへの受信は SecurityGroup の参照だけで許し、CIDR では開けない。外からの入口は ALB だけ
+  - タスクへの受信は SecurityGroup の参照だけで許し、CIDR では開けない。外からの入口は API Gateway の VPC リンクだけ
 - Aurora Serverless v2 は **min 0 ACU**（自動一時停止）を採用。一時停止中はストレージ料金のみ
   - 前提: PostgreSQL 16.3 以降 / 無活動時間は 5 分〜24 時間で設定可（dev は 5 分）/ 復帰に約 15 秒
   - **アプリが常時接続を張ると一時停止しない**ため、dev では HikariCP を `minimum-idle: 0` + 短い `idle-timeout` にする
@@ -940,7 +932,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
   - 復帰を待つのはバックエンド。接続プールの `connection-timeout` を、復帰にかかる時間より長くしている（45 秒）。
     プールを作るときの接続の試み（`initialization-fail-timeout`）は外している。デプロイで替わったタスクが止まっている DB に初めてつなぐと、
     既定では 1 回の失敗ですぐに 500 を返す
-    24 時間を超えて止まっていると復帰に 30 秒を超えることがある。それでも間に合わなかった読み込みは、
+    24 時間を超えて止まっていると復帰に 30 秒を超えることがある。API Gateway の待ち時間（30 秒）を超えると 504 が返る。間に合わなかった読み込みは、
     画面の再試行（5xx と通信エラーを 2 回まで、`src/app/providers.tsx`）で拾う。止まったあとの最初の操作は、たいてい読み込み
   - 一時停止しないときは、`DatabaseConnections` と RDS のイベント（クラスタ単位の「Initiated pause / resume」）を見る。
     接続の中身は Data API で `pg_stat_activity` を読むと分かる。`rdsadmin` の接続は一時停止を妨げない
@@ -953,9 +945,9 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 
 | 費用 | 月額 | 深夜の停止 |
 | --- | --- | --- |
-| ALB | 約 17.7 ドル（1 時間 0.0243 ドル） | 続く |
-| ALB のパブリック IPv4（2 つの AZ に 1 つずつ） | 約 7.3 ドル（1 時間 1 つ 0.005 ドル） | 続く |
-| Secrets Manager（秘密のヘッダ、Aurora のマスター） | 0.8 ドル | 続く |
+| API Gateway（HTTP API） | 100 万リクエストあたり約 1.3 ドル。dev の量ではほぼ 0 | — |
+| Cloud Map（タスクの登録） | 約 0.6 ドル（プライベートのホストゾーン 0.5 ドル、登録したタスク 1 つ 0.1 ドル） | 続く |
+| Secrets Manager（Aurora のマスター） | 0.4 ドル | 続く |
 | 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
@@ -964,7 +956,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 | Aurora の ACU | 使った分だけ（1 ACU 時 0.15 ドル） | 一時停止すれば 0 |
 | Amplify | ビルド（1 分 0.01 ドル）と SSR の実行。使った分だけ | — |
 
-**止められない費用の大半は ALB で、パブリック IPv4 を含めて月に約 25 ドルかかる。** 使っていなくても減らない。
+**止められない費用は、月に数ドルに収まる。** 以前は ALB がパブリック IPv4 を含めて月に約 25 ドルかかり、使っていなくても減らなかった（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)）。
 - **予算は月 30 ドル。** 実績が 85% と 100% を超えたとき、月末の予測が 100% を超えたときにメールで届く
   （`infra/terraform/account`）。通知先は公開リポジトリに載せないため、`terraform.tfvars`（Git の管理外）で渡す
   - 予測でも知らせるのは、月の途中で止める判断をするため。実績だけだと、気づいたときには超えている

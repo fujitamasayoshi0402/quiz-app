@@ -22,14 +22,8 @@ variable "subdomain_prefix" {
 }
 
 variable "api_origin" {
-  description = "proxy の中継先（quiz-service の ALB）。https:// から書く"
+  description = "proxy の中継先（quiz-service の API Gateway）。https:// から書く"
   type        = string
-}
-
-variable "origin_verify_secret" {
-  description = "ALB が確かめる秘密のヘッダの値（modules/quiz-service）"
-  type        = string
-  sensitive   = true
 }
 
 variable "auth" {

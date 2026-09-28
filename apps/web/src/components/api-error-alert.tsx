@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api/fetcher";
  * - 401 … ログインへ誘導する（セッションが切れた、または更新できなかった）
  * - 400 の入力エラー … バックエンドが項目ごとの理由（`errors`）を返すので、それを並べる
  * - 理由のないエラー … 通信の失敗や、バックエンドに届く前に返った応答。時間をおいて試すよう伝える。
- *   AWS では、夜間にバックエンドを止めている間、ALB が本文のない 503 を返す
+ *   AWS では、夜間にバックエンドを止めている間、API Gateway が 503 を返す（`{"message": ...}` の JSON で、ProblemDetail ではない）
  */
 export function ApiErrorAlert({ error }: { error: unknown }) {
   const apiError = error instanceof ApiError ? error : null;

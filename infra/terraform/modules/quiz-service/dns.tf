@@ -1,13 +1,13 @@
-# API のドメイン名と証明書。ALB の DNS 名（*.elb.amazonaws.com）では証明書が合わないため、独自ドメインで公開する。
+# API のドメイン名と証明書。API Gateway の独自ドメイン（api.tf）に付け、このドメインのレコードで API Gateway を指す。
 #
 # ホストゾーンはドメインの登録時に作られ、環境をまたいで使う。ここでは作らず、受け取った ID にレコードを足すだけにする
 
-# ALB と同じリージョンに置く。証明書は ACM が自動で更新する（DNS 検証のレコードを消さない限り）
+# API Gateway と同じリージョンに置く。証明書は ACM が自動で更新する（DNS 検証のレコードを消さない限り）
 resource "aws_acm_certificate" "api" {
   domain_name       = var.api_domain_name
   validation_method = "DNS"
 
-  # 作り直すときに、ALB が証明書を持たない時間を作らない
+  # 作り直すときに、API Gateway のドメインが証明書を持たない時間を作らない
   lifecycle {
     create_before_destroy = true
   }
@@ -37,8 +37,8 @@ resource "aws_route53_record" "api" {
   type    = "A"
 
   alias {
-    name                   = aws_lb.this.dns_name
-    zone_id                = aws_lb.this.zone_id
+    name                   = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.api.domain_name_configuration[0].hosted_zone_id
     evaluate_target_health = false
   }
 }
