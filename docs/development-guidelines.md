@@ -828,6 +828,8 @@ curl -H "Authorization: Bearer $TOKEN" "$(terraform output -raw quiz_service_url
 **図は、解説の本文から ID で指す**（[ADR-0020](adr/0020-reference-figures-from-explanations-and-add-images-and-pdfs.md)）。
 `![代替テキスト](figure:<図の ID>)` で本文の中に出し、`[文字](figure:<図の ID>)` で新しいタブに開く。
 クイズを保存するとき、指している図がテナントにあるかを quiz-service が確かめる。クイズと図を結ぶ表は持たない。
+利用者の画面（学習モードの正誤と解説、結果）も、同じ部品（`components/markdown.tsx`）で図を出す。
+図は押すと新しいタブで開く。狭い画面では縮んで細部が読めないため、開いた先で拡大して見る。取れない図は、代わりの文字を出す。
 
 管理画面のクイズの編集では、「図を描く」で draw.io（`embed.diagrams.net`）を開き、描いた図を置いて本文に入れる（`components/admin/figure-editor.tsx`）。
 

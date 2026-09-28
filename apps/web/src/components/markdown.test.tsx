@@ -79,6 +79,14 @@ describe("Markdown", () => {
       expect(html).toContain(`<img src="/api/t/demo/play/figures/${FIGURE}" alt="構成図"`);
     });
 
+    it("図は押すと新しいタブで開き、拡大して見られる", () => {
+      const html = render(`![構成図](figure:${FIGURE})`, "demo");
+
+      expect(html).toMatch(
+        new RegExp(`<a href="/api/t/demo/play/figures/${FIGURE}" target="_blank" rel="noopener noreferrer"[^>]*><img `),
+      );
+    });
+
     it("ID の大文字と小文字は区別しない", () => {
       expect(render(`![構成図](figure:${FIGURE.toUpperCase()})`, "demo")).toContain(`/play/figures/${FIGURE}"`);
     });

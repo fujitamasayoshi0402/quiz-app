@@ -62,7 +62,7 @@ function figureComponents(tenant: string | undefined): Components {
       const id = figureIdOf(typeof src === "string" ? src : undefined);
       // 図でない画像は出さず、代わりの文字だけを出す。外部の画像は、読み込むだけで見た人の情報が相手に渡る
       if (!id || !tenant) return alt ? <span>{alt}</span> : null;
-      return <FigureImage src={figureUrl(tenant, id)} alt={alt ?? ""} />;
+      return <FigureImage src={figureUrl(tenant, id)} alt={alt ?? ""} zoomable />;
     },
     // 外へのリンクと図は新しいタブで開く。出題の途中の画面から離れさせず、開いた先にこのページを触らせない。
     // 脚注のようなページ内のリンク（`#`）は、そのまま移る
