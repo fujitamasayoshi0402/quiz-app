@@ -1,9 +1,12 @@
-# 通信の許可。外から届く入口は ALB だけにし、あとは 1 段ずつ隣へ渡す。
+# 通信の許可。外から届く入口を決め、あとは 1 段ずつ隣へ渡す。
 #
 #   インターネット → ALB → quiz-service → Aurora
+#   インターネット → API Gateway → VPC リンク → quiz-service
+#
+# 入口は ALB から API Gateway へ移す途中にある（ADR-0019）。API のドメインが API Gateway を指したら、ALB は外す。
 #
 # ECS のタスクはパブリック IP を持つ（ADR-0013）。**タスクへの受信は SG の参照だけで許し、CIDR では開けない。**
-# CIDR で開けると、ALB を通らずタスクへ直接届く。
+# CIDR で開けると、入口を通らずタスクへ直接届く。
 #
 # web は Amplify Hosting で配り、VPC の外から ALB を呼ぶ（ADR-0012）。
 # スタブ認証の間、ALB は web の proxy だけが知る秘密のヘッダを確かめる（modules/quiz-service）。
@@ -51,6 +54,29 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_quiz_service" {
   description                  = "Forward to quiz-service"
 }
 
+# ---- API Gateway の VPC リンク ----
+# API Gateway（HTTP API）が VPC の中に置く ENI に付ける（modules/quiz-service の api.tf）。
+# 受信のルールは持たない。接続はすべて VPC リンクの側から始まり、応答は SG がステートフルなので通る
+
+resource "aws_security_group" "vpc_link" {
+  name        = "${var.name}-vpc-link"
+  description = "API Gateway VPC link to quiz-service"
+  vpc_id      = aws_vpc.this.id
+
+  tags = {
+    Name = "${var.name}-vpc-link"
+  }
+}
+
+resource "aws_vpc_security_group_egress_rule" "vpc_link_to_quiz_service" {
+  security_group_id            = aws_security_group.vpc_link.id
+  referenced_security_group_id = aws_security_group.quiz_service.id
+  ip_protocol                  = "tcp"
+  from_port                    = local.quiz_service_port
+  to_port                      = local.quiz_service_port
+  description                  = "Forward to quiz-service"
+}
+
 # ---- quiz-service ----
 # マイグレーションの単発タスク（同じイメージを migrate プロファイルで起動する）も、この SG で動かす
 
@@ -71,6 +97,15 @@ resource "aws_vpc_security_group_ingress_rule" "quiz_service_from_alb" {
   from_port                    = local.quiz_service_port
   to_port                      = local.quiz_service_port
   description                  = "From ALB only"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "quiz_service_from_vpc_link" {
+  security_group_id            = aws_security_group.quiz_service.id
+  referenced_security_group_id = aws_security_group.vpc_link.id
+  ip_protocol                  = "tcp"
+  from_port                    = local.quiz_service_port
+  to_port                      = local.quiz_service_port
+  description                  = "From API Gateway VPC link"
 }
 
 resource "aws_vpc_security_group_egress_rule" "quiz_service_to_db" {
