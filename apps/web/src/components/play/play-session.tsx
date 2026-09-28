@@ -113,7 +113,7 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
             onSelect={setSelectedId}
             reveal={feedback ? { correctChoiceId: feedback.correctChoiceId } : undefined}
           />
-          {feedback && <Explanation result={feedback} />}
+          {feedback && <Explanation slug={slug} result={feedback} />}
           {answer.isError && <ApiErrorAlert error={answer.error} />}
         </CardContent>
         <CardFooter className="justify-end">
@@ -130,13 +130,13 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
   );
 }
 
-function Explanation({ result }: { result: AnswerResult }) {
+function Explanation({ slug, result }: { slug: string; result: AnswerResult }) {
   return (
     <div className="space-y-2 rounded-lg border p-4">
       <p className={result.isCorrect ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
         {result.isCorrect ? "正解" : "不正解"}
       </p>
-      <Markdown>{result.explanation}</Markdown>
+      <Markdown tenant={slug}>{result.explanation}</Markdown>
     </div>
   );
 }

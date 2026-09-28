@@ -63,7 +63,7 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
         {reviewed.length === 0 ? (
           <p className="text-muted-foreground text-sm">全問正解です。</p>
         ) : (
-          reviewed.map(({ quiz, number }) => <Review key={quiz.quizId} quiz={quiz} number={number} />)
+          reviewed.map(({ quiz, number }) => <Review key={quiz.quizId} slug={slug} quiz={quiz} number={number} />)
         )}
       </section>
 
@@ -74,7 +74,7 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
   );
 }
 
-function Review({ quiz, number }: { quiz: QuizResult; number: number }) {
+function Review({ slug, quiz, number }: { slug: string; quiz: QuizResult; number: number }) {
   return (
     <Card>
       <CardHeader>
@@ -96,7 +96,7 @@ function Review({ quiz, number }: { quiz: QuizResult; number: number }) {
           selectedId={quiz.selectedChoiceId}
           reveal={{ correctChoiceId: quiz.correctChoiceId }}
         />
-        <Markdown>{quiz.explanation}</Markdown>
+        <Markdown tenant={slug}>{quiz.explanation}</Markdown>
       </CardContent>
     </Card>
   );
