@@ -2,9 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Markdown } from "./markdown";
 
-function render(markdown: string) {
-  return renderToStaticMarkup(<Markdown>{markdown}</Markdown>);
+function render(markdown: string, tenant?: string) {
+  return renderToStaticMarkup(<Markdown tenant={tenant}>{markdown}</Markdown>);
 }
+
+const FIGURE = "0f8fad5b-d9cb-469f-a165-70867728950e";
 
 describe("Markdown", () => {
   it("見出し・箇条書き・コード・表を整形する", () => {
@@ -68,6 +70,46 @@ describe("Markdown", () => {
     expect(html).not.toContain("<img");
     expect(html).not.toContain("example.com");
     expect(html).toContain("構成図");
+  });
+
+  describe("解説図（figure:）", () => {
+    it("図を指す画像だけを、テナントの API から取って出す", () => {
+      const html = render(`![構成図](figure:${FIGURE})`, "demo");
+
+      expect(html).toContain(`<img src="/api/t/demo/play/figures/${FIGURE}" alt="構成図"`);
+    });
+
+    it("ID の大文字と小文字は区別しない", () => {
+      expect(render(`![構成図](figure:${FIGURE.toUpperCase()})`, "demo")).toContain(`/play/figures/${FIGURE}"`);
+    });
+
+    it("図を指すリンクは、図を新しいタブで開く", () => {
+      const html = render(`[資料](figure:${FIGURE})`, "demo");
+
+      expect(html).toContain(`href="/api/t/demo/play/figures/${FIGURE}"`);
+      expect(html).toContain('target="_blank"');
+      expect(html).toContain('rel="noopener noreferrer"');
+    });
+
+    it.each([
+      ["テナントが分からない", `![構成図](figure:${FIGURE})`, undefined],
+      ["ID が UUID の形でない", "![構成図](figure:../../admin/quizzes)", "demo"],
+      ["ID のあとに文字が続く", `![構成図](figure:${FIGURE}/source)`, "demo"],
+      ["図を指していない", "![構成図](/api/t/demo/play/figures/x)", "demo"],
+    ])("%sときは、画像を出さず代わりの文字を出す", (_, source, tenant) => {
+      const html = render(source, tenant);
+
+      expect(html).not.toContain("<img");
+      expect(html).toContain("構成図");
+    });
+
+    it("図を指す形でないリンクは、figure: のまま残さない", () => {
+      expect(render("[資料](figure:../../admin/quizzes)", "demo")).not.toMatch(/href="(?!")/);
+    });
+
+    it("テナントの名前は URL の中で文字として扱う", () => {
+      expect(render(`![構成図](figure:${FIGURE})`, "a/b?c")).toContain('src="/api/t/a%2Fb%3Fc/play/figures/');
+    });
   });
 
   it("1 画面に並べても、脚注の id が重ならない", () => {

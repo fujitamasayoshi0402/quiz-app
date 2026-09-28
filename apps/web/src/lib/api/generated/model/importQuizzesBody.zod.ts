@@ -28,7 +28,7 @@ export const ImportQuizzesBody = zod.object({
   "isCorrect": zod.boolean().optional()
 })).optional(),
   "difficulty": zod.string(),
-  "explanation": zod.string().optional().describe('解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の HTML と画像は表示しない'),
+  "explanation": zod.string().optional().describe('解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取る。保存するとき、指している図がテナントにあることを確かめる'),
   "question": zod.string(),
   "status": zod.string().optional()
 })).min(1).max(importQuizzesBodyQuizzesMax)

@@ -22,7 +22,7 @@ export const QuizResponse = zod.object({
   "isCorrect": zod.boolean()
 })),
   "difficultyId": zod.uuid(),
-  "explanation": zod.string().describe('解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の HTML と画像は表示しない'),
+  "explanation": zod.string().describe('解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取る。保存するとき、指している図がテナントにあることを確かめる'),
   "id": zod.uuid(),
   "question": zod.string(),
   "status": zod.string()

@@ -8,6 +8,7 @@ import com.quizapp.quiz.domain.DeletionImpact
 import com.quizapp.quiz.domain.DeletionRepository
 import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.DifficultyRepository
+import com.quizapp.quiz.domain.FigureRepository
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
@@ -82,6 +83,21 @@ class InMemoryQuizRepository : QuizRepository {
         rows[requireNotNull(saved.id)] = saved
         return saved
     }
+}
+
+/** 図の行。置いた ID を覚えておくだけ。別テナントの図が見えないことは、行レベルセキュリティの責務で API テストが見る */
+class InMemoryFigureRepository : FigureRepository {
+    private val ids = mutableSetOf<UUID>()
+
+    override fun add(id: UUID) {
+        ids += id
+    }
+
+    override fun exists(id: UUID): Boolean = id in ids
+
+    override fun findExisting(ids: Collection<UUID>): Set<UUID> = ids.filter { it in this.ids }.toSet()
+
+    override fun delete(id: UUID): Boolean = ids.remove(id)
 }
 
 class FakeAnsweredQuizzes : AnsweredQuizzes {

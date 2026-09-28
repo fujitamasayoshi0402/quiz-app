@@ -379,7 +379,8 @@ http://localhost:8080/swagger-ui.html
 - バックエンド: レイヤード（controller / usecase / domain / infrastructure）、テストは JUnit5 + Testcontainers
 - フロント: Server Components 優先、API 呼び出しは生成した TanStack Query のフック、応答は Zod で検証
 - 管理者が書いた文章（解説）は `components/markdown.tsx` で表示する。**`dangerouslySetInnerHTML` は使わない。**
-  生の HTML を通さず、画像も読み込まない（[ADR-0018](adr/0018-write-explanations-in-markdown-and-render-on-screen.md)）
+  生の HTML を通さず、画像は解説図を指したもの（`figure:<図の ID>`）だけを出す
+  （[ADR-0018](adr/0018-write-explanations-in-markdown-and-render-on-screen.md)、[ADR-0020](adr/0020-reference-figures-from-explanations-and-add-images-and-pdfs.md)）
 - フォーム: react-hook-form + 生成した Zod スキーマ。**定義に表れない規則だけを足す**（空白だけの入力、公開の条件など）。最終的な判定はバックエンド
 - 画面の幅: **360px まで崩さない**（一般的なスマホの下限）。320px でも横スクロールを出さない。
   テーブルは狭い幅で列を減らし、畳んだ列は主となる列の下に小さく出す（`hidden sm:table-cell` と `sm:hidden`）
@@ -831,6 +832,16 @@ curl -H "X-Origin-Verify: $SECRET" -H "Authorization: Bearer $TOKEN" \
 - 署名の秘密鍵は Terraform が作り、SSM Parameter Store（SecureString）に置く。アプリのタスクに ECS の `secrets` で渡す
 - 証明書は CloudFront のため us-east-1 に置く（`aws.us_east_1` の provider）
 - ローカルには CloudFront がない。LocalStack の S3 の署名付き URL を返す。応答ヘッダと署名の検証は、dev のスモークテストで確かめる
+
+**図は、解説の本文から ID で指す**（[ADR-0020](adr/0020-reference-figures-from-explanations-and-add-images-and-pdfs.md)）。
+`![代替テキスト](figure:<図の ID>)` で本文の中に出し、`[文字](figure:<図の ID>)` で新しいタブに開く。
+クイズを保存するとき、指している図がテナントにあるかを quiz-service が確かめる。クイズと図を結ぶ表は持たない。
+
+管理画面のクイズの編集では、「図を描く」で draw.io（`embed.diagrams.net`）を開き、描いた図を置いて本文に入れる（`components/admin/figure-editor.tsx`）。
+
+- draw.io とは `postMessage` でやり取りする。**受け取るのは、埋め込んだ draw.io の window からのメッセージだけ。** 送り元（origin）と window の両方を確かめる
+- 図のデータはブラウザの中で扱われ、draw.io のサーバーには送られない。draw.io の画面そのものは `embed.diagrams.net` から読み込む
+- 描き直した図は新しい ID で置き、本文の参照を差し替える。前の図は消さない。保存する前に編集をやめると、保存済みの解説は前の図を指したままのため
 
 鍵を入れ替えるときは、`modules/figures` に新しい鍵の組を足してキーグループに加え、アプリのタスクの鍵を替えてデプロイしてから、古い公開鍵を外す。
 発行済みの URL は最長 10 分で切れる。

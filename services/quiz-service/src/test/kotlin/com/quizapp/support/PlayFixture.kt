@@ -2,6 +2,7 @@ package com.quizapp.support
 
 import com.quizapp.quiz.controller.CategoryResponse
 import com.quizapp.quiz.controller.DifficultyResponse
+import com.quizapp.quiz.controller.FigureResponse
 import com.quizapp.quiz.controller.QuizResponse
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
@@ -38,6 +39,18 @@ class PlayFixture(
             header("Authorization", TestAuth.bearer(admin))
         }.andExpect { }.andReturn()
         return objectMapper.readValue(result.response.contentAsString, DifficultyResponse::class.java).id
+    }
+
+    /** 解説図を置く。中身は問わないので、最小の SVG と原本にする */
+    fun figure(): UUID {
+        val result = mockMvc.post("/api/t/$slug/admin/figures") {
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(
+                mapOf("source" to "<mxfile/>", "svg" to """<svg xmlns="http://www.w3.org/2000/svg"/>"""),
+            )
+            header("Authorization", TestAuth.bearer(admin))
+        }.andExpect { }.andReturn()
+        return objectMapper.readValue(result.response.contentAsString, FigureResponse::class.java).id
     }
 
     /** 先頭の選択肢を正解にする。テストはこれを前提に「1 番目が正解」として書ける。 */

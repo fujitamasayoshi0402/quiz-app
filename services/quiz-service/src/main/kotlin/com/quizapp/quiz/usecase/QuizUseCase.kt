@@ -4,6 +4,7 @@ import com.quizapp.quiz.domain.CategoryRepository
 import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.DeletionRepository
 import com.quizapp.quiz.domain.DifficultyRepository
+import com.quizapp.quiz.domain.FigureRepository
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
@@ -17,6 +18,7 @@ class QuizUseCase(
     private val categoryRepository: CategoryRepository,
     private val difficultyRepository: DifficultyRepository,
     private val deletion: DeletionRepository,
+    private val figureRepository: FigureRepository,
     private val tenantTransaction: TenantTransaction,
 ) {
     fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> =
@@ -35,16 +37,16 @@ class QuizUseCase(
         status: QuizStatus,
     ): Quiz = tenantTransaction.execute {
         verifyCategoryAndDifficulty(categoryId, difficultyId)
-        quizRepository.save(
-            Quiz(
-                categoryId = categoryId,
-                difficultyId = difficultyId,
-                question = question,
-                explanation = explanation,
-                choices = choices,
-                status = status,
-            ),
+        val quiz = Quiz(
+            categoryId = categoryId,
+            difficultyId = difficultyId,
+            question = question,
+            explanation = explanation,
+            choices = choices,
+            status = status,
         )
+        verifyFigures(quiz)
+        quizRepository.save(quiz)
     }
 
     fun update(
@@ -58,17 +60,17 @@ class QuizUseCase(
     ): Quiz = tenantTransaction.execute {
         quizRepository.findById(id) ?: throw QuizNotFoundException(id)
         verifyCategoryAndDifficulty(categoryId, difficultyId)
-        quizRepository.save(
-            Quiz(
-                id = id,
-                categoryId = categoryId,
-                difficultyId = difficultyId,
-                question = question,
-                explanation = explanation,
-                choices = choices,
-                status = status,
-            ),
+        val quiz = Quiz(
+            id = id,
+            categoryId = categoryId,
+            difficultyId = difficultyId,
+            question = question,
+            explanation = explanation,
+            choices = choices,
+            status = status,
         )
+        verifyFigures(quiz)
+        quizRepository.save(quiz)
     }
 
     fun delete(id: UUID) = tenantTransaction.executeWithoutResult {
@@ -87,6 +89,15 @@ class QuizUseCase(
         val difficulty = difficultyRepository.findById(difficultyId)
             ?: throw DifficultyNotFoundException(difficultyId)
         require(difficulty.categoryId == categoryId) { "指定された難易度はこのカテゴリのものではありません" }
+    }
+
+    /**
+     * 解説が指す図が、このテナントにあるかを確かめる（ADR-0020）。
+     * 別テナントの図は行レベルセキュリティで見えないため、無い図として扱われる
+     */
+    private fun verifyFigures(quiz: Quiz) {
+        val ids = quiz.figureIds()
+        require(figureRepository.findExisting(ids).size == ids.size) { Quiz.FIGURE_NOT_FOUND }
     }
 }
 

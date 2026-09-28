@@ -1871,8 +1871,10 @@ components:
           format: uuid
         explanation:
           type: string
-          description: 解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の
-            HTML と画像は表示しない
+          description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
+            生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
+            の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取\
+            る。保存するとき、指している図がテナントにあることを確かめる"
         isCorrect:
           type: boolean
         totalCount:
@@ -2250,8 +2252,10 @@ components:
           type: string
         explanation:
           type: string
-          description: 解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の
-            HTML と画像は表示しない
+          description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
+            生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
+            の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取\
+            る。保存するとき、指している図がテナントにあることを確かめる"
         question:
           type: string
         status:
@@ -2427,8 +2431,10 @@ components:
           format: uuid
         explanation:
           type: string
-          description: 解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の
-            HTML と画像は表示しない
+          description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
+            生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
+            の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取\
+            る。保存するとき、指している図がテナントにあることを確かめる"
         id:
           type: string
           format: uuid
@@ -2456,8 +2462,10 @@ components:
           format: uuid
         explanation:
           type: string
-          description: 解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の
-            HTML と画像は表示しない
+          description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
+            生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
+            の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取\
+            る。保存するとき、指している図がテナントにあることを確かめる"
         isCorrect:
           type: boolean
         question:
@@ -2569,8 +2577,10 @@ components:
           format: uuid
         explanation:
           type: string
-          description: 解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の
-            HTML と画像は表示しない
+          description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
+            生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
+            の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取\
+            る。保存するとき、指している図がテナントにあることを確かめる"
         question:
           type: string
           maxLength: 2000

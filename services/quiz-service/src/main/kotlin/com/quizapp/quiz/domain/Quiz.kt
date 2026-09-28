@@ -66,12 +66,21 @@ data class Quiz(
         }
     }
 
+    /** 解説が指している図の ID（ADR-0020）。保存する前に、テナントにあるかを確かめる */
+    fun figureIds(): Set<UUID> = FigureReferences.findIn(explanation)
+
     companion object {
         const val CHOICE_COUNT = 4
         const val MAX_QUESTION_LENGTH = 2000
 
-        /** 解説の書き方。API 定義の説明に使う。表示する側が守ること（ADR-0018） */
+        /** 解説の書き方。API 定義の説明に使う。表示する側が守ること（ADR-0018、ADR-0020） */
         const val EXPLANATION_FORMAT = "解説。Markdown（GitHub Flavored Markdown）で書く。" +
-            "改行はそのまま改行として表示する。生の HTML と画像は表示しない"
+            "改行はそのまま改行として表示する。生の HTML は表示しない。" +
+            "画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、" +
+            "`[文字](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。" +
+            "図は GET /api/t/{slug}/play/figures/{id} から取る。保存するとき、指している図がテナントにあることを確かめる"
+
+        /** 解説が、テナントにない図を指しているときの理由。どの ID かは返さない（送った側が本文から分かる） */
+        const val FIGURE_NOT_FOUND = "解説が指している図が見つかりません"
     }
 }

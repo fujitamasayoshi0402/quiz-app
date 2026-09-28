@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
@@ -180,6 +181,26 @@ class QuizImportApiTest {
             }.andReturn().response.contentAsString
 
         assertThat(body).doesNotContain("他テナント")
+    }
+
+    @Test
+    @DisplayName("解説がテナントにない図を指す行は取り込まない。テナントにある図なら取り込める")
+    fun checksFiguresInExplanation() {
+        val figure = fixture.figure()
+        val othersFigure = PlayFixture(mockMvc, objectMapper, TestTenant.create("インディア").withAdmin().slug).figure()
+
+        import(
+            row("図のある問題", explanation = "![図](figure:$figure)"),
+            row("別テナントの図の問題", explanation = "![図](figure:$othersFigure)"),
+        ).andExpect {
+            status { isBadRequest() }
+            jsonPath("$.rows.length()") { value(1) }
+            jsonPath("$.rows[0].index") { value(1) }
+            jsonPath("$.rows[0].messages[0]") { value(Quiz.FIGURE_NOT_FOUND) }
+        }
+
+        import(row("図のある問題", explanation = "![図](figure:$figure) と ![同じ図](figure:$figure)"))
+            .andExpect { status { isCreated() } }
     }
 
     @Test

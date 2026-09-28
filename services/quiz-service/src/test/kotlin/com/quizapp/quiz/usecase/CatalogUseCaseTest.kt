@@ -6,6 +6,7 @@ import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.QuizStatus
 import com.quizapp.support.fake.InMemoryCategoryRepository
 import com.quizapp.support.fake.InMemoryDifficultyRepository
+import com.quizapp.support.fake.InMemoryFigureRepository
 import com.quizapp.support.fake.InMemoryQuizRepository
 import com.quizapp.support.fake.RecordingDeletionRepository
 import com.quizapp.support.fake.fakeTenantTransaction
@@ -35,7 +36,8 @@ class CatalogUseCaseTest {
     private val transaction = fakeTenantTransaction()
 
     private val difficultyUseCase = DifficultyUseCase(difficulties, categories, deletion, transaction)
-    private val quizUseCase = QuizUseCase(quizzes, categories, difficulties, deletion, transaction)
+    private val quizUseCase =
+        QuizUseCase(quizzes, categories, difficulties, deletion, InMemoryFigureRepository(), transaction)
 
     private lateinit var aws: UUID
     private lateinit var auth: UUID

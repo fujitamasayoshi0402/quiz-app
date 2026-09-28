@@ -1,6 +1,8 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.support.TestPostgres
+import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
 import com.quizapp.support.TestTenant
 import org.junit.jupiter.api.BeforeEach
@@ -240,6 +242,47 @@ class QuizApiTest {
         mockMvc.get("/api/t/${tenantB.slug}/admin/quizzes") { auth() }.andExpect {
             status { isOk() }
             jsonPath("$.length()") { value(0) }
+        }
+    }
+
+    @Test
+    @DisplayName("解説が指す図がテナントにあれば、下書きでも公開でも保存できる")
+    fun savesExplanationReferringToFigure() {
+        val figure = PlayFixture(mockMvc, objectMapper, tenantA.slug).figure()
+        val explanation = "構成は次のとおり。![構成図](figure:$figure)"
+
+        val id = createQuiz(quizJson(explanation = explanation, status = "draft"))
+        mockMvc.put("/api/t/${tenantA.slug}/admin/quizzes/$id") {
+            auth()
+            contentType = MediaType.APPLICATION_JSON
+            content = quizJson(explanation = explanation, status = "published")
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.explanation") { value(explanation) }
+        }
+    }
+
+    @Test
+    @DisplayName("解説が、ほかのテナントの図や無い図を指していると、作成も更新もできない")
+    fun rejectsFigureOutsideTenant() {
+        val othersFigure = PlayFixture(mockMvc, objectMapper, tenantB.slug).figure()
+        val id = createQuiz(quizJson())
+
+        listOf(othersFigure, UUID.randomUUID()).forEach { figure ->
+            val body = quizJson(explanation = "![図](figure:$figure)")
+            mockMvc.post("/api/t/${tenantA.slug}/admin/quizzes") {
+                auth()
+                contentType = MediaType.APPLICATION_JSON
+                content = body
+            }.andExpect {
+                status { isBadRequest() }
+                jsonPath("$.detail") { value(Quiz.FIGURE_NOT_FOUND) }
+            }
+            mockMvc.put("/api/t/${tenantA.slug}/admin/quizzes/$id") {
+                auth()
+                contentType = MediaType.APPLICATION_JSON
+                content = body
+            }.andExpect { status { isBadRequest() } }
         }
     }
 
