@@ -45,7 +45,6 @@ module "quiz_service" {
 
   vpc_id                    = module.network.vpc_id
   public_subnet_ids         = module.network.public_subnet_ids
-  alb_security_group_id     = module.network.security_group_ids.alb
   service_security_group_id = module.network.security_group_ids.quiz_service
 
   vpc_link_subnet_ids        = module.network.private_subnet_ids
@@ -74,7 +73,7 @@ module "quiz_service" {
   memory        = 1024
   desired_count = 1
 
-  # 使わない深夜は止める。ALB と Aurora のストレージは、止めている間も課金が続く
+  # 使わない深夜は止める。Aurora のストレージなどは、止めている間も課金が続く
   nightly_stop = {
     stop     = "cron(0 2 * * ? *)"
     start    = "cron(0 8 * * ? *)"
@@ -141,8 +140,7 @@ module "web" {
   domain_name      = var.domain_name
   subdomain_prefix = "dev"
 
-  api_origin           = module.quiz_service.api_url
-  origin_verify_secret = module.quiz_service.origin_verify_secret
+  api_origin = module.quiz_service.api_url
 
   auth = {
     issuer        = module.auth.issuer

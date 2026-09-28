@@ -12,7 +12,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 
 /**
- * コンテナのヘルスチェック（docker compose / 将来の ALB）が使うエンドポイント。
+ * コンテナのヘルスチェック（docker compose / ECS）が使うエンドポイント。
  *
  * - **認証なしで呼べる。** ヘルスチェックは利用者を名乗らない
  * - **DB に問い合わせない。** 定期的に叩かれても Aurora の自動一時停止を妨げないため

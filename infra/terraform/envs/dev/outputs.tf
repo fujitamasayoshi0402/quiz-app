@@ -15,14 +15,6 @@ output "quiz_service_ecr_repository_url" {
   value = module.quiz_service.ecr_repository_url
 }
 
-output "origin_header_name" {
-  value = module.quiz_service.origin_header_name
-}
-
-output "origin_header_secret_arn" {
-  value = module.quiz_service.origin_header_secret_arn
-}
-
 output "ecs_cluster_name" {
   value = module.quiz_service.cluster_name
 }

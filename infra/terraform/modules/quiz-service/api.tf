@@ -3,7 +3,7 @@
 #   web の proxy → API Gateway（api.<環境>.<ドメイン>）→ VPC リンク → Cloud Map で見つけたタスク
 #
 # ロードバランサーを置かない。HTTP API はリクエストの数で課金され、VPC リンクと Cloud Map に時間あたりの料金はほぼない。
-# ALB は、使っていなくても月に約 25 ドル（パブリック IPv4 を含む）かかっていた。
+# 以前の ALB は、使っていなくても月に約 25 ドル（パブリック IPv4 を含む）かかっていた。
 #
 # **入口では認証しない。** アクセストークンの検証はアプリが行う（ADR-0016）。
 # 入口でも検証すると、検証が 2 か所に分かれ、ローカル（API Gateway がない）と AWS で経路が変わる。
@@ -123,7 +123,7 @@ resource "aws_apigatewayv2_stage" "default" {
 }
 
 # ---- 独自ドメイン ----
-# 証明書は dns.tf のもの（ALB と同じ）。HTTP API で選べる TLS のポリシーは TLS_1_2 だけで、TLS 1.2 と 1.3 を受ける
+# 証明書は dns.tf のもの。HTTP API で選べる TLS のポリシーは TLS_1_2 だけで、TLS 1.2 と 1.3 を受ける
 
 resource "aws_apigatewayv2_domain_name" "api" {
   domain_name = var.api_domain_name

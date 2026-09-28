@@ -9,11 +9,11 @@ variable "cidr_block" {
 }
 
 variable "azs" {
-  description = "サブネットを置く AZ。ALB と Aurora が 2 つ以上を要求する。順番がサブネットの CIDR を決めるため、並べ替えない"
+  description = "サブネットを置く AZ。Aurora が 2 つ以上を要求する。順番がサブネットの CIDR を決めるため、並べ替えない"
   type        = list(string)
 
   validation {
     condition     = length(var.azs) >= 2
-    error_message = "ALB と Aurora の DB サブネットグループは 2 つ以上の AZ を要求する。"
+    error_message = "Aurora の DB サブネットグループは 2 つ以上の AZ を要求する。"
   }
 }

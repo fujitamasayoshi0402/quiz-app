@@ -1,18 +1,14 @@
-# 通信の許可。外から届く入口を決め、あとは 1 段ずつ隣へ渡す。
+# 通信の許可。外から届く入口は API Gateway だけにし、あとは 1 段ずつ隣へ渡す。
 #
-#   インターネット → ALB → quiz-service → Aurora
-#   インターネット → API Gateway → VPC リンク → quiz-service
+#   インターネット → API Gateway → VPC リンク → quiz-service → Aurora
 #
-# 入口は ALB から API Gateway へ移す途中にある（ADR-0019）。API のドメインが API Gateway を指したら、ALB は外す。
+# API Gateway は VPC の外にあり、VPC リンクの ENI を通って VPC に入る（ADR-0019）。
+# web は Amplify Hosting で配り、VPC の外から API Gateway を呼ぶ（ADR-0012）。
 #
 # ECS のタスクはパブリック IP を持つ（ADR-0013）。**タスクへの受信は SG の参照だけで許し、CIDR では開けない。**
 # CIDR で開けると、入口を通らずタスクへ直接届く。
-#
-# web は Amplify Hosting で配り、VPC の外から ALB を呼ぶ（ADR-0012）。
-# スタブ認証の間、ALB は web の proxy だけが知る秘密のヘッダを確かめる（modules/quiz-service）。
 
 locals {
-  alb_port          = 443
   quiz_service_port = 8080
   db_port           = 5432
 
@@ -20,39 +16,6 @@ locals {
 }
 
 # SG の description は英数字しか使えず、変えると作り直しになる
-
-# ---- ALB ----
-
-resource "aws_security_group" "alb" {
-  name        = "${var.name}-alb"
-  description = "ALB in front of quiz-service"
-  vpc_id      = aws_vpc.this.id
-
-  tags = {
-    Name = "${var.name}-alb"
-  }
-}
-
-# HTTPS だけを受け、誰からでも受ける。web（Amplify）の実行環境は送信元の IP が決まらないため、IP では絞れない。
-# アプリに届くかどうかは、ALB のリスナーが秘密のヘッダで決める（modules/quiz-service）。
-# HTTP は受けない。HTTP で届いた時点で、ヘッダが平文で流れてしまう
-resource "aws_vpc_security_group_ingress_rule" "alb_https" {
-  security_group_id = aws_security_group.alb.id
-  cidr_ipv4         = local.anywhere
-  ip_protocol       = "tcp"
-  from_port         = local.alb_port
-  to_port           = local.alb_port
-  description       = "HTTPS from anywhere"
-}
-
-resource "aws_vpc_security_group_egress_rule" "alb_to_quiz_service" {
-  security_group_id            = aws_security_group.alb.id
-  referenced_security_group_id = aws_security_group.quiz_service.id
-  ip_protocol                  = "tcp"
-  from_port                    = local.quiz_service_port
-  to_port                      = local.quiz_service_port
-  description                  = "Forward to quiz-service"
-}
 
 # ---- API Gateway の VPC リンク ----
 # API Gateway（HTTP API）が VPC の中に置く ENI に付ける（modules/quiz-service の api.tf）。
@@ -88,15 +51,6 @@ resource "aws_security_group" "quiz_service" {
   tags = {
     Name = "${var.name}-quiz-service"
   }
-}
-
-resource "aws_vpc_security_group_ingress_rule" "quiz_service_from_alb" {
-  security_group_id            = aws_security_group.quiz_service.id
-  referenced_security_group_id = aws_security_group.alb.id
-  ip_protocol                  = "tcp"
-  from_port                    = local.quiz_service_port
-  to_port                      = local.quiz_service_port
-  description                  = "From ALB only"
 }
 
 resource "aws_vpc_security_group_ingress_rule" "quiz_service_from_vpc_link" {

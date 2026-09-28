@@ -4,7 +4,7 @@
 # 終了は QuizServiceApplication の main が行う。
 spring:
   main:
-    # HTTP を受けない。ALB のターゲットにもならない
+    # HTTP を受けない。サービスではない単発のタスクなので、Cloud Map にも登録されず、API Gateway から要求は届かない
     web-application-type: none
   flyway:
     enabled: true

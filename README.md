@@ -21,7 +21,7 @@
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui |
 | DB | Aurora PostgreSQL Serverless v2 (min 0 ACU) |
 | 認証 | Amazon Cognito（Managed Login、パスキー + パスワード） |
-| 実行基盤 | ECS Fargate + ALB（API）、Amplify Hosting（フロント） |
+| 実行基盤 | ECS Fargate + API Gateway（HTTP API）、Amplify Hosting（フロント） |
 | 非同期 / 通知 | EventBridge + Lambda + Slack Webhook |
 | IaC | Terraform |
 | CI/CD | GitHub Actions（OIDC） |
@@ -126,11 +126,13 @@ Phase 1（ローカルで動く MVP）と Phase 2（AWS 基盤と継続的デリ
 
 - クイズ・カテゴリ・難易度の管理から、出題・回答・結果の確認までひと通り動きます。スマホの幅でも操作できます
 - テナントの分離は、行レベルセキュリティと、全エンドポイントを対象にしたテナント境界のテストで守っています
-- AWS 上の dev 環境（ネットワーク・Aurora Serverless v2・ECS Fargate・Amplify Hosting）は Terraform で構築しています。
+- AWS 上の dev 環境（ネットワーク・Aurora Serverless v2・ECS Fargate・API Gateway・Amplify Hosting）は Terraform で構築しています。
   develop へのマージで自動でデプロイされ、最後にスモークテストが流れます。AWS への認証は OIDC で、アクセスキーは発行していません
 - ログインは Amazon Cognito（Managed Login、パスキー + パスワード）です。トークンはブラウザに渡さず、web のサーバーが暗号化した Cookie に持ちます。
   利用者の ID は Cognito から切り離してあり、あとで自前のパスキーの実装に差し替えます（[ADR-0016](docs/adr/0016-authenticate-with-cognito-managed-login.md)）
 - 管理者は、一般ユーザーと管理者を招待できます。招待のリンクを画面に出して渡し、受け入れるときにメールアドレスが招待と一致するかを確かめます
-- 次は、権限まわりの E2E テストと、ALB をやめて API Gateway にするコストの見直しです
+- 権限まわり（ログイン・招待の受け入れ・ロールによる出し分け）は、Playwright の E2E テストで PR ごとに確かめています
+- API の入口は API Gateway（HTTP API）で、ロードバランサーを置いていません。使っていない時間の費用がほぼかかりません（[ADR-0019](docs/adr/0019-expose-api-through-api-gateway-http-api.md)）
+- 次は、パスキーの自前実装と、解説図まわりの管理機能です
 
 進捗は [ロードマップ](docs/ROADMAP.md) を参照してください。
