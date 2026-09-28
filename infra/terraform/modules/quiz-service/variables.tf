@@ -23,6 +23,16 @@ variable "service_security_group_id" {
   type        = string
 }
 
+variable "vpc_link_subnet_ids" {
+  description = "API Gateway の VPC リンクの ENI を置く。外へ出る必要がないので、プライベートサブネットでよい"
+  type        = list(string)
+}
+
+variable "vpc_link_security_group_id" {
+  description = "VPC リンクの ENI に付ける。quiz-service のタスクへだけ出られる"
+  type        = string
+}
+
 variable "api_domain_name" {
   description = "API を公開するドメイン名（例: api.dev.example.com）。証明書と DNS のレコードを作る"
   type        = string

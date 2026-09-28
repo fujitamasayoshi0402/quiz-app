@@ -1,7 +1,7 @@
 # quiz-service を ECS Fargate で動かす。ローカル（docker compose）と同じイメージを使い、違いは環境変数で渡す。
 #
 # 同じイメージから 2 つのタスク定義を作る。
-#   app     … サービスとして常時動かす。ALB のターゲットになる
+#   app     … サービスとして常時動かす。API Gateway が Cloud Map で見つけて要求を送る（api.tf）
 #   migrate … デプロイのたびに、サービスを入れ替える前に単発で流す（run-task）。流し終えたら止まる
 #
 # ここで決めるのはタスク定義の形（環境変数、ロール、CPU など）まで。
@@ -9,7 +9,8 @@
 # 形を変えて apply しても、動いているタスクは替わらない。次のデプロイで反映される
 
 locals {
-  image = "${aws_ecr_repository.quiz_service.repository_url}:${var.image_tag}"
+  image             = "${aws_ecr_repository.quiz_service.repository_url}:${var.image_tag}"
+  quiz_service_port = 8080
 
   # IAM 認証（ADR-0014）。AWS Advanced JDBC Wrapper の iam プラグインが、接続のたびにトークンを作ってパスワードに使う。
   # パスワードは空にしておく。ローカル用の既定値（application.yml）が送られないように。
@@ -84,6 +85,18 @@ resource "aws_ecs_task_definition" "app" {
       protocol      = "tcp"
     }]
 
+    # ECS がタスクの状態を決め、Cloud Map に伝える（api.tf）。通るまで API Gateway は要求を送らない。
+    # デプロイの入れ替えとサーキットブレーカーも、この結果で判断する。
+    # アクチュエータは DB に問い合わせない（application.yml）。叩き続けても Aurora の一時停止を妨げない。
+    # startPeriod の間の失敗は数えない（通れば、その時点で HEALTHY になる）。JVM の起動を待つ長さで、サービスの猶予と揃えている
+    healthCheck = {
+      command     = ["CMD-SHELL", "curl -sf http://localhost:${local.quiz_service_port}/actuator/health || exit 1"]
+      interval    = 15
+      timeout     = 5
+      retries     = 3
+      startPeriod = 180
+    }
+
     environment = concat(local.auth_environment, local.datasource_environment, local.figures_environment, [
       { name = "SPRING_PROFILES_ACTIVE", value = join(",", var.spring_profiles) },
     ])
@@ -121,6 +134,13 @@ resource "aws_ecs_service" "app" {
     target_group_arn = aws_lb_target_group.quiz_service.arn
     container_name   = "quiz-service"
     container_port   = local.quiz_service_port
+  }
+
+  # タスクの IP とポートを Cloud Map に登録する。API Gateway はここから送り先を引く（api.tf）
+  service_registries {
+    registry_arn   = aws_service_discovery_service.quiz_service.arn
+    container_name = "quiz-service"
+    container_port = local.quiz_service_port
   }
 
   # JVM の起動を待つ。短いと、起動中にヘルスチェックで落とされて入れ替えが繰り返される

@@ -48,6 +48,9 @@ module "quiz_service" {
   alb_security_group_id     = module.network.security_group_ids.alb
   service_security_group_id = module.network.security_group_ids.quiz_service
 
+  vpc_link_subnet_ids        = module.network.private_subnet_ids
+  vpc_link_security_group_id = module.network.security_group_ids.vpc_link
+
   auth_issuer    = module.auth.issuer
   auth_client_id = module.auth.client_id
 
