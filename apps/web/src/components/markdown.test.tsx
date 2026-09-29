@@ -73,13 +73,13 @@ describe("Markdown", () => {
   });
 
   describe("解説図（figure:）", () => {
-    it("図を指す画像だけを、テナントの API から取って出す", () => {
+    it("図を指す画像だけを、テナントの API から、本文の中に出す画像（PDF なら 1 ページ目）として取って出す", () => {
       const html = render(`![構成図](figure:${FIGURE})`, "demo");
 
-      expect(html).toContain(`<img src="/api/t/demo/play/figures/${FIGURE}" alt="構成図"`);
+      expect(html).toContain(`<img src="/api/t/demo/play/figures/${FIGURE}/preview" alt="構成図"`);
     });
 
-    it("図は押すと新しいタブで開き、拡大して見られる", () => {
+    it("図は押すと、図そのもの（PDF なら PDF）を新しいタブで開き、拡大して見られる", () => {
       const html = render(`![構成図](figure:${FIGURE})`, "demo");
 
       expect(html).toMatch(

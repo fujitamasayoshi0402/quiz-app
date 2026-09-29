@@ -718,7 +718,8 @@ paths:
         type: string
     post:
       description: "種類は中身の先頭のバイトで決める。PNG・JPEG は画像として読み直して置く（位置情報などのメタデータは残らず、長い辺は\
-        \ 2,000 px までに縮める）。PDF はそのまま置く。上げたものは、検査に通らなくても消える"
+        \ 2,000 px までに縮める）。PDF はそのまま置き、1 ページ目を画像にして本文の中に出せるようにする。パスワードのかかった PDF は受\
+        け付けない。上げたものは、検査に通らなくても消える"
       operationId: completeFigureUpload
       parameters:
       - in: path
@@ -1738,7 +1739,7 @@ paths:
           description: 期限（5〜10 分）つきの署名付き URL へ送る
           headers:
             Location:
-              description: 図（SVG か画像）の署名付き URL
+              description: 図（SVG、画像、PDF）の署名付き URL
               schema:
                 type: string
                 format: uri
@@ -1762,6 +1763,55 @@ paths:
                 $ref: "#/components/schemas/ProblemDetail"
           description: テナントが存在しない、または所属していない
       summary: 解説図へ送る
+      tags:
+      - 解説図（出題）
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+  /api/t/{slug}/play/figures/{id}/preview:
+    get:
+      description: PDF は 1 ページ目の画像へ、ほかの図は図そのものへ送る（ADR-0021）
+      operationId: getFigurePreview
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "302":
+          description: 期限（5〜10 分）つきの署名付き URL へ送る
+          headers:
+            Location:
+              description: 本文の中に出す画像（SVG か画像）の署名付き URL
+              schema:
+                type: string
+                format: uri
+              style: simple
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 本文の中に出す解説図の画像へ送る
       tags:
       - 解説図（出題）
     parameters:
@@ -2002,8 +2052,9 @@ components:
           type: string
           description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
             生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
-            の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取\
-            る。保存するとき、指している図がテナントにあることを確かめる"
+            の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         isCorrect:
           type: boolean
         totalCount:
@@ -2360,7 +2411,8 @@ components:
           format: uuid
         kind:
           type: string
-          description: 種類。drawio（draw.io の原本と SVG。描き直せる）、image（PNG か JPEG）、pdf（解説のリンクから開く資料）
+          description: 種類。drawio（draw.io の原本と SVG。描き直せる）、image（PNG か JPEG）、pdf（PDF
+            の資料。本文の中には 1 ページ目の画像を出す）
           enum:
           - drawio
           - image
@@ -2419,8 +2471,9 @@ components:
           type: string
           description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
             生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
-            の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取\
-            る。保存するとき、指している図がテナントにあることを確かめる"
+            の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         question:
           type: string
         status:
@@ -2598,8 +2651,9 @@ components:
           type: string
           description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
             生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
-            の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取\
-            る。保存するとき、指している図がテナントにあることを確かめる"
+            の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         id:
           type: string
           format: uuid
@@ -2629,8 +2683,9 @@ components:
           type: string
           description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
             生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
-            の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取\
-            る。保存するとき、指している図がテナントにあることを確かめる"
+            の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         isCorrect:
           type: boolean
         question:
@@ -2744,8 +2799,9 @@ components:
           type: string
           description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
             生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
-            の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取\
-            る。保存するとき、指している図がテナントにあることを確かめる"
+            の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         question:
           type: string
           maxLength: 2000

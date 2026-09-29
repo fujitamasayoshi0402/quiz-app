@@ -4,6 +4,7 @@ import com.quizapp.quiz.infrastructure.BucketFigureStore
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.TestAuth
 import com.quizapp.support.TestImages
+import com.quizapp.support.TestPdfs
 import com.quizapp.support.TestTenant
 import com.quizapp.support.fake.InMemoryBucket
 import org.assertj.core.api.Assertions.assertThat
@@ -44,7 +45,6 @@ class FigureApiTest {
 
         private const val SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect/></svg>"""
         private const val SOURCE = """<mxfile><diagram name="1">図の原本</diagram></mxfile>"""
-        private const val PDF = "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n"
     }
 
     @Autowired private lateinit var mockMvc: MockMvc
@@ -71,10 +71,15 @@ class FigureApiTest {
         .andReturn().response.contentAsString
         .let { UUID.fromString(objectMapper.readTree(it)["id"].asString()) }
 
-    private fun play(id: UUID, user: UUID? = TestAuth.MEMBER): ResultActionsDsl =
-        mockMvc.get("/api/t/${tenant.slug}/play/figures/$id") {
+    private fun play(id: UUID, user: UUID? = TestAuth.MEMBER, path: String = ""): ResultActionsDsl =
+        mockMvc.get("/api/t/${tenant.slug}/play/figures/$id$path") {
             user?.let { header("Authorization", TestAuth.bearer(it)) }
         }
+
+    /** 図へ送る先（署名付き URL）のパス。[path] が `/preview` なら、本文の中に出す画像へ送る先 */
+    private fun redirectPath(id: UUID, path: String = ""): String =
+        play(id, path = path).andExpect { status { isFound() } }.andReturn().response.getHeader("Location")
+            .let { URI.create(requireNotNull(it)).path }
 
     @Test
     @DisplayName("置いた図は、原本と SVG がテナントを含むキーに入り、SVG は変えない前提で長く持たせる")
@@ -254,8 +259,21 @@ class FigureApiTest {
         mockMvc.get("/api/t/${tenant.slug}/admin/figures/$id") {
             header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { jsonPath("$.kind") { value("image") } }
-        val location = play(id).andExpect { status { isFound() } }.andReturn().response.getHeader("Location")
-        assertThat(URI.create(requireNotNull(location)).path).endsWith("/img/${tenant.id}/$id")
+        assertThat(redirectPath(id)).endsWith("/img/${tenant.id}/$id")
+    }
+
+    @Test
+    @DisplayName("本文の中に出す画像は、draw.io の図と画像なら図そのもの")
+    fun previewIsFigureItself() {
+        val drawio = createFigure()
+        assertThat(redirectPath(drawio, "/preview")).isEqualTo(redirectPath(drawio))
+
+        val image = upload(TestImages.png())
+        complete(image).andExpect { status { isCreated() } }
+        assertThat(redirectPath(image, "/preview")).isEqualTo(redirectPath(image))
+
+        play(UUID.randomUUID(), path = "/preview").andExpect { status { isNotFound() } }
+        play(drawio, user = TestAuth.OUTSIDER, path = "/preview").andExpect { status { isNotFound() } }
     }
 
     @Test
@@ -299,9 +317,9 @@ class FigureApiTest {
     }
 
     @Test
-    @DisplayName("PDF は読み直さず、そのまま配る場所に写す。種類は PDF になり、リンクから開く")
+    @DisplayName("PDF は読み直さず、そのまま配る場所に写す。本文の中には、1 ページ目の画像を出す")
     fun completesPdfUpload() {
-        val pdf = PDF.toByteArray()
+        val pdf = TestPdfs.halves()
         val id = upload(pdf, type = "application/pdf")
 
         complete(id).andExpect {
@@ -313,15 +331,50 @@ class FigureApiTest {
         assertThat(stored.body).isEqualTo(pdf)
         assertThat(stored.contentType).isEqualTo("application/pdf")
         assertThat(stored.cacheControl).isEqualTo(BucketFigureStore.IMMUTABLE)
+        val preview = requireNotNull(bucket.find("img/${tenant.id}/$id"))
+        assertThat(preview.contentType).isEqualTo("image/jpeg")
+        assertThat(preview.cacheControl).isEqualTo(BucketFigureStore.IMMUTABLE)
         assertThat(bucket.find("incoming/${tenant.id}/$id")).isNull()
-        val location = play(id).andExpect { status { isFound() } }.andReturn().response.getHeader("Location")
-        assertThat(URI.create(requireNotNull(location)).path).endsWith("/pdf/${tenant.id}/$id")
+
+        assertThat(redirectPath(id)).endsWith("/pdf/${tenant.id}/$id")
+        assertThat(redirectPath(id, "/preview")).endsWith("/img/${tenant.id}/$id")
+    }
+
+    @Test
+    @DisplayName("開くのにパスワードが要る PDF は置かない。上げたものは消し、行も入れない")
+    fun rejectsPasswordProtectedPdf() {
+        val before = figureRows()
+        val id = upload(TestPdfs.protected(userPassword = "user-password"), type = "application/pdf")
+
+        complete(id).andExpect {
+            status { isBadRequest() }
+            jsonPath("$.detail") { value("パスワードのかかった PDF は入れられません") }
+        }
+
+        assertThat(bucket.find("incoming/${tenant.id}/$id")).isNull()
+        assertThat(bucket.find("pdf/${tenant.id}/$id")).isNull()
+        assertThat(bucket.find("img/${tenant.id}/$id")).isNull()
+        assertThat(figureRows()).isEqualTo(before)
+    }
+
+    @Test
+    @DisplayName("消した PDF は、本体も 1 ページ目の画像も残さない")
+    fun deletesPdf() {
+        val id = upload(TestPdfs.halves(), type = "application/pdf")
+        complete(id).andExpect { status { isCreated() } }
+
+        mockMvc.delete("/api/t/${tenant.slug}/admin/figures/$id") {
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isNoContent() } }
+
+        assertThat(bucket.find("pdf/${tenant.id}/$id")).isNull()
+        assertThat(bucket.find("img/${tenant.id}/$id")).isNull()
     }
 
     @Test
     @DisplayName("種類は申告ではなく中身で決める。大きさの上限も、中身の種類のものを使う")
     fun decidesKindByContent() {
-        val pdfDeclaredAsPng = upload(PDF.toByteArray(), type = "image/png")
+        val pdfDeclaredAsPng = upload(TestPdfs.halves(), type = "image/png")
         complete(pdfDeclaredAsPng).andExpect { jsonPath("$.kind") { value("pdf") } }
 
         // PDF として 20 MB までの枠で上げても、中身が画像なら 10 MB まで

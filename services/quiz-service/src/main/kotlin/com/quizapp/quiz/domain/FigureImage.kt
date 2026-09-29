@@ -62,6 +62,10 @@ class FigureImage private constructor(val bytes: ByteArray, val format: ImageFor
             return FigureImage(encode(redraw(decoded, orientation, format), format), format)
         }
 
+        /** 描いた画像から作る。PDF の 1 ページ目（[FigurePdf.preview]）に使う。大きさは描く側が [MAX_SIDE] に合わせる */
+        internal fun of(image: BufferedImage, format: ImageFormat): FigureImage =
+            FigureImage(encode(image, format), format)
+
         /**
          * 画像として読む。画素数が多すぎれば、展開せずに拒む。
          * 読み込みの部品は、壊れたファイルに IOException 以外の例外も投げる。

@@ -73,6 +73,9 @@ dependencies {
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:cloudfront")
 
+    // PDF の 1 ページ目を画像にして、解説の中に出す（ADR-0021）
+    implementation("org.apache.pdfbox:pdfbox:3.0.7")
+
     runtimeOnly("org.postgresql:postgresql")
 
     // AWS では Aurora へ IAM 認証で接続する（ADR-0014）。URL を jdbc:aws-wrapper:postgresql: にしたときだけ使われ、

@@ -1128,6 +1128,86 @@
               }
             }
           ]
+        },
+        {
+          "name": "PDF の 1 ページ目の画像へ送られる",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/figures/{{pdfId}}/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "figures",
+                "{{pdfId}}",
+                "preview"
+              ]
+            },
+            "description": "本文の中には、PDF の 1 ページ目の画像を出す（ADR-0021）"
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"302 で送る\", () => pm.response.to.have.status(302));",
+                  "const location = pm.response.headers.get(\"Location\") ?? \"\";",
+                  "pm.test(\"送り先は、テナントの下の画像\", () => {",
+                  "  pm.expect(location).to.include(`/img/`).and.include(`/${pm.collectionVariables.get(\"pdfId\")}`);",
+                  "});",
+                  "pm.collectionVariables.set(\"pdfPreviewUrl\", location);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "送り先から 1 ページ目の画像が返る",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{pdfPreviewUrl}}",
+              "host": [
+                "{{pdfPreviewUrl}}"
+              ]
+            },
+            "description": "AWS では、quiz-service のコンテナの中で PDF を画像にできること（PDFBox とフォント）も確かめる"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// アクセストークンは API にだけ渡す。署名付き URL は、署名だけで使える",
+                  "pm.request.headers.remove(\"Authorization\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 で JPEG を返す\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/jpeg\");",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },

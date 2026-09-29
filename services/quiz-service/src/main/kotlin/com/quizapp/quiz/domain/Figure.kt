@@ -54,7 +54,7 @@ enum class FigureKind {
     /** PNG か JPEG。読み直したものだけを持つ */
     IMAGE,
 
-    /** PDF の資料。本文の中には出さず、リンクから新しいタブで開く */
+    /** PDF の資料。本文の中には 1 ページ目の画像を出し、押すと PDF を新しいタブで開く（ADR-0021） */
     PDF,
 }
 
@@ -92,6 +92,9 @@ interface FigureStore {
 
     /** ブラウザが図を取りに行く URL。期限がある */
     fun url(id: UUID, kind: FigureKind): URI
+
+    /** 本文の中に出す画像の URL。PDF は 1 ページ目の画像、ほかは図そのもの。期限がある */
+    fun previewUrl(id: UUID, kind: FigureKind): URI
 }
 
 /**
@@ -110,7 +113,7 @@ interface FigureUploadStore {
 
     fun readUpload(id: UUID): ByteArray?
 
-    /** 上がってきた PDF を、そのまま配る場所へ写す。本体は quiz-service を通さない */
+    /** 上がってきた PDF を、そのまま配る場所へ写す。バケットの中で写し、quiz-service から上げ直さない */
     fun promotePdf(id: UUID)
 
     fun deleteUpload(id: UUID)

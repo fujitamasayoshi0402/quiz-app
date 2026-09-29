@@ -28,7 +28,7 @@ export const CreateQuizBody = zod.object({
   "isCorrect": zod.boolean().optional()
 })).optional(),
   "difficultyId": zod.uuid(),
-  "explanation": zod.string().optional().describe('解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。図は GET /api/t/{slug}/play/figures/{id} から取る。保存するとき、指している図がテナントにあることを確かめる'),
+  "explanation": zod.string().optional().describe('解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id} を使う。保存するとき、指している図がテナントにあることを確かめる'),
   "question": zod.string().min(createQuizBodyQuestionMin).max(createQuizBodyQuestionMax),
   "status": zod.string().optional()
 })

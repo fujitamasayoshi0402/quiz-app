@@ -24,6 +24,11 @@ export function figureUrl(tenant: string, id: string): string {
   return `/api/t/${encodeURIComponent(tenant)}/play/figures/${id}`;
 }
 
+/** 本文の中に出す画像の URL。PDF なら 1 ページ目の画像、ほかは図そのもの（ADR-0021） */
+export function figurePreviewUrl(tenant: string, id: string): string {
+  return `${figureUrl(tenant, id)}/preview`;
+}
+
 /** 本文に入れる、図を出す書き方 */
 export function figureMarkdown(id: string, alt = "図"): string {
   return `![${alt}](figure:${id})`;
@@ -48,9 +53,12 @@ export function insertFigure(text: string, position: number | null, id: string, 
   return insertLine(text, position, figureMarkdown(id, alt));
 }
 
-/** 本文の [position] の位置に、図を開くリンクを 1 行として入れる */
-export function insertFigureLink(text: string, position: number | null, id: string, label: string): string {
-  return insertLine(text, position, figureLinkMarkdown(id, label));
+/**
+ * 本文の [position] の位置に、PDF を入れる。1 ページ目の画像と、その下に PDF を開くリンクを置く（ADR-0021）。
+ * 画像だけでは、押すと何ページもある資料が開くことが読む人に伝わらない
+ */
+export function insertPdf(text: string, position: number | null, id: string, label: string): string {
+  return insertLine(text, position, `${figureMarkdown(id, label)}\n${figureLinkMarkdown(id, `${label}（PDF）`)}`);
 }
 
 function insertLine(text: string, position: number | null, line: string): string {

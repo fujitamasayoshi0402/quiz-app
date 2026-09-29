@@ -3,7 +3,7 @@ import ReactMarkdown, { type Components, type ExtraProps, defaultUrlTransform } 
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { FigureImage } from "@/components/figure-image";
-import { figureIdOf, figureUrl } from "@/lib/figures";
+import { figureIdOf, figurePreviewUrl, figureUrl } from "@/lib/figures";
 import { cn } from "@/lib/utils";
 
 /**
@@ -62,7 +62,8 @@ function figureComponents(tenant: string | undefined): Components {
       const id = figureIdOf(typeof src === "string" ? src : undefined);
       // 図でない画像は出さず、代わりの文字だけを出す。外部の画像は、読み込むだけで見た人の情報が相手に渡る
       if (!id || !tenant) return alt ? <span>{alt}</span> : null;
-      return <FigureImage src={figureUrl(tenant, id)} alt={alt ?? ""} zoomable />;
+      // 本文の中には図の画像（PDF なら 1 ページ目）を出し、押すと図そのものを開く（ADR-0021）
+      return <FigureImage src={figurePreviewUrl(tenant, id)} href={figureUrl(tenant, id)} alt={alt ?? ""} />;
     },
     // 外へのリンクと図は新しいタブで開く。出題の途中の画面から離れさせず、開いた先にこのページを触らせない。
     // 脚注のようなページ内のリンク（`#`）は、そのまま移る

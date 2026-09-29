@@ -380,6 +380,14 @@ class TenantBoundaryApiTest {
                 status = 404,
                 detail = FIGURE_NOT_FOUND,
             ),
+            Probe(
+                HttpMethod.GET,
+                "/api/t/{slug}/play/figures/{id}/preview",
+                "本文の中に出す画像の署名付き URL を出さない",
+                victim,
+                status = 404,
+                detail = FIGURE_NOT_FOUND,
+            ),
         )
     }
 

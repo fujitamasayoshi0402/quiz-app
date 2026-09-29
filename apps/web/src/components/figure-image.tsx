@@ -8,18 +8,19 @@ import { cn } from "@/lib/utils";
  *
  * 背景は白にする。draw.io の図は背景が透明で、線と文字が黒い。暗い配色の画面でも読めるようにする。
  *
- * [zoomable] なら、図を押すと新しいタブで開く。狭い画面では縮んで細部が読めないため、開いた先で拡大して見る。
+ * [href] があれば、図を押すと新しいタブでそこを開く。狭い画面では縮んで細部が読めないため、開いた先で拡大して見る。
+ * PDF は、本文の中には 1 ページ目の画像を出し（[src]）、押すと PDF を開く（ADR-0021）。
  */
 export function FigureImage({
   src,
   alt,
   className,
-  zoomable = false,
+  href,
 }: {
   src: string;
   alt: string;
   className?: string;
-  zoomable?: boolean;
+  href?: string;
 }) {
   const [failed, setFailed] = useState(false);
 
@@ -37,9 +38,9 @@ export function FigureImage({
       className={cn("block h-auto max-w-full rounded-md border bg-white p-2", className)}
     />
   );
-  if (!zoomable) return image;
+  if (!href) return image;
   return (
-    <a href={src} target="_blank" rel="noopener noreferrer" title="図を新しいタブで開く" className="block w-fit max-w-full">
+    <a href={href} target="_blank" rel="noopener noreferrer" title="図を新しいタブで開く" className="block w-fit max-w-full">
       {image}
     </a>
   );
