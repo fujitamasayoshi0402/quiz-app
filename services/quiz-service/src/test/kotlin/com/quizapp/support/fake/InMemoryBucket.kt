@@ -18,6 +18,15 @@ class InMemoryBucket : Bucket {
 
     override fun size(key: String): Long? = objects[key]?.body?.size?.toLong()
 
+    override fun head(key: String, bytes: Int): ByteArray? = objects[key]?.body?.let {
+        it.copyOf(minOf(bytes, it.size))
+    }
+
+    override fun copy(from: String, to: String, contentType: String, cacheControl: String) {
+        val source = requireNotNull(objects[from]) { "写す元がありません: $from" }
+        objects[to] = StoredObject(source.body, contentType, cacheControl)
+    }
+
     override fun delete(key: String) {
         objects.remove(key)
     }

@@ -3,8 +3,11 @@ package com.quizapp.quiz.usecase
 import com.quizapp.quiz.domain.FigureContent
 import com.quizapp.quiz.domain.FigureImage
 import com.quizapp.quiz.domain.FigureKind
+import com.quizapp.quiz.domain.FigurePdf
 import com.quizapp.quiz.domain.FigureRepository
 import com.quizapp.quiz.domain.FigureStore
+import com.quizapp.quiz.domain.FigureUploadStore
+import com.quizapp.quiz.domain.FigureUploads
 import com.quizapp.quiz.domain.ImageFormat
 import com.quizapp.tenant.TenantTransaction
 import org.slf4j.LoggerFactory
@@ -20,13 +23,14 @@ import java.util.UUID
  *
  * S3 を呼んでいる間は、DB のトランザクションを開かない。
  *
- * 画像（ADR-0020）は、ブラウザが検査の前の置き場所へ直接上げる。完了を受けたら、検査して読み直したものを置き、行を入れる。
- * 上がってきたものは、検査に通っても通らなくても消す。
+ * 画像と PDF（ADR-0020）は、ブラウザが検査の前の置き場所へ直接上げる。完了を受けたら、中身で種類を決めて置き、行を入れる。
+ * 画像は読み直し、PDF はそのまま写す。上がってきたものは、検査に通っても通らなくても消す。
  */
 @Service
 class FigureUseCase(
     private val repository: FigureRepository,
     private val store: FigureStore,
+    private val uploads: FigureUploadStore,
     private val tenantTransaction: TenantTransaction,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -40,31 +44,51 @@ class FigureUseCase(
         return id
     }
 
-    /** 画像を上げる準備。図の ID を決め、ブラウザが本体を上げる URL を返す。行はまだ入れない */
+    /** 画像か PDF を上げる準備。図の ID を決め、ブラウザが本体を上げる URL を返す。行はまだ入れない */
     fun startUpload(contentType: String, size: Long): FigureUpload {
-        val format = requireNotNull(ImageFormat.fromContentType(contentType)) { FigureImage.UNSUPPORTED }
-        require(size in 1..FigureImage.MAX_BYTES) { FigureImage.TOO_LARGE }
+        val (maxBytes, tooLarge) = requireNotNull(FigureUploads.limitFor(contentType)) { FigureUploads.UNSUPPORTED }
+        require(size in 1..maxBytes) { tooLarge }
         val id = UUID.randomUUID()
-        return FigureUpload(id, store.uploadUrl(id, format, size), format.contentType)
+        return FigureUpload(id, uploads.uploadUrl(id, contentType, size), contentType)
     }
 
     /**
-     * 上がってきた画像を検査し、読み直したものを置いてから行を入れる。
+     * 上がってきたファイルを、中身で種類を決めて置いてから行を入れる。
      * 大きさは、中身を読む前に確かめる。署名で大きさを縛っているが、ここでも信じない
      */
-    fun completeUpload(id: UUID): UUID {
-        val size = store.uploadSize(id) ?: throw FigureUploadNotFoundException(id)
+    fun completeUpload(id: UUID): FigureKind {
+        val size = uploads.uploadSize(id) ?: throw FigureUploadNotFoundException(id)
         try {
-            require(size <= FigureImage.MAX_BYTES) { FigureImage.TOO_LARGE }
-            val uploaded = store.readUpload(id) ?: throw FigureUploadNotFoundException(id)
-            store.saveImage(id, FigureImage.from(uploaded))
-            tenantTransaction.executeWithoutResult { repository.add(id, FigureKind.IMAGE) }
+            val kind = place(id, size, head(id))
+            tenantTransaction.executeWithoutResult { repository.add(id, kind) }
+            return kind
         } finally {
-            runCatching { store.deleteUpload(id) }
-                .onFailure { log.warn("上がってきた画像を消せませんでした。置き場所のライフサイクルが消します: {}", id, it) }
+            runCatching { uploads.deleteUpload(id) }
+                .onFailure { log.warn("上がってきたファイルを消せませんでした。置き場所のライフサイクルが消します: {}", id, it) }
         }
-        return id
     }
+
+    /** 申告された種類ではなく、先頭のバイトで決める。PDF はそのまま写し、画像は読み直す */
+    private fun place(id: UUID, size: Long, head: ByteArray): FigureKind = when {
+        FigurePdf.matches(head) -> {
+            require(size <= FigurePdf.MAX_BYTES) { FigurePdf.TOO_LARGE }
+            uploads.promotePdf(id)
+            FigureKind.PDF
+        }
+
+        ImageFormat.detect(head) != null -> {
+            require(size <= FigureImage.MAX_BYTES) { FigureImage.TOO_LARGE }
+            store.saveImage(id, FigureImage.from(readUpload(id)))
+            FigureKind.IMAGE
+        }
+
+        else -> throw IllegalArgumentException(FigureUploads.UNSUPPORTED)
+    }
+
+    private fun head(id: UUID): ByteArray =
+        uploads.readUploadHead(id, FigureUploads.HEAD_BYTES) ?: throw FigureUploadNotFoundException(id)
+
+    private fun readUpload(id: UUID): ByteArray = uploads.readUpload(id) ?: throw FigureUploadNotFoundException(id)
 
     fun kind(id: UUID): FigureKind = tenantTransaction.execute {
         repository.findKind(id) ?: throw FigureNotFoundException(id)
@@ -91,9 +115,9 @@ class FigureUseCase(
     }
 }
 
-/** 画像を上げる先。ブラウザは [url] へ、[contentType] を付けて PUT する */
+/** ファイルを上げる先。ブラウザは [url] へ、[contentType] を付けて PUT する */
 data class FigureUpload(val id: UUID, val url: URI, val contentType: String)
 
 class FigureNotFoundException(val id: UUID) : RuntimeException("図が見つかりません: $id")
 
-class FigureUploadNotFoundException(val id: UUID) : RuntimeException("上がってきた画像が見つかりません: $id")
+class FigureUploadNotFoundException(val id: UUID) : RuntimeException("上がってきたファイルが見つかりません: $id")

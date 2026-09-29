@@ -44,6 +44,7 @@ class FigureApiTest {
 
         private const val SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect/></svg>"""
         private const val SOURCE = """<mxfile><diagram name="1">図の原本</diagram></mxfile>"""
+        private const val PDF = "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n"
     }
 
     @Autowired private lateinit var mockMvc: MockMvc
@@ -220,7 +221,11 @@ class FigureApiTest {
     fun rejectsUnsupportedUploads() {
         startUpload(type = "image/gif").andExpect {
             status { isBadRequest() }
-            jsonPath("$.detail") { value("PNG か JPEG の画像を選んでください") }
+            jsonPath("$.detail") { value("PNG・JPEG の画像か、PDF を選んでください") }
+        }
+        startUpload(type = "application/pdf", size = 20L * 1024 * 1024 + 1).andExpect {
+            status { isBadRequest() }
+            jsonPath("$.detail") { value("PDF は 20 MB までです") }
         }
         startUpload(size = 10L * 1024 * 1024 + 1).andExpect {
             status { isBadRequest() }
@@ -237,6 +242,7 @@ class FigureApiTest {
         complete(id).andExpect {
             status { isCreated() }
             jsonPath("$.id") { value(id.toString()) }
+            jsonPath("$.kind") { value("image") }
         }
 
         val stored = requireNotNull(bucket.find("img/${tenant.id}/$id"))
@@ -271,7 +277,7 @@ class FigureApiTest {
 
         complete(id).andExpect {
             status { isBadRequest() }
-            jsonPath("$.detail") { value("PNG か JPEG の画像を選んでください") }
+            jsonPath("$.detail") { value("PNG・JPEG の画像か、PDF を選んでください") }
         }
 
         assertThat(bucket.find("incoming/${tenant.id}/$id")).isNull()
@@ -284,12 +290,46 @@ class FigureApiTest {
     fun completesOnlyUploaded() {
         complete(UUID.randomUUID()).andExpect {
             status { isNotFound() }
-            jsonPath("$.detail") { value("上げた画像が見つかりません。もう一度上げてください") }
+            jsonPath("$.detail") { value("上げたファイルが見つかりません。もう一度上げてください") }
         }
 
         val id = upload(TestImages.png())
         complete(id).andExpect { status { isCreated() } }
         complete(id).andExpect { status { isNotFound() } }
+    }
+
+    @Test
+    @DisplayName("PDF は読み直さず、そのまま配る場所に写す。種類は PDF になり、リンクから開く")
+    fun completesPdfUpload() {
+        val pdf = PDF.toByteArray()
+        val id = upload(pdf, type = "application/pdf")
+
+        complete(id).andExpect {
+            status { isCreated() }
+            jsonPath("$.kind") { value("pdf") }
+        }
+
+        val stored = requireNotNull(bucket.find("pdf/${tenant.id}/$id"))
+        assertThat(stored.body).isEqualTo(pdf)
+        assertThat(stored.contentType).isEqualTo("application/pdf")
+        assertThat(stored.cacheControl).isEqualTo(BucketFigureStore.IMMUTABLE)
+        assertThat(bucket.find("incoming/${tenant.id}/$id")).isNull()
+        val location = play(id).andExpect { status { isFound() } }.andReturn().response.getHeader("Location")
+        assertThat(URI.create(requireNotNull(location)).path).endsWith("/pdf/${tenant.id}/$id")
+    }
+
+    @Test
+    @DisplayName("種類は申告ではなく中身で決める。大きさの上限も、中身の種類のものを使う")
+    fun decidesKindByContent() {
+        val pdfDeclaredAsPng = upload(PDF.toByteArray(), type = "image/png")
+        complete(pdfDeclaredAsPng).andExpect { jsonPath("$.kind") { value("pdf") } }
+
+        // PDF として 20 MB までの枠で上げても、中身が画像なら 10 MB まで
+        val largeImage = upload(TestImages.png().copyOf(10 * 1024 * 1024 + 1), type = "application/pdf")
+        complete(largeImage).andExpect {
+            status { isBadRequest() }
+            jsonPath("$.detail") { value("画像は 10 MB までです") }
+        }
     }
 
     @Test

@@ -16,7 +16,7 @@ import * as zod from 'zod';
 
 export const FigureDetailResponse = zod.object({
   "id": zod.uuid(),
-  "kind": zod.enum(['drawio', 'image']).describe('種類。drawio（draw.io の原本と SVG。描き直せる）か image（PNG か JPEG）')
+  "kind": zod.enum(['drawio', 'image', 'pdf']).describe('種類。drawio（draw.io の原本と SVG。描き直せる）、image（PNG か JPEG）、pdf（解説のリンクから開く資料）')
 })
 
 export type FigureDetailResponse = zod.input<typeof FigureDetailResponse>;

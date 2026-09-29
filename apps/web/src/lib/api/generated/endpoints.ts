@@ -1666,7 +1666,7 @@ export const getStartFigureUploadUrl = (slug: string,) => {
 
 /**
  * 図の ID と、ブラウザが本体を S3 へ直接 PUT する URL を返す（ADR-0020）。上げ終えたら、完了を伝える。完了するまで図にはならない
- * @summary 画像（PNG・JPEG）を上げる準備をする
+ * @summary 画像（PNG・JPEG）か PDF を上げる準備をする
  */
 export const startFigureUpload = async (slug: string,
     startFigureUploadRequest: StartFigureUploadRequest, options?: Parameters<typeof apiFetch>[1]): Promise<FigureUploadResponse> => {
@@ -1734,7 +1734,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type StartFigureUploadMutationVariables = {slug: string;data: StartFigureUploadRequest}
 
     /**
- * @summary 画像（PNG・JPEG）を上げる準備をする
+ * @summary 画像（PNG・JPEG）か PDF を上げる準備をする
  */
 export const useStartFigureUpload = <TError = ProblemDetail,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startFigureUpload>>, TError,StartFigureUploadMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
@@ -1757,19 +1757,19 @@ export const getCompleteFigureUploadUrl = (slug: string,
 }
 
 /**
- * 中身が PNG か JPEG かを確かめ、画像として読み直して置く。位置情報などのメタデータは残らない。長い辺は 2,000 px までに縮める。上げたものは、検査に通らなくても消える
- * @summary 上げた画像を検査して、解説図として置く
+ * 種類は中身の先頭のバイトで決める。PNG・JPEG は画像として読み直して置く（位置情報などのメタデータは残らず、長い辺は 2,000 px までに縮める）。PDF はそのまま置く。上げたものは、検査に通らなくても消える
+ * @summary 上げたファイルを検査して、解説図として置く
  */
 export const completeFigureUpload = async (slug: string,
-    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<FigureResponse> => {
+    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<FigureDetailResponse> => {
 
-  return apiFetch<FigureResponse>(getCompleteFigureUploadUrl(slug,id),
+  return apiFetch<FigureDetailResponse>(getCompleteFigureUploadUrl(slug,id),
   {
     ...options,
     method: 'POST'
 
     ,
-    schema: FigureResponse
+    schema: FigureDetailResponse
   }
 );}
 
@@ -1812,7 +1812,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CompleteFigureUploadMutationVariables = {slug: string;id: string}
 
     /**
- * @summary 上げた画像を検査して、解説図として置く
+ * @summary 上げたファイルを検査して、解説図として置く
  */
 export const useCompleteFigureUpload = <TError = ProblemDetail,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeFigureUpload>>, TError,CompleteFigureUploadMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}

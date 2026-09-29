@@ -53,6 +53,9 @@ enum class FigureKind {
 
     /** PNG か JPEG。読み直したものだけを持つ */
     IMAGE,
+
+    /** PDF の資料。本文の中には出さず、リンクから新しいタブで開く */
+    PDF,
 }
 
 /**
@@ -89,17 +92,26 @@ interface FigureStore {
 
     /** ブラウザが図を取りに行く URL。期限がある */
     fun url(id: UUID, kind: FigureKind): URI
+}
 
-    /**
-     * ブラウザが画像を上げる URL（検査の前の置き場所）。種類と大きさは署名に含め、違う本体は受け付けられない。
-     * 期限がある
-     */
-    fun uploadUrl(id: UUID, format: ImageFormat, size: Long): URI
+/**
+ * ブラウザが上げたファイルの置き場所（検査の前。ADR-0020）。誰にも配らない。
+ * テナントは [FigureStore] と同じく、要求の文脈から決める。
+ */
+interface FigureUploadStore {
+    /** ファイルを上げる URL。種類と大きさは署名に含め、違う本体は受け付けられない。期限がある */
+    fun uploadUrl(id: UUID, contentType: String, size: Long): URI
 
     /** 上がってきた本体の大きさ。まだ上がっていなければ null */
     fun uploadSize(id: UUID): Long?
 
+    /** 上がってきた本体の先頭 [bytes] バイト。種類を決めるのに使う。まだ上がっていなければ null */
+    fun readUploadHead(id: UUID, bytes: Int): ByteArray?
+
     fun readUpload(id: UUID): ByteArray?
+
+    /** 上がってきた PDF を、そのまま配る場所へ写す。本体は quiz-service を通さない */
+    fun promotePdf(id: UUID)
 
     fun deleteUpload(id: UUID)
 }
