@@ -187,7 +187,7 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | `backend` | ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド |
 | `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → 単体テスト → build → イメージのビルド |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
-| `e2e` | docker compose でアプリ一式を起動し、Playwright で権限まわりの流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
+| `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりの流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
 | `ci` | 先行ジョブの結果を集約する |
 | `deploy-dev` | develop への push で、`ci` が通ったあとに dev へ載せる。何を載せるかは、dev で動いているものと比べて決める（`deploy-dev.yml`。[デプロイ](#デプロイ)） |
@@ -215,6 +215,18 @@ develop では最後にデプロイが走り、マイグレーションの途中
 ただし、**待っている実行は取り消される。** GitHub は、同じ concurrency のグループで待てる実行を 1 つに限る。
 develop に続けてマージすると、間の実行は流れないまま取り消される。デプロイはこれを前提に、直前の push ではなく、
 dev で動いているものとの差で載せるものを決めている（[デプロイ](#デプロイ)）。
+
+**コンテナイメージのビルドは、レイヤーを GitHub Actions のキャッシュに持ち越す**（DEV-87。buildx の `type=gha`）。
+ソースだけを変えた PR で、依存の層を作り直さない。
+
+- **キャッシュに書くのは develop / main への push だけ。** PR は読むだけにする（`ci.yml` の `IMAGE_CACHE_TO`）。
+  PR で書いたキャッシュはその PR からしか読めず、マージしたあとは使われないまま上限（リポジトリで 10 GB）を埋める
+- 置き場所は `quiz-service` と `web`（CI。amd64）、`quiz-service-arm64`（デプロイ）に分ける。CPU が違えば中身も違う
+- `e2e` は docker compose の定義から `docker buildx bake` でビルドし、`backend` と `frontend` が書いたキャッシュを読む。
+  できたイメージを docker に読み込み、`docker compose up --no-build` で起動する
+- quiz-service の Dockerfile は、Gradle の本体と依存を、キャッシュのマウントではなくレイヤーに置く（`downloadDependencies` タスク）。
+  マウントの中身はキャッシュに残らず、ソースを変えるたびに Gradle の本体から取り直すことになる
+- ECR をキャッシュの置き場所にする方法は採らなかった。PR のジョブは AWS のロールを引き受けられない（Environment `dev` は develop からだけ使える）
 
 変更のパスの一覧（`.github/path-filters.yml`）は、CI の出し分けとデプロイで共有している。
 
@@ -476,7 +488,7 @@ AWS では Amplify Hosting がソースからビルドする。SSR の実行時�
 
 | イメージ | Dockerfile | 備考 |
 | --- | --- | --- |
-| quiz-service | `services/quiz-service/Dockerfile` | 依存・ローダー・アプリを層に分けて置く。コードだけの変更で依存の層を送り直さない |
+| quiz-service | `services/quiz-service/Dockerfile` | 依存・ローダー・アプリを層に分けて置く。コードだけの変更で依存の層を送り直さない。ビルドの段でも、Gradle の依存を先に取ってレイヤーに置く（[CI](#ci)） |
 | web | `apps/web/Dockerfile` | Next.js の standalone 出力。`node_modules` を丸ごと持たない |
 
 どちらもビルドコンテキストはリポジトリのルートで、root 以外の利用者で動く。
