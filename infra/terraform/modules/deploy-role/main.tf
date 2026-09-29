@@ -60,7 +60,8 @@ data "aws_iam_policy_document" "deploy" {
     resources = ["*"]
   }
 
-  # DescribeImages は、同じコミットのイメージがすでにあるかを見るため。タグは上書きできないので、再実行では作り直さない
+  # DescribeImages は、同じコミットのイメージがすでにあるかを見るため。タグは上書きできないので、再実行では作り直さない。
+  # BatchGetImage は、buildx（docker/build-push-action）が push のときにタグのマニフェストを読むため。無いと push が AccessDenied で止まる（DEV-87）
   statement {
     sid = "PushImage"
     actions = [
@@ -70,6 +71,7 @@ data "aws_iam_policy_document" "deploy" {
       "ecr:CompleteLayerUpload",
       "ecr:PutImage",
       "ecr:DescribeImages",
+      "ecr:BatchGetImage",
     ]
     resources = [var.ecr_repository_arn]
   }
