@@ -167,11 +167,13 @@ data "aws_iam_policy_document" "deploy" {
     resources = ["${var.amplify_branch_arn}/jobs/*"]
   }
 
-  # 最後に成功したビルドのコミットを読み、web を載せ直すかを決める（DEV-79）。ListJobs の対象はブランチ
+  # 最後に成功したビルドのコミットを読み、web を載せ直すかを決める（DEV-79）。
+  # Service Authorization Reference では ListJobs の対象はブランチだが、実際にはジョブ（branches/<ブランチ>/jobs/*）で確かめられ、
+  # ブランチだけを許すと AccessDenied になる。資料どおりの対象も残す
   statement {
     sid       = "ReadWebBuilds"
     actions   = ["amplify:ListJobs"]
-    resources = [var.amplify_branch_arn]
+    resources = [var.amplify_branch_arn, "${var.amplify_branch_arn}/jobs/*"]
   }
 }
 
