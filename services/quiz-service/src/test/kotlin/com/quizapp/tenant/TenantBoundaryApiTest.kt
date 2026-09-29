@@ -74,6 +74,7 @@ class TenantBoundaryApiTest {
         private const val DELETED_NOT_FOUND = "削除済みの項目が見つかりません"
         private const val IMPORT_REJECTED = "取り込めない行があります。1 件も取り込んでいません"
         private const val FIGURE_NOT_FOUND = "指定された図は存在しません"
+        private const val ORDER_OUTDATED = "並べ替えている間に項目が変わりました。最新の一覧を取り直してから、並べ替えてください"
         private const val UPLOAD_NOT_FOUND = "上げたファイルが見つかりません。もう一度上げてください"
         private const val INVITATION_NOT_FOUND = "指定された招待は存在しません"
 
@@ -210,6 +211,15 @@ class TenantBoundaryApiTest {
             ),
             Probe(HttpMethod.GET, "$base/{id}/deletion-impact", "", victim, status = 404, detail = CATEGORY_NOT_FOUND),
             Probe(HttpMethod.DELETE, "$base/{id}", "", victim, status = 404, detail = CATEGORY_NOT_FOUND),
+            Probe(
+                HttpMethod.PUT,
+                "$base/order",
+                "victim のカテゴリを並びに含める",
+                body = """{"ids":["${ids.ownCategory}","${ids.victimCategory}"]}""",
+                status = 409,
+                detail = ORDER_OUTDATED,
+                bodyIds = listOf(ids.victimCategory),
+            ),
         )
     }
 
@@ -223,6 +233,26 @@ class TenantBoundaryApiTest {
         return listOf(
             Probe(HttpMethod.GET, base, "", victimParent, status = 404, detail = CATEGORY_NOT_FOUND),
             Probe(HttpMethod.POST, base, "", victimParent, body = body, status = 404, detail = CATEGORY_NOT_FOUND),
+            Probe(
+                HttpMethod.PUT,
+                "$base/order",
+                "victim のカテゴリの難易度を並べ替える",
+                victimParent,
+                body = """{"ids":["${ids.victimDifficulty}"]}""",
+                status = 404,
+                detail = CATEGORY_NOT_FOUND,
+                bodyIds = listOf(ids.victimDifficulty),
+            ),
+            Probe(
+                HttpMethod.PUT,
+                "$base/order",
+                "自分のカテゴリの並びに victim の難易度を含める",
+                mapOf("categoryId" to ids.ownCategory),
+                body = """{"ids":["${ids.ownDifficulty}","${ids.victimDifficulty}"]}""",
+                status = 409,
+                detail = ORDER_OUTDATED,
+                bodyIds = listOf(ids.victimDifficulty),
+            ),
         ) + listOf(
             "victim のカテゴリ配下" to victim,
             "自分のカテゴリ配下" to mixed,

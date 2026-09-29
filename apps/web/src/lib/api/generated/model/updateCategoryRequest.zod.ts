@@ -23,8 +23,7 @@ export const updateCategoryRequestNameMax = 100;
 
 export const UpdateCategoryRequest = zod.object({
   "description": zod.string().min(updateCategoryRequestDescriptionMin).max(updateCategoryRequestDescriptionMax).nullish(),
-  "name": zod.string().min(updateCategoryRequestNameMin).max(updateCategoryRequestNameMax),
-  "sortOrder": zod.int().optional()
+  "name": zod.string().min(updateCategoryRequestNameMin).max(updateCategoryRequestNameMax)
 })
 
 export type UpdateCategoryRequest = zod.input<typeof UpdateCategoryRequest>;

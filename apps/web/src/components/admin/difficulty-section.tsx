@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { DeleteDialog, ImpactSummary } from "@/components/admin/delete-dialog";
+import { ReorderButtons } from "@/components/admin/reorder-buttons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,10 +14,12 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  getListDifficultiesQueryKey,
   useCreateDifficulty,
   useDeleteDifficulty,
   useDifficultyDeletionImpact,
   useListDifficulties,
+  useReorderDifficulties,
   useUpdateDifficulty,
 } from "@/lib/api/generated/endpoints";
 import type { DifficultyResponse } from "@/lib/api/generated/model";
@@ -27,22 +30,42 @@ import {
   blankToNull,
 } from "@/lib/admin/category-form";
 import { useInvalidateTenant } from "@/lib/admin/invalidate";
+import { type Direction, moveItem, useOptimisticOrder } from "@/lib/admin/reorder";
 
 /**
  * カテゴリ配下の難易度。
  *
  * レベルは難しさの大小を表す尺度で、一意ではない。同じレベルに複数の難易度を並べてよい
- * （AWS のアソシエイト級に SAA / DVA が並ぶ、など）。同じレベル内の順は並び順で決める。
+ * （AWS のアソシエイト級に SAA / DVA が並ぶ、など）。
+ * 一覧はレベル順で、同じレベルの中の順だけを上下のボタンで変える（DEV-71）。レベルをまたいで動かすなら、レベルを直す。
  */
 export function DifficultySection({ slug, categoryId }: { slug: string; categoryId: string }) {
   const difficulties = useListDifficulties(slug, categoryId);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const invalidate = useInvalidateTenant(slug);
+  const order = useOptimisticOrder<DifficultyResponse>(getListDifficultiesQueryKey(slug, categoryId), invalidate);
+  const reorder = useReorderDifficulties({
+    mutation: {
+      onMutate: ({ data }) => order.onMutate(data.ids),
+      onError: (_error, _variables, previous) => order.onError(previous),
+      onSettled: order.onSettled,
+    },
+  });
+
+  const moved = (items: DifficultyResponse[], index: number, direction: Direction) =>
+    moveItem(items, index, direction, (a, b) => a.level === b.level);
+  const move = (items: DifficultyResponse[], index: number, direction: Direction) => {
+    const next = moved(items, index, direction);
+    if (next) reorder.mutate({ slug, categoryId, data: { ids: next.map((difficulty) => difficulty.id) } });
+  };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>難易度</CardTitle>
-        <CardDescription>レベルは難しさの目安です。同じレベルの難易度をいくつ並べてもかまいません。</CardDescription>
+        <CardDescription>
+          レベルは難しさの目安です。同じレベルの難易度をいくつ並べてもかまいません。同じレベルの中の順は、矢印で入れ替えられます。
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {difficulties.isPending ? (
@@ -56,7 +79,7 @@ export function DifficultySection({ slug, categoryId }: { slug: string; category
           </Alert>
         ) : (
           <ul className="divide-y rounded-lg border">
-            {difficulties.data.map((difficulty) =>
+            {difficulties.data.map((difficulty, index, items) =>
               editingId === difficulty.id ? (
                 <li key={difficulty.id} className="p-3">
                   <DifficultyForm
@@ -73,11 +96,21 @@ export function DifficultySection({ slug, categoryId }: { slug: string; category
                   categoryId={categoryId}
                   difficulty={difficulty}
                   onEdit={() => setEditingId(difficulty.id)}
+                  reorder={
+                    <ReorderButtons
+                      name={difficulty.name}
+                      canMoveUp={moved(items, index, -1) !== undefined}
+                      canMoveDown={moved(items, index, 1) !== undefined}
+                      disabled={reorder.isPending}
+                      onMove={(direction) => move(items, index, direction)}
+                    />
+                  }
                 />
               ),
             )}
           </ul>
         )}
+        {reorder.isError && <ApiErrorAlert error={reorder.error} />}
         <div className="space-y-2">
           <p className="text-sm font-medium">難易度を追加する</p>
           <DifficultyForm slug={slug} categoryId={categoryId} />
@@ -92,11 +125,13 @@ function DifficultyRow({
   categoryId,
   difficulty,
   onEdit,
+  reorder,
 }: {
   slug: string;
   categoryId: string;
   difficulty: DifficultyResponse;
   onEdit: () => void;
+  reorder: React.ReactNode;
 }) {
   const invalidate = useInvalidateTenant(slug);
   const remove = useDeleteDifficulty({ mutation: { onSuccess: () => invalidate() } });
@@ -104,10 +139,11 @@ function DifficultyRow({
   return (
     <li className="space-y-2 p-3">
       <div className="flex items-center gap-3">
-        <div className="flex-1">
+        {reorder}
+        <div className="min-w-0 flex-1">
           <p className="font-medium">{difficulty.name}</p>
           <p className="text-muted-foreground text-xs">
-            レベル {difficulty.level}・並び順 {difficulty.sortOrder}
+            レベル {difficulty.level}
             {difficulty.description && `・${difficulty.description}`}
           </p>
         </div>
@@ -144,14 +180,13 @@ function DifficultyForm({
   onDone?: () => void;
 }) {
   const invalidate = useInvalidateTenant(slug);
-  const empty: DifficultyFormInput = { name: "", level: 1, sortOrder: 0, description: "" };
+  const empty: DifficultyFormInput = { name: "", level: 1, description: "" };
   const form = useForm<DifficultyFormInput, unknown, DifficultyFormValues>({
     resolver: zodResolver(DifficultyFormSchema),
     defaultValues: difficulty
       ? {
           name: difficulty.name,
           level: difficulty.level,
-          sortOrder: difficulty.sortOrder,
           description: difficulty.description ?? "",
         }
       : empty,
@@ -175,7 +210,7 @@ function DifficultyForm({
   const prefix = difficulty ? `difficulty-${difficulty.id}` : "difficulty-new";
   return (
     <form onSubmit={submit} className="space-y-2">
-      <div className="grid gap-3 sm:grid-cols-[1fr_5rem_5rem_1fr]">
+      <div className="grid gap-3 sm:grid-cols-[1fr_5rem_1fr]">
         <Field data-invalid={!!errors.name}>
           <FieldLabel htmlFor={`${prefix}-name`}>名前</FieldLabel>
           <Input id={`${prefix}-name`} aria-invalid={!!errors.name} {...form.register("name")} />
@@ -185,11 +220,6 @@ function DifficultyForm({
           <FieldLabel htmlFor={`${prefix}-level`}>レベル</FieldLabel>
           <Input id={`${prefix}-level`} type="number" min={1} aria-invalid={!!errors.level} {...form.register("level")} />
           <FieldError errors={[errors.level]} />
-        </Field>
-        <Field data-invalid={!!errors.sortOrder}>
-          <FieldLabel htmlFor={`${prefix}-sort`}>並び順</FieldLabel>
-          <Input id={`${prefix}-sort`} type="number" {...form.register("sortOrder")} />
-          <FieldError errors={[errors.sortOrder]} />
         </Field>
         <Field data-invalid={!!errors.description}>
           <FieldLabel htmlFor={`${prefix}-description`}>説明（任意）</FieldLabel>

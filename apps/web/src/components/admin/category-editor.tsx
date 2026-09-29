@@ -46,7 +46,7 @@ function CategoryForm({ slug, category }: { slug: string; category: CategoryResp
 
   const form = useForm<CategoryFormInput, unknown, CategoryFormValues>({
     resolver: zodResolver(CategoryFormSchema),
-    defaultValues: { name: category.name, description: category.description ?? "", sortOrder: category.sortOrder },
+    defaultValues: { name: category.name, description: category.description ?? "" },
   });
   const { errors, isDirty } = form.formState;
 
@@ -54,7 +54,7 @@ function CategoryForm({ slug, category }: { slug: string; category: CategoryResp
     mutation: {
       onSuccess: async (saved) => {
         await invalidate();
-        form.reset({ name: saved.name, description: saved.description ?? "", sortOrder: saved.sortOrder });
+        form.reset({ name: saved.name, description: saved.description ?? "" });
       },
     },
   });
@@ -71,7 +71,7 @@ function CategoryForm({ slug, category }: { slug: string; category: CategoryResp
     update.mutate({
       slug,
       id: category.id,
-      data: { name: values.name, description: blankToNull(values.description), sortOrder: values.sortOrder },
+      data: { name: values.name, description: blankToNull(values.description) },
     }),
   );
 
@@ -81,7 +81,7 @@ function CategoryForm({ slug, category }: { slug: string; category: CategoryResp
         <CardTitle>カテゴリ</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={submit} className="grid gap-4 sm:grid-cols-[1fr_1fr_6rem]">
+        <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
           <Field data-invalid={!!errors.name}>
             <FieldLabel htmlFor="name">カテゴリ名</FieldLabel>
             <Input id="name" aria-invalid={!!errors.name} {...form.register("name")} />
@@ -92,12 +92,7 @@ function CategoryForm({ slug, category }: { slug: string; category: CategoryResp
             <Input id="description" {...form.register("description")} />
             <FieldError errors={[errors.description]} />
           </Field>
-          <Field data-invalid={!!errors.sortOrder}>
-            <FieldLabel htmlFor="sortOrder">並び順</FieldLabel>
-            <Input id="sortOrder" type="number" {...form.register("sortOrder")} />
-            <FieldError errors={[errors.sortOrder]} />
-          </Field>
-          <div className="space-y-2 sm:col-span-3">
+          <div className="space-y-2 sm:col-span-2">
             {(update.error ?? remove.error) && <ApiErrorAlert error={update.error ?? remove.error} />}
             <div className="flex items-center gap-2">
               <DeleteDialog

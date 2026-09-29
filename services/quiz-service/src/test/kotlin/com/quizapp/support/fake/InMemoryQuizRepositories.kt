@@ -3,6 +3,7 @@ package com.quizapp.support.fake
 import com.quizapp.quiz.domain.AnsweredQuizzes
 import com.quizapp.quiz.domain.Category
 import com.quizapp.quiz.domain.CategoryRepository
+import com.quizapp.quiz.domain.CategorySummary
 import com.quizapp.quiz.domain.DeletedItemNotFound
 import com.quizapp.quiz.domain.DeletionImpact
 import com.quizapp.quiz.domain.DeletionRepository
@@ -28,12 +29,19 @@ class InMemoryCategoryRepository : CategoryRepository {
 
     override fun findAll(): List<Category> = rows.values.toList()
 
+    /** クイズの数は SQL の集計の責務。ここでは 0 を返す */
+    override fun findAllSummaries(): List<CategorySummary> = rows.values.map { CategorySummary(it, 0, 0) }
+
     override fun findById(id: UUID): Category? = rows[id]
 
     override fun save(category: Category): Category {
         val saved = if (category.id == null) category.copy(id = UUID.randomUUID()) else category
         rows[requireNotNull(saved.id)] = saved
         return saved
+    }
+
+    override fun reorder(ids: List<UUID>) {
+        ids.forEachIndexed { index, id -> rows.computeIfPresent(id) { _, row -> row.copy(sortOrder = index) } }
     }
 }
 
@@ -50,6 +58,10 @@ class InMemoryDifficultyRepository : DifficultyRepository {
         val saved = if (difficulty.id == null) difficulty.copy(id = UUID.randomUUID()) else difficulty
         rows[requireNotNull(saved.id)] = saved
         return saved
+    }
+
+    override fun reorder(ids: List<UUID>) {
+        ids.forEachIndexed { index, id -> rows.computeIfPresent(id) { _, row -> row.copy(sortOrder = index) } }
     }
 }
 

@@ -5,13 +5,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { ApiErrorAlert } from "@/components/api-error-alert";
+import { ReorderButtons } from "@/components/admin/reorder-buttons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCreateCategory, useCreateDifficulty, useListCategories } from "@/lib/api/generated/endpoints";
+import {
+  getListCategoriesQueryKey,
+  useCreateCategory,
+  useCreateDifficulty,
+  useListCategories,
+  useReorderCategories,
+} from "@/lib/api/generated/endpoints";
+import type { CategorySummaryResponse } from "@/lib/api/generated/model";
 import {
   type NewCategoryFormInput,
   NewCategoryFormSchema,
@@ -19,9 +27,28 @@ import {
   blankToNull,
 } from "@/lib/admin/category-form";
 import { useInvalidateTenant } from "@/lib/admin/invalidate";
+import { type Direction, moveItem, useOptimisticOrder } from "@/lib/admin/reorder";
 
+/**
+ * カテゴリの一覧。並び順は利用者がカテゴリを選ぶ画面の順になり、上下のボタンで変える（DEV-71）。
+ * クイズの数は、下書きを含む数と公開の数を出す。下書きが残っているカテゴリに気づけるように
+ */
 export function CategoryList({ slug }: { slug: string }) {
   const categories = useListCategories(slug);
+  const invalidate = useInvalidateTenant(slug);
+  const order = useOptimisticOrder<CategorySummaryResponse>(getListCategoriesQueryKey(slug), invalidate);
+  const reorder = useReorderCategories({
+    mutation: {
+      onMutate: ({ data }) => order.onMutate(data.ids),
+      onError: (_error, _variables, previous) => order.onError(previous),
+      onSettled: order.onSettled,
+    },
+  });
+
+  const move = (items: CategorySummaryResponse[], index: number, direction: Direction) => {
+    const moved = moveItem(items, index, direction);
+    if (moved) reorder.mutate({ slug, data: { ids: moved.map((category) => category.id) } });
+  };
 
   return (
     <div className="space-y-6">
@@ -32,41 +59,61 @@ export function CategoryList({ slug }: { slug: string }) {
       ) : categories.data.length === 0 ? (
         <p className="text-muted-foreground text-sm">カテゴリがありません。まず 1 つ作ってください。</p>
       ) : (
-        <div className="bg-background rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>カテゴリ</TableHead>
-                <TableHead className="hidden sm:table-cell">説明</TableHead>
-                <TableHead className="w-16 text-right">並び順</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {categories.data.map((category) => (
-                <TableRow key={category.id}>
-                  <TableCell className="max-w-0 sm:max-w-none">
-                    <Link
-                      href={`/t/${slug}/admin/categories/${category.id}`}
-                      className="font-medium underline-offset-4 hover:underline"
-                    >
-                      {category.name}
-                    </Link>
-                    {/* 狭い幅では説明の列を畳み、名前の下に出す。列のままだと数文字で切れる */}
-                    <p className="text-muted-foreground truncate text-xs sm:hidden">{category.description}</p>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden max-w-0 truncate sm:table-cell">
-                    {category.description}
-                  </TableCell>
-                  <TableCell className="text-right">{category.sortOrder}</TableCell>
+        <div className="space-y-2">
+          {reorder.isError && <ApiErrorAlert error={reorder.error} />}
+          <div className="bg-background rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>カテゴリ</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">クイズ</TableHead>
+                  <TableHead className="w-20">
+                    <span className="sr-only">並べ替え</span>
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {categories.data.map((category, index, items) => (
+                  <TableRow key={category.id}>
+                    {/* 説明は名前の下に出す。列にすると、クイズの数と並べ替えの列に押されて数文字で切れる */}
+                    <TableCell className="max-w-0">
+                      <Link
+                        href={`/t/${slug}/admin/categories/${category.id}`}
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {category.name}
+                      </Link>
+                      <p className="text-muted-foreground truncate text-xs">{category.description}</p>
+                      {/* 狭い幅では、クイズの数の列も畳んで名前の下に出す */}
+                      <p className="text-muted-foreground text-xs sm:hidden">クイズ {quizCountLabel(category)}</p>
+                    </TableCell>
+                    <TableCell className="hidden text-right whitespace-nowrap sm:table-cell">
+                      {quizCountLabel(category)}
+                    </TableCell>
+                    <TableCell>
+                      <ReorderButtons
+                        name={category.name}
+                        canMoveUp={index > 0}
+                        canMoveDown={index < items.length - 1}
+                        disabled={reorder.isPending}
+                        onMove={(direction) => move(items, index, direction)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
       <NewCategoryForm slug={slug} />
     </div>
   );
+}
+
+/** 例: 「12（公開 10）」。1 つもなければ「0」 */
+function quizCountLabel({ quizCount, publishedQuizCount }: CategorySummaryResponse): string {
+  return quizCount === 0 ? "0" : `${quizCount}（公開 ${publishedQuizCount}）`;
 }
 
 /**

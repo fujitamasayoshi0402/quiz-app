@@ -12,7 +12,13 @@ import java.util.UUID
 interface CategoryRepository {
     fun findAll(): List<Category>
 
+    /** 管理画面の一覧。並びは [findAll] と同じ */
+    fun findAllSummaries(): List<CategorySummary>
+
     fun findById(id: UUID): Category?
 
     fun save(category: Category): Category
+
+    /** [ids] の順に、並び順を 0 から振り直す */
+    fun reorder(ids: List<UUID>)
 }

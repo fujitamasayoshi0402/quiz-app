@@ -25,8 +25,7 @@ export const saveDifficultyRequestNameMax = 50;
 export const SaveDifficultyRequest = zod.object({
   "description": zod.string().min(saveDifficultyRequestDescriptionMin).max(saveDifficultyRequestDescriptionMax).nullish(),
   "level": zod.int().min(1),
-  "name": zod.string().min(saveDifficultyRequestNameMin).max(saveDifficultyRequestNameMax),
-  "sortOrder": zod.int().optional()
+  "name": zod.string().min(saveDifficultyRequestNameMin).max(saveDifficultyRequestNameMax)
 })
 
 export type SaveDifficultyRequest = zod.input<typeof SaveDifficultyRequest>;

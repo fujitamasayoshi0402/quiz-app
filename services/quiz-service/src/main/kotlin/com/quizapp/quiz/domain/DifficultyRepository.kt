@@ -12,4 +12,7 @@ interface DifficultyRepository {
     fun findById(id: UUID): Difficulty?
 
     fun save(difficulty: Difficulty): Difficulty
+
+    /** [ids] の順に、並び順を 0 から振り直す。表示はレベル順が先なので、同じレベルの中の順だけが意味を持つ */
+    fun reorder(ids: List<UUID>)
 }

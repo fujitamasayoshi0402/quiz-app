@@ -21,4 +21,8 @@ interface CategoryJdbcRepository : CrudRepository<CategoryEntity, UUID> {
 
     @Query("SELECT * FROM quiz.categories WHERE id = :id AND deleted_at IS NULL")
     fun findActiveById(id: UUID): CategoryEntity?
+
+    @Modifying
+    @Query("UPDATE quiz.categories SET sort_order = :sortOrder WHERE id = :id AND deleted_at IS NULL")
+    fun updateSortOrder(id: UUID, sortOrder: Int): Int
 }

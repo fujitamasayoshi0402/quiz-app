@@ -44,23 +44,38 @@ class DifficultyController(private val useCase: DifficultyUseCase) {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(operationId = "createDifficulty", summary = "難易度を作成")
+    @Operation(operationId = "createDifficulty", summary = "難易度を作成", description = "同じレベルの末尾に置く")
     fun create(
         @PathVariable categoryId: UUID,
         @Valid @RequestBody request: SaveDifficultyRequest,
     ): DifficultyResponse = DifficultyResponse.from(
-        useCase.create(categoryId, request.name, request.level, request.sortOrder, request.description),
+        useCase.create(categoryId, request.name, request.level, request.description),
     )
 
     @PutMapping("/{id}")
-    @Operation(operationId = "updateDifficulty", summary = "難易度を更新")
+    @Operation(
+        operationId = "updateDifficulty",
+        summary = "難易度を更新",
+        description = "並び順は変えない。レベルを変えたときは、新しいレベルの末尾に置く",
+    )
     fun update(
         @PathVariable categoryId: UUID,
         @PathVariable id: UUID,
         @Valid @RequestBody request: SaveDifficultyRequest,
     ): DifficultyResponse = DifficultyResponse.from(
-        useCase.update(categoryId, id, request.name, request.level, request.sortOrder, request.description),
+        useCase.update(categoryId, id, request.name, request.level, request.description),
     )
+
+    @PutMapping("/order")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(
+        operationId = "reorderDifficulties",
+        summary = "難易度を並べ替える",
+        description = "カテゴリの今ある難易度の ID を、並べたい順にすべて送る。表示はレベル順が先で、意味を持つのは同じレベルの中の順だけ。" +
+            "過不足があると 409 を返し、何も変えない",
+    )
+    fun reorder(@PathVariable categoryId: UUID, @RequestBody request: ReorderRequest) =
+        useCase.reorder(categoryId, request.ids)
 
     @GetMapping("/{id}/deletion-impact")
     @Operation(operationId = "difficultyDeletionImpact", summary = "削除したときに巻き込む範囲")
