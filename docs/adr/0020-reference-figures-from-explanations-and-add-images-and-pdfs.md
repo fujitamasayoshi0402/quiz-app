@@ -1,6 +1,6 @@
 # ADR-0020: 解説図に画像と PDF を加え、解説の本文から `figure:` の ID で指す
 
-- ステータス: Accepted
+- ステータス: Accepted（PDF の見せ方は [ADR-0021](0021-render-first-page-of-pdfs-as-images.md) で置き換え）
 - 決定日: 2026-09-27
 
 ## 背景と課題
@@ -164,9 +164,11 @@ E は、写真や PDF の大きさに対して、途中の経路が細い。
 
 - ~~図の配信に付けている CSP（`sandbox`）の下で、ブラウザの PDF ビューアが PDF を開けること（DEV-82）~~
   DEV-82 で、Chrome では開けることを確かめた。図と同じ CSP（`sandbox` を含む）を付けても、何も付けないときと同じく PDF ビューアが描いた。
-  そのため、PDF にも図と同じ応答ヘッダを付け、CloudFront の設定は分けない。Safari と Firefox は、dev に載せてから確かめる
+  そのため、PDF にも図と同じ応答ヘッダを付け、CloudFront の設定は分けない。Safari と Firefox は、dev に載せてから確かめる。
+  dev で、Safari でもリンクから開けることを確かめた。Firefox はまだ確かめていない
 - PDF の見せ方は、リンクで新しいタブに開く形にした（DEV-82）。ページを画像にする変換や、画面の中に描く部品は持たない。
-  PDF は読み直さず、そのまま置く（20 MB まで）
+  PDF は読み直さず、そのまま置く（20 MB まで）。
+  **この見せ方は [ADR-0021](0021-render-first-page-of-pdfs-as-images.md) で置き換えた。** 1 ページ目を画像にして解説の中に出し、押すと PDF を開く
 - ~~LocalStack の S3 が、署名付き POST の条件（大きさの上限など）を AWS と同じに扱うこと（DEV-81）~~
   DEV-81 で、署名付き POST をやめ、**種類（Content-Type）と大きさ（Content-Length）を署名に含めた署名付き PUT** にした。
   AWS SDK for Java v2 は署名付き POST を作れない。PUT では大きさの範囲を条件にできないが、申告した大きさと違う本体は署名の不一致で拒まれる。
