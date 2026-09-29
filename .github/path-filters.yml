@@ -1,0 +1,53 @@
+# 変更されたパスから、何に影響するかを決める（dorny/paths-filter の filters）。2 か所から読む。
+#
+#   ci.yml の changes         … PR と push で、どのジョブを流すかを決める。直前のコミットとの差を見る
+#   deploy-dev.yml の deploy  … dev に何を載せるかを決める。dev でいま動いているもののコミットとの差を見る（DEV-79）
+#
+# 同じ一覧を使い、「CI が見るもの」と「デプロイが載せるもの」を揃える
+backend:
+  - 'services/**'
+  - '.dockerignore'
+  - 'config/detekt.yml'
+  - '.editorconfig'
+  - 'gradle/**'
+  - 'gradlew'
+  - 'settings.gradle.kts'
+  - '.mise.toml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci.yml'
+  - '.github/scripts/coverage-summary.py'
+  - '.github/workflows/deploy-dev.yml'
+  - '.github/scripts/deployed-commits.sh'
+  - '.github/scripts/deploy-quiz-service.sh'
+  - '.github/scripts/smoke-token.sh'
+frontend:
+  - 'apps/**'
+  - '.dockerignore'
+  - 'package.json'
+  - 'pnpm-lock.yaml'
+  - 'pnpm-workspace.yaml'
+  # Amplify のビルドの手順。変えたら dev の web をビルドし直す
+  - 'amplify.yml'
+  # 型は OpenAPI 定義から生成するため、定義が変われば作り直しが要る
+  - 'docs/api/**'
+  - '.mise.toml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci.yml'
+  - '.github/workflows/deploy-dev.yml'
+  - '.github/scripts/deployed-commits.sh'
+  - '.github/scripts/build-web.sh'
+  - '.github/scripts/smoke-token.sh'
+terraform:
+  - 'infra/terraform/**'
+  - '.mise.toml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci.yml'
+# バックエンドか画面が変わったときにも流す（e2e ジョブの条件）。ここはそれ以外で E2E に関わるもの
+e2e:
+  - 'tests/e2e/**'
+  - 'docker-compose.yml'
+  - 'infra/docker/**'
+  - 'pnpm-lock.yaml'
+  - 'pnpm-workspace.yaml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci.yml'
