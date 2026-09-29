@@ -197,6 +197,15 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 
 ツールのバージョンは CI でも `.mise.toml` から取る。CI 側で別に指定すると二重管理になる。
 
+**アクションは、タグではなくコミットの SHA で固定する**（`uses: actions/checkout@<SHA> # v7.0.1`）。
+タグは付け替えられるため、アクションのリポジトリが乗っ取られると、書き換えられたコードがそのまま動く。
+デプロイのジョブは AWS のロールを引き受けるので、dev にまで届く。
+
+- 上げるのは Dependabot（`.github/dependabot.yml`）。週に 1 回、すべてのアクションをまとめて 1 本の PR にする。行末のコメントの版も一緒に書き換わる
+- 公開から 7 日たっていない版は入れない。乗っ取りで出された版は、公開から数日のうちに見つかることが多い
+- 手で足すときも SHA で書く。SHA はリリースのタグから引く（`gh api repos/<所有者>/<名前>/commits/<タグ> -q .sha`）
+- `gradle/actions` は v6 から、キャッシュの部分が MIT ではなく Gradle の利用規約で配られる。公開リポジトリは無料のため、同意して使っている
+
 PR に新しく push すると、動いている古い実行は止まる。develop / main への push では止めない。
 develop では最後にデプロイが走り、マイグレーションの途中で止めると、どこまで流れたかが分からなくなる。
 
@@ -348,6 +357,15 @@ CI では `e2e` ジョブが、バックエンドか画面か E2E に関わる�
 | `AUTH_CLIENT_ID` | variable | `terraform output -raw auth_client_id` |
 | `AUTH_CLIENT_SECRET` | secret | `terraform output -raw auth_client_secret` |
 | `E2E_USER_PASSWORD` | secret | `terraform output -raw e2e_user_password` |
+
+**Dependabot の PR には、リポジトリの secret が渡らない**（変数は渡る）。上の 2 つの secret は、Dependabot の secret にも同じ値を置く。
+無いと、Dependabot の PR で `e2e` が落ち、マージできない。
+
+```bash
+cd infra/terraform/envs/dev
+terraform output -raw auth_client_secret | gh secret set AUTH_CLIENT_SECRET --app dependabot
+terraform output -raw e2e_user_password | gh secret set E2E_USER_PASSWORD --app dependabot
+```
 
 ### OpenAPI
 
