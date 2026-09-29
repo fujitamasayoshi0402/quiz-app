@@ -24,6 +24,32 @@ class FigureContentTest {
     }
 
     @Test
+    @DisplayName("端末の配色によらず明るい色で描かれるよう、ルートの color-scheme を light にする。色の指定とラベルは変えない")
+    fun forcesLightColorScheme() {
+        // draw.io 26 系が書き出す形。ダークモードの端末では light-dark() の 2 つ目の色で描かれる
+        val svg = """
+            <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+            <svg xmlns="http://www.w3.org/2000/svg" style="background: transparent; color-scheme: light dark;" width="10" height="10">
+              <style type="text/css">@supports (color: light-dark(#000, #fff)) { svg { --bg: light-dark(#fff, #121212); } }</style>
+              <path fill="light-dark(#ffffff, var(--ge-dark-color, #121212))" d="M 0 0 L 10 10"/>
+              <text>color-scheme: dark の説明</text>
+            </svg>
+        """.trimIndent()
+
+        val stored = FigureContent(source, svg).svg
+
+        assertThat(stored).isEqualTo(svg.replace("color-scheme: light dark;", "color-scheme: light;"))
+    }
+
+    @Test
+    @DisplayName("color-scheme を持たない SVG は、そのまま置く")
+    fun keepsSvgWithoutColorScheme() {
+        val svg = """<svg xmlns="http://www.w3.org/2000/svg" style="background: white"><text>図</text></svg>"""
+
+        assertThat(FigureContent(source, svg).svg).isEqualTo(svg)
+    }
+
+    @Test
     @DisplayName("ルートが SVG の名前空間の svg でなければ受け付けない")
     fun rejectsNonSvgRoot() {
         listOf(
