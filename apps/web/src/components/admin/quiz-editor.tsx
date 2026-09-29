@@ -39,7 +39,15 @@ import {
   toSaveQuizRequest,
 } from "@/lib/admin/quiz-form";
 import { FIGURE_FILE_TYPES, uploadFigureFile } from "@/lib/figure-upload";
-import { figureIdsIn, figureUrl, insertFigure, insertFigureLink, linkLabelOf, replaceFigure } from "@/lib/figures";
+import {
+  figureIdsIn,
+  figurePreviewUrl,
+  figureUrl,
+  insertFigure,
+  insertPdf,
+  linkLabelOf,
+  replaceFigure,
+} from "@/lib/figures";
 
 /** 既存のクイズを読み込んでから編集フォームを出す */
 export function EditQuiz({ slug, quizId }: { slug: string; quizId: string }) {
@@ -219,7 +227,8 @@ function QuizEditor({
             <FieldLabel htmlFor="explanation">解説</FieldLabel>
             <FieldDescription>
               Markdown で書けます（見出し、箇条書き、コード、リンク、表）。図は「図を描く」で描くか、「画像・PDF
-              を入れる」で上げて入れます。PDF は、押すと開くリンクになります。HTML と、ほかの場所の画像は表示されません。
+              を入れる」で上げて入れます。PDF は 1 ページ目が画像として出て、押すと開きます。HTML
+              と、ほかの場所の画像は表示されません。
             </FieldDescription>
             <Tabs value={explanationTab} onValueChange={setExplanationTab}>
               <div className="flex flex-wrap items-center gap-2">
@@ -370,7 +379,8 @@ function useExplanationFigures(
     close: () => setDrawing(null),
     /**
      * 画像か PDF を上げて、カーソルの位置に入れる。上げている間に入力を続けても、位置は選んだときのまま。
-     * 画像は本文の中に出し、PDF はファイル名を文字にしたリンクにする。どちらかは、API が中身で決めた種類に従う
+     * 画像は本文の中に出す。PDF は 1 ページ目の画像と、ファイル名を文字にした開くリンクにする。
+     * どちらかは、API が中身で決めた種類に従う
      */
     upload: async (file: File) => {
       cursor.current = textarea.current?.selectionStart ?? null;
@@ -381,7 +391,7 @@ function useExplanationFigures(
         const current = getValues("explanation");
         setExplanation(
           kind === "pdf"
-            ? insertFigureLink(current, cursor.current, id, linkLabelOf(file.name))
+            ? insertPdf(current, cursor.current, id, linkLabelOf(file.name))
             : insertFigure(current, cursor.current, id, "画像"),
         );
       } catch (e) {
@@ -425,7 +435,10 @@ function ExplanationFigures({
   );
 }
 
-/** 描き直せるのは draw.io の図だけ。画像と PDF には原本がない。PDF は画像として出せないので、開くリンクにする */
+/**
+ * 描き直せるのは draw.io の図だけ。画像と PDF には原本がない。
+ * PDF は 1 ページ目の画像を出し、中身を確かめられるよう、開くリンクを添える（ADR-0021）
+ */
 function ExplanationFigure({
   slug,
   id,
@@ -440,32 +453,19 @@ function ExplanationFigure({
   onRedraw: (id: string) => void;
 }) {
   const detail = useGetFigureDetail(slug, id, { query: { staleTime: Infinity, retry: false } });
-  // 種類が分かるまでは枠だけを出す。PDF を画像として読みに行くと、取れない表示が一瞬出る
-  if (detail.isPending) {
-    return (
-      <li className="w-32">
-        <div className="bg-muted h-24 w-full animate-pulse rounded-md border" />
-      </li>
-    );
-  }
-  if (detail.data?.kind === "pdf") {
-    return (
-      <li className="w-32 space-y-1">
+  return (
+    <li className="w-32 space-y-1">
+      <FigureImage src={figurePreviewUrl(slug, id)} alt={label} className="h-24 w-full object-contain" />
+      {detail.data?.kind === "pdf" && (
         <a
           href={figureUrl(slug, id)}
           target="_blank"
           rel="noopener noreferrer"
-          className="bg-muted text-muted-foreground flex h-24 w-full items-center justify-center rounded-md border text-sm underline-offset-4 hover:underline"
+          className="text-primary block text-center text-xs underline underline-offset-4"
         >
           PDF を開く
         </a>
-        <p className="text-muted-foreground text-center text-xs">PDF</p>
-      </li>
-    );
-  }
-  return (
-    <li className="w-32 space-y-1">
-      <FigureImage src={figureUrl(slug, id)} alt={label} className="h-24 w-full object-contain" />
+      )}
       {detail.data?.kind === "drawio" && (
         <Button
           type="button"

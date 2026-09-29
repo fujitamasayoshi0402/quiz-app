@@ -54,7 +54,8 @@ class FigureController(private val useCase: FigureUseCase) {
         operationId = "completeFigureUpload",
         summary = "上げたファイルを検査して、解説図として置く",
         description = "種類は中身の先頭のバイトで決める。PNG・JPEG は画像として読み直して置く" +
-            "（位置情報などのメタデータは残らず、長い辺は 2,000 px までに縮める）。PDF はそのまま置く。" +
+            "（位置情報などのメタデータは残らず、長い辺は 2,000 px までに縮める）。" +
+            "PDF はそのまま置き、1 ページ目を画像にして本文の中に出せるようにする。パスワードのかかった PDF は受け付けない。" +
             "上げたものは、検査に通らなくても消える",
     )
     fun completeUpload(@PathVariable id: UUID): FigureDetailResponse =

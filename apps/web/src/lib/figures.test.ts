@@ -4,7 +4,7 @@ import {
   figureIdsIn,
   figureMarkdown,
   insertFigure,
-  insertFigureLink,
+  insertPdf,
   linkLabelOf,
   replaceFigure,
   svgFromDataUri,
@@ -35,8 +35,13 @@ describe("解説図の参照", () => {
     expect(insertFigure("", 0, A, "画像")).toBe(`![画像](figure:${A})`);
   });
 
-  it("PDF は、ファイル名を文字にしたリンクとして入れる。Markdown の記号になる括弧と改行は除く", () => {
-    expect(insertFigureLink("本文", null, A, linkLabelOf("VPC の設計.pdf"))).toBe(`本文\n[VPC の設計](figure:${A})`);
+  it("PDF は、1 ページ目の画像と開くリンクを、ファイル名を文字にして入れる。Markdown の記号になる括弧と改行は除く", () => {
+    expect(insertPdf("本文", null, A, linkLabelOf("VPC の設計.pdf"))).toBe(
+      `本文\n![VPC の設計](figure:${A})\n[VPC の設計（PDF）](figure:${A})`,
+    );
+    expect(insertPdf("前の文。後の文。", 4, A, "資料")).toBe(
+      `前の文。\n![資料](figure:${A})\n[資料（PDF）](figure:${A})\n後の文。`,
+    );
     expect(linkLabelOf("[資料]\n別.pdf")).toBe("資料  別");
     expect(linkLabelOf(".pdf")).toBe("資料");
   });

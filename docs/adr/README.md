@@ -25,7 +25,8 @@
 | [0017](0017-deliver-figures-with-cloudfront-signed-urls.md) | 解説図は非公開の S3 に置き、API が出す CloudFront の署名付き URL で配る | Accepted |
 | [0018](0018-write-explanations-in-markdown-and-render-on-screen.md) | 解説は Markdown の原文で持ち、画面で変換する。生の HTML は通さない | Accepted |
 | [0019](0019-expose-api-through-api-gateway-http-api.md) | API の入口を ALB から API Gateway（HTTP API）に替え、秘密のヘッダをやめる | Accepted |
-| [0020](0020-reference-figures-from-explanations-and-add-images-and-pdfs.md) | 解説図に画像と PDF を加え、解説の本文から `figure:` の ID で指す | Accepted |
+| [0020](0020-reference-figures-from-explanations-and-add-images-and-pdfs.md) | 解説図に画像と PDF を加え、解説の本文から `figure:` の ID で指す | Accepted（PDF の見せ方は [0021](0021-render-first-page-of-pdfs-as-images.md) で置き換え） |
+| [0021](0021-render-first-page-of-pdfs-as-images.md) | PDF の 1 ページ目を置くときに画像にし、解説の中に出す | Accepted |
 
 ## 運用ルール
 

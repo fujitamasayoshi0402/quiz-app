@@ -16,7 +16,7 @@ data class FigureResponse(val id: UUID)
 data class FigureDetailResponse(
     val id: UUID,
     @field:Schema(
-        description = "種類。drawio（draw.io の原本と SVG。描き直せる）、image（PNG か JPEG）、pdf（解説のリンクから開く資料）",
+        description = "種類。drawio（draw.io の原本と SVG。描き直せる）、image（PNG か JPEG）、pdf（PDF の資料。本文の中には 1 ページ目の画像を出す）",
         allowableValues = ["drawio", "image", "pdf"],
     )
     val kind: String,

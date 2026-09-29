@@ -26,6 +26,7 @@ import java.util.UUID
  * | `incoming/{テナントの ID}/{図の ID}`      | ブラウザが上げ、quiz-service が検査する。誰にも配らない |
  *
  * 画像と PDF のキーに拡張子は付けない。形式はオブジェクトの Content-Type が持ち、配るときもそれを返す。
+ * PDF の図は、1 ページ目の画像を `img/` に、本体を `pdf/` に、同じ図の ID で置く（ADR-0021）。
  */
 @Component
 class BucketFigureStore(
@@ -64,6 +65,11 @@ class BucketFigureStore(
                 FigureKind.PDF -> pdfKey(tenantId, id)
             },
         )
+    }
+
+    override fun previewUrl(id: UUID, kind: FigureKind): URI = when (kind) {
+        FigureKind.PDF -> signer.sign(imageKey(TenantContext.require(), id))
+        else -> url(id, kind)
     }
 
     override fun uploadUrl(id: UUID, contentType: String, size: Long): URI =

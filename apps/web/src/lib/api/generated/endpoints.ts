@@ -1757,7 +1757,7 @@ export const getCompleteFigureUploadUrl = (slug: string,
 }
 
 /**
- * 種類は中身の先頭のバイトで決める。PNG・JPEG は画像として読み直して置く（位置情報などのメタデータは残らず、長い辺は 2,000 px までに縮める）。PDF はそのまま置く。上げたものは、検査に通らなくても消える
+ * 種類は中身の先頭のバイトで決める。PNG・JPEG は画像として読み直して置く（位置情報などのメタデータは残らず、長い辺は 2,000 px までに縮める）。PDF はそのまま置き、1 ページ目を画像にして本文の中に出せるようにする。パスワードのかかった PDF は受け付けない。上げたものは、検査に通らなくても消える
  * @summary 上げたファイルを検査して、解説図として置く
  */
 export const completeFigureUpload = async (slug: string,
@@ -4041,6 +4041,116 @@ export function useGetFigure<TData = Awaited<ReturnType<typeof getFigure>>, TErr
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetFigureQueryOptions(slug,id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetFigurePreviewUrl = (slug: string,
+    id: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/figures/${id}/preview`
+}
+
+/**
+ * PDF は 1 ページ目の画像へ、ほかの図は図そのものへ送る（ADR-0021）
+ * @summary 本文の中に出す解説図の画像へ送る
+ */
+export const getFigurePreview = async (slug: string,
+    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
+
+  return apiFetch<unknown>(getGetFigurePreviewUrl(slug,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFigurePreviewQueryKey = (slug: string,
+    id: string,) => {
+    return [
+    `/api/t/${slug}/play/figures/${id}/preview`
+    ] as const;
+    }
+
+
+export const getGetFigurePreviewQueryOptions = <TData = Awaited<ReturnType<typeof getFigurePreview>>, TError = void | ProblemDetail>(slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigurePreview>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFigurePreviewQueryKey(slug,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFigurePreview>>> = ({ signal }) => getFigurePreview(slug,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFigurePreview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFigurePreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getFigurePreview>>>
+export type GetFigurePreviewQueryError = void | ProblemDetail
+
+
+export function useGetFigurePreview<TData = Awaited<ReturnType<typeof getFigurePreview>>, TError = void | ProblemDetail>(
+ slug: string,
+    id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigurePreview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFigurePreview>>,
+          TError,
+          Awaited<ReturnType<typeof getFigurePreview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFigurePreview<TData = Awaited<ReturnType<typeof getFigurePreview>>, TError = void | ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigurePreview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFigurePreview>>,
+          TError,
+          Awaited<ReturnType<typeof getFigurePreview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFigurePreview<TData = Awaited<ReturnType<typeof getFigurePreview>>, TError = void | ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigurePreview>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 本文の中に出す解説図の画像へ送る
+ */
+
+export function useGetFigurePreview<TData = Awaited<ReturnType<typeof getFigurePreview>>, TError = void | ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigurePreview>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFigurePreviewQueryOptions(slug,id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

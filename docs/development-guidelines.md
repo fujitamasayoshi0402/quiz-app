@@ -289,7 +289,7 @@ JaCoCo で計測し、CI のジョブサマリーに出す。**閾値でビル�
 #### スモークテスト
 
 Postman のコレクション（`tests/api/`）を Newman で流し、**デプロイした環境で主要な導線が通るか**を確かめる。
-管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → 解説図（draw.io、画像、PDF）→ 招待 → テナントの境界 → 片付け、の順に 40 本を呼ぶ。
+管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → 解説図（draw.io、画像、PDF）→ 招待 → テナントの境界 → 片付け、の順に 42 本を呼ぶ。
 画像と PDF は、ブラウザと同じく S3 へ直接上げる（`tests/api/fixtures/`）。
 
 スモークテストの利用者（`smoke@example.com`、Terraform の `modules/auth` が作る）でアクセストークンを取り、`Authorization` に付けて呼ぶ。
@@ -841,7 +841,7 @@ curl -H "Authorization: Bearer $TOKEN" "$(terraform output -raw quiz_service_url
 
 ```
 管理者 → web の proxy → quiz-service → S3（原本と SVG）と quiz.figures（行）
-利用者 → <img src="/api/t/{slug}/play/figures/{id}"> → web の proxy → quiz-service（所属と行を確かめる）
+利用者 → <img src="/api/t/{slug}/play/figures/{id}/preview"> → web の proxy → quiz-service（所属と行を確かめる）
        → 302（署名付き URL、期限 5〜10 分）→ CloudFront（figures.dev.<ドメイン>）→ OAC → S3
 ```
 
@@ -849,7 +849,8 @@ curl -H "Authorization: Bearer $TOKEN" "$(terraform output -raw quiz_service_url
 
 ```
 管理者 → quiz-service（上げる URL を出す）→ ブラウザ → S3 の incoming/（検査の前。誰にも配らない）
-       → quiz-service（完了を受けて中身で種類を決める。画像は読み直して img/ へ、PDF はそのまま pdf/ へ写す）→ quiz.figures（行）
+       → quiz-service（完了を受けて中身で種類を決める。画像は読み直して img/ へ。
+                       PDF は 1 ページ目を画像にして img/ へ置き、本体はそのまま pdf/ へ写す）→ quiz.figures（行）
 ```
 
 - **誰に見せるかは quiz-service が決める。** CloudFront は署名を確かめるだけで、署名のない要求と期限の切れた要求は 403 で返す
@@ -860,8 +861,13 @@ curl -H "Authorization: Bearer $TOKEN" "$(terraform output -raw quiz_service_url
 - **画像は、上がってきたものをそのまま配らない。** 中身の先頭のバイトで PNG か JPEG かを確かめ、画像として読み直して置く
   （`quiz/domain/FigureImage.kt`）。位置情報などのメタデータは残らない。写真の向き（EXIF）は、落とす前に画素へ反映する
 - 画像は 10 MB・5,000 万画素まで。長い辺は 2,000 px までに縮める。展開する前にヘッダで画素数を確かめ、読むときも間引いて読む
-- **PDF は読み直さず、そのまま置く**（20 MB まで）。解説の `[文字](figure:<図の ID>)` から、ブラウザの PDF ビューアで新しいタブに開く。
-  本体は quiz-service を通さず、バケットの中で `incoming/` から `pdf/` へ写す。配るときの応答ヘッダは図と同じ（CSP の `sandbox` の下でも、Chrome の PDF ビューアは開く）
+- **PDF は読み直さず、そのまま置く**（20 MB まで）。バケットの中で `incoming/` から `pdf/` へ写し、ブラウザの PDF ビューアで新しいタブに開く。
+  配るときの応答ヘッダは図と同じ（CSP の `sandbox` の下でも、Chrome と Safari の PDF ビューアは開く）
+- **PDF の 1 ページ目は、画像にして解説の中に出す**（[ADR-0021](adr/0021-render-first-page-of-pdfs-as-images.md)、`quiz/domain/FigurePdf.kt`）。
+  完了を受けたとき、quiz-service が PDFBox で描き、長い辺 2,000 px の JPEG にして、同じ図の ID で `img/` に置く。
+  本文の中に出す画像は `/play/figures/{id}/preview` が送る（PDF は 1 ページ目の画像、ほかは図そのもの）。開くのにパスワードが要る PDF は受け付けない
+- PDF に埋め込まれていない日本語のフォントは、イメージに入れた IPAex ゴシックで代わりに描く（`services/quiz-service/Dockerfile`）。
+  テストは日本語の文字を描かないため、手元にこのフォントがなくても通る
 - 上げる URL は署名付き PUT で、種類と大きさを署名に含める（期限 5 分）。AWS SDK for Java v2 は、大きさの範囲を条件にできる署名付き POST を作れないため。
   大きさは、完了を受けたときにも確かめる
 - バケットの CORS は、画面のオリジン（`dev.<ドメイン>`）からの PUT だけを許す。`incoming/` に残ったものは 1 日で消える
@@ -876,11 +882,11 @@ curl -H "Authorization: Bearer $TOKEN" "$(terraform output -raw quiz_service_url
 `![代替テキスト](figure:<図の ID>)` で本文の中に出し、`[文字](figure:<図の ID>)` で新しいタブに開く。
 クイズを保存するとき、指している図がテナントにあるかを quiz-service が確かめる。クイズと図を結ぶ表は持たない。
 利用者の画面（学習モードの正誤と解説、結果）も、同じ部品（`components/markdown.tsx`）で図を出す。
-図は押すと新しいタブで開く。狭い画面では縮んで細部が読めないため、開いた先で拡大して見る。取れない図は、代わりの文字を出す。
+図は押すと新しいタブで開く（PDF は PDF を開く）。狭い画面では縮んで細部が読めないため、開いた先で拡大して見る。取れない図は、代わりの文字を出す。
 
 管理画面のクイズの編集では、「図を描く」で draw.io（`embed.diagrams.net`）を開き、描いた図を置いて本文に入れる（`components/admin/figure-editor.tsx`）。
-「画像・PDF を入れる」は、選んだファイルを上げて本文に入れる（`lib/figure-upload.ts`）。画像は本文の中に出し、PDF はファイル名を文字にしたリンクにする。
-描き直せるのは draw.io の図だけ。
+「画像・PDF を入れる」は、選んだファイルを上げて本文に入れる（`lib/figure-upload.ts`）。画像は本文の中に出す。
+PDF は、1 ページ目の画像と、その下にファイル名を文字にした開くリンクを入れる。描き直せるのは draw.io の図だけ。
 
 - draw.io とは `postMessage` でやり取りする。**受け取るのは、埋め込んだ draw.io の window からのメッセージだけ。** 送り元（origin）と window の両方を確かめる
 - 図のデータはブラウザの中で扱われ、draw.io のサーバーには送られない。draw.io の画面そのものは `embed.diagrams.net` から読み込む

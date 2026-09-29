@@ -25,6 +25,7 @@ import java.util.UUID
  *
  * 画像と PDF（ADR-0020）は、ブラウザが検査の前の置き場所へ直接上げる。完了を受けたら、中身で種類を決めて置き、行を入れる。
  * 画像は読み直し、PDF はそのまま写す。上がってきたものは、検査に通っても通らなくても消す。
+ * PDF は、本文の中に出すため、1 ページ目を画像にして置く（ADR-0021）。
  */
 @Service
 class FigureUseCase(
@@ -68,10 +69,14 @@ class FigureUseCase(
         }
     }
 
-    /** 申告された種類ではなく、先頭のバイトで決める。PDF はそのまま写し、画像は読み直す */
+    /**
+     * 申告された種類ではなく、先頭のバイトで決める。画像は読み直す。
+     * PDF は 1 ページ目を画像にしてから、本体をそのまま写す。画像にできない PDF は、写す前に断る
+     */
     private fun place(id: UUID, size: Long, head: ByteArray): FigureKind = when {
         FigurePdf.matches(head) -> {
             require(size <= FigurePdf.MAX_BYTES) { FigurePdf.TOO_LARGE }
+            store.saveImage(id, FigurePdf.preview(readUpload(id)))
             uploads.promotePdf(id)
             FigureKind.PDF
         }
@@ -101,6 +106,9 @@ class FigureUseCase(
     }
 
     fun url(id: UUID): URI = store.url(id, kind(id))
+
+    /** 本文の中に出す画像の URL。PDF は 1 ページ目の画像になる */
+    fun previewUrl(id: UUID): URI = store.previewUrl(id, kind(id))
 
     /**
      * 行を消してから、本体を消す。本体を消せなくても失敗にはしない。行がないので、もう誰にも返らない。
