@@ -39,7 +39,7 @@ class FigureController(private val useCase: FigureUseCase) {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
         operationId = "startFigureUpload",
-        summary = "画像（PNG・JPEG）を上げる準備をする",
+        summary = "画像（PNG・JPEG）か PDF を上げる準備をする",
         description = "図の ID と、ブラウザが本体を S3 へ直接 PUT する URL を返す（ADR-0020）。" +
             "上げ終えたら、完了を伝える。完了するまで図にはならない",
     )
@@ -52,11 +52,13 @@ class FigureController(private val useCase: FigureUseCase) {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
         operationId = "completeFigureUpload",
-        summary = "上げた画像を検査して、解説図として置く",
-        description = "中身が PNG か JPEG かを確かめ、画像として読み直して置く。位置情報などのメタデータは残らない。" +
-            "長い辺は 2,000 px までに縮める。上げたものは、検査に通らなくても消える",
+        summary = "上げたファイルを検査して、解説図として置く",
+        description = "種類は中身の先頭のバイトで決める。PNG・JPEG は画像として読み直して置く" +
+            "（位置情報などのメタデータは残らず、長い辺は 2,000 px までに縮める）。PDF はそのまま置く。" +
+            "上げたものは、検査に通らなくても消える",
     )
-    fun completeUpload(@PathVariable id: UUID): FigureResponse = FigureResponse(useCase.completeUpload(id))
+    fun completeUpload(@PathVariable id: UUID): FigureDetailResponse =
+        FigureDetailResponse(id, useCase.completeUpload(id).name.lowercase())
 
     @GetMapping("/{id}")
     @Operation(operationId = "getFigureDetail", summary = "解説図の種類を取得")

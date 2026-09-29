@@ -74,7 +74,7 @@ class TenantBoundaryApiTest {
         private const val DELETED_NOT_FOUND = "削除済みの項目が見つかりません"
         private const val IMPORT_REJECTED = "取り込めない行があります。1 件も取り込んでいません"
         private const val FIGURE_NOT_FOUND = "指定された図は存在しません"
-        private const val UPLOAD_NOT_FOUND = "上げた画像が見つかりません。もう一度上げてください"
+        private const val UPLOAD_NOT_FOUND = "上げたファイルが見つかりません。もう一度上げてください"
         private const val INVITATION_NOT_FOUND = "指定された招待は存在しません"
 
         private val TENANT_SCOPED = Regex("/api/t/\\{slug}/(admin|play)/.+")

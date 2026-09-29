@@ -15,8 +15,8 @@
 import * as zod from 'zod';
 
 export const StartFigureUploadBody = zod.object({
-  "contentType": zod.string().describe('画像の種類。image/png か image/jpeg。本体の先頭のバイトでも確かめる'),
-  "size": zod.int().describe('本体の大きさ（バイト）。10 MB まで。署名に含めるため、上げる本体の大きさと一致させる')
+  "contentType": zod.string().describe('ファイルの種類。image/png、image/jpeg、application/pdf のどれか。置くときは本体の先頭のバイトで決める'),
+  "size": zod.int().describe('本体の大きさ（バイト）。画像は 10 MB、PDF は 20 MB まで。署名に含めるため、上げる本体の大きさと一致させる')
 })
 
 export type StartFigureUploadBody = zod.input<typeof StartFigureUploadBody>;

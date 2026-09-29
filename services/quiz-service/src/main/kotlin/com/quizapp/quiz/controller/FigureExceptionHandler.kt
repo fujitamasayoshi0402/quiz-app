@@ -17,7 +17,7 @@ class FigureExceptionHandler {
 
     @ExceptionHandler(FigureUploadNotFoundException::class)
     fun handleUploadNotFound(): ProblemDetail =
-        ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "上げた画像が見つかりません。もう一度上げてください").apply {
+        ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "上げたファイルが見つかりません。もう一度上げてください").apply {
             title = "リソースが見つかりません"
         }
 

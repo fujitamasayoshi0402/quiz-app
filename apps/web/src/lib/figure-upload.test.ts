@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api/fetcher";
 import { completeFigureUpload, startFigureUpload } from "@/lib/api/generated/endpoints";
-import { MAX_IMAGE_BYTES, imageUploadProblem, uploadImage } from "./figure-upload";
+import { figureFileProblem, uploadFigureFile } from "./figure-upload";
 
 vi.mock("@/lib/api/generated/endpoints", () => ({
   startFigureUpload: vi.fn(),
@@ -15,13 +15,13 @@ function png(size = 100): File {
   return new File([new Uint8Array(size)], "図.png", { type: "image/png" });
 }
 
-describe("画像を上げる", () => {
+describe("画像と PDF を上げる", () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     vi.mocked(startFigureUpload).mockResolvedValue({ id: ID, url: UPLOAD_URL, headers: { "Content-Type": "image/png" } });
-    vi.mocked(completeFigureUpload).mockResolvedValue({ id: ID });
+    vi.mocked(completeFigureUpload).mockResolvedValue({ id: ID, kind: "image" });
   });
 
   afterEach(() => {
@@ -29,19 +29,22 @@ describe("画像を上げる", () => {
     vi.clearAllMocks();
   });
 
-  it("上げる前に、画面で分かる誤りを伝える", () => {
-    expect(imageUploadProblem({ type: "image/png", size: 1 })).toBeUndefined();
-    expect(imageUploadProblem({ type: "image/jpeg", size: MAX_IMAGE_BYTES })).toBeUndefined();
-    expect(imageUploadProblem({ type: "image/gif", size: 1 })).toBe("PNG か JPEG の画像を選んでください");
-    expect(imageUploadProblem({ type: "image/png", size: 0 })).toBe("空のファイルは上げられません");
-    expect(imageUploadProblem({ type: "image/png", size: MAX_IMAGE_BYTES + 1 })).toBe("画像は 10 MB までです");
+  it("上げる前に、画面で分かる誤りを伝える。大きさの上限は画像と PDF で違う", () => {
+    const MB = 1024 * 1024;
+    expect(figureFileProblem({ type: "image/png", size: 1 })).toBeUndefined();
+    expect(figureFileProblem({ type: "image/jpeg", size: 10 * MB })).toBeUndefined();
+    expect(figureFileProblem({ type: "application/pdf", size: 20 * MB })).toBeUndefined();
+    expect(figureFileProblem({ type: "image/gif", size: 1 })).toBe("PNG・JPEG の画像か、PDF を選んでください");
+    expect(figureFileProblem({ type: "image/png", size: 0 })).toBe("空のファイルは上げられません");
+    expect(figureFileProblem({ type: "image/png", size: 10 * MB + 1 })).toBe("画像は 10 MB までです");
+    expect(figureFileProblem({ type: "application/pdf", size: 20 * MB + 1 })).toBe("PDF は 20 MB までです");
   });
 
-  it("準備で受け取った URL へ、受け取ったヘッダのまま本体を PUT し、完了を伝える", async () => {
+  it("準備で受け取った URL へ、受け取ったヘッダのまま本体を PUT し、完了を伝える。種類は API が決めたもの", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
     const file = png(1234);
 
-    await expect(uploadImage("demo", file)).resolves.toBe(ID);
+    await expect(uploadFigureFile("demo", file)).resolves.toEqual({ id: ID, kind: "image" });
 
     expect(startFigureUpload).toHaveBeenCalledWith("demo", { contentType: "image/png", size: 1234 });
     expect(fetchMock).toHaveBeenCalledWith(UPLOAD_URL, {
@@ -52,11 +55,11 @@ describe("画像を上げる", () => {
     expect(completeFigureUpload).toHaveBeenCalledWith("demo", ID);
   });
 
-  it("画像でないファイルは、API を呼ばずに断る", async () => {
-    const error = await uploadImage("demo", new File(["<html>"], "a.html", { type: "text/html" })).catch((e) => e);
+  it("画像でも PDF でもないファイルは、API を呼ばずに断る", async () => {
+    const error = await uploadFigureFile("demo", new File(["<html>"], "a.html", { type: "text/html" })).catch((e) => e);
 
     expect(error).toBeInstanceOf(ApiError);
-    expect(error.problem.detail).toBe("PNG か JPEG の画像を選んでください");
+    expect(error.problem.detail).toBe("PNG・JPEG の画像か、PDF を選んでください");
     expect(startFigureUpload).not.toHaveBeenCalled();
   });
 
@@ -66,10 +69,10 @@ describe("画像を上げる", () => {
   ])("%sときは、完了を伝えずに理由を返す", async (_, arrange) => {
     arrange();
 
-    const error = await uploadImage("demo", png()).catch((e) => e);
+    const error = await uploadFigureFile("demo", png()).catch((e) => e);
 
     expect(error).toBeInstanceOf(ApiError);
-    expect(error.problem.detail).toBe("画像を上げられませんでした。時間をおいてもう一度お試しください");
+    expect(error.problem.detail).toBe("ファイルを上げられませんでした。時間をおいてもう一度お試しください");
     expect(completeFigureUpload).not.toHaveBeenCalled();
   });
 });

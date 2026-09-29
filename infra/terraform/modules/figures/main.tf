@@ -1,4 +1,4 @@
-# 解説図（draw.io の原本と書き出した SVG、画像）を置き、利用者に配る（ADR-0017、ADR-0020）。
+# 解説図（draw.io の原本と書き出した SVG、画像、PDF）を置き、利用者に配る（ADR-0017、ADR-0020）。
 #
 #   S3（非公開）── OAC ──→ CloudFront（署名付き URL だけを通す）──→ ブラウザ
 #
@@ -10,6 +10,7 @@
 # | svg/{テナントの ID}/{図の ID}.svg        | quiz-service（読み書き）、CloudFront（読む） |
 # | drawio/{テナントの ID}/{図の ID}.drawio  | quiz-service だけ                           |
 # | img/{テナントの ID}/{図の ID}            | quiz-service（読み書き）、CloudFront（読む） |
+# | pdf/{テナントの ID}/{図の ID}            | quiz-service（読み書き）、CloudFront（読む） |
 # | incoming/{テナントの ID}/{図の ID}       | ブラウザ（署名付き URL で上げる）、quiz-service（検査する） |
 #
 # incoming/ は検査の前の置き場所。CloudFront には読ませず、残ったものは 1 日で消える
@@ -52,7 +53,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
 }
 
 data "aws_iam_policy_document" "bucket" {
-  # CloudFront に読ませるのは、配るもの（SVG と、読み直した画像）だけ。
+  # CloudFront に読ませるのは、配るもの（SVG、読み直した画像、PDF）だけ。
   # 原本は API を通して管理者にだけ返し、検査の前の画像（incoming/）は誰にも配らない
   statement {
     sid     = "CloudFrontReadsFigures"
@@ -60,6 +61,7 @@ data "aws_iam_policy_document" "bucket" {
     resources = [
       "${aws_s3_bucket.this.arn}/svg/*",
       "${aws_s3_bucket.this.arn}/img/*",
+      "${aws_s3_bucket.this.arn}/pdf/*",
     ]
 
     principals {

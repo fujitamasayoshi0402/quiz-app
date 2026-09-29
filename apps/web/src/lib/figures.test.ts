@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { figureIdOf, figureIdsIn, figureMarkdown, insertFigure, replaceFigure, svgFromDataUri } from "./figures";
+import {
+  figureIdOf,
+  figureIdsIn,
+  figureMarkdown,
+  insertFigure,
+  insertFigureLink,
+  linkLabelOf,
+  replaceFigure,
+  svgFromDataUri,
+} from "./figures";
 
 const A = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const B = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
@@ -24,6 +33,12 @@ describe("解説図の参照", () => {
     expect(insertFigure("本文", null, A)).toBe(`本文\n![図](figure:${A})`);
     expect(insertFigure("", 0, A)).toBe(`![図](figure:${A})`);
     expect(insertFigure("", 0, A, "画像")).toBe(`![画像](figure:${A})`);
+  });
+
+  it("PDF は、ファイル名を文字にしたリンクとして入れる。Markdown の記号になる括弧と改行は除く", () => {
+    expect(insertFigureLink("本文", null, A, linkLabelOf("VPC の設計.pdf"))).toBe(`本文\n[VPC の設計](figure:${A})`);
+    expect(linkLabelOf("[資料]\n別.pdf")).toBe("資料  別");
+    expect(linkLabelOf(".pdf")).toBe("資料");
   });
 
   it("描き直した図に、本文の参照をすべて差し替える", () => {

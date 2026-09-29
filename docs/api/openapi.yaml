@@ -705,7 +705,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: テナントが存在しない、または所属していない
-      summary: 画像（PNG・JPEG）を上げる準備をする
+      summary: 画像（PNG・JPEG）か PDF を上げる準備をする
       tags:
       - 解説図
   /api/t/{slug}/admin/figures/uploads/{id}/complete:
@@ -717,8 +717,8 @@ paths:
       schema:
         type: string
     post:
-      description: "中身が PNG か JPEG かを確かめ、画像として読み直して置く。位置情報などのメタデータは残らない。長い辺は 2,000\
-        \ px までに縮める。上げたものは、検査に通らなくても消える"
+      description: "種類は中身の先頭のバイトで決める。PNG・JPEG は画像として読み直して置く（位置情報などのメタデータは残らず、長い辺は\
+        \ 2,000 px までに縮める）。PDF はそのまま置く。上げたものは、検査に通らなくても消える"
       operationId: completeFigureUpload
       parameters:
       - in: path
@@ -732,7 +732,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FigureResponse"
+                $ref: "#/components/schemas/FigureDetailResponse"
           description: Created
         "401":
           content:
@@ -752,7 +752,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
           description: テナントが存在しない、または所属していない
-      summary: 上げた画像を検査して、解説図として置く
+      summary: 上げたファイルを検査して、解説図として置く
       tags:
       - 解説図
   /api/t/{slug}/admin/figures/{id}:
@@ -2360,10 +2360,11 @@ components:
           format: uuid
         kind:
           type: string
-          description: 種類。drawio（draw.io の原本と SVG。描き直せる）か image（PNG か JPEG）
+          description: 種類。drawio（draw.io の原本と SVG。描き直せる）、image（PNG か JPEG）、pdf（解説のリンクから開く資料）
           enum:
           - drawio
           - image
+          - pdf
       required:
       - id
       - kind
@@ -2792,11 +2793,11 @@ components:
       properties:
         contentType:
           type: string
-          description: 画像の種類。image/png か image/jpeg。本体の先頭のバイトでも確かめる
+          description: ファイルの種類。image/png、image/jpeg、application/pdf のどれか。置くときは本体の先頭のバイトで決める
         size:
           type: integer
           format: int64
-          description: 本体の大きさ（バイト）。10 MB まで。署名に含めるため、上げる本体の大きさと一致させる
+          description: 本体の大きさ（バイト）。画像は 10 MB、PDF は 20 MB まで。署名に含めるため、上げる本体の大きさと一致させる
       required:
       - contentType
       - size

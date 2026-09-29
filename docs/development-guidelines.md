@@ -277,8 +277,8 @@ JaCoCo で計測し、CI のジョブサマリーに出す。**閾値でビル�
 #### スモークテスト
 
 Postman のコレクション（`tests/api/`）を Newman で流し、**デプロイした環境で主要な導線が通るか**を確かめる。
-管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → 解説図（draw.io と画像）→ 招待 → テナントの境界 → 片付け、の順に 34 本を呼ぶ。
-画像は、ブラウザと同じく S3 へ直接上げる（`tests/api/fixtures/figure.png`）。
+管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → 解説図（draw.io、画像、PDF）→ 招待 → テナントの境界 → 片付け、の順に 40 本を呼ぶ。
+画像と PDF は、ブラウザと同じく S3 へ直接上げる（`tests/api/fixtures/`）。
 
 スモークテストの利用者（`smoke@example.com`、Terraform の `modules/auth` が作る）でアクセストークンを取り、`Authorization` に付けて呼ぶ。
 web の proxy は、ログインのセッションが無い要求の `Authorization` をそのまま渡す。ローカルも dev の Cognito の利用者を使う。
@@ -824,20 +824,23 @@ curl -H "Authorization: Bearer $TOKEN" "$(terraform output -raw quiz_service_url
        → 302（署名付き URL、期限 5〜10 分）→ CloudFront（figures.dev.<ドメイン>）→ OAC → S3
 ```
 
-画像（PNG・JPEG）は、ブラウザが S3 へ直接上げる（ADR-0020）。大きな本体を、web の proxy にも quiz-service にも通さない。
+画像（PNG・JPEG）と PDF は、ブラウザが S3 へ直接上げる（ADR-0020）。大きな本体を、web の proxy にも quiz-service にも通さない。
 
 ```
 管理者 → quiz-service（上げる URL を出す）→ ブラウザ → S3 の incoming/（検査の前。誰にも配らない）
-       → quiz-service（完了を受けて検査し、読み直したものを img/ に置く）→ quiz.figures（行）
+       → quiz-service（完了を受けて中身で種類を決める。画像は読み直して img/ へ、PDF はそのまま pdf/ へ写す）→ quiz.figures（行）
 ```
 
 - **誰に見せるかは quiz-service が決める。** CloudFront は署名を確かめるだけで、署名のない要求と期限の切れた要求は 403 で返す
 - **SVG はアプリのオリジンから返さない。** SVG はスクリプトを含められる。CloudFront が CSP（`sandbox`）と `nosniff` を付けて返す
-- キーにテナントを含める（`svg/{テナントの ID}/{図の ID}.svg`、`drawio/...`、`img/...`、`incoming/...`）。
-  CloudFront が読めるのは `svg/` と `img/` の下だけ。原本は API を通して管理者にだけ返し、`incoming/` は誰にも配らない
+- キーにテナントを含める（`svg/{テナントの ID}/{図の ID}.svg`、`drawio/...`、`img/...`、`pdf/...`、`incoming/...`）。
+  CloudFront が読めるのは `svg/`、`img/`、`pdf/` の下だけ。原本は API を通して管理者にだけ返し、`incoming/` は誰にも配らない
+- 種類は、申告ではなく中身の先頭のバイトで決める。大きさの上限も、決まった種類のものを使う
 - **画像は、上がってきたものをそのまま配らない。** 中身の先頭のバイトで PNG か JPEG かを確かめ、画像として読み直して置く
   （`quiz/domain/FigureImage.kt`）。位置情報などのメタデータは残らない。写真の向き（EXIF）は、落とす前に画素へ反映する
 - 画像は 10 MB・5,000 万画素まで。長い辺は 2,000 px までに縮める。展開する前にヘッダで画素数を確かめ、読むときも間引いて読む
+- **PDF は読み直さず、そのまま置く**（20 MB まで）。解説の `[文字](figure:<図の ID>)` から、ブラウザの PDF ビューアで新しいタブに開く。
+  本体は quiz-service を通さず、バケットの中で `incoming/` から `pdf/` へ写す。配るときの応答ヘッダは図と同じ（CSP の `sandbox` の下でも、Chrome の PDF ビューアは開く）
 - 上げる URL は署名付き PUT で、種類と大きさを署名に含める（期限 5 分）。AWS SDK for Java v2 は、大きさの範囲を条件にできる署名付き POST を作れないため。
   大きさは、完了を受けたときにも確かめる
 - バケットの CORS は、画面のオリジン（`dev.<ドメイン>`）からの PUT だけを許す。`incoming/` に残ったものは 1 日で消える
@@ -855,7 +858,8 @@ curl -H "Authorization: Bearer $TOKEN" "$(terraform output -raw quiz_service_url
 図は押すと新しいタブで開く。狭い画面では縮んで細部が読めないため、開いた先で拡大して見る。取れない図は、代わりの文字を出す。
 
 管理画面のクイズの編集では、「図を描く」で draw.io（`embed.diagrams.net`）を開き、描いた図を置いて本文に入れる（`components/admin/figure-editor.tsx`）。
-「画像を入れる」は、選んだ PNG・JPEG を上げて本文に入れる（`lib/figure-upload.ts`）。描き直せるのは draw.io の図だけ。
+「画像・PDF を入れる」は、選んだファイルを上げて本文に入れる（`lib/figure-upload.ts`）。画像は本文の中に出し、PDF はファイル名を文字にしたリンクにする。
+描き直せるのは draw.io の図だけ。
 
 - draw.io とは `postMessage` でやり取りする。**受け取るのは、埋め込んだ draw.io の window からのメッセージだけ。** 送り元（origin）と window の両方を確かめる
 - 図のデータはブラウザの中で扱われ、draw.io のサーバーには送られない。draw.io の画面そのものは `embed.diagrams.net` から読み込む

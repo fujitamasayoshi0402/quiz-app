@@ -3,8 +3,9 @@ package com.quizapp.quiz.infrastructure
 import com.quizapp.quiz.domain.FigureContent
 import com.quizapp.quiz.domain.FigureImage
 import com.quizapp.quiz.domain.FigureKind
+import com.quizapp.quiz.domain.FigurePdf
 import com.quizapp.quiz.domain.FigureStore
-import com.quizapp.quiz.domain.ImageFormat
+import com.quizapp.quiz.domain.FigureUploadStore
 import com.quizapp.tenant.TenantContext
 import org.springframework.stereotype.Component
 import java.net.URI
@@ -21,16 +22,18 @@ import java.util.UUID
  * | `svg/{テナントの ID}/{図の ID}.svg`       | CloudFront（署名付き URL）            |
  * | `drawio/{テナントの ID}/{図の ID}.drawio` | quiz-service だけ。管理者に API で返す |
  * | `img/{テナントの ID}/{図の ID}`           | CloudFront（署名付き URL）            |
+ * | `pdf/{テナントの ID}/{図の ID}`           | CloudFront（署名付き URL）            |
  * | `incoming/{テナントの ID}/{図の ID}`      | ブラウザが上げ、quiz-service が検査する。誰にも配らない |
  *
- * 画像のキーに拡張子は付けない。形式はオブジェクトの Content-Type が持ち、配るときもそれを返す。
+ * 画像と PDF のキーに拡張子は付けない。形式はオブジェクトの Content-Type が持ち、配るときもそれを返す。
  */
 @Component
 class BucketFigureStore(
     private val bucket: Bucket,
     private val signer: FigureUrlSigner,
     private val uploadSigner: UploadUrlSigner,
-) : FigureStore {
+) : FigureStore,
+    FigureUploadStore {
 
     override fun save(id: UUID, content: FigureContent) {
         val tenantId = TenantContext.require()
@@ -49,6 +52,7 @@ class BucketFigureStore(
         bucket.delete(svgKey(tenantId, id))
         bucket.delete(sourceKey(tenantId, id))
         bucket.delete(imageKey(tenantId, id))
+        bucket.delete(pdfKey(tenantId, id))
     }
 
     override fun url(id: UUID, kind: FigureKind): URI {
@@ -57,16 +61,25 @@ class BucketFigureStore(
             when (kind) {
                 FigureKind.DRAWIO -> svgKey(tenantId, id)
                 FigureKind.IMAGE -> imageKey(tenantId, id)
+                FigureKind.PDF -> pdfKey(tenantId, id)
             },
         )
     }
 
-    override fun uploadUrl(id: UUID, format: ImageFormat, size: Long): URI =
-        uploadSigner.sign(uploadKey(TenantContext.require(), id), format.contentType, size)
+    override fun uploadUrl(id: UUID, contentType: String, size: Long): URI =
+        uploadSigner.sign(uploadKey(TenantContext.require(), id), contentType, size)
 
     override fun uploadSize(id: UUID): Long? = bucket.size(uploadKey(TenantContext.require(), id))
 
+    override fun readUploadHead(id: UUID, bytes: Int): ByteArray? =
+        bucket.head(uploadKey(TenantContext.require(), id), bytes)
+
     override fun readUpload(id: UUID): ByteArray? = bucket.get(uploadKey(TenantContext.require(), id))
+
+    override fun promotePdf(id: UUID) {
+        val tenantId = TenantContext.require()
+        bucket.copy(uploadKey(tenantId, id), pdfKey(tenantId, id), FigurePdf.CONTENT_TYPE, IMMUTABLE)
+    }
 
     override fun deleteUpload(id: UUID) {
         bucket.delete(uploadKey(TenantContext.require(), id))
@@ -87,6 +100,8 @@ class BucketFigureStore(
         fun sourceKey(tenantId: UUID, id: UUID) = "drawio/$tenantId/$id.drawio"
 
         fun imageKey(tenantId: UUID, id: UUID) = "img/$tenantId/$id"
+
+        fun pdfKey(tenantId: UUID, id: UUID) = "pdf/$tenantId/$id"
 
         fun uploadKey(tenantId: UUID, id: UUID) = "incoming/$tenantId/$id"
     }

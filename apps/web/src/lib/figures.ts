@@ -29,14 +29,37 @@ export function figureMarkdown(id: string, alt = "図"): string {
   return `![${alt}](figure:${id})`;
 }
 
+/** 本文に入れる、図（PDF など）を新しいタブで開くリンクの書き方 */
+export function figureLinkMarkdown(id: string, label: string): string {
+  return `[${label}](figure:${id})`;
+}
+
+/** ファイル名から、リンクの文字を作る。拡張子と、Markdown の記号になる括弧・改行を除く */
+export function linkLabelOf(fileName: string): string {
+  const label = fileName
+    .replace(/\.[^.]+$/, "")
+    .replace(/[[\]\r\n]/g, " ")
+    .trim();
+  return label || "資料";
+}
+
 /** 本文の [position] の位置に、図を出す書き方を 1 行として入れる。位置が分からなければ末尾に入れる */
 export function insertFigure(text: string, position: number | null, id: string, alt = "図"): string {
+  return insertLine(text, position, figureMarkdown(id, alt));
+}
+
+/** 本文の [position] の位置に、図を開くリンクを 1 行として入れる */
+export function insertFigureLink(text: string, position: number | null, id: string, label: string): string {
+  return insertLine(text, position, figureLinkMarkdown(id, label));
+}
+
+function insertLine(text: string, position: number | null, line: string): string {
   const at = position ?? text.length;
   const before = text.slice(0, at);
   const after = text.slice(at);
   const head = before && !before.endsWith("\n") ? "\n" : "";
   const tail = after && !after.startsWith("\n") ? "\n" : "";
-  return `${before}${head}${figureMarkdown(id, alt)}${tail}${after}`;
+  return `${before}${head}${line}${tail}${after}`;
 }
 
 /** 本文の中で、ある図を指している箇所を、別の図に差し替える。描き直した図は新しい ID になる */

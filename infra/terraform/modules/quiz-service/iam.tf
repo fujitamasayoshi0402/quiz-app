@@ -93,10 +93,11 @@ resource "aws_iam_role_policy" "app" {
   })
 }
 
-# 解説図（ADR-0017、ADR-0020）。原本と SVG、画像、検査の前の画像（incoming/）を読み書きする。
+# 解説図（ADR-0017、ADR-0020）。原本と SVG、画像、PDF、検査の前のファイル（incoming/）を読み書きする。
+# PDF は incoming/ から pdf/ へバケットの中で写す（CopyObject。元の GetObject と先の PutObject が要る）。
 # ブラウザに渡す、画像を上げる URL もこのロールで署名する。上げる PUT の権限は、この PutObject から来る
 #
-# 一覧（ListBucket）は、上がってくる前の画像を「まだ無い」と見分けるために与える。
+# 一覧（ListBucket）は、上がってくる前のファイルを「まだ無い」と見分けるために与える。
 # S3 は、一覧の権限がないと、無いオブジェクトを 404 ではなく 403 で返す。図そのものは、いつも DB の行から ID で引く
 resource "aws_iam_role_policy" "app_figures" {
   name = "read-write-figures"
@@ -111,6 +112,7 @@ resource "aws_iam_role_policy" "app_figures" {
           "${var.figures.bucket_arn}/svg/*",
           "${var.figures.bucket_arn}/drawio/*",
           "${var.figures.bucket_arn}/img/*",
+          "${var.figures.bucket_arn}/pdf/*",
           "${var.figures.bucket_arn}/incoming/*",
         ]
       },

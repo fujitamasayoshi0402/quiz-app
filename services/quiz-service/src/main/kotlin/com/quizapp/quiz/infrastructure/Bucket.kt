@@ -3,6 +3,7 @@ package com.quizapp.quiz.infrastructure
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.http.HttpStatusCode
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.MetadataDirective
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException
 import software.amazon.awssdk.services.s3.model.S3Exception
 
@@ -19,6 +20,12 @@ interface Bucket {
 
     /** 大きさ（バイト）。無ければ null */
     fun size(key: String): Long?
+
+    /** 先頭の [bytes] バイト。本体が短ければ、あるだけ返す。無ければ null */
+    fun head(key: String, bytes: Int): ByteArray?
+
+    /** バケットの中で写す。種類とキャッシュの指定は、写した先のものに置き換える */
+    fun copy(from: String, to: String, contentType: String, cacheControl: String)
 
     fun delete(key: String)
 }
@@ -38,6 +45,21 @@ class S3Bucket(private val client: S3Client, private val name: String) : Bucket 
         client.getObjectAsBytes { it.bucket(name).key(key) }.asByteArray()
     } catch (expected: NoSuchKeyException) {
         null
+    }
+
+    override fun head(key: String, bytes: Int): ByteArray? = try {
+        client.getObjectAsBytes { it.bucket(name).key(key).range("bytes=0-${bytes - 1}") }.asByteArray()
+    } catch (expected: NoSuchKeyException) {
+        null
+    }
+
+    override fun copy(from: String, to: String, contentType: String, cacheControl: String) {
+        client.copyObject {
+            it.sourceBucket(name).sourceKey(from).destinationBucket(name).destinationKey(to)
+                .metadataDirective(MetadataDirective.REPLACE)
+                .contentType(contentType)
+                .cacheControl(cacheControl)
+        }
     }
 
     override fun size(key: String): Long? = try {

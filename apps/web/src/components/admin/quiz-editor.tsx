@@ -38,8 +38,8 @@ import {
   toQuizForm,
   toSaveQuizRequest,
 } from "@/lib/admin/quiz-form";
-import { IMAGE_TYPES, uploadImage } from "@/lib/figure-upload";
-import { figureIdsIn, figureUrl, insertFigure, replaceFigure } from "@/lib/figures";
+import { FIGURE_FILE_TYPES, uploadFigureFile } from "@/lib/figure-upload";
+import { figureIdsIn, figureUrl, insertFigure, insertFigureLink, linkLabelOf, replaceFigure } from "@/lib/figures";
 
 /** 既存のクイズを読み込んでから編集フォームを出す */
 export function EditQuiz({ slug, quizId }: { slug: string; quizId: string }) {
@@ -87,7 +87,7 @@ function QuizEditor({
     form.setValue("explanation", value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted }),
   );
   const { ref: registerExplanation, ...explanationField } = form.register("explanation");
-  const imageInput = useRef<HTMLInputElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const create = useCreateQuiz({ mutation: { onSuccess: toList } });
   const update = useUpdateQuiz({ mutation: { onSuccess: toList } });
@@ -218,8 +218,8 @@ function QuizEditor({
           <Field data-invalid={!!errors.explanation}>
             <FieldLabel htmlFor="explanation">解説</FieldLabel>
             <FieldDescription>
-              Markdown で書けます（見出し、箇条書き、コード、リンク、表）。図は「図を描く」で描くか、「画像を入れる」で
-              PNG・JPEG を上げて入れます。HTML と、ほかの場所の画像は表示されません。
+              Markdown で書けます（見出し、箇条書き、コード、リンク、表）。図は「図を描く」で描くか、「画像・PDF
+              を入れる」で上げて入れます。PDF は、押すと開くリンクになります。HTML と、ほかの場所の画像は表示されません。
             </FieldDescription>
             <Tabs value={explanationTab} onValueChange={setExplanationTab}>
               <div className="flex flex-wrap items-center gap-2">
@@ -236,14 +236,14 @@ function QuizEditor({
                     variant="outline"
                     size="sm"
                     disabled={figures.uploading}
-                    onClick={() => imageInput.current?.click()}
+                    onClick={() => fileInput.current?.click()}
                   >
-                    {figures.uploading ? "画像を上げています…" : "画像を入れる"}
+                    {figures.uploading ? "上げています…" : "画像・PDF を入れる"}
                   </Button>
                   <input
-                    ref={imageInput}
+                    ref={fileInput}
                     type="file"
-                    accept={IMAGE_TYPES.join(",")}
+                    accept={FIGURE_FILE_TYPES.join(",")}
                     className="hidden"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
@@ -368,14 +368,22 @@ function useExplanationFigures(
       setExplanation(drawing?.replaces ? replaceFigure(current, drawing.replaces, id) : insertFigure(current, cursor.current, id));
     },
     close: () => setDrawing(null),
-    /** 画像を上げて、カーソルの位置に入れる。上げている間に入力を続けても、位置は選んだときのまま */
+    /**
+     * 画像か PDF を上げて、カーソルの位置に入れる。上げている間に入力を続けても、位置は選んだときのまま。
+     * 画像は本文の中に出し、PDF はファイル名を文字にしたリンクにする。どちらかは、API が中身で決めた種類に従う
+     */
     upload: async (file: File) => {
       cursor.current = textarea.current?.selectionStart ?? null;
       setError(null);
       setUploading(true);
       try {
-        const id = await uploadImage(slug, file);
-        setExplanation(insertFigure(getValues("explanation"), cursor.current, id, "画像"));
+        const { id, kind } = await uploadFigureFile(slug, file);
+        const current = getValues("explanation");
+        setExplanation(
+          kind === "pdf"
+            ? insertFigureLink(current, cursor.current, id, linkLabelOf(file.name))
+            : insertFigure(current, cursor.current, id, "画像"),
+        );
       } catch (e) {
         setError(e);
       } finally {
@@ -417,7 +425,7 @@ function ExplanationFigures({
   );
 }
 
-/** 描き直せるのは draw.io の図だけ。画像には原本がない */
+/** 描き直せるのは draw.io の図だけ。画像と PDF には原本がない。PDF は画像として出せないので、開くリンクにする */
 function ExplanationFigure({
   slug,
   id,
@@ -432,6 +440,29 @@ function ExplanationFigure({
   onRedraw: (id: string) => void;
 }) {
   const detail = useGetFigureDetail(slug, id, { query: { staleTime: Infinity, retry: false } });
+  // 種類が分かるまでは枠だけを出す。PDF を画像として読みに行くと、取れない表示が一瞬出る
+  if (detail.isPending) {
+    return (
+      <li className="w-32">
+        <div className="bg-muted h-24 w-full animate-pulse rounded-md border" />
+      </li>
+    );
+  }
+  if (detail.data?.kind === "pdf") {
+    return (
+      <li className="w-32 space-y-1">
+        <a
+          href={figureUrl(slug, id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-muted text-muted-foreground flex h-24 w-full items-center justify-center rounded-md border text-sm underline-offset-4 hover:underline"
+        >
+          PDF を開く
+        </a>
+        <p className="text-muted-foreground text-center text-xs">PDF</p>
+      </li>
+    );
+  }
   return (
     <li className="w-32 space-y-1">
       <FigureImage src={figureUrl(slug, id)} alt={label} className="h-24 w-full object-contain" />
