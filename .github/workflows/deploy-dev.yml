@@ -65,11 +65,11 @@ jobs:
       cancel-in-progress: false
     steps:
       # 動いているもののコミットとの差を取るため、履歴をすべて取る
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
@@ -86,7 +86,7 @@ jobs:
       - name: quiz-service に関わる変更を探す
         id: backend-changes
         if: inputs.backend == 'auto' && steps.deployed.outputs.backend != ''
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           base: ${{ steps.deployed.outputs.backend }}
           filters: .github/path-filters.yml
@@ -94,7 +94,7 @@ jobs:
       - name: web に関わる変更を探す
         id: frontend-changes
         if: inputs.frontend == 'auto' && steps.deployed.outputs.web != ''
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           base: ${{ steps.deployed.outputs.web }}
           filters: .github/path-filters.yml
@@ -159,7 +159,7 @@ jobs:
         env:
           AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
         if: steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true'
         with:
           install_args: node npm:newman

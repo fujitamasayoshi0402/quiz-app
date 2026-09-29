@@ -1,0 +1,25 @@
+# GitHub Actions のアクションを上げる PR を作る（DEV-63）。
+#
+# ワークフローのアクションは、タグではなくコミットの SHA で固定している（`uses: actions/checkout@<SHA> # v7.0.1`）。
+# タグは付け替えられるため、アクションのリポジトリが乗っ取られると、書き換えられたコードがそのまま動く。
+# デプロイのジョブは AWS のロールを引き受けるので、dev にまで届く。
+# SHA は放っておくと古いままになるので、Dependabot に上げさせる。行末のコメントの版も一緒に書き換わる
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    # 出たばかりの版は入れない。乗っ取りで出された版は、公開から数日のうちに見つかることが多い
+    cooldown:
+      default-days: 7
+    # PR は 1 本にまとめる。アクションごとに分けると、そのたびに CI とマージが要る
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: chore
+      include: scope
