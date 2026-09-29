@@ -16,6 +16,15 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # コンテナイメージのレイヤーを GitHub Actions のキャッシュに書くときの指定（DEV-87）。
+  # **書くのは develop / main への push だけ。** PR は読むだけにする。
+  # PR で書いたキャッシュはその PR からしか読めず、マージしたあとは使われないまま上限（リポジトリで 10 GB）を埋める。
+  # mode=max でビルドの途中の段（Gradle と pnpm の依存）も残す。最後の段だけでは、依存を取り直すことになる
+  IMAGE_CACHE_TO: ${{ github.event_name == 'push' && 'type=gha,mode=max,ignore-error=true' || '' }}
+  # ビルドの記録を成果物として残さない。ジョブのサマリーには出る
+  DOCKER_BUILD_RECORD_UPLOAD: false
+
 # ランナーの OS は版を固定する（ubuntu-latest にしない）。latest は GitHub の予定で切り替わり、その日から CI が落ちうる。
 # 上げるときは、新しい版で全ジョブを流してから替える（DEV-83）。古い版がなくなる前に、実行の注意（annotation）で予告が出る
 jobs:
@@ -78,9 +87,17 @@ jobs:
       - name: build
         run: ./gradlew :services:quiz-service:bootJar
 
-      # Dockerfile が壊れていても、使うまで気づかない。Phase 2 のデプロイで初めて落ちないようにする
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Dockerfile が壊れていても、使うまで気づかない。Phase 2 のデプロイで初めて落ちないようにする。
+      # レイヤーは GitHub Actions のキャッシュから読む（DEV-87）。書くのは develop / main への push だけ（env.IMAGE_CACHE_TO）
       - name: コンテナイメージをビルドする
-        run: docker build -f services/quiz-service/Dockerfile .
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/quiz-service/Dockerfile
+          cache-from: type=gha,scope=quiz-service
+          cache-to: ${{ env.IMAGE_CACHE_TO && format('{0},scope=quiz-service', env.IMAGE_CACHE_TO) || '' }}
 
       # 失敗したときだけ残す。OpenAPI の乖離やテストの詳細はレポートを見ないと分からない
       - name: レポートを保存する
@@ -139,8 +156,15 @@ jobs:
       - name: ビルド
         run: pnpm --filter web build
 
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
       - name: コンテナイメージをビルドする
-        run: docker build -f apps/web/Dockerfile .
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          cache-from: type=gha,scope=web
+          cache-to: ${{ env.IMAGE_CACHE_TO && format('{0},scope=web', env.IMAGE_CACHE_TO) || '' }}
 
   # 権限まわりの E2E テスト（DEV-77）。docker compose でアプリ一式を起動し、Playwright で画面から確かめる。
   # ログインは dev の Cognito を使う（ADR-0016）。クライアントのシークレットとテストの利用者のパスワードは、リポジトリの secret にある。
@@ -187,10 +211,26 @@ jobs:
           echo "::add-mask::$secret"
           echo "AUTH_SESSION_SECRET=$secret" >> "$GITHUB_ENV"
 
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # docker compose と同じ定義（docker-compose.yml）からビルドし、docker に読み込む。
+      # backend と frontend のジョブが develop で書いたキャッシュを読む（DEV-87）。ここでは書かない。
+      # 同じ Dockerfile を同じ中身でビルドするため、ソースを変えていないほうのイメージはキャッシュだけで済む
+      - name: イメージをビルドする
+        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        with:
+          source: .
+          files: docker-compose.yml
+          targets: migrate,web
+          load: true
+          set: |
+            migrate.cache-from=type=gha,scope=quiz-service
+            web.cache-from=type=gha,scope=web
+
       # depends_on の条件（マイグレーションの成功、quiz-service の healthy）を待ってから web を起動する
       - name: アプリ一式を起動する
         run: |
-          docker compose up --build --detach web
+          docker compose up --no-build --detach web
           curl --silent --fail --retry 30 --retry-all-errors --retry-delay 2 --output /dev/null http://localhost:3000/login
 
       - name: Playwright のブラウザを入れる

@@ -126,3 +126,22 @@ tasks.bootJar {
     // 既定の名前だとバージョンを上げるたびに Dockerfile も直すことになる
     archiveFileName = "quiz-service.jar"
 }
+
+// コンテナイメージのビルドで、ソースより先に bootJar に要る依存を取っておく（Dockerfile、DEV-87）。
+// 取ったものがレイヤーに残り、ソースだけを変えたときに取り直さない。
+// `dependencies` タスクは依存の木を解くだけで、jar は取らない。
+// lint とテストの依存は取らない。イメージのビルドでは使わず、キャッシュが大きくなるだけ
+tasks.register("downloadDependencies") {
+    description = "bootJar に要る依存を取得する"
+    val classpaths =
+        setOf(
+            "compileClasspath",
+            "annotationProcessor",
+            "productionRuntimeClasspath",
+            "kotlinCompilerClasspath",
+            "kotlinCompilerPluginClasspathMain",
+            "kotlinBuildToolsApiClasspath",
+        )
+    val artifacts = files(configurations.matching { it.name in classpaths }.map { it.incoming.artifacts.artifactFiles })
+    doLast { artifacts.files }
+}

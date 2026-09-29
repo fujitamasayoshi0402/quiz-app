@@ -131,7 +131,8 @@ jobs:
           BACKEND_CHANGED: ${{ steps.backend-changes.outputs.backend }}
           FRONTEND_CHANGED: ${{ steps.frontend-changes.outputs.frontend }}
 
-      - name: イメージを作って ECR に push する
+      - name: イメージの置き場所を決める
+        id: image
         if: steps.plan.outputs.backend == 'true'
         run: |
           TAG="${GITHUB_SHA::12}"
@@ -141,11 +142,30 @@ jobs:
           # タグは上書きできない。再実行で、同じコミットのイメージがすでにあれば作り直さない
           if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=${TAG}" > /dev/null 2>&1; then
             echo "作成済みのイメージを使います: ${TAG}"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
-          docker build -f services/quiz-service/Dockerfile -t "${REGISTRY}/${ECR_REPOSITORY}:${TAG}" .
-          docker push "${REGISTRY}/${ECR_REPOSITORY}:${TAG}"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.plan.outputs.backend == 'true' && steps.image.outputs.exists != 'true'
+
+      # レイヤーは GitHub Actions のキャッシュに持ち越す（DEV-87）。CI（amd64）とは中身が違うので、置き場所を分ける。
+      # 来歴（provenance）は付けない。付けると、添付のマニフェストがタグのないイメージとして ECR に置かれ、
+      # ライフサイクルの規則（タグのないものは 1 日で消す）に掛かる。これまでの docker build と同じ、1 つのマニフェストにする
+      - name: イメージを作って ECR に push する
+        if: steps.plan.outputs.backend == 'true' && steps.image.outputs.exists != 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/quiz-service/Dockerfile
+          tags: ${{ env.IMAGE }}
+          push: true
+          provenance: false
+          cache-from: type=gha,scope=quiz-service-arm64
+          cache-to: type=gha,scope=quiz-service-arm64,mode=max,ignore-error=true
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
 
       # マイグレーションが失敗したら、サービスは替えずにここで止まる
       - name: quiz-service をデプロイする

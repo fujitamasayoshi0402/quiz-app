@@ -120,6 +120,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    # 名前を決めておく。CI は docker buildx bake でこのファイルからビルドし、`--no-build` で起動する（DEV-87）。
+    # 名前がないと、bake のビルドしたイメージを compose が見つけられない
+    image: quiz-app/web
     container_name: quiz-app-web
     environment:
       # /api の中継先。実行時に読むので、イメージを作り直さずに変えられる

@@ -10,17 +10,21 @@
 FROM eclipse-temurin:21-jdk-noble AS build
 WORKDIR /workspace
 
-# 依存の解決をソースのコピーより先に行う。ソースだけを変えたときに、依存のレイヤーを使い回せる
+# Gradle の本体と依存は、キャッシュのマウントではなくレイヤーに置く（DEV-87）。
+# CI はレイヤーを GitHub Actions のキャッシュに持ち越すが、マウントの中身は持ち越さない。
+# マウントに置くと、ソースを変えるたびに Gradle の本体から取り直すことになる
+ENV GRADLE_USER_HOME=/gradle
+
+# 依存の取得をソースのコピーより先に行う。ソースだけを変えたときに、依存のレイヤーを使い回せる
 COPY gradlew settings.gradle.kts ./
 COPY gradle gradle
 COPY services/quiz-service/build.gradle.kts services/quiz-service/
-RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew :services:quiz-service:dependencies --no-daemon --quiet > /dev/null
+RUN ./gradlew :services:quiz-service:downloadDependencies --no-daemon --quiet
 
 COPY services/quiz-service/src services/quiz-service/src
-# テストは CI で回している。イメージのビルドでは Docker を使う Testcontainers も動かせない
-RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew :services:quiz-service:bootJar --no-daemon --quiet
+# テストは CI で回している。イメージのビルドでは Docker を使う Testcontainers も動かせない。
+# --offline で、先に取った依存だけで足りることを確かめる。足りなければここで落ちる（downloadDependencies の一覧に足す）
+RUN ./gradlew :services:quiz-service:bootJar --no-daemon --quiet --offline
 
 # 依存・ローダー・アプリケーションを層に分けて取り出す。
 # アプリケーションのコードだけを変えたとき、依存の層（大きい）を送り直さずに済む
