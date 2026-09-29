@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.get
 import java.time.Instant
+import java.util.Base64
 import java.util.UUID
 
 /**
@@ -49,8 +50,12 @@ class AccessTokenApiTest {
         @Test
         @DisplayName("署名が改ざんされている")
         fun tamperedSignature() {
-            val token = TestJwt.issue(newSubject())
-            myTenants(token.dropLast(2) + "xx").andExpect { status { isUnauthorized() } }
+            // 文字列ではなく、署名のバイトを 1 ビット変える。末尾の文字を書き換えると、base64url の余りのビットだけが変わり、
+            // 元と同じ署名にデコードされることがある（約 1/256 の確率でテストが落ちていた）
+            val (header, payload, signature) = TestJwt.issue(newSubject()).split(".")
+            val bytes = Base64.getUrlDecoder().decode(signature).also { it[0] = (it[0].toInt() xor 1).toByte() }
+            val tampered = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+            myTenants("$header.$payload.$tampered").andExpect { status { isUnauthorized() } }
         }
 
         @Test
