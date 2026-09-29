@@ -16,12 +16,14 @@ concurrency:
 permissions:
   contents: read
 
+# ランナーの OS は版を固定する（ubuntu-latest にしない）。latest は GitHub の予定で切り替わり、その日から CI が落ちうる。
+# 上げるときは、新しい版で全ジョブを流してから替える（DEV-83）。古い版がなくなる前に、実行の注意（annotation）で予告が出る
 jobs:
   # 変更されたパスを見て、後続のジョブを出し分ける。
   # monorepo なので、フロントだけの変更でバックエンドのテストまで回す必要はない
   changes:
     name: changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       pull-requests: read
     outputs:
@@ -42,7 +44,7 @@ jobs:
     name: backend
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -93,7 +95,7 @@ jobs:
     name: frontend
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -149,7 +151,7 @@ jobs:
     if: >-
       (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.e2e == 'true')
       && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     env:
       AUTH_ISSUER: ${{ vars.AUTH_ISSUER }}
@@ -217,7 +219,7 @@ jobs:
     name: terraform
     needs: changes
     if: needs.changes.outputs.terraform == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     env:
       # AWS provider は大きい。ルートモジュールごとに取り直さないよう、ジョブの中で使い回す
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-plugin-cache
@@ -246,7 +248,7 @@ jobs:
   # pre-commit のフックは入れ忘れや --no-verify ですり抜けるため、ここで止める
   secrets:
     name: secrets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -269,7 +271,7 @@ jobs:
     name: ci
     if: always()
     needs: [changes, backend, frontend, e2e, terraform, secrets]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: 先行ジョブの結果を確かめる
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
