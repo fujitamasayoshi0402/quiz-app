@@ -3,7 +3,7 @@
 #   ci.yml の changes         … PR と push で、どのジョブを流すかを決める。直前のコミットとの差を見る
 #   deploy-dev.yml の deploy  … dev に何を載せるかを決める。dev でいま動いているもののコミットとの差を見る（DEV-79）
 #
-# 同じ一覧を使い、「CI が見るもの」と「デプロイが載せるもの」を揃える
+# 同じ一覧を使い、「CI が見るもの」と「デプロイが載せるもの」を揃える。migration はデプロイだけが使う
 backend:
   - 'services/**'
   - '.dockerignore'
@@ -37,6 +37,13 @@ frontend:
   - '.github/scripts/deployed-commits.sh'
   - '.github/scripts/build-web.sh'
   - '.github/scripts/smoke-token.sh'
+# デプロイで、マイグレーションの単発タスクを流すか（DEV-88）。DB に流れるもの（マイグレーションとシード）と、Flyway の設定。
+# ここにないものだけが変わったデプロイでは、流しても何もしないため飛ばす。どれも backend に含まれる
+migration:
+  - 'services/quiz-service/src/main/resources/db/**'
+  - 'services/quiz-service/src/main/resources/application.yml'
+  - 'services/quiz-service/src/main/resources/application-dev.yml'
+  - 'services/quiz-service/src/main/resources/application-migrate.yml'
 terraform:
   - 'infra/terraform/**'
   - '.mise.toml'

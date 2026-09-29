@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # quiz-service を ECS にデプロイする。GitHub Actions（deploy-dev.yml）から呼ぶ。手元からも同じ手順で流せる。
 #
-#   deploy-quiz-service.sh <クラスタ> <サービス> <マイグレーションのタスク定義のファミリー> <イメージ>
+#   deploy-quiz-service.sh <クラスタ> <サービス> <マイグレーションのタスク定義のファミリー> <イメージ> [run | skip]
+#
+# 5 つ目はマイグレーションを流すか。省くと流す。skip は、DB に流れるものが動いているものから変わっていないと
+# 分かっているときだけ使う（deploy-dev.yml が決める。DEV-88）
 #
 # 1. マイグレーションのタスク定義に、新しいイメージのリビジョンを登録する
 # 2. マイグレーションを単発のタスクとして流す。終了コードが 0 でなければ、サービスは替えずに止める
@@ -15,6 +18,12 @@ CLUSTER=$1
 SERVICE=$2
 MIGRATE_FAMILY=$3
 IMAGE=$4
+MIGRATION=${5:-run}
+
+if [[ "$MIGRATION" != "run" && "$MIGRATION" != "skip" ]]; then
+  echo "::error::マイグレーションの指定は run か skip です（${MIGRATION}）"
+  exit 1
+fi
 
 CONTAINER=quiz-service
 # ヘルスチェックの猶予（180 秒）と JVM の起動、古いタスクの切り離しを合わせても、通常は 5 分ほどで終わる。
@@ -48,37 +57,43 @@ register() {
 
 # ---- マイグレーション ----
 
-MIGRATE_ARN=$(register "$MIGRATE_FAMILY")
-echo "マイグレーションのタスク定義: ${MIGRATE_ARN##*/}"
+# 飛ばすときは、タスク定義も登録しない。マイグレーションのファミリーの最新のリビジョンが、最後に流したイメージを指したままになる
+if [[ "$MIGRATION" == "skip" ]]; then
+  echo "マイグレーションを飛ばします（DB に流れるものは、動いているものから変わっていません）"
+  summary "- マイグレーション: 飛ばした（DB に流れるものに変更なし）"
+else
+  MIGRATE_ARN=$(register "$MIGRATE_FAMILY")
+  echo "マイグレーションのタスク定義: ${MIGRATE_ARN##*/}"
 
-# サービスと同じサブネットとセキュリティグループで動かす。Aurora へ届く経路が同じになる
-NETWORK=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
-  --query 'services[0].networkConfiguration' --output json)
+  # サービスと同じサブネットとセキュリティグループで動かす。Aurora へ届く経路が同じになる
+  NETWORK=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+    --query 'services[0].networkConfiguration' --output json)
 
-TASK=$(aws ecs run-task --cluster "$CLUSTER" --task-definition "$MIGRATE_ARN" \
-  --launch-type FARGATE --network-configuration "$NETWORK" \
-  --propagate-tags TASK_DEFINITION --started-by deploy \
-  --query 'tasks[0].taskArn' --output text)
-if [[ "$TASK" == "None" || -z "$TASK" ]]; then
-  echo "::error::マイグレーションのタスクを起動できませんでした"
-  exit 1
+  TASK=$(aws ecs run-task --cluster "$CLUSTER" --task-definition "$MIGRATE_ARN" \
+    --launch-type FARGATE --network-configuration "$NETWORK" \
+    --propagate-tags TASK_DEFINITION --started-by deploy \
+    --query 'tasks[0].taskArn' --output text)
+  if [[ "$TASK" == "None" || -z "$TASK" ]]; then
+    echo "::error::マイグレーションのタスクを起動できませんでした"
+    exit 1
+  fi
+  TASK_ID=${TASK##*/}
+  echo "マイグレーションを流しています: ${TASK_ID}（ログ: migrate/$CONTAINER/${TASK_ID}）"
+
+  # Aurora が一時停止していると、起こすのに十数秒かかる
+  aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK"
+
+  # イメージの取得に失敗したときなど、コンテナが起動しないまま止まると終了コードは null になる
+  read -r EXIT_CODE STOPPED_REASON < <(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK" --output json |
+    jq -r '.tasks[0] | "\(.containers[0].exitCode // "none") \(.stoppedReason // "")"')
+  if [[ "$EXIT_CODE" != "0" ]]; then
+    echo "::error::マイグレーションが失敗しました（終了コード: ${EXIT_CODE}、理由: ${STOPPED_REASON}）。サービスは更新していません。CloudWatch Logs の migrate/$CONTAINER/$TASK_ID を見てください"
+    summary "- マイグレーション: 失敗（終了コード ${EXIT_CODE}）。サービスは更新していない"
+    exit 1
+  fi
+  echo "マイグレーションが終わりました"
+  summary "- マイグレーション: 成功（${MIGRATE_ARN##*/}）"
 fi
-TASK_ID=${TASK##*/}
-echo "マイグレーションを流しています: ${TASK_ID}（ログ: migrate/$CONTAINER/${TASK_ID}）"
-
-# Aurora が一時停止していると、起こすのに十数秒かかる
-aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK"
-
-# イメージの取得に失敗したときなど、コンテナが起動しないまま止まると終了コードは null になる
-read -r EXIT_CODE STOPPED_REASON < <(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK" --output json |
-  jq -r '.tasks[0] | "\(.containers[0].exitCode // "none") \(.stoppedReason // "")"')
-if [[ "$EXIT_CODE" != "0" ]]; then
-  echo "::error::マイグレーションが失敗しました（終了コード: ${EXIT_CODE}、理由: ${STOPPED_REASON}）。サービスは更新していません。CloudWatch Logs の migrate/$CONTAINER/$TASK_ID を見てください"
-  summary "- マイグレーション: 失敗（終了コード ${EXIT_CODE}）。サービスは更新していない"
-  exit 1
-fi
-echo "マイグレーションが終わりました"
-summary "- マイグレーション: 成功（${MIGRATE_ARN##*/}）"
 
 # ---- サービス ----
 
