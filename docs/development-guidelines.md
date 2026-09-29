@@ -222,6 +222,8 @@ dev で動いているものとの差で載せるものを決めている（[デ
 - **キャッシュに書くのは develop / main への push だけ。** PR は読むだけにする（`ci.yml` の `IMAGE_CACHE_TO`）。
   PR で書いたキャッシュはその PR からしか読めず、マージしたあとは使われないまま上限（リポジトリで 10 GB）を埋める
 - 置き場所は `quiz-service` と `web`（CI。amd64）、`quiz-service-arm64`（デプロイ）に分ける。CPU が違えば中身も違う
+- デプロイは、buildx で作ったイメージを docker に読み込み、`docker push` で ECR に上げる。
+  buildx の push は ECR のマニフェストを読む権限（`ecr:BatchGetImage`）を要し、デプロイのロールには与えていない
 - `e2e` は docker compose の定義から `docker buildx bake` でビルドし、`backend` と `frontend` が書いたキャッシュを読む。
   できたイメージを docker に読み込み、`docker compose up --no-build` で起動する
 - quiz-service の Dockerfile は、Gradle の本体と依存を、キャッシュのマウントではなくレイヤーに置く（`downloadDependencies` タスク）。

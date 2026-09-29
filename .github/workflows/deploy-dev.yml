@@ -177,19 +177,26 @@ jobs:
       # レイヤーは GitHub Actions のキャッシュに持ち越す（DEV-87）。CI（amd64）とは中身が違うので、置き場所を分ける。
       # 来歴（provenance）は付けない。付けると、添付のマニフェストがタグのないイメージとして ECR に置かれ、
       # ライフサイクルの規則（タグのないものは 1 日で消す）に掛かる。これまでの docker build と同じ、1 つのマニフェストにする
-      - name: イメージを作って ECR に push する
+      #
+      # **push は buildx ではなく docker で行う。** buildx（BuildKit）は push の前に ECR のマニフェストを読む（ecr:BatchGetImage）。
+      # デプロイのロールは push に要る権限しか持たないため、拒否される。読む権限を足すより、これまでと同じ docker push にする
+      - name: イメージを作る
         if: steps.plan.outputs.backend == 'true' && steps.image.outputs.exists != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: services/quiz-service/Dockerfile
           tags: ${{ env.IMAGE }}
-          push: true
+          load: true
           provenance: false
           cache-from: type=gha,scope=quiz-service-arm64
           cache-to: type=gha,scope=quiz-service-arm64,mode=max,ignore-error=true
         env:
           DOCKER_BUILD_RECORD_UPLOAD: false
+
+      - name: イメージを ECR に push する
+        if: steps.plan.outputs.backend == 'true' && steps.image.outputs.exists != 'true'
+        run: docker push "$IMAGE"
 
       # マイグレーションが失敗したら、サービスは替えずにここで止まる
       - name: quiz-service をデプロイする
