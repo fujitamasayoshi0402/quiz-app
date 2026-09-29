@@ -3,29 +3,37 @@ name: deploy-dev
 # develop に入ったものを dev に載せる。ci.yml が、develop への push でチェックが通ったあとに呼ぶ。
 # Actions の画面から手で流すこともできる（Terraform でタスク定義の形を変えたあとなど）。
 #
+# **何を載せるかは、dev でいま動いているものと比べて決める**（DEV-79）。quiz-service と web のそれぞれで、
+# 動いているもののコミットから develop の先頭までに、関わるパス（.github/path-filters.yml）が変わっていれば載せる。
+# 直前の push との差で決めると、続けてマージして待ちの実行が取り消されたとき、その分が載らない。
+#
 # どちらも GitHub の Environment dev で動く。dev は develop からしか使えず、
 # AWS のロールも、この Environment のジョブにしか引き受けさせない（modules/deploy-role）
+# 入力はどちらも auto（動いているものと比べる）/ deploy（必ず載せる）/ skip（載せない）。
+# Terraform でタスク定義の形を変えたあとは、コミットが同じでも載せ直すため deploy を指定する
 on:
   workflow_call:
     inputs:
       backend:
-        description: quiz-service をデプロイする
-        type: boolean
-        default: true
+        description: quiz-service をデプロイするか（auto / deploy / skip）
+        type: string
+        default: auto
       frontend:
-        description: web（Amplify）をビルドし直す
-        type: boolean
-        default: true
+        description: web（Amplify）をビルドし直すか（auto / deploy / skip）
+        type: string
+        default: auto
   workflow_dispatch:
     inputs:
       backend:
-        description: quiz-service をデプロイする
-        type: boolean
-        default: true
+        description: quiz-service をデプロイするか
+        type: choice
+        options: [auto, deploy, skip]
+        default: auto
       frontend:
-        description: web（Amplify）をビルドし直す
-        type: boolean
-        default: true
+        description: web（Amplify）をビルドし直すか
+        type: choice
+        options: [auto, deploy, skip]
+        default: auto
 
 permissions:
   contents: read
@@ -56,7 +64,10 @@ jobs:
       group: deploy-dev
       cancel-in-progress: false
     steps:
+      # 動いているもののコミットとの差を取るため、履歴をすべて取る
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -65,8 +76,63 @@ jobs:
           # リポジトリは Public で、ログも誰でも読める。イメージの URL などに含まれるアカウント ID を伏せる
           mask-aws-account-id: true
 
+      - name: dev で動いているものを調べる
+        id: deployed
+        run: .github/scripts/deployed-commits.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$AMPLIFY_APP_ID" "$AMPLIFY_BRANCH" | tee -a "$GITHUB_OUTPUT"
+        env:
+          AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
+
+      # 調べられなかったとき（空）は差を取らず、載せるものとして扱う
+      - name: quiz-service に関わる変更を探す
+        id: backend-changes
+        if: inputs.backend == 'auto' && steps.deployed.outputs.backend != ''
+        uses: dorny/paths-filter@v3
+        with:
+          base: ${{ steps.deployed.outputs.backend }}
+          filters: .github/path-filters.yml
+
+      - name: web に関わる変更を探す
+        id: frontend-changes
+        if: inputs.frontend == 'auto' && steps.deployed.outputs.web != ''
+        uses: dorny/paths-filter@v3
+        with:
+          base: ${{ steps.deployed.outputs.web }}
+          filters: .github/path-filters.yml
+
+      - name: 載せるものを決める
+        id: plan
+        run: |
+          # $1: 指定（auto / deploy / skip）、$2: 動いているもののコミット、$3: 差があるか（調べていなければ空）
+          decide() {
+            case "$1" in
+              deploy) echo true; return ;;
+              skip) echo false; return ;;
+            esac
+            # 動いているほうが新しければ載せない。古い実行をやり直したときに、新しいものを古いもので上書きしない
+            if [[ -n "$2" && "$2" != "$GITHUB_SHA" ]] && git merge-base --is-ancestor "$GITHUB_SHA" "$2"; then
+              echo false; return
+            fi
+            [[ "$3" == "false" ]] && echo false || echo true
+          }
+          BACKEND=$(decide "$BACKEND_MODE" "$BACKEND_DEPLOYED" "$BACKEND_CHANGED")
+          FRONTEND=$(decide "$FRONTEND_MODE" "$WEB_DEPLOYED" "$FRONTEND_CHANGED")
+          echo "backend=$BACKEND" >> "$GITHUB_OUTPUT"
+          echo "frontend=$FRONTEND" >> "$GITHUB_OUTPUT"
+          {
+            echo "- 載せるコミット: ${GITHUB_SHA::12}"
+            echo "- quiz-service: 動いているもの ${BACKEND_DEPLOYED:0:12}（不明なら空）→ 載せる: ${BACKEND}"
+            echo "- web: 動いているもの ${WEB_DEPLOYED:0:12}（不明なら空）→ 載せる: ${FRONTEND}"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          BACKEND_MODE: ${{ inputs.backend }}
+          FRONTEND_MODE: ${{ inputs.frontend }}
+          BACKEND_DEPLOYED: ${{ steps.deployed.outputs.backend }}
+          WEB_DEPLOYED: ${{ steps.deployed.outputs.web }}
+          BACKEND_CHANGED: ${{ steps.backend-changes.outputs.backend }}
+          FRONTEND_CHANGED: ${{ steps.frontend-changes.outputs.frontend }}
+
       - name: イメージを作って ECR に push する
-        if: inputs.backend
+        if: steps.plan.outputs.backend == 'true'
         run: |
           TAG="${GITHUB_SHA::12}"
           REGISTRY="$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${AWS_REGION}.amazonaws.com"
@@ -83,24 +149,26 @@ jobs:
 
       # マイグレーションが失敗したら、サービスは替えずにここで止まる
       - name: quiz-service をデプロイする
-        if: inputs.backend
+        if: steps.plan.outputs.backend == 'true'
         run: .github/scripts/deploy-quiz-service.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$MIGRATE_FAMILY" "$IMAGE"
 
       # quiz-service の後に流す。新しい画面が古い API を呼ばないように
       - name: web をビルドする
-        if: inputs.frontend
+        if: steps.plan.outputs.frontend == 'true'
         run: .github/scripts/build-web.sh "$AMPLIFY_APP_ID" "$AMPLIFY_BRANCH" "$GITHUB_SHA"
         env:
           AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
 
       - uses: jdx/mise-action@v2
+        if: steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true'
         with:
           install_args: node npm:newman
 
       # web → API → DB がつながっているかを、画面と同じ経路（Amplify と proxy）で確かめる。
       # スモークテストの利用者（Terraform の modules/auth が作る）でトークンを取り、Authorization に付けて呼ぶ。
-      # 失敗するとワークフローが失敗し、GitHub から通知が届く
+      # 失敗するとワークフローが失敗し、GitHub から通知が届く。何も載せなかったときは流さない
       - name: スモークテスト
+        if: steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true'
         run: |
           TOKEN=$(.github/scripts/smoke-token.sh "$AUTH_CLIENT_ID" "$SMOKE_USER_EMAIL")
           echo "::add-mask::$TOKEN"

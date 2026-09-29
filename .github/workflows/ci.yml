@@ -35,48 +35,8 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
-          filters: |
-            backend:
-              - 'services/**'
-              - '.dockerignore'
-              - 'config/detekt.yml'
-              - '.editorconfig'
-              - 'gradle/**'
-              - 'gradlew'
-              - 'settings.gradle.kts'
-              - '.mise.toml'
-              - '.github/workflows/ci.yml'
-              - '.github/scripts/coverage-summary.py'
-              - '.github/workflows/deploy-dev.yml'
-              - '.github/scripts/deploy-quiz-service.sh'
-              - '.github/scripts/smoke-token.sh'
-            frontend:
-              - 'apps/**'
-              - '.dockerignore'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              # Amplify のビルドの手順。変えたら dev の web をビルドし直す
-              - 'amplify.yml'
-              # 型は OpenAPI 定義から生成するため、定義が変われば作り直しが要る
-              - 'docs/api/**'
-              - '.mise.toml'
-              - '.github/workflows/ci.yml'
-              - '.github/workflows/deploy-dev.yml'
-              - '.github/scripts/build-web.sh'
-              - '.github/scripts/smoke-token.sh'
-            terraform:
-              - 'infra/terraform/**'
-              - '.mise.toml'
-              - '.github/workflows/ci.yml'
-            # バックエンドか画面が変わったときにも流す（e2e ジョブの条件）。ここはそれ以外で E2E に関わるもの
-            e2e:
-              - 'tests/e2e/**'
-              - 'docker-compose.yml'
-              - 'infra/docker/**'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - '.github/workflows/ci.yml'
+          # 一覧は deploy-dev.yml と共有している
+          filters: .github/path-filters.yml
 
   backend:
     name: backend
@@ -318,24 +278,22 @@ jobs:
       - run: echo "すべてのチェックを通過しました"
 
   # develop に入ったら dev に載せる（DEV-48）。チェックがすべて通ったときだけ動く。
-  # 変わったほうだけを載せる。どちらも変わっていなければ（ドキュメントだけなど）何もしない
+  # **何を載せるかは、ここでは決めない。** デプロイのジョブが、dev でいま動いているものと比べて決める（DEV-79）。
+  # この push の差（changes）で決めると、続けてマージして待ちの実行が取り消されたとき、その分が載らない。
+  # どちらも変わっていなければ（ドキュメントだけなど）、デプロイのジョブは何もせずに終わる
   #
   # 結果は ci で判定する。条件に状態の関数を書かないと success() が付き、間接的な依存（backend など）が
   # パスの出し分けでスキップされただけで、このジョブもスキップされる
   deploy-dev:
     name: deploy-dev
-    needs: [changes, ci]
+    needs: [ci]
     if: >-
       !cancelled() && needs.ci.result == 'success'
       && github.event_name == 'push' && github.ref == 'refs/heads/develop'
-      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true')
     permissions:
       contents: read
       id-token: write
     uses: ./.github/workflows/deploy-dev.yml
-    with:
-      backend: ${{ needs.changes.outputs.backend == 'true' }}
-      frontend: ${{ needs.changes.outputs.frontend == 'true' }}
     # 渡さないと、呼び出した先のジョブが Environment dev を使っていても、その secret（AWS_ROLE_ARN など）が空になる。
     # ドキュメントの説明とは違うが、ランナーの既知の挙動（actions/runner#4453）
     secrets: inherit

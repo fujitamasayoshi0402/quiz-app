@@ -166,6 +166,13 @@ data "aws_iam_policy_document" "deploy" {
     actions   = ["amplify:StartJob", "amplify:GetJob"]
     resources = ["${var.amplify_branch_arn}/jobs/*"]
   }
+
+  # 最後に成功したビルドのコミットを読み、web を載せ直すかを決める（DEV-79）。ListJobs の対象はブランチ
+  statement {
+    sid       = "ReadWebBuilds"
+    actions   = ["amplify:ListJobs"]
+    resources = [var.amplify_branch_arn]
+  }
 }
 
 resource "aws_iam_role_policy" "deploy" {
