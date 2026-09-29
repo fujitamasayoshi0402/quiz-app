@@ -43,12 +43,14 @@ backend_commit() {
   commit_of "${image##*:}" "quiz-service のイメージのタグ"
 }
 
-# web: 最後に成功した Amplify のビルドのコミット。build-web.sh がコミットを指定して起動している
+# web: 最後に成功した Amplify のビルドのコミット。build-web.sh がコミットを指定して起動している。
+# --output text にしない。text では --query がページ（20 件）ごとにかかり、ビルドが 20 件を超えると [0] がページの数だけ返る（DEV-85）。
+# json なら、全ページをまとめてからかかる
 web_commit() {
   local commit
   commit=$(aws amplify list-jobs --app-id "$APP_ID" --branch-name "$BRANCH" --max-items 50 \
-    --query "jobSummaries[?status=='SUCCEED'] | [0].commitId" --output text) || { warn "Amplify のビルドの履歴を読めませんでした"; return 0; }
-  commit_of "$commit" "Amplify の最後のビルドのコミット"
+    --query "jobSummaries[?status=='SUCCEED'] | [0].commitId" --output json) || { warn "Amplify のビルドの履歴を読めませんでした"; return 0; }
+  commit_of "$(jq -r '. // empty' <<<"$commit")" "Amplify の最後のビルドのコミット"
 }
 
 echo "backend=$(backend_commit)"
