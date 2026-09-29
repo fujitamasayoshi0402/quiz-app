@@ -16,13 +16,16 @@ import javax.xml.stream.XMLStreamException
  *
  * SVG は無害化しない。draw.io の SVG は HTML のラベルを `foreignObject` で持ち、要素を削ると表示が崩れる。
  * スクリプトは、アプリと別のオリジンと、CSP のヘッダで動かさない。ここで確かめるのは、SVG として読めることと大きさだけ。
+ * 手を入れるのは配色の指定だけで、端末の配色によらず明るい色で描かれるようにする（[SvgDocuments.lightOnly]）。
  */
-class FigureContent(val source: String, val svg: String) {
+class FigureContent(val source: String, svg: String) {
+    val svg: String = SvgDocuments.lightOnly(svg)
+
     init {
         require(source.isNotBlank()) { "図の原本（draw.io）がありません" }
         require(source.toByteArray().size <= MAX_BYTES) { "図の原本は 1 MB までです" }
-        require(svg.toByteArray().size <= MAX_BYTES) { "SVG は 1 MB までです" }
-        require(SvgDocuments.isSvg(svg)) { "SVG として読めません" }
+        require(this.svg.toByteArray().size <= MAX_BYTES) { "SVG は 1 MB までです" }
+        require(SvgDocuments.isSvg(this.svg)) { "SVG として読めません" }
     }
 
     companion object {
@@ -122,6 +125,23 @@ interface FigureUploadStore {
 /** SVG の形だけを確かめる。DTD は読まない */
 internal object SvgDocuments {
     private const val SVG_NAMESPACE = "http://www.w3.org/2000/svg"
+
+    /** ルートの開始タグ。DOCTYPE（`<!DOCTYPE svg`）には当たらない */
+    private val ROOT_TAG = Regex("""<svg\b[^>]*>""")
+    private val COLOR_SCHEME = Regex("""color-scheme\s*:\s*[a-z][a-z\s]*""", RegexOption.IGNORE_CASE)
+
+    /**
+     * 端末の配色（ライト・ダーク）によらず、明るい色で描かれるようにする（DEV-86）。
+     *
+     * draw.io は、ルートに `color-scheme: light dark` を付け、色を `light-dark(明るい色, 暗い色)` で書き出す。
+     * ダークモードの端末では暗い色で描かれ、図形が黒くつぶれ、線と文字が白になる。図は白い背景に出すため、読めなくなる。
+     * ルートの `color-scheme` を `light` にすると、`light-dark()` は明るい色を選ぶ。
+     *
+     * 書き換えるのはルートの開始タグの中だけ。ラベルの文字に同じ綴りがあっても変えない
+     */
+    fun lightOnly(svg: String): String = ROOT_TAG.find(svg)
+        ?.let { root -> svg.replaceRange(root.range, COLOR_SCHEME.replace(root.value, "color-scheme: light")) }
+        ?: svg
 
     /**
      * 外部の DTD を取りに行かず、DOCTYPE の中で宣言した実体も展開しない（XXE と展開の爆発を防ぐ）。

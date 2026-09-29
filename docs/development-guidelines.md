@@ -855,6 +855,9 @@ curl -H "Authorization: Bearer $TOKEN" "$(terraform output -raw quiz_service_url
 
 - **誰に見せるかは quiz-service が決める。** CloudFront は署名を確かめるだけで、署名のない要求と期限の切れた要求は 403 で返す
 - **SVG はアプリのオリジンから返さない。** SVG はスクリプトを含められる。CloudFront が CSP（`sandbox`）と `nosniff` を付けて返す
+- **draw.io の SVG は、端末の配色によらず明るい色で描かれるようにして置く**（`SvgDocuments.lightOnly`）。
+  draw.io は `color-scheme: light dark` と `light-dark()` で書き出し、ダークモードの端末では図形が黒くつぶれる。図は白い背景に出すため、ルートの `color-scheme` を `light` にする。
+  図は書き換えないため、これより前に置いた図は「描き直す」で直る
 - キーにテナントを含める（`svg/{テナントの ID}/{図の ID}.svg`、`drawio/...`、`img/...`、`pdf/...`、`incoming/...`）。
   CloudFront が読めるのは `svg/`、`img/`、`pdf/` の下だけ。原本は API を通して管理者にだけ返し、`incoming/` は誰にも配らない
 - 種類は、申告ではなく中身の先頭のバイトで決める。大きさの上限も、決まった種類のものを使う
