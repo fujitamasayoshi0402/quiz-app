@@ -719,6 +719,211 @@
               }
             }
           ]
+        },
+        {
+          "name": "画像を上げる準備をする",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/figures/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "figures",
+                "uploads"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentType\": \"image/png\",\n  \"size\": 74\n}"
+            },
+            "description": "size は tests/api/fixtures/figure.png の大きさ。署名に含まれるため、次に上げる本体と一致させる"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 を返す\", () => pm.response.to.have.status(201));",
+                  "const upload = pm.response.json();",
+                  "pm.test(\"上げる先は、検査の前の置き場所\", () => pm.expect(upload.url).to.include(`/incoming/`));",
+                  "pm.collectionVariables.set(\"imageId\", upload.id);",
+                  "pm.collectionVariables.set(\"imageUploadUrl\", upload.url);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "画像を S3 へ直接上げる",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "image/png"
+              }
+            ],
+            "url": {
+              "raw": "{{imageUploadUrl}}",
+              "host": [
+                "{{imageUploadUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "file",
+              "file": {
+                "src": "tests/api/fixtures/figure.png"
+              }
+            },
+            "description": "ブラウザと同じく、API を通さずに上げる。パスはリポジトリのルートから"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// アクセストークンは API にだけ渡す。署名付き URL は、署名だけで使える",
+                  "pm.request.headers.remove(\"Authorization\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 を返す\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "上げた画像を解説図として置く",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/figures/uploads/{{imageId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "figures",
+                "uploads",
+                "{{imageId}}",
+                "complete"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 を返す\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"準備で決めた ID の図になる\", () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"imageId\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "画像の署名付き URL へ送られる",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/play/figures/{{imageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "play",
+                "figures",
+                "{{imageId}}"
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"302 で送る\", () => pm.response.to.have.status(302));",
+                  "const location = pm.response.headers.get(\"Location\") ?? \"\";",
+                  "pm.test(\"送り先は、テナントの下の画像\", () => {",
+                  "  pm.expect(location).to.include(`/img/`).and.include(`/${pm.collectionVariables.get(\"imageId\")}`);",
+                  "});",
+                  "pm.collectionVariables.set(\"imageUrl\", location);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "送り先から画像が返る",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{imageUrl}}",
+              "host": [
+                "{{imageUrl}}"
+              ]
+            },
+            "description": "AWS では CloudFront が img/ を読めること（バケットのポリシー）も確かめる"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// アクセストークンは API にだけ渡す。署名付き URL は、署名だけで使える",
+                  "pm.request.headers.remove(\"Authorization\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 で PNG を返す\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/png\");",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -1047,6 +1252,38 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"404 を返す\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "画像を消す",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/t/{{slug}}/admin/figures/{{imageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "t",
+                "{{slug}}",
+                "admin",
+                "figures",
+                "{{imageId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 を返す\", () => pm.response.to.have.status(204));"
                 ]
               }
             }

@@ -1,6 +1,7 @@
 package com.quizapp.quiz.controller
 
 import com.quizapp.quiz.usecase.FigureNotFoundException
+import com.quizapp.quiz.usecase.FigureUploadNotFoundException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -13,6 +14,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
  */
 @RestControllerAdvice(assignableTypes = [FigureController::class, PlayFigureController::class])
 class FigureExceptionHandler {
+
+    @ExceptionHandler(FigureUploadNotFoundException::class)
+    fun handleUploadNotFound(): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "上げた画像が見つかりません。もう一度上げてください").apply {
+            title = "リソースが見つかりません"
+        }
 
     @ExceptionHandler(FigureNotFoundException::class)
     fun handleFigureNotFound(): ProblemDetail =

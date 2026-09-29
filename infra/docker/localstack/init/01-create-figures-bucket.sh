@@ -10,3 +10,13 @@ if awslocal s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1; then
 else
   awslocal s3 mb "s3://$BUCKET"
 fi
+
+# ブラウザが画像を直接上げる（ADR-0020）。AWS と同じく、画面のオリジンからの PUT だけを許す
+awslocal s3api put-bucket-cors --bucket "$BUCKET" --cors-configuration "{
+  \"CORSRules\": [{
+    \"AllowedMethods\": [\"PUT\"],
+    \"AllowedOrigins\": [\"${FIGURES_UPLOAD_ORIGIN:-http://localhost:3000}\"],
+    \"AllowedHeaders\": [\"content-type\"],
+    \"MaxAgeSeconds\": 3000
+  }]
+}"

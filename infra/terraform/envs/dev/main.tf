@@ -100,6 +100,9 @@ module "figures" {
   domain_name    = "figures.dev.${var.domain_name}"
   hosted_zone_id = data.aws_route53_zone.this.zone_id
 
+  # ローカルの web も dev のバケットには上げない（LocalStack を使う）。ここに載せるのは dev の画面だけ
+  upload_allowed_origins = ["https://dev.${var.domain_name}"]
+
   # dev の図はデモとスモークテストのもの。環境ごと作り直せるようにする
   force_destroy = true
 }

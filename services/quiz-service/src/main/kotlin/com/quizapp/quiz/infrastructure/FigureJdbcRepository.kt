@@ -1,5 +1,6 @@
 package com.quizapp.quiz.infrastructure
 
+import com.quizapp.quiz.domain.FigureKind
 import com.quizapp.quiz.domain.FigureRepository
 import com.quizapp.tenant.TenantContext
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
@@ -14,18 +15,18 @@ import java.util.UUID
 @Component
 class FigureJdbcRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) : FigureRepository {
 
-    override fun add(id: UUID) {
+    override fun add(id: UUID, kind: FigureKind) {
         jdbcTemplate.update(
-            "INSERT INTO quiz.figures (id, tenant_id) VALUES (:id, :tenantId)",
-            mapOf("id" to id, "tenantId" to TenantContext.require()),
+            "INSERT INTO quiz.figures (id, tenant_id, kind) VALUES (:id, :tenantId, :kind)",
+            mapOf("id" to id, "tenantId" to TenantContext.require(), "kind" to kind.name.lowercase()),
         )
     }
 
-    override fun exists(id: UUID): Boolean = jdbcTemplate.queryForObject(
-        "SELECT EXISTS (SELECT 1 FROM quiz.figures WHERE id = :id)",
+    override fun findKind(id: UUID): FigureKind? = jdbcTemplate.queryForList(
+        "SELECT kind FROM quiz.figures WHERE id = :id",
         mapOf("id" to id),
-        Boolean::class.java,
-    ) == true
+        String::class.java,
+    ).firstOrNull()?.let { FigureKind.valueOf(it.uppercase()) }
 
     override fun findExisting(ids: Collection<UUID>): Set<UUID> {
         if (ids.isEmpty()) return emptySet()

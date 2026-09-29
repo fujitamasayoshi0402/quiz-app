@@ -16,6 +16,8 @@ class InMemoryBucket : Bucket {
 
     override fun get(key: String): ByteArray? = objects[key]?.body
 
+    override fun size(key: String): Long? = objects[key]?.body?.size?.toLong()
+
     override fun delete(key: String) {
         objects.remove(key)
     }

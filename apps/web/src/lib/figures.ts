@@ -30,13 +30,13 @@ export function figureMarkdown(id: string, alt = "図"): string {
 }
 
 /** 本文の [position] の位置に、図を出す書き方を 1 行として入れる。位置が分からなければ末尾に入れる */
-export function insertFigure(text: string, position: number | null, id: string): string {
+export function insertFigure(text: string, position: number | null, id: string, alt = "図"): string {
   const at = position ?? text.length;
   const before = text.slice(0, at);
   const after = text.slice(at);
   const head = before && !before.endsWith("\n") ? "\n" : "";
   const tail = after && !after.startsWith("\n") ? "\n" : "";
-  return `${before}${head}${figureMarkdown(id)}${tail}${after}`;
+  return `${before}${head}${figureMarkdown(id, alt)}${tail}${after}`;
 }
 
 /** 本文の中で、ある図を指している箇所を、別の図に差し替える。描き直した図は新しい ID になる */

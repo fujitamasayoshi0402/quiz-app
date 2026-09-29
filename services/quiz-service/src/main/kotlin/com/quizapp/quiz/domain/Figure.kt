@@ -46,15 +46,25 @@ object FigureReferences {
     fun findIn(text: String): Set<UUID> = PATTERN.findAll(text).map { UUID.fromString(it.groupValues[1]) }.toSet()
 }
 
+/** 解説図の種類（ADR-0020）。種類によって、置く場所と配る形式が違う */
+enum class FigureKind {
+    /** draw.io の原本と、書き出した SVG の組 */
+    DRAWIO,
+
+    /** PNG か JPEG。読み直したものだけを持つ */
+    IMAGE,
+}
+
 /**
  * 図の行。**誰に返すかは、この行が見えるかどうかで決める**（行レベルセキュリティ）。
  *
  * テナントは引数で受け取らず、要求の文脈から決める。引数にすると、別テナントの図を指せる経路ができる。
  */
 interface FigureRepository {
-    fun add(id: UUID)
+    fun add(id: UUID, kind: FigureKind)
 
-    fun exists(id: UUID): Boolean
+    /** 見える（このテナントにある）図の種類。見えなければ null */
+    fun findKind(id: UUID): FigureKind?
 
     /** [ids] のうち、見える（このテナントにある）もの */
     fun findExisting(ids: Collection<UUID>): Set<UUID>
@@ -69,13 +79,29 @@ interface FigureRepository {
 interface FigureStore {
     fun save(id: UUID, content: FigureContent)
 
+    fun saveImage(id: UUID, image: FigureImage)
+
     /** 原本。置かれていなければ null */
     fun findSource(id: UUID): String?
 
+    /** どの種類の本体も消す。無いものは無視する */
     fun delete(id: UUID)
 
-    /** ブラウザが SVG を取りに行く URL。期限がある */
-    fun svgUrl(id: UUID): URI
+    /** ブラウザが図を取りに行く URL。期限がある */
+    fun url(id: UUID, kind: FigureKind): URI
+
+    /**
+     * ブラウザが画像を上げる URL（検査の前の置き場所）。種類と大きさは署名に含め、違う本体は受け付けられない。
+     * 期限がある
+     */
+    fun uploadUrl(id: UUID, format: ImageFormat, size: Long): URI
+
+    /** 上がってきた本体の大きさ。まだ上がっていなければ null */
+    fun uploadSize(id: UUID): Long?
+
+    fun readUpload(id: UUID): ByteArray?
+
+    fun deleteUpload(id: UUID)
 }
 
 /** SVG の形だけを確かめる。DTD は読まない */

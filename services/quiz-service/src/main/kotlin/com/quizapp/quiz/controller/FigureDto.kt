@@ -1,6 +1,7 @@
 package com.quizapp.quiz.controller
 
 import io.swagger.v3.oas.annotations.media.Schema
+import java.net.URI
 import java.util.UUID
 
 data class CreateFigureRequest(
@@ -11,6 +12,31 @@ data class CreateFigureRequest(
 )
 
 data class FigureResponse(val id: UUID)
+
+data class FigureDetailResponse(
+    val id: UUID,
+    @field:Schema(
+        description = "種類。drawio（draw.io の原本と SVG。描き直せる）か image（PNG か JPEG）",
+        allowableValues = ["drawio", "image"],
+    )
+    val kind: String,
+)
+
+data class StartFigureUploadRequest(
+    @field:Schema(description = "画像の種類。image/png か image/jpeg。本体の先頭のバイトでも確かめる")
+    val contentType: String,
+    @field:Schema(description = "本体の大きさ（バイト）。10 MB まで。署名に含めるため、上げる本体の大きさと一致させる")
+    val size: Long,
+)
+
+data class FigureUploadResponse(
+    @field:Schema(description = "図の ID。上げ終えたら、この ID で完了を伝える")
+    val id: UUID,
+    @field:Schema(description = "本体を PUT する URL（期限 5 分）。検査の前の置き場所を指し、ここに置いたものは誰にも配られない")
+    val url: URI,
+    @field:Schema(description = "PUT に付けるヘッダ。署名に含めているため、この値のまま送る")
+    val headers: Map<String, String>,
+)
 
 data class FigureSourceResponse(
     @field:Schema(description = "draw.io の原本。描き直すときに draw.io へ読み込ませる")

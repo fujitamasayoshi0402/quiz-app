@@ -8,6 +8,7 @@ import com.quizapp.quiz.domain.DeletionImpact
 import com.quizapp.quiz.domain.DeletionRepository
 import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.DifficultyRepository
+import com.quizapp.quiz.domain.FigureKind
 import com.quizapp.quiz.domain.FigureRepository
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizRepository
@@ -87,17 +88,17 @@ class InMemoryQuizRepository : QuizRepository {
 
 /** 図の行。置いた ID を覚えておくだけ。別テナントの図が見えないことは、行レベルセキュリティの責務で API テストが見る */
 class InMemoryFigureRepository : FigureRepository {
-    private val ids = mutableSetOf<UUID>()
+    private val kinds = mutableMapOf<UUID, FigureKind>()
 
-    override fun add(id: UUID) {
-        ids += id
+    override fun add(id: UUID, kind: FigureKind) {
+        kinds[id] = kind
     }
 
-    override fun exists(id: UUID): Boolean = id in ids
+    override fun findKind(id: UUID): FigureKind? = kinds[id]
 
-    override fun findExisting(ids: Collection<UUID>): Set<UUID> = ids.filter { it in this.ids }.toSet()
+    override fun findExisting(ids: Collection<UUID>): Set<UUID> = ids.filter { it in kinds }.toSet()
 
-    override fun delete(id: UUID): Boolean = ids.remove(id)
+    override fun delete(id: UUID): Boolean = kinds.remove(id) != null
 }
 
 class FakeAnsweredQuizzes : AnsweredQuizzes {

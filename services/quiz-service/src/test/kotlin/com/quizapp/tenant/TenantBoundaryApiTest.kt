@@ -4,6 +4,7 @@ import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
 import com.quizapp.support.TestTenant
+import com.quizapp.support.fake.InMemoryBucket
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.SoftAssertions
 import org.junit.jupiter.api.DisplayName
@@ -73,6 +74,7 @@ class TenantBoundaryApiTest {
         private const val DELETED_NOT_FOUND = "削除済みの項目が見つかりません"
         private const val IMPORT_REJECTED = "取り込めない行があります。1 件も取り込んでいません"
         private const val FIGURE_NOT_FOUND = "指定された図は存在しません"
+        private const val UPLOAD_NOT_FOUND = "上げた画像が見つかりません。もう一度上げてください"
         private const val INVITATION_NOT_FOUND = "指定された招待は存在しません"
 
         private val TENANT_SCOPED = Regex("/api/t/\\{slug}/(admin|play)/.+")
@@ -95,6 +97,8 @@ class TenantBoundaryApiTest {
     @Autowired private lateinit var mockMvc: MockMvc
 
     @Autowired private lateinit var objectMapper: ObjectMapper
+
+    @Autowired private lateinit var bucket: InMemoryBucket
 
     @Autowired
     @Qualifier("requestMappingHandlerMapping")
@@ -350,6 +354,22 @@ class TenantBoundaryApiTest {
         val victim = mapOf("id" to ids.victimFigure)
         return listOf(
             Probe(HttpMethod.POST, base, "作成は自テナントに入る", body = figureBody("境界テスト"), status = 201),
+            Probe(
+                HttpMethod.POST,
+                "$base/uploads",
+                "上げる先は自テナントの下",
+                body = """{"contentType":"image/png","size":100}""",
+                status = 201,
+            ),
+            Probe(
+                HttpMethod.POST,
+                "$base/uploads/{id}/complete",
+                "victim が上げた画像は、自テナントの置き場所にない",
+                mapOf("id" to ids.victimUpload),
+                status = 404,
+                detail = UPLOAD_NOT_FOUND,
+            ),
+            Probe(HttpMethod.GET, "$base/{id}", "", victim, status = 404, detail = FIGURE_NOT_FOUND),
             Probe(HttpMethod.GET, "$base/{id}/source", "", victim, status = 404, detail = FIGURE_NOT_FOUND),
             Probe(HttpMethod.DELETE, "$base/{id}", "", victim, status = 404, detail = FIGURE_NOT_FOUND),
             Probe(
@@ -512,6 +532,15 @@ class TenantBoundaryApiTest {
         }.andExpect { status { isCreated() } }.andReturn().response.contentAsString
             .let { UUID.fromString(objectMapper.readTree(it)["id"].asString()) }
 
+        // victim が画像を上げ、まだ完了していない。本体は検査の前の置き場所にある
+        val victimUpload = mockMvc.post("/api/t/${victimTenant.slug}/admin/figures/uploads") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"contentType":"image/png","size":100}"""
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isCreated() } }.andReturn().response.contentAsString
+            .let { UUID.fromString(objectMapper.readTree(it)["id"].asString()) }
+        bucket.put("incoming/${victimTenant.id}/$victimUpload", SECRET.toByteArray(), "image/png", "no-store")
+
         val invitation = mockMvc.post("/api/t/${victimTenant.slug}/admin/invitations") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"email":"$VICTIM_INVITEE"}"""
@@ -536,6 +565,7 @@ class TenantBoundaryApiTest {
             deletedDifficulty = deletedDifficulty,
             deletedQuiz = deletedQuiz,
             victimFigure = victimFigure,
+            victimUpload = victimUpload,
             victimInvitation = UUID.fromString(invitation["invitation"]["id"].asString()),
         )
     }
@@ -660,11 +690,12 @@ class TenantBoundaryApiTest {
         val deletedDifficulty: UUID,
         val deletedQuiz: UUID,
         val victimFigure: UUID,
+        val victimUpload: UUID,
         val victimInvitation: UUID,
     ) {
         companion object {
             /** 網羅性の検査用。ケースの一覧が作れればよく、値は使わない */
-            fun placeholder(): Ids = UUID(0, 0).let { Ids(it, it, it, it, it, it, it, it, it, it, it, it, it) }
+            fun placeholder(): Ids = UUID(0, 0).let { Ids(it, it, it, it, it, it, it, it, it, it, it, it, it, it) }
         }
     }
 }

@@ -22,7 +22,7 @@ import java.util.UUID
  */
 @RestController
 @RequestMapping("/api/t/{slug}/admin/figures", produces = [MediaType.APPLICATION_JSON_VALUE])
-@Tag(name = "解説図", description = "管理者が解説図（draw.io の原本と SVG）を置く")
+@Tag(name = "解説図", description = "管理者が解説図（draw.io の原本と SVG、画像）を置く")
 class FigureController(private val useCase: FigureUseCase) {
 
     @PostMapping(consumes = [MediaType.APPLICATION_JSON_VALUE])
@@ -34,6 +34,34 @@ class FigureController(private val useCase: FigureUseCase) {
     )
     fun create(@RequestBody request: CreateFigureRequest): FigureResponse =
         FigureResponse(useCase.create(request.source, request.svg))
+
+    @PostMapping("/uploads", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+        operationId = "startFigureUpload",
+        summary = "画像（PNG・JPEG）を上げる準備をする",
+        description = "図の ID と、ブラウザが本体を S3 へ直接 PUT する URL を返す（ADR-0020）。" +
+            "上げ終えたら、完了を伝える。完了するまで図にはならない",
+    )
+    fun startUpload(@RequestBody request: StartFigureUploadRequest): FigureUploadResponse {
+        val upload = useCase.startUpload(request.contentType, request.size)
+        return FigureUploadResponse(upload.id, upload.url, mapOf("Content-Type" to upload.contentType))
+    }
+
+    @PostMapping("/uploads/{id}/complete")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+        operationId = "completeFigureUpload",
+        summary = "上げた画像を検査して、解説図として置く",
+        description = "中身が PNG か JPEG かを確かめ、画像として読み直して置く。位置情報などのメタデータは残らない。" +
+            "長い辺は 2,000 px までに縮める。上げたものは、検査に通らなくても消える",
+    )
+    fun completeUpload(@PathVariable id: UUID): FigureResponse = FigureResponse(useCase.completeUpload(id))
+
+    @GetMapping("/{id}")
+    @Operation(operationId = "getFigureDetail", summary = "解説図の種類を取得")
+    fun detail(@PathVariable id: UUID): FigureDetailResponse =
+        FigureDetailResponse(id, useCase.kind(id).name.lowercase())
 
     @GetMapping("/{id}/source")
     @Operation(operationId = "getFigureSource", summary = "解説図の原本（draw.io）を取得")

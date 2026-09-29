@@ -50,8 +50,17 @@ class FigureStorageConfiguration(private val properties: FigureProperties) {
             )
         }
         log.info("図の URL は S3 の署名付き URL で作ります（CloudFront の設定がありません）")
+        return S3PresignedFigureUrlSigner(presigner(), properties.bucket, Clock.systemUTC())
+    }
+
+    /** 画像を上げる URL は、CloudFront を通さず S3 を指す。ローカルでも AWS でも同じ */
+    @Bean
+    fun figureUploadUrlSigner(): UploadUrlSigner = UploadUrlSigner(presigner(), properties.bucket)
+
+    /** ブラウザに渡す URL を作る。接続先は、ブラウザから届くもの（[FigureProperties.S3.publicEndpoint]） */
+    private fun presigner(): S3Presigner {
         val publicEndpoint = properties.s3.publicEndpoint.ifBlank { properties.s3.endpoint }.ifBlank { null }
-        val presigner = S3Presigner.builder()
+        return S3Presigner.builder()
             .region(Region.of(properties.region))
             .credentialsProvider(credentials())
             .apply {
@@ -61,7 +70,6 @@ class FigureStorageConfiguration(private val properties: FigureProperties) {
                 }
             }
             .build()
-        return S3PresignedFigureUrlSigner(presigner, properties.bucket, Clock.systemUTC())
     }
 
     private fun endpoint(): URI? = properties.s3.endpoint.ifBlank { null }?.let(URI::create)
