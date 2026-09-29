@@ -7,10 +7,16 @@ name: deploy-dev
 # 動いているもののコミットから develop の先頭までに、関わるパス（.github/path-filters.yml）が変わっていれば載せる。
 # 直前の push との差で決めると、続けてマージして待ちの実行が取り消されたとき、その分が載らない。
 #
+# quiz-service を載せるとき、**マイグレーションも同じ差で流すかを決める**（DEV-88）。動いているもののコミットから、
+# DB に流れるもの（path-filters.yml の migration）が変わっていなければ、単発タスクを飛ばす。
+# 動いているもののコミットまでは、流し終わっている。サービスは、マイグレーションが成功してからしか替わらないため。
+#
 # どちらも GitHub の Environment dev で動く。dev は develop からしか使えず、
 # AWS のロールも、この Environment のジョブにしか引き受けさせない（modules/deploy-role）
-# 入力はどちらも auto（動いているものと比べる）/ deploy（必ず載せる）/ skip（載せない）。
-# Terraform でタスク定義の形を変えたあとは、コミットが同じでも載せ直すため deploy を指定する
+# 入力の backend と frontend は auto（動いているものと比べる）/ deploy（必ず載せる）/ skip（載せない）。
+# Terraform でタスク定義の形を変えたあとは、コミットが同じでも載せ直すため deploy を指定する。
+# migration は auto（動いているものと比べる）/ run（必ず流す）。**飛ばす指定は持たない。** DB に流れるものを変えたコミットを、
+# 流さずに載せると、それが動いているものになり、以後は差がないとして流れなくなる
 on:
   workflow_call:
     inputs:
@@ -20,6 +26,10 @@ on:
         default: auto
       frontend:
         description: web（Amplify）をビルドし直すか（auto / deploy / skip）
+        type: string
+        default: auto
+      migration:
+        description: quiz-service を載せるとき、マイグレーションを流すか（auto / run）
         type: string
         default: auto
   workflow_dispatch:
@@ -33,6 +43,11 @@ on:
         description: web（Amplify）をビルドし直すか
         type: choice
         options: [auto, deploy, skip]
+        default: auto
+      migration:
+        description: quiz-service を載せるとき、マイグレーションを流すか
+        type: choice
+        options: [auto, run]
         default: auto
 
 permissions:
@@ -82,10 +97,11 @@ jobs:
         env:
           AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
 
-      # 調べられなかったとき（空）は差を取らず、載せるものとして扱う
+      # 調べられなかったとき（空）は差を取らず、載せるものとして扱う。
+      # backend が deploy のときも調べる。コミットが同じまま載せ直すとき（タスク定義の形を変えたあと）に、マイグレーションを飛ばすため
       - name: quiz-service に関わる変更を探す
         id: backend-changes
-        if: inputs.backend == 'auto' && steps.deployed.outputs.backend != ''
+        if: inputs.backend != 'skip' && steps.deployed.outputs.backend != ''
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           base: ${{ steps.deployed.outputs.backend }}
@@ -116,20 +132,28 @@ jobs:
           }
           BACKEND=$(decide "$BACKEND_MODE" "$BACKEND_DEPLOYED" "$BACKEND_CHANGED")
           FRONTEND=$(decide "$FRONTEND_MODE" "$WEB_DEPLOYED" "$FRONTEND_CHANGED")
-          echo "backend=$BACKEND" >> "$GITHUB_OUTPUT"
-          echo "frontend=$FRONTEND" >> "$GITHUB_OUTPUT"
+          # マイグレーションは、差がないと分かったときだけ飛ばす。動いているものが不明で差を調べていなければ（空）流す
+          if [[ "$MIGRATION_MODE" != "run" && "$MIGRATION_CHANGED" == "false" ]]; then MIGRATION=skip; else MIGRATION=run; fi
+          {
+            echo "backend=$BACKEND"
+            echo "frontend=$FRONTEND"
+            echo "migration=$MIGRATION"
+          } >> "$GITHUB_OUTPUT"
           {
             echo "- 載せるコミット: ${GITHUB_SHA::12}"
             echo "- quiz-service: 動いているもの ${BACKEND_DEPLOYED:0:12}（不明なら空）→ 載せる: ${BACKEND}"
+            if [[ "$BACKEND" == "true" ]]; then echo "  - マイグレーション: ${MIGRATION}"; fi
             echo "- web: 動いているもの ${WEB_DEPLOYED:0:12}（不明なら空）→ 載せる: ${FRONTEND}"
           } | tee -a "$GITHUB_STEP_SUMMARY"
         env:
           BACKEND_MODE: ${{ inputs.backend }}
           FRONTEND_MODE: ${{ inputs.frontend }}
+          MIGRATION_MODE: ${{ inputs.migration }}
           BACKEND_DEPLOYED: ${{ steps.deployed.outputs.backend }}
           WEB_DEPLOYED: ${{ steps.deployed.outputs.web }}
           BACKEND_CHANGED: ${{ steps.backend-changes.outputs.backend }}
           FRONTEND_CHANGED: ${{ steps.frontend-changes.outputs.frontend }}
+          MIGRATION_CHANGED: ${{ steps.backend-changes.outputs.migration }}
 
       - name: イメージを作って ECR に push する
         if: steps.plan.outputs.backend == 'true'
@@ -150,7 +174,9 @@ jobs:
       # マイグレーションが失敗したら、サービスは替えずにここで止まる
       - name: quiz-service をデプロイする
         if: steps.plan.outputs.backend == 'true'
-        run: .github/scripts/deploy-quiz-service.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$MIGRATE_FAMILY" "$IMAGE"
+        run: .github/scripts/deploy-quiz-service.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$MIGRATE_FAMILY" "$IMAGE" "$MIGRATION"
+        env:
+          MIGRATION: ${{ steps.plan.outputs.migration }}
 
       # quiz-service の後に流す。新しい画面が古い API を呼ばないように
       - name: web をビルドする
