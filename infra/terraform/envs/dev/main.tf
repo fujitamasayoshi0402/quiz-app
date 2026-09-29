@@ -19,9 +19,10 @@ module "database" {
   subnet_ids        = module.network.private_subnet_ids
   security_group_id = module.network.security_group_ids.db
 
-  # 使っていない時間は止め、ストレージの料金だけにする。復帰には十数秒かかる（DEV-50 で測る）
+  # 使っていない時間は止め、ストレージの料金だけにする。復帰には十数秒かかる（DEV-50 で測る）。
+  # 止まるまでは 30 分おく（DEV-89）。5 分だと、画面を読んだり解説を書いたりしている間に止まり、次の操作のたびに復帰を待つ
   max_capacity             = 2
-  seconds_until_auto_pause = 300
+  seconds_until_auto_pause = 1800
 
   # dev はデモ用のシードしか入らない。消えても migrate で作り直せる
   backup_retention_days = 1
