@@ -130,7 +130,8 @@
 - [x] draw.io 連携: 管理画面に embed.diagrams.net を埋め込み、`.drawio` を S3 に保存。解説の本文から `figure:` の ID で指す（[ADR-0020](adr/0020-reference-figures-from-explanations-and-add-images-and-pdfs.md)）
 - [x] 解説図の置き場所と配信: 非公開の S3 に置き、API が出す CloudFront の署名付き URL で配る（[ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md)）
 - [x] ユーザー側の解説表示（図を含む）。図は押すと新しいタブで開き、狭い画面でも拡大して見られる
-- [ ] 画像（PNG・JPEG）と PDF の解説図: ブラウザから S3 へ直接上げ、検査を通ったものだけを配る。画像はメタデータを落とす
+- [x] 画像（PNG・JPEG）の解説図: ブラウザから S3 へ直接上げ、検査して読み直したものだけを配る。位置情報などのメタデータは残らない
+- [ ] PDF の資料: 解説のリンクから開く
 - [ ] カテゴリ / 難易度の管理 UI、並び順、下書き / 公開の状態管理
 - [x] クイズの一括インポート（CSV / JSON）。全か無かで取り込み、取り込めない行はファイルの行番号で示す
 - [ ] テナントの公開設定（`public`）と、公開テナントの横断的な閲覧導線

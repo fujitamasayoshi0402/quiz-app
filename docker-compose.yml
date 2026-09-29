@@ -42,6 +42,8 @@ services:
       AWS_DEFAULT_REGION: ap-northeast-1
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
+      # 画像を上げる画面のオリジン。バケットの CORS に使う（init のスクリプト）
+      FIGURES_UPLOAD_ORIGIN: http://localhost:${WEB_PORT:-3000}
     ports:
       - "${LOCALSTACK_PORT:-4566}:4566"
     volumes:

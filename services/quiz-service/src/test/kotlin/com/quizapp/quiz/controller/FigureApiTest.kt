@@ -3,6 +3,7 @@ package com.quizapp.quiz.controller
 import com.quizapp.quiz.infrastructure.BucketFigureStore
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.TestAuth
+import com.quizapp.support.TestImages
 import com.quizapp.support.TestTenant
 import com.quizapp.support.fake.InMemoryBucket
 import org.assertj.core.api.Assertions.assertThat
@@ -166,6 +167,156 @@ class FigureApiTest {
         val id = createFigure()
         play(id, user = null).andExpect { status { isUnauthorized() } }
         play(id, user = TestAuth.OUTSIDER).andExpect { status { isNotFound() } }
+    }
+
+    private fun startUpload(
+        type: String = "image/png",
+        size: Long = 100,
+        user: UUID = TestAuth.ADMIN,
+    ): ResultActionsDsl = mockMvc.post("/api/t/${tenant.slug}/admin/figures/uploads") {
+        header("Authorization", TestAuth.bearer(user))
+        contentType = MediaType.APPLICATION_JSON
+        content = objectMapper.writeValueAsString(mapOf("contentType" to type, "size" to size))
+    }
+
+    /** 画像を上げる準備をし、ブラウザの代わりに検査の前の置き場所へ本体を置く */
+    private fun upload(bytes: ByteArray, type: String = "image/png"): UUID {
+        val id = startUpload(type, bytes.size.toLong()).andExpect { status { isCreated() } }
+            .andReturn().response.contentAsString
+            .let { UUID.fromString(objectMapper.readTree(it)["id"].asString()) }
+        bucket.put("incoming/${tenant.id}/$id", bytes, type, "no-store")
+        return id
+    }
+
+    private fun complete(id: UUID): ResultActionsDsl =
+        mockMvc.post("/api/t/${tenant.slug}/admin/figures/uploads/$id/complete") {
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }
+
+    private fun figureRows(): Int? = TestPostgres.adminJdbcTemplate.queryForObject(
+        "SELECT count(*) FROM quiz.figures WHERE tenant_id = ?",
+        Int::class.java,
+        tenant.id,
+    )
+
+    @Test
+    @DisplayName("画像を上げる URL は、検査の前の置き場所を指し、種類と大きさを署名に含める")
+    fun issuesUploadUrl() {
+        val body = startUpload(size = 1234).andExpect {
+            status { isCreated() }
+            jsonPath("$.headers.Content-Type") { value("image/png") }
+        }.andReturn().response.contentAsString.let(objectMapper::readTree)
+
+        val url = URI.create(body["url"].asString())
+        assertThat(url.path).endsWith("/incoming/${tenant.id}/${body["id"].asString()}")
+        assertThat(url.rawQuery).contains("X-Amz-Signature=").contains("X-Amz-Expires=300")
+        // 申告と違う種類や大きさの本体は、S3 が署名の不一致で拒む
+        val signedHeaders = url.rawQuery.split("&").first { it.startsWith("X-Amz-SignedHeaders=") }
+        assertThat(signedHeaders).contains("content-length").contains("content-type")
+    }
+
+    @Test
+    @DisplayName("PNG と JPEG 以外や、10 MB を超えるものは、上げる URL を出さない")
+    fun rejectsUnsupportedUploads() {
+        startUpload(type = "image/gif").andExpect {
+            status { isBadRequest() }
+            jsonPath("$.detail") { value("PNG か JPEG の画像を選んでください") }
+        }
+        startUpload(size = 10L * 1024 * 1024 + 1).andExpect {
+            status { isBadRequest() }
+            jsonPath("$.detail") { value("画像は 10 MB までです") }
+        }
+        startUpload(size = 0).andExpect { status { isBadRequest() } }
+    }
+
+    @Test
+    @DisplayName("上げた画像は、読み直してから配る場所に置き、検査の前の置き場所からは消す")
+    fun completesUpload() {
+        val id = upload(TestImages.pngWithText())
+
+        complete(id).andExpect {
+            status { isCreated() }
+            jsonPath("$.id") { value(id.toString()) }
+        }
+
+        val stored = requireNotNull(bucket.find("img/${tenant.id}/$id"))
+        assertThat(stored.contentType).isEqualTo("image/png")
+        assertThat(stored.cacheControl).isEqualTo(BucketFigureStore.IMMUTABLE)
+        assertThat(String(stored.body, Charsets.ISO_8859_1)).doesNotContain(TestImages.LOCATION_MARKER)
+        assertThat(bucket.find("incoming/${tenant.id}/$id")).isNull()
+
+        mockMvc.get("/api/t/${tenant.slug}/admin/figures/$id") {
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { jsonPath("$.kind") { value("image") } }
+        val location = play(id).andExpect { status { isFound() } }.andReturn().response.getHeader("Location")
+        assertThat(URI.create(requireNotNull(location)).path).endsWith("/img/${tenant.id}/$id")
+    }
+
+    @Test
+    @DisplayName("画像に原本はない。描き直すための原本を求められても返さない")
+    fun imageHasNoSource() {
+        val id = upload(TestImages.png())
+        complete(id).andExpect { status { isCreated() } }
+
+        mockMvc.get("/api/t/${tenant.slug}/admin/figures/$id/source") {
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isNotFound() } }
+    }
+
+    @Test
+    @DisplayName("画像でないものは置かない。上げたものは消し、行も入れない")
+    fun rejectsNonImageUpload() {
+        val before = figureRows()
+        val id = upload("<html><script>alert(1)</script></html>".toByteArray())
+
+        complete(id).andExpect {
+            status { isBadRequest() }
+            jsonPath("$.detail") { value("PNG か JPEG の画像を選んでください") }
+        }
+
+        assertThat(bucket.find("incoming/${tenant.id}/$id")).isNull()
+        assertThat(bucket.find("img/${tenant.id}/$id")).isNull()
+        assertThat(figureRows()).isEqualTo(before)
+    }
+
+    @Test
+    @DisplayName("上げていない画像の完了は 404。2 回目の完了も同じ")
+    fun completesOnlyUploaded() {
+        complete(UUID.randomUUID()).andExpect {
+            status { isNotFound() }
+            jsonPath("$.detail") { value("上げた画像が見つかりません。もう一度上げてください") }
+        }
+
+        val id = upload(TestImages.png())
+        complete(id).andExpect { status { isCreated() } }
+        complete(id).andExpect { status { isNotFound() } }
+    }
+
+    @Test
+    @DisplayName("消した画像は、本体も残さない")
+    fun deletesImage() {
+        val id = upload(TestImages.jpeg())
+        complete(id).andExpect { status { isCreated() } }
+
+        mockMvc.delete("/api/t/${tenant.slug}/admin/figures/$id") {
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isNoContent() } }
+
+        assertThat(bucket.find("img/${tenant.id}/$id")).isNull()
+    }
+
+    @Test
+    @DisplayName("draw.io の図の種類は drawio。画像を上げられるのも管理者だけ")
+    fun reportsDrawioKindAndRequiresAdminToUpload() {
+        val id = createFigure()
+
+        mockMvc.get("/api/t/${tenant.slug}/admin/figures/$id") {
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.kind") { value("drawio") }
+        }
+        startUpload(user = TestAuth.MEMBER).andExpect { status { isForbidden() } }
     }
 
     @Test

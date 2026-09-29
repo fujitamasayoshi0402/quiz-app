@@ -17,7 +17,7 @@ import java.time.Duration
 import java.util.UUID
 
 /**
- * 解説図の SVG を取りに行く（ADR-0017）。画面は `<img src>` にこの URL を書く。
+ * 解説図（SVG、画像）を取りに行く（ADR-0017、ADR-0020）。画面は `<img src>` にこの URL を書く。
  *
  * 所属と図を確かめてから、期限の短い署名付き URL へ 302 で送る。**SVG をこのオリジンから返さない。**
  * SVG はスクリプトを含められるため、アプリと別のオリジン（CloudFront）から配る。
@@ -30,20 +30,20 @@ import java.util.UUID
 class PlayFigureController(private val useCase: FigureUseCase) {
 
     @GetMapping("/{id}")
-    @Operation(operationId = "getFigure", summary = "解説図（SVG）へ送る")
+    @Operation(operationId = "getFigure", summary = "解説図へ送る")
     @ApiResponse(
         responseCode = "302",
         description = "期限（5〜10 分）つきの署名付き URL へ送る",
         headers = [
             Header(
                 name = "Location",
-                description = "SVG の署名付き URL",
+                description = "図（SVG か画像）の署名付き URL",
                 schema = Schema(type = "string", format = "uri"),
             ),
         ],
     )
     fun get(@PathVariable id: UUID): ResponseEntity<Void> = ResponseEntity.status(HttpStatus.FOUND)
-        .location(useCase.svgUrl(id))
+        .location(useCase.url(id))
         // 利用者ごとの応答。Amplify の CDN に共有させない。URL の期限より十分に短くする
         .cacheControl(CacheControl.maxAge(REDIRECT_MAX_AGE).cachePrivate())
         .build()

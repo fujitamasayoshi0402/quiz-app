@@ -41,8 +41,10 @@ import {
   CreatedInvitationResponse,
   DeletionImpact,
   DifficultyResponse,
+  FigureDetailResponse,
   FigureResponse,
   FigureSourceResponse,
+  FigureUploadResponse,
   ImportQuizzesResponse,
   InvitationResponse,
   MyTenantResponse,
@@ -67,6 +69,7 @@ import type {
   SaveQuizRequest,
   SearchQuizzesParams,
   StartAttemptRequest,
+  StartFigureUploadRequest,
   UpdateCategoryRequest
 } from './model';
 
@@ -1653,6 +1656,175 @@ export const useCreateFigure = <TError = ProblemDetail,
       return useMutation(getCreateFigureMutationOptions(options), queryClient);
     }
 
+export const getStartFigureUploadUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/figures/uploads`
+}
+
+/**
+ * 図の ID と、ブラウザが本体を S3 へ直接 PUT する URL を返す（ADR-0020）。上げ終えたら、完了を伝える。完了するまで図にはならない
+ * @summary 画像（PNG・JPEG）を上げる準備をする
+ */
+export const startFigureUpload = async (slug: string,
+    startFigureUploadRequest: StartFigureUploadRequest, options?: Parameters<typeof apiFetch>[1]): Promise<FigureUploadResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<FigureUploadResponse>(getStartFigureUploadUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(startFigureUploadRequest),
+    schema: FigureUploadResponse
+  }
+);}
+
+
+
+
+
+export const getStartFigureUploadMutationKey = () => ['startFigureUpload'] as const;
+
+export const getStartFigureUploadMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startFigureUpload>>, TError,StartFigureUploadMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startFigureUpload>>, TError,StartFigureUploadMutationVariables, TContext> => {
+
+const mutationKey = getStartFigureUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startFigureUpload>>, StartFigureUploadMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  startFigureUpload(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartFigureUploadMutationResult = NonNullable<Awaited<ReturnType<typeof startFigureUpload>>>
+    export type StartFigureUploadMutationBody = StartFigureUploadRequest
+    export type StartFigureUploadMutationError = ProblemDetail
+    export type StartFigureUploadMutationVariables = {slug: string;data: StartFigureUploadRequest}
+
+    /**
+ * @summary 画像（PNG・JPEG）を上げる準備をする
+ */
+export const useStartFigureUpload = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startFigureUpload>>, TError,StartFigureUploadMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startFigureUpload>>,
+        TError,
+        StartFigureUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartFigureUploadMutationOptions(options), queryClient);
+    }
+
+export const getCompleteFigureUploadUrl = (slug: string,
+    id: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/figures/uploads/${id}/complete`
+}
+
+/**
+ * 中身が PNG か JPEG かを確かめ、画像として読み直して置く。位置情報などのメタデータは残らない。長い辺は 2,000 px までに縮める。上げたものは、検査に通らなくても消える
+ * @summary 上げた画像を検査して、解説図として置く
+ */
+export const completeFigureUpload = async (slug: string,
+    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<FigureResponse> => {
+
+  return apiFetch<FigureResponse>(getCompleteFigureUploadUrl(slug,id),
+  {
+    ...options,
+    method: 'POST'
+
+    ,
+    schema: FigureResponse
+  }
+);}
+
+
+
+
+
+export const getCompleteFigureUploadMutationKey = () => ['completeFigureUpload'] as const;
+
+export const getCompleteFigureUploadMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeFigureUpload>>, TError,CompleteFigureUploadMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeFigureUpload>>, TError,CompleteFigureUploadMutationVariables, TContext> => {
+
+const mutationKey = getCompleteFigureUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeFigureUpload>>, CompleteFigureUploadMutationVariables> = (props) => {
+          const {slug,id} = props ?? {};
+
+          return  completeFigureUpload(slug,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteFigureUploadMutationResult = NonNullable<Awaited<ReturnType<typeof completeFigureUpload>>>
+
+    export type CompleteFigureUploadMutationError = ProblemDetail
+    export type CompleteFigureUploadMutationVariables = {slug: string;id: string}
+
+    /**
+ * @summary 上げた画像を検査して、解説図として置く
+ */
+export const useCompleteFigureUpload = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeFigureUpload>>, TError,CompleteFigureUploadMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof completeFigureUpload>>,
+        TError,
+        CompleteFigureUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCompleteFigureUploadMutationOptions(options), queryClient);
+    }
+
 export const getDeleteFigureUrl = (slug: string,
     id: string,) => {
 
@@ -1729,6 +1901,116 @@ export const useDeleteFigure = <TError = ProblemDetail,
       > => {
       return useMutation(getDeleteFigureMutationOptions(options), queryClient);
     }
+
+export const getGetFigureDetailUrl = (slug: string,
+    id: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/figures/${id}`
+}
+
+/**
+ * @summary 解説図の種類を取得
+ */
+export const getFigureDetail = async (slug: string,
+    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<FigureDetailResponse> => {
+
+  return apiFetch<FigureDetailResponse>(getGetFigureDetailUrl(slug,id),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: FigureDetailResponse
+  }
+);}
+
+
+
+
+
+export const getGetFigureDetailQueryKey = (slug: string,
+    id: string,) => {
+    return [
+    `/api/t/${slug}/admin/figures/${id}`
+    ] as const;
+    }
+
+
+export const getGetFigureDetailQueryOptions = <TData = Awaited<ReturnType<typeof getFigureDetail>>, TError = ProblemDetail>(slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigureDetail>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFigureDetailQueryKey(slug,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFigureDetail>>> = ({ signal }) => getFigureDetail(slug,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFigureDetail>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFigureDetailQueryResult = NonNullable<Awaited<ReturnType<typeof getFigureDetail>>>
+export type GetFigureDetailQueryError = ProblemDetail
+
+
+export function useGetFigureDetail<TData = Awaited<ReturnType<typeof getFigureDetail>>, TError = ProblemDetail>(
+ slug: string,
+    id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigureDetail>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFigureDetail>>,
+          TError,
+          Awaited<ReturnType<typeof getFigureDetail>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFigureDetail<TData = Awaited<ReturnType<typeof getFigureDetail>>, TError = ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigureDetail>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFigureDetail>>,
+          TError,
+          Awaited<ReturnType<typeof getFigureDetail>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFigureDetail<TData = Awaited<ReturnType<typeof getFigureDetail>>, TError = ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigureDetail>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 解説図の種類を取得
+ */
+
+export function useGetFigureDetail<TData = Awaited<ReturnType<typeof getFigureDetail>>, TError = ProblemDetail>(
+ slug: string,
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFigureDetail>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFigureDetailQueryOptions(slug,id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetFigureSourceUrl = (slug: string,
     id: string,) => {
@@ -3672,7 +3954,7 @@ export const getGetFigureUrl = (slug: string,
 }
 
 /**
- * @summary 解説図（SVG）へ送る
+ * @summary 解説図へ送る
  */
 export const getFigure = async (slug: string,
     id: string, options?: Parameters<typeof apiFetch>[1]): Promise<unknown> => {
@@ -3749,7 +4031,7 @@ export function useGetFigure<TData = Awaited<ReturnType<typeof getFigure>>, TErr
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary 解説図（SVG）へ送る
+ * @summary 解説図へ送る
  */
 
 export function useGetFigure<TData = Awaited<ReturnType<typeof getFigure>>, TError = void | ProblemDetail>(

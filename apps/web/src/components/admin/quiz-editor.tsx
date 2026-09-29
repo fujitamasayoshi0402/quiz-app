@@ -19,7 +19,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { getFigureSource, useCreateQuiz, useDeleteQuiz, useGetQuiz, useUpdateQuiz } from "@/lib/api/generated/endpoints";
+import {
+  getFigureSource,
+  useCreateQuiz,
+  useDeleteQuiz,
+  useGetFigureDetail,
+  useGetQuiz,
+  useUpdateQuiz,
+} from "@/lib/api/generated/endpoints";
 import { useCatalog } from "@/lib/admin/catalog";
 import { useInvalidateTenant } from "@/lib/admin/invalidate";
 import {
@@ -31,6 +38,7 @@ import {
   toQuizForm,
   toSaveQuizRequest,
 } from "@/lib/admin/quiz-form";
+import { IMAGE_TYPES, uploadImage } from "@/lib/figure-upload";
 import { figureIdsIn, figureUrl, insertFigure, replaceFigure } from "@/lib/figures";
 
 /** 既存のクイズを読み込んでから編集フォームを出す */
@@ -79,6 +87,7 @@ function QuizEditor({
     form.setValue("explanation", value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted }),
   );
   const { ref: registerExplanation, ...explanationField } = form.register("explanation");
+  const imageInput = useRef<HTMLInputElement>(null);
 
   const create = useCreateQuiz({ mutation: { onSuccess: toList } });
   const update = useUpdateQuiz({ mutation: { onSuccess: toList } });
@@ -209,8 +218,8 @@ function QuizEditor({
           <Field data-invalid={!!errors.explanation}>
             <FieldLabel htmlFor="explanation">解説</FieldLabel>
             <FieldDescription>
-              Markdown で書けます（見出し、箇条書き、コード、リンク、表）。図は「図を描く」で描いて入れます。HTML
-              と、ほかの場所の画像は表示されません。
+              Markdown で書けます（見出し、箇条書き、コード、リンク、表）。図は「図を描く」で描くか、「画像を入れる」で
+              PNG・JPEG を上げて入れます。HTML と、ほかの場所の画像は表示されません。
             </FieldDescription>
             <Tabs value={explanationTab} onValueChange={setExplanationTab}>
               <div className="flex flex-wrap items-center gap-2">
@@ -218,9 +227,32 @@ function QuizEditor({
                   <TabsTrigger value="write">書く</TabsTrigger>
                   <TabsTrigger value="preview">プレビュー</TabsTrigger>
                 </TabsList>
-                <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={figures.drawNew}>
-                  図を描く
-                </Button>
+                <div className="ml-auto flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={figures.drawNew}>
+                    図を描く
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={figures.uploading}
+                    onClick={() => imageInput.current?.click()}
+                  >
+                    {figures.uploading ? "画像を上げています…" : "画像を入れる"}
+                  </Button>
+                  <input
+                    ref={imageInput}
+                    type="file"
+                    accept={IMAGE_TYPES.join(",")}
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      // 同じファイルをもう一度選んでも、選び直しとして扱う
+                      event.target.value = "";
+                      if (file) void figures.upload(file);
+                    }}
+                  />
+                </div>
               </div>
               {/* 入力欄は外さずに隠す。外すと、戻ったときにカーソルの位置や元に戻す履歴が消える */}
               <TabsContent value="write" forceMount className="space-y-3 data-[state=inactive]:hidden">
@@ -235,11 +267,11 @@ function QuizEditor({
                     figures.bindTextarea(element);
                   }}
                 />
+                {figures.error !== null && <ApiErrorAlert error={figures.error} />}
                 <ExplanationFigures
                   slug={slug}
                   ids={figureIdsIn(explanation)}
                   loading={figures.loading}
-                  error={figures.error}
                   onRedraw={figures.redraw}
                 />
               </TabsContent>
@@ -301,6 +333,7 @@ function useExplanationFigures(
   const cursor = useRef<number | null>(null);
   const [drawing, setDrawing] = useState<{ source?: string; replaces?: string } | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
   return {
@@ -310,6 +343,7 @@ function useExplanationFigures(
     },
     drawing,
     loading,
+    uploading,
     error,
     drawNew: () => {
       // ダイアログを開くと入力欄からフォーカスが外れる。入れる位置は、開く前に覚えておく
@@ -334,6 +368,20 @@ function useExplanationFigures(
       setExplanation(drawing?.replaces ? replaceFigure(current, drawing.replaces, id) : insertFigure(current, cursor.current, id));
     },
     close: () => setDrawing(null),
+    /** 画像を上げて、カーソルの位置に入れる。上げている間に入力を続けても、位置は選んだときのまま */
+    upload: async (file: File) => {
+      cursor.current = textarea.current?.selectionStart ?? null;
+      setError(null);
+      setUploading(true);
+      try {
+        const id = await uploadImage(slug, file);
+        setExplanation(insertFigure(getValues("explanation"), cursor.current, id, "画像"));
+      } catch (e) {
+        setError(e);
+      } finally {
+        setUploading(false);
+      }
+    },
   };
 }
 
@@ -342,37 +390,64 @@ function ExplanationFigures({
   slug,
   ids,
   loading,
-  error,
   onRedraw,
 }: {
   slug: string;
   ids: string[];
   loading: string | null;
-  error: unknown;
   onRedraw: (id: string) => void;
 }) {
-  if (ids.length === 0 && !error) return null;
+  if (ids.length === 0) return null;
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">解説の図</p>
       <ul className="flex flex-wrap gap-3">
         {ids.map((id, index) => (
-          <li key={id} className="w-32 space-y-1">
-            <FigureImage src={figureUrl(slug, id)} alt={`${index + 1} つ目の図`} className="h-24 w-full object-contain" />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full"
-              disabled={loading !== null}
-              onClick={() => onRedraw(id)}
-            >
-              {loading === id ? "読み込んでいます…" : "描き直す"}
-            </Button>
-          </li>
+          <ExplanationFigure
+            key={id}
+            slug={slug}
+            id={id}
+            label={`${index + 1} つ目の図`}
+            loading={loading}
+            onRedraw={onRedraw}
+          />
         ))}
       </ul>
-      {error !== null && <ApiErrorAlert error={error} />}
     </div>
+  );
+}
+
+/** 描き直せるのは draw.io の図だけ。画像には原本がない */
+function ExplanationFigure({
+  slug,
+  id,
+  label,
+  loading,
+  onRedraw,
+}: {
+  slug: string;
+  id: string;
+  label: string;
+  loading: string | null;
+  onRedraw: (id: string) => void;
+}) {
+  const detail = useGetFigureDetail(slug, id, { query: { staleTime: Infinity, retry: false } });
+  return (
+    <li className="w-32 space-y-1">
+      <FigureImage src={figureUrl(slug, id)} alt={label} className="h-24 w-full object-contain" />
+      {detail.data?.kind === "drawio" && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full"
+          disabled={loading !== null}
+          onClick={() => onRedraw(id)}
+        >
+          {loading === id ? "読み込んでいます…" : "描き直す"}
+        </Button>
+      )}
+      {detail.data?.kind === "image" && <p className="text-muted-foreground text-center text-xs">画像</p>}
+    </li>
   );
 }

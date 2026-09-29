@@ -17,3 +17,8 @@ variable "force_destroy" {
   description = "図が残っていてもバケットを消せるようにする。dev で環境ごと作り直すため"
   type        = bool
 }
+
+variable "upload_allowed_origins" {
+  description = "画像を上げる画面のオリジン（例: https://dev.example.com）。バケットの CORS で、ここからの PUT だけを許す"
+  type        = list(string)
+}

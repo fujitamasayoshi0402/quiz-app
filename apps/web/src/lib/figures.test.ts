@@ -23,6 +23,7 @@ describe("解説図の参照", () => {
     expect(insertFigure("前の文。\n後の文。", 5, A)).toBe(`前の文。\n![図](figure:${A})\n後の文。`);
     expect(insertFigure("本文", null, A)).toBe(`本文\n![図](figure:${A})`);
     expect(insertFigure("", 0, A)).toBe(`![図](figure:${A})`);
+    expect(insertFigure("", 0, A, "画像")).toBe(`![画像](figure:${A})`);
   });
 
   it("描き直した図に、本文の参照をすべて差し替える", () => {

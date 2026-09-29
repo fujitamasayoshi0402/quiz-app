@@ -1,4 +1,4 @@
-# 解説図（draw.io の原本と、書き出した SVG）を置き、利用者に配る（ADR-0017）。
+# 解説図（draw.io の原本と書き出した SVG、画像）を置き、利用者に配る（ADR-0017、ADR-0020）。
 #
 #   S3（非公開）── OAC ──→ CloudFront（署名付き URL だけを通す）──→ ブラウザ
 #
@@ -9,6 +9,10 @@
 # | ------------------------------------- | ------------------------------------------ |
 # | svg/{テナントの ID}/{図の ID}.svg        | quiz-service（読み書き）、CloudFront（読む） |
 # | drawio/{テナントの ID}/{図の ID}.drawio  | quiz-service だけ                           |
+# | img/{テナントの ID}/{図の ID}            | quiz-service（読み書き）、CloudFront（読む） |
+# | incoming/{テナントの ID}/{図の ID}       | ブラウザ（署名付き URL で上げる）、quiz-service（検査する） |
+#
+# incoming/ は検査の前の置き場所。CloudFront には読ませず、残ったものは 1 日で消える
 #
 # 図は一度置いたら変えない。描き直した図は新しい ID で置くため、キャッシュを無効にする操作が要らない
 
@@ -48,11 +52,15 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
 }
 
 data "aws_iam_policy_document" "bucket" {
-  # CloudFront に読ませるのは SVG だけ。原本は API を通して管理者にだけ返す
+  # CloudFront に読ませるのは、配るもの（SVG と、読み直した画像）だけ。
+  # 原本は API を通して管理者にだけ返し、検査の前の画像（incoming/）は誰にも配らない
   statement {
-    sid       = "CloudFrontReadsSvg"
-    actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.this.arn}/svg/*"]
+    sid     = "CloudFrontReadsFigures"
+    actions = ["s3:GetObject"]
+    resources = [
+      "${aws_s3_bucket.this.arn}/svg/*",
+      "${aws_s3_bucket.this.arn}/img/*",
+    ]
 
     principals {
       type        = "Service"
@@ -92,4 +100,35 @@ resource "aws_s3_bucket_policy" "this" {
 
   # ブロックパブリックアクセスが効いてからポリシーを付ける。順序が逆だと、公開のポリシーを一瞬でも許す余地がある
   depends_on = [aws_s3_bucket_public_access_block.this]
+}
+
+# ブラウザが画像を直接上げる（ADR-0020）。上げる URL は quiz-service が署名して出し、種類と大きさを署名に含める。
+# CORS は、アプリの画面からの PUT だけを許す。読むのは CloudFront を通すので、GET は許さない
+resource "aws_s3_bucket_cors_configuration" "this" {
+  bucket = aws_s3_bucket.this.id
+
+  cors_rule {
+    allowed_methods = ["PUT"]
+    allowed_origins = var.upload_allowed_origins
+    allowed_headers = ["content-type"]
+    max_age_seconds = 3000
+  }
+}
+
+# 検査されずに残った画像（上げたまま完了しなかったもの）を消す
+resource "aws_s3_bucket_lifecycle_configuration" "this" {
+  bucket = aws_s3_bucket.this.id
+
+  rule {
+    id     = "expire-incoming"
+    status = "Enabled"
+
+    filter {
+      prefix = "incoming/"
+    }
+
+    expiration {
+      days = 1
+    }
+  }
 }

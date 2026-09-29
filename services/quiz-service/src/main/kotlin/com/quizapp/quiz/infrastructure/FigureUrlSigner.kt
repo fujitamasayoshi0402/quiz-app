@@ -4,6 +4,7 @@ import software.amazon.awssdk.services.cloudfront.CloudFrontUtilities
 import software.amazon.awssdk.services.cloudfront.model.CannedSignerRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest
 import java.net.URI
 import java.security.KeyFactory
 import java.security.PrivateKey
@@ -89,5 +90,27 @@ class S3PresignedFigureUrlSigner(
             .getObjectRequest { it.bucket(bucket).key(key) }
             .build()
         return presigner.presignGetObject(request).url().toURI()
+    }
+}
+
+/**
+ * ブラウザが画像を S3 へ直接上げる、署名付き PUT の URL を作る（ADR-0020）。上げる先は検査の前の置き場所で、誰にも配らない。
+ *
+ * AWS SDK for Java v2 は、大きさの範囲を条件にできる署名付き POST を作れない。
+ * 代わりに、種類（Content-Type）と大きさ（Content-Length）を署名に含める。申告と違う本体は、S3 が署名の不一致で拒む。
+ * 大きさは、完了を受けたときにも確かめる。
+ */
+class UploadUrlSigner(private val presigner: S3Presigner, private val bucket: String) {
+
+    fun sign(key: String, contentType: String, size: Long): URI {
+        val request = PutObjectPresignRequest.builder()
+            .signatureDuration(EXPIRES_IN)
+            .putObjectRequest { it.bucket(bucket).key(key).contentType(contentType).contentLength(size) }
+            .build()
+        return presigner.presignPutObject(request).url().toURI()
+    }
+
+    companion object {
+        val EXPIRES_IN: Duration = Duration.ofMinutes(5)
     }
 }
