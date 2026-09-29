@@ -25,8 +25,7 @@ export const updateDifficultyBodyNameMax = 50;
 export const UpdateDifficultyBody = zod.object({
   "description": zod.string().min(updateDifficultyBodyDescriptionMin).max(updateDifficultyBodyDescriptionMax).nullish(),
   "level": zod.int().min(1),
-  "name": zod.string().min(updateDifficultyBodyNameMin).max(updateDifficultyBodyNameMax),
-  "sortOrder": zod.int().optional()
+  "name": zod.string().min(updateDifficultyBodyNameMin).max(updateDifficultyBodyNameMax)
 })
 
 export type UpdateDifficultyBody = zod.input<typeof UpdateDifficultyBody>;

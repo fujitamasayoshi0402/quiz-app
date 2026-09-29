@@ -20,3 +20,6 @@ data class Category(val id: UUID? = null, val name: String, val description: Str
         const val MAX_NAME_LENGTH = 100
     }
 }
+
+/** 管理画面の一覧に出すカテゴリ。クイズの数（下書きを含む）と、そのうち公開の数を添える。削除済みは数えない */
+data class CategorySummary(val category: Category, val quizCount: Int, val publishedQuizCount: Int)

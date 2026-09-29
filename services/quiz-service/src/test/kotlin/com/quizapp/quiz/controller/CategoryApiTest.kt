@@ -1,8 +1,10 @@
 package com.quizapp.quiz.controller
 
 import com.quizapp.quiz.support.TestPostgres
+import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
 import com.quizapp.support.TestTenant
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -14,6 +16,7 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockHttpServletRequestDsl
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
@@ -51,8 +54,8 @@ class CategoryApiTest {
         tenantB = TestTenant.create("ブラボー").withAdmin()
     }
 
-    private fun createCategory(slug: String, name: String, sortOrder: Int = 0): UUID {
-        val body = objectMapper.writeValueAsString(mapOf("name" to name, "sortOrder" to sortOrder))
+    private fun createCategory(slug: String, name: String): UUID {
+        val body = objectMapper.writeValueAsString(mapOf("name" to name))
         val result = mockMvc.post("/api/t/$slug/admin/categories") {
             auth()
             contentType = MediaType.APPLICATION_JSON
@@ -75,16 +78,80 @@ class CategoryApiTest {
         }
     }
 
+    private fun reorder(slug: String, ids: List<UUID>): ResultActionsDsl =
+        mockMvc.put("/api/t/$slug/admin/categories/order") {
+            auth()
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(mapOf("ids" to ids))
+        }
+
+    private fun listedNames(slug: String): List<String> =
+        mockMvc.get("/api/t/$slug/admin/categories") { auth() }.andReturn().response.contentAsString
+            .let { objectMapper.readValue(it, Array<CategorySummaryResponse>::class.java) }.map { it.name }
+
     @Test
-    @DisplayName("一覧は並び順で返る")
-    fun listIsOrdered() {
-        createCategory(tenantA.slug, "あとに出る", sortOrder = 2)
-        createCategory(tenantA.slug, "さきに出る", sortOrder = 1)
+    @DisplayName("作ったカテゴリは末尾に並ぶ")
+    fun newCategoryGoesLast() {
+        createCategory(tenantA.slug, "1 つ目")
+        createCategory(tenantA.slug, "2 つ目")
+        createCategory(tenantA.slug, "3 つ目")
+
+        assertThat(listedNames(tenantA.slug)).containsExactly("1 つ目", "2 つ目", "3 つ目")
+    }
+
+    @Test
+    @DisplayName("並べ替えた順で返る。名前を直しても並びは変わらない")
+    fun reordersCategories() {
+        val first = createCategory(tenantA.slug, "1 つ目")
+        val second = createCategory(tenantA.slug, "2 つ目")
+        val third = createCategory(tenantA.slug, "3 つ目")
+
+        reorder(tenantA.slug, listOf(third, first, second)).andExpect { status { isNoContent() } }
+        mockMvc.put("/api/t/${tenantA.slug}/admin/categories/$first") {
+            auth()
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"1 つ目（直した）"}"""
+        }.andExpect { status { isOk() } }
+
+        assertThat(listedNames(tenantA.slug)).containsExactly("3 つ目", "1 つ目（直した）", "2 つ目")
+    }
+
+    @Test
+    @DisplayName("並べ替えは、今あるカテゴリをちょうど 1 回ずつ含まなければ 409。並びは変えない")
+    fun rejectsOutdatedOrder() {
+        val first = createCategory(tenantA.slug, "1 つ目")
+        val second = createCategory(tenantA.slug, "2 つ目")
+
+        listOf(listOf(second), listOf(second, first, UUID.randomUUID()), listOf(second, second)).forEach { ids ->
+            reorder(tenantA.slug, ids).andExpect {
+                status { isConflict() }
+                jsonPath("$.detail") { value("並べ替えている間に項目が変わりました。最新の一覧を取り直してから、並べ替えてください") }
+            }
+        }
+        assertThat(listedNames(tenantA.slug)).containsExactly("1 つ目", "2 つ目")
+    }
+
+    @Test
+    @DisplayName("一覧には、クイズの数と公開の数が付く。削除したクイズは数えない")
+    fun listsQuizCounts() {
+        val fixture = PlayFixture(mockMvc, objectMapper, tenantA.slug)
+        val category = fixture.category("クイズのあるカテゴリ")
+        val difficulty = fixture.difficulty(category, "初級", 1)
+        fixture.quiz(category, difficulty, "公開 1")
+        fixture.quiz(category, difficulty, "公開 2")
+        fixture.quiz(category, difficulty, "下書き", status = "draft")
+        val deleted = fixture.quiz(category, difficulty, "消した")
+        mockMvc.delete("/api/t/${tenantA.slug}/admin/quizzes/$deleted") {
+            auth()
+        }.andExpect { status { isNoContent() } }
+        createCategory(tenantA.slug, "空のカテゴリ")
 
         mockMvc.get("/api/t/${tenantA.slug}/admin/categories") { auth() }.andExpect {
             status { isOk() }
-            jsonPath("$[0].name") { value("さきに出る") }
-            jsonPath("$[1].name") { value("あとに出る") }
+            jsonPath("$[0].quizCount") { value(3) }
+            jsonPath("$[0].publishedQuizCount") { value(2) }
+            jsonPath("$[1].quizCount") { value(0) }
+            jsonPath("$[1].publishedQuizCount") { value(0) }
         }
     }
 
@@ -117,7 +184,7 @@ class CategoryApiTest {
         mockMvc.put("/api/t/${tenantA.slug}/admin/categories/$idOfB") {
             auth()
             contentType = MediaType.APPLICATION_JSON
-            content = """{"name":"乗っ取り","sortOrder":0}"""
+            content = """{"name":"乗っ取り"}"""
         }.andExpect { status { isNotFound() } }
     }
 
@@ -155,7 +222,7 @@ class CategoryApiTest {
         mockMvc.post("/api/t/${tenantA.slug}/admin/categories") {
             auth()
             contentType = MediaType.APPLICATION_JSON
-            content = """{"name":"","sortOrder":0}"""
+            content = """{"name":""}"""
         }.andExpect {
             status { isBadRequest() }
             jsonPath("$.errors.name") { exists() }

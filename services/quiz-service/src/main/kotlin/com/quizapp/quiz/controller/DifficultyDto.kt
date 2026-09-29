@@ -12,7 +12,6 @@ data class SaveDifficultyRequest(
     val name: String,
     @field:Min(value = 1, message = "レベルは {value} 以上で入力してください")
     val level: Int,
-    val sortOrder: Int = 0,
     @field:Size(max = 500, message = "説明は {max} 文字以内で入力してください")
     val description: String? = null,
 )

@@ -64,7 +64,7 @@ class CatalogUseCaseTest {
         fun rejectsDifficultyOfAnotherCategory() {
             assertThatThrownBy { difficultyUseCase.get(auth, saa) }
                 .isInstanceOf(DifficultyNotFoundException::class.java)
-            assertThatThrownBy { difficultyUseCase.update(auth, saa, "書き換え", 1, 0, null) }
+            assertThatThrownBy { difficultyUseCase.update(auth, saa, "書き換え", 1, null) }
                 .isInstanceOf(DifficultyNotFoundException::class.java)
             assertThatThrownBy { difficultyUseCase.delete(auth, saa) }
                 .isInstanceOf(DifficultyNotFoundException::class.java)
@@ -83,7 +83,7 @@ class CatalogUseCaseTest {
         @Test
         @DisplayName("カテゴリ配下に作る")
         fun createsUnderCategory() {
-            val created = difficultyUseCase.create(aws, "DVA", 2, 1, null)
+            val created = difficultyUseCase.create(aws, "DVA", 2, null)
 
             assertThat(difficultyUseCase.list(aws).map { it.id }).contains(created.id)
             assertThat(created.categoryId).isEqualTo(aws)

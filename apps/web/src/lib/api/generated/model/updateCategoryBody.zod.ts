@@ -23,8 +23,7 @@ export const updateCategoryBodyNameMax = 100;
 
 export const UpdateCategoryBody = zod.object({
   "description": zod.string().min(updateCategoryBodyDescriptionMin).max(updateCategoryBodyDescriptionMax).nullish(),
-  "name": zod.string().min(updateCategoryBodyNameMin).max(updateCategoryBodyNameMax),
-  "sortOrder": zod.int().optional()
+  "name": zod.string().min(updateCategoryBodyNameMin).max(updateCategoryBodyNameMax)
 })
 
 export type UpdateCategoryBody = zod.input<typeof UpdateCategoryBody>;

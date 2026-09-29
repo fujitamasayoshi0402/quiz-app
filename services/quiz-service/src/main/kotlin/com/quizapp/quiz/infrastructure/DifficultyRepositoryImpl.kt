@@ -14,6 +14,10 @@ class DifficultyRepositoryImpl(private val jdbcRepository: DifficultyJdbcReposit
 
     override fun findById(id: UUID): Difficulty? = jdbcRepository.findActiveById(id)?.toDomain()
 
+    override fun reorder(ids: List<UUID>) {
+        ids.forEachIndexed { index, id -> jdbcRepository.updateSortOrder(id, index) }
+    }
+
     override fun save(difficulty: Difficulty): Difficulty {
         val tenantId = TenantContext.require()
         val entity = if (difficulty.id == null) {

@@ -3,6 +3,7 @@ package com.quizapp.quiz.controller
 import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.TestAuth
 import com.quizapp.support.TestTenant
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -14,9 +15,11 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockHttpServletRequestDsl
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
+import org.springframework.test.web.servlet.put
 import tools.jackson.databind.ObjectMapper
 import java.util.UUID
 
@@ -52,17 +55,17 @@ class DifficultyApiTest {
         val result = mockMvc.post("/api/t/$slug/admin/categories") {
             auth()
             contentType = MediaType.APPLICATION_JSON
-            content = """{"name":"$name","sortOrder":0}"""
+            content = """{"name":"$name"}"""
         }.andExpect { status { isCreated() } }.andReturn()
 
         return objectMapper.readValue(result.response.contentAsString, CategoryResponse::class.java).id
     }
 
-    private fun createDifficulty(slug: String, categoryId: UUID, name: String, level: Int, sortOrder: Int = 0): UUID {
+    private fun createDifficulty(slug: String, categoryId: UUID, name: String, level: Int): UUID {
         val result = mockMvc.post("/api/t/$slug/admin/categories/$categoryId/difficulties") {
             auth()
             contentType = MediaType.APPLICATION_JSON
-            content = """{"name":"$name","level":$level,"sortOrder":$sortOrder}"""
+            content = """{"name":"$name","level":$level}"""
         }.andExpect { status { isCreated() } }.andReturn()
 
         return objectMapper.readValue(result.response.contentAsString, DifficultyResponse::class.java).id
@@ -86,9 +89,9 @@ class DifficultyApiTest {
     @DisplayName("同じレベルの難易度を複数登録できる")
     fun multipleDifficultiesCanShareLevel() {
         val categoryId = createCategory(tenantA.slug, "AWS")
-        createDifficulty(tenantA.slug, categoryId, "SAA", 2, sortOrder = 1)
-        createDifficulty(tenantA.slug, categoryId, "DVA", 2, sortOrder = 2)
-        createDifficulty(tenantA.slug, categoryId, "SOA", 2, sortOrder = 3)
+        createDifficulty(tenantA.slug, categoryId, "SAA", 2)
+        createDifficulty(tenantA.slug, categoryId, "DVA", 2)
+        createDifficulty(tenantA.slug, categoryId, "SOA", 2)
 
         mockMvc.get("/api/t/${tenantA.slug}/admin/categories/$categoryId/difficulties") { auth() }.andExpect {
             status { isOk() }
@@ -106,7 +109,7 @@ class DifficultyApiTest {
         val categoryId = createCategory(tenantA.slug, "AWS")
         createDifficulty(tenantA.slug, categoryId, "SAP", 3)
         createDifficulty(tenantA.slug, categoryId, "CLF", 1)
-        createDifficulty(tenantA.slug, categoryId, "SAA", 2, sortOrder = 1)
+        createDifficulty(tenantA.slug, categoryId, "SAA", 2)
 
         mockMvc.get("/api/t/${tenantA.slug}/admin/categories/$categoryId/difficulties") { auth() }.andExpect {
             status { isOk() }
@@ -199,6 +202,72 @@ class DifficultyApiTest {
     }
 
     /** テナント配下のエンドポイントは所属していないと触れない。既定は共有管理者。 */
+    private fun reorder(slug: String, categoryId: UUID, ids: List<UUID>): ResultActionsDsl =
+        mockMvc.put("/api/t/$slug/admin/categories/$categoryId/difficulties/order") {
+            auth()
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(mapOf("ids" to ids))
+        }
+
+    private fun listedNames(slug: String, categoryId: UUID): List<String> =
+        mockMvc.get("/api/t/$slug/admin/categories/$categoryId/difficulties") { auth() }.andReturn()
+            .response.contentAsString.let { objectMapper.readValue(it, Array<DifficultyResponse>::class.java) }
+            .map { it.name }
+
+    @Test
+    @DisplayName("同じレベルの中は、並べ替えた順で返る。レベルの順は変わらない")
+    fun reordersWithinLevel() {
+        val categoryId = createCategory(tenantA.slug, "AWS")
+        val clf = createDifficulty(tenantA.slug, categoryId, "CLF", 1)
+        val saa = createDifficulty(tenantA.slug, categoryId, "SAA", 2)
+        val dva = createDifficulty(tenantA.slug, categoryId, "DVA", 2)
+        val soa = createDifficulty(tenantA.slug, categoryId, "SOA", 2)
+
+        reorder(tenantA.slug, categoryId, listOf(soa, clf, saa, dva)).andExpect { status { isNoContent() } }
+
+        assertThat(listedNames(tenantA.slug, categoryId)).containsExactly("CLF", "SOA", "SAA", "DVA")
+    }
+
+    @Test
+    @DisplayName("レベルを変えた難易度は、新しいレベルの末尾に並ぶ。名前だけを直しても並びは変わらない")
+    fun levelChangeGoesLast() {
+        val categoryId = createCategory(tenantA.slug, "AWS")
+        val clf = createDifficulty(tenantA.slug, categoryId, "CLF", 1)
+        val saa = createDifficulty(tenantA.slug, categoryId, "SAA", 2)
+        val dva = createDifficulty(tenantA.slug, categoryId, "DVA", 2)
+        reorder(tenantA.slug, categoryId, listOf(saa, clf, dva)).andExpect { status { isNoContent() } }
+
+        update(categoryId, clf, "CLF", 2)
+        update(categoryId, saa, "SAA（直した）", 2)
+
+        assertThat(listedNames(tenantA.slug, categoryId)).containsExactly("SAA（直した）", "DVA", "CLF")
+    }
+
+    @Test
+    @DisplayName("並べ替えは、そのカテゴリの今ある難易度をちょうど 1 回ずつ含まなければ 409。別のカテゴリの難易度も含められない")
+    fun rejectsOutdatedOrder() {
+        val categoryId = createCategory(tenantA.slug, "AWS")
+        val clf = createDifficulty(tenantA.slug, categoryId, "CLF", 1)
+        val saa = createDifficulty(tenantA.slug, categoryId, "SAA", 2)
+        val other = createDifficulty(tenantA.slug, createCategory(tenantA.slug, "別"), "初級", 1)
+
+        listOf(listOf(saa), listOf(saa, clf, other), listOf(saa, other)).forEach { ids ->
+            reorder(tenantA.slug, categoryId, ids).andExpect {
+                status { isConflict() }
+                jsonPath("$.detail") { value("並べ替えている間に項目が変わりました。最新の一覧を取り直してから、並べ替えてください") }
+            }
+        }
+        assertThat(listedNames(tenantA.slug, categoryId)).containsExactly("CLF", "SAA")
+    }
+
+    private fun update(categoryId: UUID, id: UUID, name: String, level: Int) {
+        mockMvc.put("/api/t/${tenantA.slug}/admin/categories/$categoryId/difficulties/$id") {
+            auth()
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"$name","level":$level}"""
+        }.andExpect { status { isOk() } }
+    }
+
     private fun MockHttpServletRequestDsl.auth(user: UUID = TestAuth.ADMIN) {
         header("Authorization", TestAuth.bearer(user))
     }

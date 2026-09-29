@@ -38,6 +38,7 @@ import {
   AttemptView,
   CategoryResponse,
   CategoryScore,
+  CategorySummaryResponse,
   CreatedInvitationResponse,
   DeletionImpact,
   DifficultyResponse,
@@ -65,6 +66,7 @@ import type {
   ListCompletedAttemptsParams,
   ParticipateRequest,
   ProblemDetail,
+  ReorderRequest,
   SaveDifficultyRequest,
   SaveQuizRequest,
   SearchQuizzesParams,
@@ -383,17 +385,18 @@ export const getListCategoriesUrl = (slug: string,) => {
 }
 
 /**
+ * 並び順に返す。クイズの数を添える
  * @summary カテゴリ一覧
  */
-export const listCategories = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<CategoryResponse[]> => {
+export const listCategories = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<CategorySummaryResponse[]> => {
 
-  return apiFetch<CategoryResponse[]>(getListCategoriesUrl(slug),
+  return apiFetch<CategorySummaryResponse[]>(getListCategoriesUrl(slug),
   {
     ...options,
     method: 'GET'
 
     ,
-    schema: zod.array(CategoryResponse)
+    schema: zod.array(CategorySummaryResponse)
   }
 );}
 
@@ -485,6 +488,7 @@ export const getCreateCategoryUrl = (slug: string,) => {
 }
 
 /**
+ * 末尾に置く
  * @summary カテゴリを作成
  */
 export const createCategory = async (slug: string,
@@ -564,6 +568,96 @@ export const useCreateCategory = <TError = ProblemDetail,
         TContext
       > => {
       return useMutation(getCreateCategoryMutationOptions(options), queryClient);
+    }
+
+export const getReorderCategoriesUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/categories/order`
+}
+
+/**
+ * 今あるカテゴリの ID を、並べたい順にすべて送る。画面を開いている間に増えた・消えたカテゴリがあって過不足が出ると 409 を返し、何も変えない
+ * @summary カテゴリを並べ替える
+ */
+export const reorderCategories = async (slug: string,
+    reorderRequest: ReorderRequest, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<void>(getReorderCategoriesUrl(slug),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reorderRequest)
+  }
+);}
+
+
+
+
+
+export const getReorderCategoriesMutationKey = () => ['reorderCategories'] as const;
+
+export const getReorderCategoriesMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderCategories>>, TError,ReorderCategoriesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderCategories>>, TError,ReorderCategoriesMutationVariables, TContext> => {
+
+const mutationKey = getReorderCategoriesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderCategories>>, ReorderCategoriesMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  reorderCategories(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderCategoriesMutationResult = NonNullable<Awaited<ReturnType<typeof reorderCategories>>>
+    export type ReorderCategoriesMutationBody = ReorderRequest
+    export type ReorderCategoriesMutationError = ProblemDetail
+    export type ReorderCategoriesMutationVariables = {slug: string;data: ReorderRequest}
+
+    /**
+ * @summary カテゴリを並べ替える
+ */
+export const useReorderCategories = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderCategories>>, TError,ReorderCategoriesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reorderCategories>>,
+        TError,
+        ReorderCategoriesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReorderCategoriesMutationOptions(options), queryClient);
     }
 
 export const getListDifficultiesUrl = (slug: string,
@@ -686,6 +780,7 @@ export const getCreateDifficultyUrl = (slug: string,
 }
 
 /**
+ * 同じレベルの末尾に置く
  * @summary 難易度を作成
  */
 export const createDifficulty = async (slug: string,
@@ -766,6 +861,98 @@ export const useCreateDifficulty = <TError = ProblemDetail,
         TContext
       > => {
       return useMutation(getCreateDifficultyMutationOptions(options), queryClient);
+    }
+
+export const getReorderDifficultiesUrl = (slug: string,
+    categoryId: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/categories/${categoryId}/difficulties/order`
+}
+
+/**
+ * カテゴリの今ある難易度の ID を、並べたい順にすべて送る。表示はレベル順が先で、意味を持つのは同じレベルの中の順だけ。過不足があると 409 を返し、何も変えない
+ * @summary 難易度を並べ替える
+ */
+export const reorderDifficulties = async (slug: string,
+    categoryId: string,
+    reorderRequest: ReorderRequest, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<void>(getReorderDifficultiesUrl(slug,categoryId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reorderRequest)
+  }
+);}
+
+
+
+
+
+export const getReorderDifficultiesMutationKey = () => ['reorderDifficulties'] as const;
+
+export const getReorderDifficultiesMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderDifficulties>>, TError,ReorderDifficultiesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderDifficulties>>, TError,ReorderDifficultiesMutationVariables, TContext> => {
+
+const mutationKey = getReorderDifficultiesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderDifficulties>>, ReorderDifficultiesMutationVariables> = (props) => {
+          const {slug,categoryId,data} = props ?? {};
+
+          return  reorderDifficulties(slug,categoryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderDifficultiesMutationResult = NonNullable<Awaited<ReturnType<typeof reorderDifficulties>>>
+    export type ReorderDifficultiesMutationBody = ReorderRequest
+    export type ReorderDifficultiesMutationError = ProblemDetail
+    export type ReorderDifficultiesMutationVariables = {slug: string;categoryId: string;data: ReorderRequest}
+
+    /**
+ * @summary 難易度を並べ替える
+ */
+export const useReorderDifficulties = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderDifficulties>>, TError,ReorderDifficultiesMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reorderDifficulties>>,
+        TError,
+        ReorderDifficultiesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReorderDifficultiesMutationOptions(options), queryClient);
     }
 
 export const getDeleteDifficultyUrl = (slug: string,
@@ -975,6 +1162,7 @@ export const getUpdateDifficultyUrl = (slug: string,
 }
 
 /**
+ * 並び順は変えない。レベルを変えたときは、新しいレベルの末尾に置く
  * @summary 難易度を更新
  */
 export const updateDifficulty = async (slug: string,
@@ -1372,6 +1560,7 @@ export const getUpdateCategoryUrl = (slug: string,
 }
 
 /**
+ * 並び順は変えない
  * @summary カテゴリを更新
  */
 export const updateCategory = async (slug: string,

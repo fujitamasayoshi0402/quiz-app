@@ -16,7 +16,6 @@ const name = (schema: z.ZodString, label: string) => schema.trim().min(1, `${lab
 export const CategoryFormSchema = UpdateCategoryRequest.extend({
   name: name(UpdateCategoryRequest.shape.name, "カテゴリ名"),
   description: z.string(),
-  sortOrder: z.coerce.number().int(),
 });
 export type CategoryFormInput = z.input<typeof CategoryFormSchema>;
 export type CategoryFormValues = z.output<typeof CategoryFormSchema>;
@@ -25,7 +24,6 @@ export const DifficultyFormSchema = SaveDifficultyRequest.extend({
   name: name(SaveDifficultyRequest.shape.name, "難易度名"),
   level: z.coerce.number().pipe(SaveDifficultyRequest.shape.level),
   description: z.string(),
-  sortOrder: z.coerce.number().int(),
 });
 export type DifficultyFormInput = z.input<typeof DifficultyFormSchema>;
 export type DifficultyFormValues = z.output<typeof DifficultyFormSchema>;

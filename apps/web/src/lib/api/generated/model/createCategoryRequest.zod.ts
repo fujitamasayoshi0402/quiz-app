@@ -23,8 +23,7 @@ export const createCategoryRequestNameMax = 100;
 
 export const CreateCategoryRequest = zod.object({
   "description": zod.string().min(createCategoryRequestDescriptionMin).max(createCategoryRequestDescriptionMax).nullish(),
-  "name": zod.string().min(createCategoryRequestNameMin).max(createCategoryRequestNameMax),
-  "sortOrder": zod.int().optional()
+  "name": zod.string().min(createCategoryRequestNameMin).max(createCategoryRequestNameMax)
 })
 
 export type CreateCategoryRequest = zod.input<typeof CreateCategoryRequest>;

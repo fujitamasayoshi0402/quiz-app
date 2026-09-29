@@ -5,6 +5,7 @@ import com.quizapp.quiz.domain.DeletionImpact
 import com.quizapp.quiz.domain.DeletionRepository
 import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.DifficultyRepository
+import com.quizapp.quiz.domain.Ordering
 import com.quizapp.tenant.TenantTransaction
 import org.springframework.stereotype.Service
 import java.util.UUID
@@ -33,7 +34,8 @@ class DifficultyUseCase(
         findInCategory(categoryId, id)
     }
 
-    fun create(categoryId: UUID, name: String, level: Int, sortOrder: Int, description: String?): Difficulty =
+    /** 作った難易度は、同じレベルの末尾に置く（[Ordering]） */
+    fun create(categoryId: UUID, name: String, level: Int, description: String?): Difficulty =
         tenantTransaction.execute {
             requireCategory(categoryId)
             difficultyRepository.save(
@@ -41,32 +43,31 @@ class DifficultyUseCase(
                     categoryId = categoryId,
                     name = name,
                     level = level,
-                    sortOrder = sortOrder,
+                    sortOrder = nextSortOrder(categoryId),
                     description = description,
                 ),
             )
         }
 
-    fun update(
-        categoryId: UUID,
-        id: UUID,
-        name: String,
-        level: Int,
-        sortOrder: Int,
-        description: String?,
-    ): Difficulty = tenantTransaction.execute {
+    /** 並び順は変えない。レベルを変えたときだけ、新しいレベルの末尾に置く。元の位置は、別のレベルの中では意味を持たない */
+    fun update(categoryId: UUID, id: UUID, name: String, level: Int, description: String?): Difficulty =
+        tenantTransaction.execute {
+            requireCategory(categoryId)
+            val current = findInCategory(categoryId, id)
+            val sortOrder = if (current.level == level) current.sortOrder else nextSortOrder(categoryId)
+            difficultyRepository.save(
+                current.copy(name = name, level = level, sortOrder = sortOrder, description = description),
+            )
+        }
+
+    /**
+     * カテゴリの今ある難易度の ID を、並べたい順にすべて受け取る。1 つでも過不足があれば受け付けない。
+     * 表示はレベル順が先なので、意味を持つのは同じレベルの中の順だけ
+     */
+    fun reorder(categoryId: UUID, ids: List<UUID>) = tenantTransaction.executeWithoutResult {
         requireCategory(categoryId)
-        findInCategory(categoryId, id)
-        difficultyRepository.save(
-            Difficulty(
-                id = id,
-                categoryId = categoryId,
-                name = name,
-                level = level,
-                sortOrder = sortOrder,
-                description = description,
-            ),
-        )
+        Ordering.requireSameItems(ids, difficultyRepository.findByCategoryId(categoryId).mapNotNull { it.id })
+        difficultyRepository.reorder(ids)
     }
 
     /** 削除したときに巻き込むクイズの数。 */
@@ -81,6 +82,9 @@ class DifficultyUseCase(
         findInCategory(categoryId, id)
         deletion.deleteDifficulty(id)
     }
+
+    private fun nextSortOrder(categoryId: UUID): Int =
+        Ordering.next(difficultyRepository.findByCategoryId(categoryId).map { it.sortOrder })
 
     private fun requireCategory(categoryId: UUID) {
         categoryRepository.findById(categoryId) ?: throw CategoryNotFoundException(categoryId)
