@@ -620,6 +620,10 @@ Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SEC
 管理者はメールアドレス（`smoke@example.com`）だけで登録してあり、同じアドレスの Cognito の利用者（Terraform が作る）が最初にログインしたときに結び付く。
 カテゴリやクイズはテストが作って消すため、シードでは入れない。
 
+**見に来た人が試すための、共有のデモのアカウント**（`demo@example.com`）も入る（DEV-104）。デモのテナントの一般ユーザーで、クイズは変えられない。
+スモークテストの管理者と同じく、メールアドレスだけで登録してあり、同じアドレスの Cognito の利用者（Terraform が作る）が最初にログインしたときに結び付く。
+共有のアカウントなので、回答の履歴とランキングへの参加は、見た人同士で共有される。
+
 同じ内容を何度流しても増えない。repeatable マイグレーションは**内容を変えるたびに再実行される**ため、
 識別子を固定して `ON CONFLICT DO NOTHING` で入れている。
 
@@ -678,6 +682,7 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 | デモ管理者 | `67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab` | `demo`（管理者）、`geo-club`（一般ユーザー） |
 | デモ利用者 | `957d085e-3b87-5fa7-9283-5eb6229216b1` | `demo`（一般ユーザー） |
 | デモ未所属 | `7918a5c2-30ee-56c8-b76c-57c6a79774e3` | なし |
+| デモのアカウント | `0b66aaf5-727d-5da9-bf87-6756dff5b046` | `demo`（一般ユーザー）。Cognito の `demo@example.com` が最初にログインしたときに結び付く |
 
 #### 招待
 
@@ -805,6 +810,8 @@ Route 53 に登録済みのドメインを使う。**ドメイン名はリポジ
 - web のクライアントのスコープは `openid email aws.cognito.signin.user.admin`。最後のものは、バックエンドが確認済みのメールアドレスを取る（`GetUser`）ために要る。
   このスコープのトークンは自分の属性を書き換えられるが、トークンはブラウザに渡らない
 - スモークテストの利用者（`smoke@example.com`）も Terraform が作る。パスワードは `terraform output -raw smoke_user_password`
+- 見に来た人が試すための、共有のデモのアカウント（`demo@example.com`）も同じ。**パスワードは公開する前提**で、`terraform output -raw demo_user_password`。
+  `example.com` は誰も受け取れないので、パスワードを忘れた人の手続き（確認コード）で乗っ取られることはない
 - E2E テストの利用者（`e2e-*@example.com` の 4 人）も同じ。パスワードは全員で共通で、`terraform output -raw e2e_user_password`（[E2E テスト](#e2e-テスト)）
 
 Managed Login の画面は、web をつながなくても開ける。ログインのあとは `redirect_uri` に戻る（開いていなければエラーの画面になるが、ログインはできている）。

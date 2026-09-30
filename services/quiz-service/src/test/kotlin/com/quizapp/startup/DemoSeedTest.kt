@@ -149,16 +149,40 @@ class DemoSeedTest {
     fun demoMembersExist() {
         applySeed()
 
+        // デモのアカウントは external_id を持たないため、メールアドレスで見分ける
         val roles = TestPostgres.adminJdbcTemplate.query(
             """
-            SELECT u.external_id, m.role FROM core.tenant_members m
+            SELECT coalesce(u.external_id, u.email) AS who, m.role FROM core.tenant_members m
             JOIN core.users u ON u.id = m.user_id
             JOIN core.tenants t ON t.id = m.tenant_id
-            WHERE t.slug = '$DEMO_SLUG' ORDER BY u.external_id
+            WHERE t.slug = '$DEMO_SLUG'
             """,
-        ) { rs, _ -> rs.getString("external_id") to rs.getString("role") }
+        ) { rs, _ -> rs.getString("who") to rs.getString("role") }
 
-        assertThat(roles).containsExactly("demo-admin" to "admin", "demo-member" to "member")
+        assertThat(roles).containsExactlyInAnyOrder(
+            "demo-admin" to "admin",
+            "demo-member" to "member",
+            "demo@example.com" to "member",
+        )
+    }
+
+    @Test
+    @DisplayName("デモのアカウントは、メールアドレスだけで登録し、デモのテナントにだけ一般ユーザーとして所属する")
+    fun demoAccountIsLinkableMemberOfDemoOnly() {
+        applySeed()
+
+        // external_id がないので、同じアドレスの Cognito の利用者が最初にログインしたときに結び付く（DEV-104）。
+        // 所属が 1 つなので、ログインするとデモのテナントへそのまま移る。一般ユーザーなので、クイズは変えられない
+        val memberships = TestPostgres.adminJdbcTemplate.query(
+            """
+            SELECT u.external_id, t.slug, m.role FROM core.users u
+            JOIN core.tenant_members m ON m.user_id = u.id AND m.deleted_at IS NULL
+            JOIN core.tenants t ON t.id = m.tenant_id
+            WHERE lower(u.email) = 'demo@example.com'
+            """,
+        ) { rs, _ -> Triple(rs.getString("external_id"), rs.getString("slug"), rs.getString("role")) }
+
+        assertThat(memberships).containsExactly(Triple(null, DEMO_SLUG, "member"))
     }
 
     @Test
