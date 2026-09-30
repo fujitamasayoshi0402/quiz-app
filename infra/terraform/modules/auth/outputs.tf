@@ -29,6 +29,15 @@ output "smoke_user_password" {
   sensitive = true
 }
 
+output "demo_user_email" {
+  value = var.demo_user_email
+}
+
+output "demo_user_password" {
+  value     = one(random_password.demo[*].result)
+  sensitive = true
+}
+
 output "e2e_user_password" {
   value     = one(random_password.e2e[*].result)
   sensitive = true

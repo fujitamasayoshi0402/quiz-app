@@ -165,6 +165,34 @@ resource "aws_cognito_user" "smoke" {
   message_action = "SUPPRESS"
 }
 
+# ---- デモのアカウント ----
+# 見に来た人が、サインアップせずに出題と回答を試すための共有のアカウント（DEV-104）。**パスワードは公開する前提。**
+# アプリの側は、同じメールアドレスで事前に登録した利用者（シードの R__demo_data.sql）に、最初のログインで結び付く。
+# デモのテナントの一般ユーザーなので、クイズやカテゴリは変えられず、ファイルも上げられない。
+# example.com は誰も受け取れないアドレスなので、パスワードを忘れた人の手続きで乗っ取られることもない
+
+resource "random_password" "demo" {
+  count = var.demo_user_email == null ? 0 : 1
+
+  length  = 16
+  special = false
+}
+
+resource "aws_cognito_user" "demo" {
+  count = var.demo_user_email == null ? 0 : 1
+
+  user_pool_id = aws_cognito_user_pool.this.id
+  username     = var.demo_user_email
+  password     = random_password.demo[0].result
+
+  attributes = {
+    email          = var.demo_user_email
+    email_verified = "true"
+  }
+
+  message_action = "SUPPRESS"
+}
+
 # ---- E2E テストの利用者 ----
 # E2E テスト（tests/e2e）が、Managed Login の画面からこの利用者でログインする。
 # 所属とロールは、テストがローカルの DB に作る。dev の DB には所属がないので、dev でログインしてもどのテナントにも入れない。

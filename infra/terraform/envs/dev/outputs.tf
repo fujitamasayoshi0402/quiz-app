@@ -73,6 +73,16 @@ output "smoke_user_password" {
   sensitive = true
 }
 
+output "demo_user_email" {
+  value = module.auth.demo_user_email
+}
+
+# デモのアカウントのパスワード。見に来た人に公開する（README）
+output "demo_user_password" {
+  value     = module.auth.demo_user_password
+  sensitive = true
+}
+
 # E2E テストの利用者の共通のパスワード（GitHub のリポジトリの secret E2E_USER_PASSWORD にも入れる）
 output "e2e_user_password" {
   value     = module.auth.e2e_user_password
