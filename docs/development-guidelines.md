@@ -43,7 +43,7 @@
 - 解説図は draw.io（`.drawio` ファイル）で作成し、SVG に書き出して配信
 
 ### 共通 / 運用
-- クイズの追加・更新時に Slack 通知
+- クイズの追加・更新時に、テナントの管理者が設定した Slack へ通知（[ADR-0022](adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)）
 - まずは Web アプリ、将来的にスマホアプリ展開
 
 ## 3. 技術スタック

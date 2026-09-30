@@ -90,5 +90,8 @@ quiz / answer / notification を最初から独立したデプロイ単位にす
     `answer.domain.QuizCatalog` を answer が持ち、実装は `quiz.infrastructure`
 - **採点は answer 側に置いた。** quiz からは「どれが正解か」という事実（`AnswerKey`）だけを渡す。
   quiz に `grade()` を持たせると、ADR で answer の責務とした採点が quiz 側に寄る
-- インメモリのイベントバスから EventBridge への差し替えが、実装の変更をどの程度で済ませられるか
+- ~~インメモリのイベントバスから EventBridge への差し替えが、実装の変更をどの程度で済ませられるか~~ → インメモリのバスは作らなかった。
+  モジュール間の呼び出しは、上のとおりインターフェースで足りた。イベントは、サービスの外（通知）へ出すものとして Phase 5 で初めて作る。
+  送り方は、Outbox に書いてコミットの直後に EventBridge へ送る形にした（[ADR-0022](0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)）。
+  モジュール間の呼び出しもイベントにするかは、DEV-100 で決める
 - 回答・採点モジュールが、クイズ本体と独立してスケールさせるべき負荷特性を持つか（Phase 6 の負荷試験で計測）

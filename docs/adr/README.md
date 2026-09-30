@@ -27,6 +27,7 @@
 | [0019](0019-expose-api-through-api-gateway-http-api.md) | API の入口を ALB から API Gateway（HTTP API）に替え、秘密のヘッダをやめる | Accepted |
 | [0020](0020-reference-figures-from-explanations-and-add-images-and-pdfs.md) | 解説図に画像と PDF を加え、解説の本文から `figure:` の ID で指す | Accepted（PDF の見せ方は [0021](0021-render-first-page-of-pdfs-as-images.md) で置き換え） |
 | [0021](0021-render-first-page-of-pdfs-as-images.md) | PDF の 1 ページ目を置くときに画像にし、解説の中に出す | Accepted |
+| [0022](0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md) | クイズの変更を Outbox から EventBridge に送り、テナントごとの Slack へ Lambda が知らせる | Accepted |
 
 ## 運用ルール
 
