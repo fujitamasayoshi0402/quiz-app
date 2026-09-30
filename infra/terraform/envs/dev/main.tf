@@ -62,6 +62,9 @@ module "quiz_service" {
     private_key_parameter_arn = module.figures.private_key_parameter_arn
   }
 
+  # notification-service（DEV-98）も、同じ頭の下を読む
+  slack_webhook_parameter_prefix = "/quiz-app/dev"
+
   db_endpoint      = module.database.cluster_endpoint
   db_port          = module.database.port
   db_name          = module.database.database_name

@@ -125,6 +125,22 @@ resource "aws_iam_role_policy" "app_figures" {
   })
 }
 
+# テナントの Slack の Webhook の URL（ADR-0022）。**書き込みと削除だけで、読めない。**
+# 読めると、アプリを通して URL を取り出す道ができる。読むのは notification-service だけ（DEV-98）。
+# 暗号化は AWS 管理のキー（aws/ssm）。キーのポリシーが SSM を通した利用を許すため、kms の権限は要らない
+resource "aws_iam_role_policy" "app_slack_webhooks" {
+  name = "write-slack-webhooks"
+  role = aws_iam_role.app.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ssm:PutParameter", "ssm:DeleteParameter"]
+      Resource = "arn:aws:ssm:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:parameter${var.slack_webhook_parameter_prefix}/tenants/*/slack-webhook-url"
+    }]
+  })
+}
+
 # ---- migrate ----
 
 resource "aws_iam_role" "migrate" {

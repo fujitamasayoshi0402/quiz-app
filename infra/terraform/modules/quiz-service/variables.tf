@@ -89,6 +89,21 @@ variable "figures" {
   })
 }
 
+# ---- 通知（ADR-0022） ----
+
+variable "slack_webhook_parameter_prefix" {
+  description = <<-EOT
+    テナントの Slack の Webhook の URL を置く、SSM のパラメータの名前の頭（例: /quiz-app/dev）。
+    この下の tenants/{テナントの ID}/slack-webhook-url に置く。アプリは書き込みと削除だけができ、読めない
+  EOT
+  type        = string
+
+  validation {
+    condition     = can(regex("^/[A-Za-z0-9/_.-]+[^/]$", var.slack_webhook_parameter_prefix))
+    error_message = "/ で始まり、/ で終わらない名前にしてください"
+  }
+}
+
 # ---- タスク ----
 
 variable "image_tag" {

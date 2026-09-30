@@ -75,6 +75,7 @@
 /t/{slug}/admin/quizzes/{id}           クイズ編集
 /t/{slug}/admin/trash                  削除済み一覧（復活）
 /t/{slug}/admin/invitations            招待
+/t/{slug}/admin/notifications          通知の設定（Phase 5）
 /t/{slug}/ranking                      ランキング（Phase 4）
 ```
 
