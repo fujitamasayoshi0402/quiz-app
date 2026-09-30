@@ -84,7 +84,7 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <div className="text-muted-foreground flex justify-between text-sm">
+        <div className="flex justify-between text-sm text-muted-foreground">
           <span>
             {position} / {total} 問
           </span>
@@ -96,9 +96,7 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
       {attempt.excludedCount > 0 && (
         <Alert>
           <Info />
-          <AlertDescription>
-            出題後に削除・非公開になった {attempt.excludedCount} 問を除いています。
-          </AlertDescription>
+          <AlertDescription>出題後に削除・非公開になった {attempt.excludedCount} 問を除いています。</AlertDescription>
         </Alert>
       )}
 

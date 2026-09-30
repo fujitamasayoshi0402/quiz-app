@@ -29,9 +29,9 @@ export function TenantNav({ slug }: { slug: string }) {
     <div className="flex min-w-0 items-center gap-4">
       {tenants.data && tenants.data.length > 1 ? (
         <DropdownMenu>
-          <DropdownMenuTrigger className="hover:bg-accent -mx-2 flex min-w-0 items-center gap-1 rounded-md px-2 py-1 font-semibold">
+          <DropdownMenuTrigger className="-mx-2 flex min-w-0 items-center gap-1 rounded-md px-2 py-1 font-semibold hover:bg-accent">
             <span className="truncate">{name}</span>
-            <ChevronsUpDown className="text-muted-foreground size-4 shrink-0" />
+            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-56">
             <DropdownMenuLabel>テナントを切り替える</DropdownMenuLabel>
@@ -40,7 +40,7 @@ export function TenantNav({ slug }: { slug: string }) {
               <DropdownMenuItem key={tenant.slug} asChild>
                 <Link href={`/t/${tenant.slug}`}>
                   <span className="flex-1">{tenant.name}</span>
-                  <span className="text-muted-foreground text-xs">{roleLabel(tenant.role)}</span>
+                  <span className="text-xs text-muted-foreground">{roleLabel(tenant.role)}</span>
                   <Check className={tenant.slug === slug ? "size-4" : "invisible size-4"} />
                 </Link>
               </DropdownMenuItem>
@@ -54,19 +54,19 @@ export function TenantNav({ slug }: { slug: string }) {
       )}
       {/* py-2 はタップできる範囲を広げるため。ヘッダの高さに収まるので見た目は変わらない */}
       <nav className="flex shrink-0 gap-3 text-sm">
-        <Link href={`/t/${slug}/play`} className="text-muted-foreground hover:text-foreground py-2">
+        <Link href={`/t/${slug}/play`} className="py-2 text-muted-foreground hover:text-foreground">
           解く
         </Link>
-        <Link href={`/t/${slug}/history`} className="text-muted-foreground hover:text-foreground py-2">
+        <Link href={`/t/${slug}/history`} className="py-2 text-muted-foreground hover:text-foreground">
           履歴
         </Link>
         {/* 320px の幅でテナント名が押し出されないよう、狭い幅では短く出す */}
-        <Link href={`/t/${slug}/ranking`} className="text-muted-foreground hover:text-foreground py-2">
+        <Link href={`/t/${slug}/ranking`} className="py-2 text-muted-foreground hover:text-foreground">
           <span className="sm:hidden">順位</span>
           <span className="hidden sm:inline">ランキング</span>
         </Link>
         {current?.role === "admin" && (
-          <Link href={`/t/${slug}/admin`} className="text-muted-foreground hover:text-foreground py-2">
+          <Link href={`/t/${slug}/admin`} className="py-2 text-muted-foreground hover:text-foreground">
             管理
           </Link>
         )}

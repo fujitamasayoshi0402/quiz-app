@@ -1,9 +1,5 @@
 import { z } from "zod";
-import {
-  CreateCategoryRequest,
-  SaveDifficultyRequest,
-  UpdateCategoryRequest,
-} from "@/lib/api/generated/model";
+import { CreateCategoryRequest, SaveDifficultyRequest, UpdateCategoryRequest } from "@/lib/api/generated/model";
 
 /**
  * カテゴリと難易度のフォーム。生成したスキーマに「空白だけの名前を拒む」を足す。

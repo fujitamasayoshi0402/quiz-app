@@ -20,7 +20,11 @@ describe("apiFetch のエラー", () => {
   });
 
   it("バックエンドの ProblemDetail を読む", async () => {
-    respond(401, "application/problem+json", { title: "認証が必要です", detail: "利用者を特定できません", status: 401 });
+    respond(401, "application/problem+json", {
+      title: "認証が必要です",
+      detail: "利用者を特定できません",
+      status: 401,
+    });
 
     const error = await failure();
     expect(error.status).toBe(401);

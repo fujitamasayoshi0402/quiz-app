@@ -34,7 +34,7 @@ export function AttemptHistory({ slug }: { slug: string }) {
   const items = history.data.pages.flatMap((page) => page.items);
   if (items.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
+      <p className="text-sm text-muted-foreground">
         まだ最後まで解いたクイズがありません。
         <Link href={`/t/${slug}/play`} className="text-foreground underline underline-offset-4">
           解いてみる
@@ -75,22 +75,22 @@ function AttemptRow({ slug, item }: { slug: string; item: AttemptHistoryItem }) 
     <li>
       <Link
         href={`/t/${slug}/play/result?attempt=${item.id}&mode=exam`}
-        className="hover:bg-accent flex items-center gap-3 p-4"
+        className="flex items-center gap-3 p-4 hover:bg-accent"
       >
         <div className="min-w-0 flex-1 space-y-1">
           <p className="font-medium break-words">{attemptTitle(item)}</p>
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             {dateFormat.format(new Date(item.finishedAt))}・{scopeLabel(item.scope)}
             {answeredCount < totalCount && `・未回答 ${totalCount - answeredCount} 問`}
           </p>
         </div>
         <div className="shrink-0 text-right">
           <p className="font-semibold tabular-nums">{rate}%</p>
-          <p className="text-muted-foreground text-xs tabular-nums">
+          <p className="text-xs text-muted-foreground tabular-nums">
             {correctCount} / {totalCount}
           </p>
         </div>
-        <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
       </Link>
     </li>
   );
@@ -101,8 +101,7 @@ function AttemptRow({ slug, item }: { slug: string; item: AttemptHistoryItem }) 
  * 名前は挑戦に記録していないので、消えたものの名前は出せない。
  */
 function attemptTitle(item: AttemptHistoryItem): string {
-  const category =
-    item.categoryId == null ? "すべてのカテゴリ" : (item.categoryName ?? "出題されていないカテゴリ");
+  const category = item.categoryId == null ? "すべてのカテゴリ" : (item.categoryName ?? "出題されていないカテゴリ");
   const range =
     item.difficultyId != null
       ? (item.difficultyName ?? "出題されていない難易度")

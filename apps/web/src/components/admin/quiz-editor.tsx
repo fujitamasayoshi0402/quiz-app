@@ -206,7 +206,11 @@ function QuizEditor({
                     return (
                       <Field key={index} data-invalid={!!error}>
                         <div className="flex items-center gap-3">
-                          <RadioGroupItem value={String(index)} id={`correct-${index}`} aria-label={`選択肢 ${index + 1} を正解にする`} />
+                          <RadioGroupItem
+                            value={String(index)}
+                            id={`correct-${index}`}
+                            aria-label={`選択肢 ${index + 1} を正解にする`}
+                          />
                           <Input
                             placeholder={`選択肢 ${index + 1}`}
                             aria-invalid={!!error}
@@ -288,7 +292,7 @@ function QuizEditor({
                 {explanation.trim() ? (
                   <Markdown tenant={slug}>{explanation}</Markdown>
                 ) : (
-                  <p className="text-muted-foreground text-sm">解説がまだありません。</p>
+                  <p className="text-sm text-muted-foreground">解説がまだありません。</p>
                 )}
               </TabsContent>
             </Tabs>
@@ -374,7 +378,9 @@ function useExplanationFigures(
     },
     saved: (id: string) => {
       const current = getValues("explanation");
-      setExplanation(drawing?.replaces ? replaceFigure(current, drawing.replaces, id) : insertFigure(current, cursor.current, id));
+      setExplanation(
+        drawing?.replaces ? replaceFigure(current, drawing.replaces, id) : insertFigure(current, cursor.current, id),
+      );
     },
     close: () => setDrawing(null),
     /**
@@ -461,7 +467,7 @@ function ExplanationFigure({
           href={figureUrl(slug, id)}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary block text-center text-xs underline underline-offset-4"
+          className="block text-center text-xs text-primary underline underline-offset-4"
         >
           PDF を開く
         </a>
@@ -478,7 +484,7 @@ function ExplanationFigure({
           {loading === id ? "読み込んでいます…" : "描き直す"}
         </Button>
       )}
-      {detail.data?.kind === "image" && <p className="text-muted-foreground text-center text-xs">画像</p>}
+      {detail.data?.kind === "image" && <p className="text-center text-xs text-muted-foreground">画像</p>}
     </li>
   );
 }

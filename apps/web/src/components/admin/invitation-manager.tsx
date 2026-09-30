@@ -165,13 +165,13 @@ function OpenInvitations({ slug }: { slug: string }) {
   if (invitations.isPending) return <Skeleton className="h-40 w-full" />;
   if (invitations.isError) return <ApiErrorAlert error={invitations.error} />;
   if (invitations.data.length === 0) {
-    return <p className="text-muted-foreground text-sm">受け入れを待っている招待はありません。</p>;
+    return <p className="text-sm text-muted-foreground">受け入れを待っている招待はありません。</p>;
   }
 
   return (
     <div className="space-y-2">
       {revoke.isError && <ApiErrorAlert error={revoke.error} />}
-      <div className="bg-background rounded-lg border">
+      <div className="rounded-lg border bg-background">
         <Table>
           <TableHeader>
             <TableRow>
@@ -194,12 +194,12 @@ function OpenInvitations({ slug }: { slug: string }) {
                   <TableCell className="max-w-0 sm:max-w-none">
                     <p className="truncate font-medium">{invitation.email}</p>
                     {/* 狭い幅ではロールと期限の列を畳み、アドレスの下に出す */}
-                    <p className="text-muted-foreground text-xs sm:hidden">
+                    <p className="text-xs text-muted-foreground sm:hidden">
                       {roleLabel(invitation.role)}・{expiry}
                     </p>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">{roleLabel(invitation.role)}</TableCell>
-                  <TableCell className="text-muted-foreground hidden text-sm sm:table-cell">{expiry}</TableCell>
+                  <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">{expiry}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="outline"

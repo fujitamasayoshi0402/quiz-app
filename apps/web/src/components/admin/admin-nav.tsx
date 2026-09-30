@@ -24,7 +24,7 @@ export function AdminNav({ slug }: { slug: string }) {
             href={href}
             className={cn(
               "-mb-px border-b-2 px-3 py-2 text-sm",
-              active ? "border-primary font-medium" : "text-muted-foreground hover:text-foreground border-transparent",
+              active ? "border-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             {item.label}

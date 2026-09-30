@@ -10,11 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/fetcher";
-import {
-  getListMyTenantsQueryKey,
-  useAcceptInvitation,
-  useGetReceivedInvitation,
-} from "@/lib/api/generated/endpoints";
+import { getListMyTenantsQueryKey, useAcceptInvitation, useGetReceivedInvitation } from "@/lib/api/generated/endpoints";
 import { roleLabel } from "@/lib/auth/roles";
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" });
@@ -43,7 +39,7 @@ export function InvitationAcceptance({ token, email }: { token: string; email?: 
   if (invitation.isPending) return <Skeleton className="h-48 w-full" />;
 
   const signedInAs = (
-    <CardFooter className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-sm">
+    <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
       <span className="truncate">{email} でログインしています</span>
       <SignOutButton />
     </CardFooter>

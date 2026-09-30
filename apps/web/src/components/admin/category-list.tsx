@@ -57,11 +57,11 @@ export function CategoryList({ slug }: { slug: string }) {
       ) : categories.isError ? (
         <ApiErrorAlert error={categories.error} />
       ) : categories.data.length === 0 ? (
-        <p className="text-muted-foreground text-sm">カテゴリがありません。まず 1 つ作ってください。</p>
+        <p className="text-sm text-muted-foreground">カテゴリがありません。まず 1 つ作ってください。</p>
       ) : (
         <div className="space-y-2">
           {reorder.isError && <ApiErrorAlert error={reorder.error} />}
-          <div className="bg-background rounded-lg border">
+          <div className="rounded-lg border bg-background">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -83,9 +83,9 @@ export function CategoryList({ slug }: { slug: string }) {
                       >
                         {category.name}
                       </Link>
-                      <p className="text-muted-foreground truncate text-xs">{category.description}</p>
+                      <p className="truncate text-xs text-muted-foreground">{category.description}</p>
                       {/* 狭い幅では、クイズの数の列も畳んで名前の下に出す */}
-                      <p className="text-muted-foreground text-xs sm:hidden">クイズ {quizCountLabel(category)}</p>
+                      <p className="text-xs text-muted-foreground sm:hidden">クイズ {quizCountLabel(category)}</p>
                     </TableCell>
                     <TableCell className="hidden text-right whitespace-nowrap sm:table-cell">
                       {quizCountLabel(category)}

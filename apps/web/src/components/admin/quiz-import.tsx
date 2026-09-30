@@ -77,7 +77,7 @@ export function QuizImport({ slug }: { slug: string }) {
             aria-label="取り込むファイル"
             onChange={(event) => void selectFile(event.target.files?.[0])}
           />
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             CSV か JSON のファイルを選んでください。1 回に {MAX_IMPORT_ROWS} 件まで取り込めます。
             カテゴリと難易度は名前で指定し、先に作っておく必要があります。
           </p>
@@ -143,7 +143,7 @@ export function QuizImport({ slug }: { slug: string }) {
               {importQuizzes.isPending ? "取り込んでいます…" : `${parsed.rows.length} 件を取り込む`}
             </Button>
           </div>
-          <div className="bg-background rounded-lg border">
+          <div className="rounded-lg border bg-background">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -156,10 +156,10 @@ export function QuizImport({ slug }: { slug: string }) {
               <TableBody>
                 {parsed.rows.map((row, index) => (
                   <TableRow key={parsed.labels[index]}>
-                    <TableCell className="text-muted-foreground text-xs">{parsed.labels[index]}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{parsed.labels[index]}</TableCell>
                     <TableCell className="max-w-0">
                       <p className="line-clamp-2 whitespace-normal">{row.question}</p>
-                      <p className="text-muted-foreground mt-0.5 truncate text-xs sm:hidden">
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground sm:hidden">
                         {row.category}・{row.difficulty}
                       </p>
                     </TableCell>
@@ -183,19 +183,24 @@ function FormatHelp() {
   return (
     <details className="text-sm">
       <summary className="cursor-pointer">ファイルの形式</summary>
-      <div className="text-muted-foreground mt-2 space-y-2">
+      <div className="mt-2 space-y-2 text-muted-foreground">
         <p>
-          <strong>CSV</strong>: 1 行目に列名を並べます（{CSV_COLUMNS.join(", ")}）。正解は correct に選択肢の番号（1〜4）で書きます。
-          status は draft（下書き）か published（公開）で、空なら下書きです。解説に改行やカンマを含めるときは、値を &quot; で囲みます。
-          Excel で作るときは「CSV UTF-8」で保存してください。
+          <strong>CSV</strong>: 1 行目に列名を並べます（{CSV_COLUMNS.join(", ")}）。正解は correct
+          に選択肢の番号（1〜4）で書きます。 status は draft（下書き）か
+          published（公開）で、空なら下書きです。解説に改行やカンマを含めるときは、値を &quot; で囲みます。 Excel
+          で作るときは「CSV UTF-8」で保存してください。
         </p>
         <p>
-          <strong>JSON</strong>: クイズの配列です。各クイズに category, difficulty, question, choices（body と isCorrect の配列）,
-          explanation, status を書きます。
+          <strong>JSON</strong>: クイズの配列です。各クイズに category, difficulty, question, choices（body と isCorrect
+          の配列）, explanation, status を書きます。
         </p>
         <p>解説は、クイズの編集と同じく Markdown で書けます。</p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => download("quiz-import-sample.csv", SAMPLE_CSV, "text/csv")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => download("quiz-import-sample.csv", SAMPLE_CSV, "text/csv")}
+          >
             CSV のサンプル
           </Button>
           <Button

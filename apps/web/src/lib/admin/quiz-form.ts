@@ -28,7 +28,12 @@ export const QuizFormSchema = z
     difficultyId: z.string().min(1, "難易度を選んでください").pipe(SaveQuizRequestSchema.shape.difficultyId),
     question: SaveQuizRequestSchema.shape.question.trim().min(1, "問題文を入力してください"),
     choices: z.array(z.string().max(saveQuizRequestChoicesItemBodyMax)).length(CHOICE_COUNT),
-    correctIndex: z.number().int().min(0).max(CHOICE_COUNT - 1).nullable(),
+    correctIndex: z
+      .number()
+      .int()
+      .min(0)
+      .max(CHOICE_COUNT - 1)
+      .nullable(),
     explanation: z.string(),
     status: z.enum(["draft", "published"]),
   })

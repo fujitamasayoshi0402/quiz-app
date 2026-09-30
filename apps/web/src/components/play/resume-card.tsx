@@ -31,9 +31,7 @@ export function ResumeCard({ slug }: { slug: string }) {
       </CardHeader>
       <CardContent className="flex gap-2">
         <Button
-          onClick={() =>
-            router.push(`/t/${slug}/play/session?attempt=${attempt.id}&mode=${recallMode(attempt.id)}`)
-          }
+          onClick={() => router.push(`/t/${slug}/play/session?attempt=${attempt.id}&mode=${recallMode(attempt.id)}`)}
         >
           再開する
         </Button>

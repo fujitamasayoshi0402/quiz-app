@@ -20,7 +20,7 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
     <main className="mx-auto flex min-h-svh max-w-md flex-col justify-center gap-6 px-4 py-8">
       <div className="space-y-1 text-center">
         <h1 className="text-2xl font-semibold">Quiz</h1>
-        <p className="text-muted-foreground text-sm">パスキーまたはパスワードでログインします</p>
+        <p className="text-sm text-muted-foreground">パスキーまたはパスワードでログインします</p>
       </div>
       {failed && (
         <Alert variant="destructive">
@@ -36,7 +36,7 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
             ログインの画面（Amazon Cognito）へ移ります。はじめての方は、そこでアカウントを作れます。
             作ったあとにパスキーを登録すると、次からはパスワードなしで入れます。
             {invited && (
-              <strong className="text-foreground mt-2 block">
+              <strong className="mt-2 block text-foreground">
                 招待されたメールアドレスで、ログインまたはアカウントの作成をしてください。
               </strong>
             )}

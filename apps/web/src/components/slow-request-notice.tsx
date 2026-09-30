@@ -26,8 +26,8 @@ export function SlowRequestNotice() {
       className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
       {state !== "none" && (
-        <div className="bg-background flex max-w-sm items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-lg">
-          <LoaderCircle className="text-muted-foreground mt-0.5 size-4 shrink-0 animate-spin" aria-hidden />
+        <div className="flex max-w-sm items-start gap-3 rounded-lg border bg-background px-4 py-3 text-sm shadow-lg">
+          <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
           <div className="grid gap-0.5">
             <p className="font-medium">
               {state === "retrying" ? "応答がなかったため、もう一度試しています" : "サーバーの応答を待っています"}

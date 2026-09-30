@@ -13,11 +13,11 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/t
 
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="bg-background border-b">
+      <header className="border-b bg-background">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between gap-4 px-4">
           <TenantNav slug={slug} />
           <div className="flex shrink-0 items-center gap-3 text-sm">
-            <span className="text-muted-foreground hidden truncate sm:inline">{user.email}</span>
+            <span className="hidden truncate text-muted-foreground sm:inline">{user.email}</span>
             <SignOutButton />
           </div>
         </div>

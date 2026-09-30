@@ -32,12 +32,12 @@ export function OptionGroup({
           <Label
             key={option.value}
             htmlFor={id}
-            className="has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5 bg-background flex cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal"
+            className="flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5"
           >
             <RadioGroupItem value={option.value} id={id} className="mt-0.5" />
             <span className="grid gap-0.5">
               <span className="font-medium">{option.label}</span>
-              {option.hint && <span className="text-muted-foreground text-xs">{option.hint}</span>}
+              {option.hint && <span className="text-xs text-muted-foreground">{option.hint}</span>}
             </span>
           </Label>
         );

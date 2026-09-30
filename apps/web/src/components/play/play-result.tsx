@@ -50,7 +50,7 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
           <CardDescription>正答率</CardDescription>
           <CardTitle className="text-4xl">{rate}%</CardTitle>
         </CardHeader>
-        <CardContent className="text-muted-foreground space-y-1 text-sm">
+        <CardContent className="space-y-1 text-sm text-muted-foreground">
           <p>
             {totalCount} 問中 {correctCount} 問正解
           </p>
@@ -61,7 +61,7 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
       <section className="space-y-3">
         <h2 className="font-semibold">{mode === "exam" ? "答え合わせ" : "間違えた問題"}</h2>
         {reviewed.length === 0 ? (
-          <p className="text-muted-foreground text-sm">全問正解です。</p>
+          <p className="text-sm text-muted-foreground">全問正解です。</p>
         ) : (
           reviewed.map(({ quiz, number }) => <Review key={quiz.quizId} slug={slug} quiz={quiz} number={number} />)
         )}
@@ -79,7 +79,7 @@ function Review({ slug, quiz, number }: { slug: string; quiz: QuizResult; number
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">Q{number}</span>
+          <span className="text-sm text-muted-foreground">Q{number}</span>
           {quiz.selectedChoiceId == null ? (
             <Badge variant="secondary">未回答</Badge>
           ) : quiz.isCorrect ? (
