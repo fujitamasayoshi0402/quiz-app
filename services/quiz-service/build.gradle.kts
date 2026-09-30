@@ -1,12 +1,13 @@
+// Kotlin・ktlint・detekt の版は、ルートの build.gradle.kts が持つ
 plugins {
-    kotlin("jvm") version "2.3.21"
-    kotlin("plugin.spring") version "2.3.21"
+    kotlin("jvm")
+    kotlin("plugin.spring")
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     // 整形の規約。.editorconfig をそのまま読むので、設定を二重に持たない
-    id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
+    id("org.jlleitschuh.gradle.ktlint")
     // 静的解析。整形は ktlint、設計の匂いは detekt と役割を分ける
-    id("io.gitlab.arturbosch.detekt") version "1.23.8"
+    id("io.gitlab.arturbosch.detekt")
     // カバレッジの計測。JaCoCo のバージョンは Gradle が持つ既定値に任せる（Gradle 自体は wrapper で固定している）
     jacoco
 }
@@ -40,6 +41,9 @@ dependencies {
     // このとき既定のクラスパスごと置き換わるため、CLI 本体も明示する必要がある
     detekt("io.gitlab.arturbosch.detekt:detekt-cli:1.23.8")
     detekt("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
+
+    // 送るイベントの型（ADR-0022）。notification-service と共有する
+    implementation(project(":libs:quiz-events"))
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
@@ -127,21 +131,5 @@ tasks.bootJar {
     archiveFileName = "quiz-service.jar"
 }
 
-// コンテナイメージのビルドで、ソースより先に bootJar に要る依存を取っておく（Dockerfile、DEV-87）。
-// 取ったものがレイヤーに残り、ソースだけを変えたときに取り直さない。
-// `dependencies` タスクは依存の木を解くだけで、jar は取らない。
-// lint とテストの依存は取らない。イメージのビルドでは使わず、キャッシュが大きくなるだけ
-tasks.register("downloadDependencies") {
-    description = "bootJar に要る依存を取得する"
-    val classpaths =
-        setOf(
-            "compileClasspath",
-            "annotationProcessor",
-            "productionRuntimeClasspath",
-            "kotlinCompilerClasspath",
-            "kotlinCompilerPluginClasspathMain",
-            "kotlinBuildToolsApiClasspath",
-        )
-    val artifacts = files(configurations.matching { it.name in classpaths }.map { it.incoming.artifacts.artifactFiles })
-    doLast { artifacts.files }
-}
+// コンテナイメージのビルドで先に依存を取るタスク（downloadDependencies）は、ルートの build.gradle.kts にある。
+// bootJar は libs/ のプロジェクトもコンパイルするため、両方で使う

@@ -97,6 +97,8 @@
 ├── services/
 │   ├── quiz-service/        # Kotlin + Spring Boot
 │   └── notification-service/
+├── libs/
+│   └── quiz-events/         # サービスの間で共有するイベントの型（ADR-0022）
 ├── infra/
 │   └── terraform/
 │       ├── bootstrap/       # tfstate のバケット
@@ -109,7 +111,8 @@
 │   ├── development-guidelines.md
 │   ├── adr/                 # ADR（MADR 形式）
 │   ├── architecture/        # C4 図・drawio
-│   └── api/                 # OpenAPI
+│   ├── api/                 # OpenAPI
+│   └── events/              # イベントの JSON の見本
 └── .github/workflows/
 ```
 
@@ -166,9 +169,12 @@ Smart Commits（コミットメッセージからの課題操作）は**紐付�
 **バックエンド。** 整形は ktlint、設計の匂いは detekt が見る。役割が違うので両方走らせる。
 
 ```bash
-./gradlew :services:quiz-service:ktlintFormat   # 自動整形
-./gradlew :services:quiz-service:ktlintCheck :services:quiz-service:detekt
+./gradlew :services:quiz-service:ktlintFormat :libs:quiz-events:ktlintFormat   # 自動整形
+./gradlew :services:quiz-service:ktlintCheck :services:quiz-service:detekt :libs:quiz-events:ktlintCheck :libs:quiz-events:detekt
 ```
+
+Kotlin・ktlint・detekt のプラグインの版は、ルートの `build.gradle.kts` が持つ。各プロジェクトは版を書かずに適用する。
+プロジェクトごとに版を書くと、プラグインが別々のクラスローダーで読み込まれ、プロジェクトをまたぐ依存が壊れることがある。
 
 ktlint の規約は `.editorconfig` が持つ。**`ktlint_code_style` は `intellij_idea` にしている。**
 既定の `ktlint_official` は改行の入れ方が強く、IDE の整形結果と食い違うため。
@@ -456,6 +462,27 @@ http://localhost:8080/swagger-ui.html
 
 **環境で出し分けない。** リポジトリが Public で定義もコミットしてある以上、UI を隠しても何も守れない。
 「試す」操作も認証を通るため、公開される範囲は API そのものと変わらない。
+
+### イベント
+
+quiz-service は、クイズの変更をイベントとして送る（[ADR-0022](adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)）。
+型は `libs/quiz-events` にあり、受け手（notification-service）と共有する。**共有するのは型だけ**で、JSON の読み書きはそれぞれのサービスが持つ。
+
+- **クイズの変更と同じトランザクションで、`quiz.outbox` に書く。** 変更が失敗すれば、イベントも残らない
+- 1 回の操作で 1 つ。何も変えずに保存したときは書かない。削除と復活は書かない
+- 正解、選択肢、解説は載せない。バスとアーカイブとログは quiz-service の外にある
+- quiz-service は、HTTP の応答とは別の JsonMapper でイベントを書く（`QuizEventJson`）。API のための設定の変更が、イベントの形に及ばないようにする
+
+**形は `docs/events/` の見本に固定する。** 2 つのサービスは別々にデプロイされ、送る側と受ける側の版は一時的にずれる。
+送る側は書き出したものが見本と同じであることを（`QuizEventSamplesTest`）、受ける側は見本を読めることを確かめる。
+
+```bash
+# イベントの形を変えたら、見本を作り直してコミットする
+UPDATE_EVENT_SAMPLES=true ./gradlew :services:quiz-service:test --tests '*QuizEventSamplesTest'
+```
+
+作り直す前に、受け手が新しい形を読めるかを考える。**項目を足すだけなら版（`version`）を上げない。**
+消す・意味を変えるときは版を上げ、受け手が新旧どちらも読めるようにしてから、送る側を替える。
 
 ### コード
 - バックエンド: レイヤード（controller / usecase / domain / infrastructure）、テストは JUnit5 + Testcontainers

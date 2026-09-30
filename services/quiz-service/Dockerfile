@@ -16,11 +16,14 @@ WORKDIR /workspace
 ENV GRADLE_USER_HOME=/gradle
 
 # 依存の取得をソースのコピーより先に行う。ソースだけを変えたときに、依存のレイヤーを使い回せる
-COPY gradlew settings.gradle.kts ./
+COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
+COPY libs/quiz-events/build.gradle.kts libs/quiz-events/
 COPY services/quiz-service/build.gradle.kts services/quiz-service/
-RUN ./gradlew :services:quiz-service:downloadDependencies --no-daemon --quiet
+RUN ./gradlew :libs:quiz-events:downloadDependencies :services:quiz-service:downloadDependencies --no-daemon --quiet
 
+# 共有するイベントの型（ADR-0022）。quiz-service の jar に入る
+COPY libs/quiz-events/src libs/quiz-events/src
 COPY services/quiz-service/src services/quiz-service/src
 # テストは CI で回している。イメージのビルドでは Docker を使う Testcontainers も動かせない。
 # --offline で、先に取った依存だけで足りることを確かめる。足りなければここで落ちる（downloadDependencies の一覧に足す）

@@ -7,6 +7,7 @@ import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.DifficultyRepository
 import com.quizapp.quiz.domain.FigureRepository
 import com.quizapp.quiz.domain.Quiz
+import com.quizapp.quiz.domain.QuizEventOutbox
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
 import com.quizapp.tenant.TenantTransaction
@@ -50,6 +51,7 @@ class QuizImportUseCase(
     private val categoryRepository: CategoryRepository,
     private val difficultyRepository: DifficultyRepository,
     private val figureRepository: FigureRepository,
+    private val outbox: QuizEventOutbox,
     private val tenantTransaction: TenantTransaction,
 ) {
     fun import(rows: List<QuizImportRow>): Int = tenantTransaction.execute {
@@ -63,6 +65,7 @@ class QuizImportUseCase(
         if (errors.isNotEmpty()) throw QuizImportRejectedException(errors)
 
         quizzes.forEach(quizRepository::save)
+        outbox.quizzesImported(total = quizzes.size, published = quizzes.count { it.status == QuizStatus.PUBLISHED })
         quizzes.size
     }
 
