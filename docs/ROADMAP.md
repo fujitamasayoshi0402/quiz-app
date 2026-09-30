@@ -141,14 +141,16 @@
 
 ---
 
-## Phase 5: イベント駆動と Slack 通知
+## Phase 5: イベント駆動と Slack 通知 🚧 進行中
 
 **ゴール: 疎結合な非同期設計とサービス分割の実証**
 
-- [ ] ドメインイベント設計（QuizCreated / QuizUpdated / QuizPublished）
+- [x] ドメインイベントの設計: 1 回の操作で 1 つ（QuizCreated / QuizUpdated / QuizPublished / QuizUnpublished / QuizzesImported）。正解と解説は載せない。
+  Outbox に書いてコミットの直後に送り、Aurora の自動一時停止を妨げないよう定期的には読まない（[ADR-0022](adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)）
 - [ ] EventBridge カスタムバス + ルール、失敗時の DLQ（SQS）
-- [ ] `notification-service` を Lambda で実装（EventBridge ターゲット）、Slack Incoming Webhook に Block Kit で通知
-- [ ] Outbox パターンによる送信保証、冪等性の担保
+- [ ] `notification-service` を Lambda（Kotlin）で実装（EventBridge ターゲット）、Slack Incoming Webhook に Block Kit で通知
+- [ ] 通知先の Slack はテナントごと。管理者が Webhook を設定する画面と API（URL は SSM Parameter Store に置き、画面には出さない）
+- [ ] Outbox パターンによる送信保証、冪等性の担保（受け手がイベントの ID の重複を DynamoDB で捨てる）
 - [ ] 境界が安定していれば `answer-service` を物理分割
 - [ ] ADR: サービス分割の粒度、同期 REST と非同期イベントの使い分け
 
