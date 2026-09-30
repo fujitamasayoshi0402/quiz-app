@@ -143,6 +143,10 @@ jobs:
             exit 1
           fi
 
+      # 整形されていないファイルがあれば落とす（DEV-78）。直すときは pnpm --filter web format
+      - name: 整形
+        run: pnpm --filter web format:check
+
       - name: 型チェック
         run: pnpm --filter web typecheck
 

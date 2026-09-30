@@ -163,7 +163,7 @@ Smart Commits（コミットメッセージからの課題操作）は**紐付�
 
 ### lint
 
-整形は ktlint、設計の匂いは detekt が見る。役割が違うので両方走らせる。
+**バックエンド。** 整形は ktlint、設計の匂いは detekt が見る。役割が違うので両方走らせる。
 
 ```bash
 ./gradlew :services:quiz-service:ktlintFormat   # 自動整形
@@ -177,6 +177,22 @@ ktlint の規約は `.editorconfig` が持つ。**`ktlint_code_style` は `intel
 detekt で既定から変えたルールは `config/detekt.yml` にあり、それぞれ理由を書いてある。
 detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt のクラスパスだけ 2.0 系に固定**している。
 
+**web。** 整形は Prettier、書き方の誤りは ESLint が見る（DEV-78）。
+
+```bash
+pnpm --filter web format         # 自動整形
+pnpm --filter web format:check   # CI と同じ確認
+pnpm --filter web lint
+```
+
+- 1 行の長さ（120）とインデントは `.editorconfig` から取る。Kotlin と同じ値で、Prettier の設定（`apps/web/prettier.config.mjs`）には書かない
+- Tailwind のクラスは、公式の順に並べ替える（`prettier-plugin-tailwindcss`）。`cn` と `cva` の引数も並べ替える
+- ESLint からは、見た目に関わるルールを外している（`eslint-config-prettier`）。両方が別々の形を求めないようにする
+- **生成物（`src/lib/api/generated/`）は整形しない**（`.prettierignore`）。書き換えると、CI の「作り直して差が出ないか」の検査とぶつかる
+- 整形漏れは、commit の前のフック（`lefthook.yml`）と、CI の `frontend` ジョブで止まる。**フックは直さずに知らせるだけ。**
+  直したファイルを stage し直すと、一部だけ stage していたときに、stage していない変更まで commit に入る
+- 導入のときに全体を整形したコミットは、`.git-blame-ignore-revs` に載せている。GitHub の blame は自動で飛ばす。手元では 1 回だけ設定する（[初回セットアップ](#初回セットアップ)）
+
 ### CI
 
 `.github/workflows/ci.yml` が PR と `develop` / `main` への push で動く。
@@ -185,7 +201,7 @@ detekt 1.23.8 は Kotlin 2.0 でコンパイルされているため、**detekt 
 | --- | --- |
 | `changes` | 変更パスを見て後続を出し分ける |
 | `backend` | ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド |
-| `frontend` | API クライアントの作り直しに差が出ないか → 型チェック → lint → 単体テスト → build → イメージのビルド |
+| `frontend` | API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → build → イメージのビルド |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりの流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
@@ -444,7 +460,8 @@ http://localhost:8080/swagger-ui.html
 brew install mise
 echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # 初回のみ。新しいシェルから有効
 mise install                                     # .mise.toml のツールを導入
-mise exec -- lefthook install                    # commit の前に secret を探すフックを入れる
+mise exec -- lefthook install                    # commit の前に、secret と web の整形を確かめるフックを入れる
+git config blame.ignoreRevsFile .git-blame-ignore-revs   # 全体を整形したコミットを、blame で飛ばす
 ```
 
 ### 起動
