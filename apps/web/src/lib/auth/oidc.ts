@@ -50,7 +50,12 @@ export function providerMetadata(): Promise<ProviderMetadata> {
 }
 
 export async function exchangeCode(code: string, redirectUri: string, codeVerifier: string): Promise<TokenSet> {
-  return requestToken({ grant_type: "authorization_code", code, redirect_uri: redirectUri, code_verifier: codeVerifier });
+  return requestToken({
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: redirectUri,
+    code_verifier: codeVerifier,
+  });
 }
 
 export async function refreshTokens(refreshToken: string): Promise<TokenSet> {

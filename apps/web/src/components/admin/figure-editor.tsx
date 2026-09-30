@@ -113,7 +113,7 @@ export function FigureEditor({
               描き終えたら「保存して閉じる」を押します。描き直した図は新しい図として置かれ、解説の参照が差し替わります。
             </DialogDescription>
           </div>
-          {isPending && <span className="text-muted-foreground text-sm">保存しています…</span>}
+          {isPending && <span className="text-sm text-muted-foreground">保存しています…</span>}
           <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             閉じる
           </Button>

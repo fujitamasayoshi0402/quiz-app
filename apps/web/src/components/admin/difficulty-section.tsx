@@ -75,7 +75,9 @@ export function DifficultySection({ slug, categoryId }: { slug: string; category
         ) : difficulties.data.length === 0 ? (
           <Alert>
             <TriangleAlert />
-            <AlertDescription>難易度がないと、このカテゴリにクイズを作れません。1 つ以上追加してください。</AlertDescription>
+            <AlertDescription>
+              難易度がないと、このカテゴリにクイズを作れません。1 つ以上追加してください。
+            </AlertDescription>
           </Alert>
         ) : (
           <ul className="divide-y rounded-lg border">
@@ -142,7 +144,7 @@ function DifficultyRow({
         {reorder}
         <div className="min-w-0 flex-1">
           <p className="font-medium">{difficulty.name}</p>
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             レベル {difficulty.level}
             {difficulty.description && `・${difficulty.description}`}
           </p>
@@ -218,7 +220,13 @@ function DifficultyForm({
         </Field>
         <Field data-invalid={!!errors.level}>
           <FieldLabel htmlFor={`${prefix}-level`}>レベル</FieldLabel>
-          <Input id={`${prefix}-level`} type="number" min={1} aria-invalid={!!errors.level} {...form.register("level")} />
+          <Input
+            id={`${prefix}-level`}
+            type="number"
+            min={1}
+            aria-invalid={!!errors.level}
+            {...form.register("level")}
+          />
           <FieldError errors={[errors.level]} />
         </Field>
         <Field data-invalid={!!errors.description}>

@@ -25,7 +25,9 @@ export function FigureImage({
   const [failed, setFailed] = useState(false);
 
   if (failed) {
-    return <span className="text-muted-foreground">{alt ? `（図を表示できません: ${alt}）` : "（図を表示できません）"}</span>;
+    return (
+      <span className="text-muted-foreground">{alt ? `（図を表示できません: ${alt}）` : "（図を表示できません）"}</span>
+    );
   }
   const image = (
     // 図は API が署名付き URL へ送り、別のドメインから届く。next/image の最適化は通さない
@@ -40,7 +42,13 @@ export function FigureImage({
   );
   if (!href) return image;
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" title="図を新しいタブで開く" className="block w-fit max-w-full">
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="図を新しいタブで開く"
+      className="block w-fit max-w-full"
+    >
       {image}
     </a>
   );

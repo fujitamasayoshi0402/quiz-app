@@ -7,3 +7,9 @@ pre-commit:
     # mise を通すのは、エディタの Git 操作など、mise が有効になっていない環境からの commit でも動かすため
     gitleaks:
       run: mise exec -- gitleaks git --pre-commit --staged --redact --no-banner --verbose
+    # web の整形漏れを、CI より先に知らせる（DEV-78）。直さずに確かめるだけにする。
+    # 直したファイルを stage し直すと、一部だけ stage していたときに、stage していない変更まで commit に入る
+    prettier:
+      root: "apps/web/"
+      glob: "*.{ts,tsx,mts,mjs,css,json}"
+      run: mise exec -- pnpm exec prettier --check {staged_files}

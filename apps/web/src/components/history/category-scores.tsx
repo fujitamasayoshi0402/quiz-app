@@ -18,7 +18,7 @@ export function CategoryScores({ slug }: { slug: string }) {
   if (scores.isPending) return <Skeleton className="h-40 w-full" />;
   if (scores.isError) return <ApiErrorAlert error={scores.error} />;
   if (scores.data.length === 0) {
-    return <p className="text-muted-foreground text-sm">出題できるクイズがまだありません。</p>;
+    return <p className="text-sm text-muted-foreground">出題できるクイズがまだありません。</p>;
   }
 
   return (
@@ -41,7 +41,7 @@ function ScoreRow({ score }: { score: CategoryScore }) {
         <span className="shrink-0 text-lg font-semibold tabular-nums">{rate == null ? "—" : `${rate}%`}</span>
       </div>
       <Progress value={rate ?? 0} aria-label={`${name} の正答率`} />
-      <p className="text-muted-foreground text-xs">
+      <p className="text-xs text-muted-foreground">
         {answeredCount === 0
           ? `${quizCount} 問。まだ解いていません`
           : `${quizCount} 問中 ${answeredCount} 問を解いて ${correctCount} 問正解`}

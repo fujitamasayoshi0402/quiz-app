@@ -4,12 +4,7 @@ import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  useListTrash,
-  useRestoreCategory,
-  useRestoreDifficulty,
-  useRestoreQuiz,
-} from "@/lib/api/generated/endpoints";
+import { useListTrash, useRestoreCategory, useRestoreDifficulty, useRestoreQuiz } from "@/lib/api/generated/endpoints";
 import type { DeletedItem } from "@/lib/api/generated/model";
 import { useInvalidateTenant } from "@/lib/admin/invalidate";
 
@@ -37,7 +32,7 @@ export function TrashList({ slug }: { slug: string }) {
 
   const { categories = [], difficulties = [], quizzes = [] } = trash.data;
   if (categories.length + difficulties.length + quizzes.length === 0) {
-    return <p className="text-muted-foreground text-sm">削除済みの項目はありません。</p>;
+    return <p className="text-sm text-muted-foreground">削除済みの項目はありません。</p>;
   }
 
   return (
@@ -83,13 +78,18 @@ function Section({
             <li key={item.id} className="flex items-center gap-3 py-2">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{item.name}</p>
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs text-muted-foreground">
                   {item.categoryName && `${item.categoryName}・`}
                   {dateFormat.format(new Date(item.deletedAt))} に削除
                   {!item.restorable && "・親が削除済みのため、先に親を復活させてください"}
                 </p>
               </div>
-              <Button variant="outline" size="sm" disabled={!item.restorable || pending} onClick={() => onRestore(item.id)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!item.restorable || pending}
+                onClick={() => onRestore(item.id)}
+              >
                 復活させる
               </Button>
             </li>

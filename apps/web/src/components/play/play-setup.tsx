@@ -172,7 +172,7 @@ export function PlaySetup({ slug }: { slug: string }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-muted-foreground text-sm font-medium">{title}</h2>
+      <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>
       {children}
     </section>
   );

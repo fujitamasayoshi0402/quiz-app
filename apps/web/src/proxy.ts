@@ -65,7 +65,12 @@ async function proxyApi(request: NextRequest) {
   const response = NextResponse.rewrite(target, { request: { headers } });
 
   if (session && refreshed) {
-    await writeSession(response.cookies, refreshed, { sub: session.sub, email: session.email }, isSecure(appOrigin(request)));
+    await writeSession(
+      response.cookies,
+      refreshed,
+      { sub: session.sub, email: session.email },
+      isSecure(appOrigin(request)),
+    );
   }
   return response;
 }

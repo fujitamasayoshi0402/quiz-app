@@ -16,7 +16,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const user = await currentUser();
   return (
     <html lang="ja" className={cn("font-sans", geist.variable)}>
-      <body className="bg-muted/40 min-h-svh antialiased">
+      <body className="min-h-svh bg-muted/40 antialiased">
         {/* 利用者が替わったら、キャッシュごと作り直す。前の利用者の応答が画面に残らないようにする */}
         <Providers key={user?.sub ?? "anonymous"}>{children}</Providers>
       </body>

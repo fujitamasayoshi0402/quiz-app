@@ -20,9 +20,7 @@ export function useCatalog(slug: string) {
     (categories.data ?? []).map((category, index) => [category.id, difficulties[index]?.data ?? []]),
   );
   const categoryName = new Map((categories.data ?? []).map((c: CategoryResponse) => [c.id, c.name]));
-  const difficultyName = new Map(
-    [...difficultiesByCategory.values()].flat().map((d) => [d.id, d.name] as const),
-  );
+  const difficultyName = new Map([...difficultiesByCategory.values()].flat().map((d) => [d.id, d.name] as const));
 
   return {
     categories,

@@ -55,13 +55,13 @@ export function TenantPicker() {
     <>
       <div className="space-y-1 text-center">
         <h1 className="text-2xl font-semibold">テナントを選ぶ</h1>
-        <p className="text-muted-foreground text-sm">所属しているテナントから選んでください</p>
+        <p className="text-sm text-muted-foreground">所属しているテナントから選んでください</p>
       </div>
       <ul className="space-y-3">
         {tenants.data.map((tenant) => (
           <li key={tenant.slug}>
             <Link href={`/t/${tenant.slug}`} className="block">
-              <Card className="hover:bg-accent transition-colors">
+              <Card className="transition-colors hover:bg-accent">
                 <CardHeader className="flex items-center justify-between">
                   <div className="space-y-1">
                     <CardTitle>{tenant.name}</CardTitle>
@@ -69,7 +69,7 @@ export function TenantPicker() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">{roleLabel(tenant.role)}</Badge>
-                    <ChevronRight className="text-muted-foreground size-4" />
+                    <ChevronRight className="size-4 text-muted-foreground" />
                   </div>
                 </CardHeader>
               </Card>

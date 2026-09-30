@@ -91,7 +91,9 @@ export function parseJsonImport(text: string): ParsedImport {
       return [];
     }
     const { choices, ...rest } = parsed.data;
-    return [{ ...rest, choices: choices?.map((choice) => ({ body: choice.body, isCorrect: choice.isCorrect ?? false })) }];
+    return [
+      { ...rest, choices: choices?.map((choice) => ({ body: choice.body, isCorrect: choice.isCorrect ?? false })) },
+    ];
   });
   return finish(
     rows,

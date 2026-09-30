@@ -88,9 +88,9 @@ export function QuizList({ slug }: { slug: string }) {
       ) : quizzes.isError ? (
         <ApiErrorAlert error={quizzes.error} />
       ) : quizzes.data.length === 0 ? (
-        <p className="text-muted-foreground py-8 text-center text-sm">該当するクイズはありません。</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">該当するクイズはありません。</p>
       ) : (
-        <div className="bg-background rounded-lg border">
+        <div className="rounded-lg border bg-background">
           <Table>
             <TableHeader>
               <TableRow>
@@ -111,7 +111,7 @@ export function QuizList({ slug }: { slug: string }) {
                       {quiz.question}
                     </Link>
                     {/* 狭い幅ではカテゴリと難易度の列を畳み、問題文の下に出す。列のままだと問題文が数文字しか見えない */}
-                    <p className="text-muted-foreground mt-0.5 truncate text-xs sm:hidden">
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground sm:hidden">
                       {catalog.categoryName(quiz.categoryId)}・{catalog.difficultyName(quiz.difficultyId)}
                     </p>
                   </TableCell>

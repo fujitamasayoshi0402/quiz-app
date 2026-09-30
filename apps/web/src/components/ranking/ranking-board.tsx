@@ -61,7 +61,7 @@ export function RankingBoard({ slug }: { slug: string }) {
 
 function PeriodSwitch({ value, onChange }: { value: Period; onChange: (value: Period) => void }) {
   return (
-    <div role="group" aria-label="期間" className="bg-muted inline-flex rounded-lg p-1">
+    <div role="group" aria-label="期間" className="inline-flex rounded-lg bg-muted p-1">
       {PERIODS.map((period) => (
         <button
           key={period.value}
@@ -69,7 +69,7 @@ function PeriodSwitch({ value, onChange }: { value: Period; onChange: (value: Pe
           aria-pressed={value === period.value}
           onClick={() => onChange(period.value)}
           className={cn(
-            "text-muted-foreground rounded-md px-3 py-1 text-sm",
+            "rounded-md px-3 py-1 text-sm text-muted-foreground",
             value === period.value && "bg-background text-foreground shadow-sm",
           )}
         >
@@ -82,7 +82,7 @@ function PeriodSwitch({ value, onChange }: { value: Period; onChange: (value: Pe
 
 function RankingTable({ entries, me }: { entries: RankingEntry[]; me: MyRanking }) {
   if (entries.length === 0) {
-    return <p className="text-muted-foreground text-sm">この期間に解いた参加者はまだいません。</p>;
+    return <p className="text-sm text-muted-foreground">この期間に解いた参加者はまだいません。</p>;
   }
 
   // 表の外にいるときだけ、自分の順位を下に出す
@@ -109,7 +109,7 @@ function RankingTable({ entries, me }: { entries: RankingEntry[]; me: MyRanking 
         </Table>
       </div>
       {meOutside && (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           あなたは {meOutside.rank} 位（正解 {meOutside.correctCount} 問）です。
         </p>
       )}
@@ -125,15 +125,15 @@ function EntryRow({ entry }: { entry: RankingEntry }) {
       <TableCell className="max-w-0 whitespace-normal">
         <span className="break-words">
           {entry.name}
-          {entry.isMe && <span className="text-muted-foreground ml-1 text-xs whitespace-nowrap">（あなた）</span>}
+          {entry.isMe && <span className="ml-1 text-xs whitespace-nowrap text-muted-foreground">（あなた）</span>}
         </span>
         {/* 狭い幅では正答率の列を畳み、名前の下に出す */}
-        <span className="text-muted-foreground block text-xs sm:hidden">
+        <span className="block text-xs text-muted-foreground sm:hidden">
           {entry.answeredCount} 問中・正答率 {rate}%
         </span>
       </TableCell>
       <TableCell className="text-right tabular-nums">{entry.correctCount}</TableCell>
-      <TableCell className="text-muted-foreground hidden text-right tabular-nums sm:table-cell">
+      <TableCell className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">
         {rate}%<span className="text-xs">（{entry.answeredCount} 問中）</span>
       </TableCell>
     </TableRow>

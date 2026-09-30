@@ -20,7 +20,11 @@ describe("画像と PDF を上げる", () => {
 
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
-    vi.mocked(startFigureUpload).mockResolvedValue({ id: ID, url: UPLOAD_URL, headers: { "Content-Type": "image/png" } });
+    vi.mocked(startFigureUpload).mockResolvedValue({
+      id: ID,
+      url: UPLOAD_URL,
+      headers: { "Content-Type": "image/png" },
+    });
     vi.mocked(completeFigureUpload).mockResolvedValue({ id: ID, kind: "image" });
   });
 
