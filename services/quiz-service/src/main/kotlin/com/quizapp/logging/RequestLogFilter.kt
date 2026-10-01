@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit
  * ヘッダが無い（ローカル）か、形がおかしいときは作る。応答の `X-Request-Id` にも返す。
  *
  * 終わりの 1 行は、メソッド、ルートの型、ステータス、かかった時間を持つ。
+ * **ステータスの項目（`http.response.status_code`）は、アラームが数える**（modules/quiz-service の alarms.tf）。名前を変えると鳴らなくなる
  * - **パスは載せない。ルートの型（`/api/t/{slug}/play/attempts/{attemptId}`）を載せる。**
  *   招待の受け入れのパスにはトークンが入る。型なら値が入らず、同じ API で集計できる
  * - `/api` の外（ECS のヘルスチェック）は出さない。15 秒ごとに届き、ログの大半を占める

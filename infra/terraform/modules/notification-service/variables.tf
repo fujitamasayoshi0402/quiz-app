@@ -28,8 +28,8 @@ variable "package_path" {
   type        = string
 }
 
-variable "alarm_email" {
-  description = "送れなかったイベントが DLQ に入ったときに知らせるメールアドレス。公開リポジトリに載せないため、terraform.tfvars で渡す"
+variable "alarm_topic_arn" {
+  description = "送れなかったイベントが DLQ に入ったときに知らせる先（modules/alarms の SNS のトピック）"
   type        = string
 }
 
