@@ -484,6 +484,23 @@ UPDATE_EVENT_SAMPLES=true ./gradlew :services:quiz-service:test --tests '*QuizEv
 作り直す前に、受け手が新しい形を読めるかを考える。**項目を足すだけなら版（`version`）を上げない。**
 消す・意味を変えるときは版を上げ、受け手が新旧どちらも読めるようにしてから、送る側を替える。
 
+**送るのは 2 か所**（DEV-97。`quiz/infrastructure/outbox/`）。
+
+| いつ | 何が | 送れなかったら |
+| --- | --- | --- |
+| コミットの直後 | `OutboxPublisher`。別のスレッドで送り、送れたら `published_at` を付ける。**操作の応答は、送れたかどうかを待たない** | 行が残る |
+| 利用者の要求で DB を使ってから 5 分の間、1 分ごと | `OutboxRelay`。1 分より古い送れていない行を、テナントをまたいで古い順に送る | 次の回、または次に誰かが使ったとき |
+
+- **拾い直しは、いつも動かさない。** 定期的に DB へ接続すると、Aurora が一時停止しなくなる（min 0 ACU）。
+  利用者を特定できた要求（毎回 DB から利用者を引く）があってから、5 分だけ動く。拾い直し自身が DB を使っても数えない
+- **起動したときには拾わない。** 夜間の停止の明け（8:00）に、毎朝 Aurora を起こさない
+- そのため、送れなかったものは**次に誰かが使うまで遅れる。** 通知は急がないため、受け入れている（ADR-0022）
+- 拾い直しは `app.outbox_relay` を立て、`FOR UPDATE SKIP LOCKED` で読む。デプロイの入れ替え中にタスクが 2 つあっても、同じ行を送らない。それでも重なったものは、受け手がイベントの ID で捨てる
+- 拾い直しは、送ってから 7 日たった行を消す。送れていない最も古い行の経過時間をログに出す（Phase 6 で閾値を決め、アラームにする）
+- `PutEvents` は 1 回 10 件まで。一部だけ失敗した応答も扱い、失敗したものは行を残す
+- 間隔と時間は `app.events.relay.*`（`EventsProperties`）で変えられる。テストでは止め、手で呼ぶ
+- ローカルは LocalStack の EventBridge のバス（`quiz-app-local`）へ送る。起動のたびに作る。テストはメモリのバスに送り、EventBridge へ届くことは LocalStack を使うテスト（`EventBridgeEventBusLocalStackTest`）が見る
+
 ### コード
 - バックエンド: レイヤード（controller / usecase / domain / infrastructure）、テストは JUnit5 + Testcontainers
 - フロント: Server Components 優先、API 呼び出しは生成した TanStack Query のフック、応答は Zod で検証
@@ -580,7 +597,7 @@ ECS のコンテナのヘルスチェックが定期的に叩くと、Aurora Ser
 | quiz-service | 8080 | `dev` プロファイル。migrate が成功してから起動する |
 | migrate | なし | quiz-service と同じイメージを `dev,migrate` で起動する。マイグレーションとシードを流して終了する |
 | PostgreSQL | 5432 | ユーザー / パスワード / DB 名はすべて `quiz` |
-| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda / SSM。起動のたびに解説図のバケットを作る（中身は再起動で消える） |
+| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda / SSM。起動のたびに解説図のバケットと、イベントのバスを作る（中身は再起動で消える） |
 
 PostgreSQL は本番の Aurora とメジャーバージョンを揃えて 16 系を使う（min 0 ACU は 16.3 以降が前提）。
 タイムゾーンは本番との差異を減らすため UTC に固定している。
@@ -1020,6 +1037,29 @@ aws ssm describe-parameters --parameter-filters "Key=Name,Option=BeginsWith,Valu
   --query 'Parameters[].[Name,LastModifiedDate]' --output table
 ```
 
+#### イベント（EventBridge）
+
+`modules/events` で作る（[ADR-0022](adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)、DEV-97）。
+
+```
+quiz-service（Outbox。コミットの直後と拾い直し）→ EventBridge のカスタムバス（quiz-app-dev。アーカイブ 7 日）→ ルール → notification-service（DEV-98）
+```
+
+- 既定のバスは使わない。アプリのロールが送れるのは、このバスだけ（`events:PutEvents`）
+- ECS のタスクはパブリック IP から EventBridge へ出る。VPC Endpoint は要らない（ADR-0013）
+- バスの名前は、アプリのタスク定義の環境変数（`EVENTS_BUS_NAME`）で渡す。Terraform で変えたら、デプロイを手で流して反映する（[デプロイ](#デプロイ)）
+- **全イベントをログに流すルールは置かない。** イベントには問題文の冒頭とテナントの名前が入る。テナントのクイズの内容を、運用者のログに残さない
+
+届いたかどうかは、アーカイブのイベント数で確かめる。数は少し遅れて増える。
+
+```bash
+cd infra/terraform/envs/dev
+aws events describe-archive --archive-name "$(terraform output -raw events_archive_name)" \
+  --query '[State,EventCount,SizeBytes]'
+```
+
+拾い直しが動いたかは、アプリのログ（`/ecs/quiz-app-dev/quiz-service`）の「送れていなかったイベントを拾い直しました」で分かる。
+
 #### デプロイ
 
 develop にマージすると、CI（`ci.yml`）のチェックが通ったあとに、`deploy-dev.yml` が dev に載せる
@@ -1128,6 +1168,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
     30 分なら、待つのは使い始めの 1 回で済む。起きている時間が 1 回の利用ごとに最大 25 分延び、月 2〜4 ドルほど増える見込み
   - **アプリが常時接続を張ると一時停止しない**ため、dev では HikariCP を `minimum-idle: 0` + 短い `idle-timeout` にする
   - 同じ理由で dev では RDS Proxy を使わない
+  - イベントの拾い直しは、利用者が DB を使ってから 5 分だけ動く（[イベント](#イベント)）。一時停止までの 30 分より短いため、止まるまでの時間は延びない
   - **AWS Advanced JDBC Wrapper は `wrapperDialect=pg` にする。** Aurora と判定させると、クラスタの構成を見張る接続を
     プールとは別に張り、最後の利用から 15 分ほど保ち続ける。その間は一時停止しない
   - 実測（DEV-50。当時の設定は 5 分）: 最後の接続が切れてから 5 分で一時停止する。止まっている DB への最初の要求は、復帰（約 13 秒）を待って
@@ -1153,6 +1194,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 | 費用 | 月額 | 深夜の停止 |
 | --- | --- | --- |
 | API Gateway（HTTP API） | 100 万リクエストあたり約 1.3 ドル。dev の量ではほぼ 0 | — |
+| EventBridge（カスタムバス、アーカイブ） | 100 万件あたり 1 ドル。アーカイブは GB あたり 0.1 ドル。dev の量ではほぼ 0 | — |
 | Cloud Map（タスクの登録） | 約 0.6 ドル（プライベートのホストゾーン 0.5 ドル、登録したタスク 1 つ 0.1 ドル） | 続く |
 | Secrets Manager（Aurora のマスター） | 0.4 ドル | 続く |
 | 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |

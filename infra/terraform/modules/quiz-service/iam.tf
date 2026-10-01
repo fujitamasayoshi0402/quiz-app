@@ -3,7 +3,7 @@
 # | ロール         | 使う者                         | 許すこと                                                     |
 # | -------------- | ------------------------------ | ------------------------------------------------------------ |
 # | execution      | ECS（タスクを起動するとき）    | イメージの取得、ログの書き込み、図の署名の秘密鍵の読み出し   |
-# | app            | quiz-service                   | DB に quiz_app として接続する、解説図の読み書き              |
+# | app            | quiz-service                   | DB に quiz_app として接続する、解説図の読み書き、イベントの送信 |
 # | migrate        | マイグレーションの単発タスク   | DB に quiz（スキーマ所有者）として接続する                   |
 #
 # DB のパスワードは存在しない（ADR-0014）。どのロールで接続できるかは rds-db:connect で決まる。
@@ -137,6 +137,21 @@ resource "aws_iam_role_policy" "app_slack_webhooks" {
       Effect   = "Allow"
       Action   = ["ssm:PutParameter", "ssm:DeleteParameter"]
       Resource = "arn:aws:ssm:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:parameter${var.slack_webhook_parameter_prefix}/tenants/*/slack-webhook-url"
+    }]
+  })
+}
+
+# クイズのイベント（ADR-0022）。Outbox から、このバスへだけ送れる。
+# ECS のタスクはパブリックサブネットにあり、パブリック IP から EventBridge へ出る。VPC Endpoint は要らない（ADR-0013）
+resource "aws_iam_role_policy" "app_events" {
+  name = "put-quiz-events"
+  role = aws_iam_role.app.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "events:PutEvents"
+      Resource = var.event_bus.arn
     }]
   })
 }

@@ -24,6 +24,15 @@ output "deploy_role_arn" {
   value = module.deploy_role.role_arn
 }
 
+# クイズのイベントが届いたかは、アーカイブのイベント数で確かめる。開発ガイドラインの「イベント（EventBridge）」を参照
+output "event_bus_name" {
+  value = module.events.bus_name
+}
+
+output "events_archive_name" {
+  value = module.events.archive_name
+}
+
 output "figures_bucket_name" {
   value = module.figures.bucket_name
 }

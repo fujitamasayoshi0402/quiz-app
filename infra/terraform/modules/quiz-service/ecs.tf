@@ -47,6 +47,13 @@ locals {
     { name = "NOTIFICATIONS_PARAMETER_PREFIX", value = var.slack_webhook_parameter_prefix },
     { name = "NOTIFICATIONS_SSM_ENDPOINT", value = "" },
   ]
+
+  # クイズのイベントを送るバス（ADR-0022）。アプリのタスクにだけ渡す。
+  # 接続先を空にして、ローカル用の既定値（LocalStack）を使わせない
+  events_environment = [
+    { name = "EVENTS_BUS_NAME", value = var.event_bus.name },
+    { name = "EVENTS_ENDPOINT", value = "" },
+  ]
 }
 
 resource "aws_ecs_cluster" "this" {
@@ -105,7 +112,7 @@ resource "aws_ecs_task_definition" "app" {
       startPeriod = 180
     }
 
-    environment = concat(local.auth_environment, local.datasource_environment, local.figures_environment, local.notifications_environment, [
+    environment = concat(local.auth_environment, local.datasource_environment, local.figures_environment, local.notifications_environment, local.events_environment, [
       { name = "SPRING_PROFILES_ACTIVE", value = join(",", var.spring_profiles) },
     ])
 

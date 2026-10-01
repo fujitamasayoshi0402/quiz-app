@@ -102,3 +102,10 @@ app:
     parameter-prefix: ${NOTIFICATIONS_PARAMETER_PREFIX:/quiz-app/local}
     ssm:
       endpoint: ${NOTIFICATIONS_SSM_ENDPOINT:http://localhost:4566}
+  events:
+    # クイズのイベントを送る EventBridge のカスタムバス（ADR-0022、EventsProperties）。
+    # 既定値はローカル（LocalStack）向け。AWS ではアプリのタスク定義の環境変数で、接続先を空にし、バスの名前を環境のものにする。
+    # 拾い直しの間隔などは EventsProperties の既定値を使う
+    region: ${AWS_REGION:ap-northeast-1}
+    bus-name: ${EVENTS_BUS_NAME:quiz-app-local}
+    endpoint: ${EVENTS_ENDPOINT:http://localhost:4566}

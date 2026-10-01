@@ -35,6 +35,13 @@ data "aws_route53_zone" "this" {
   name = var.domain_name
 }
 
+# クイズのイベントを流すバス（ADR-0022）。quiz-service が送り、notification-service（DEV-98）が受ける
+module "events" {
+  source = "../../modules/events"
+
+  name = "quiz-app-dev"
+}
+
 module "quiz_service" {
   source = "../../modules/quiz-service"
 
@@ -64,6 +71,11 @@ module "quiz_service" {
 
   # notification-service（DEV-98）も、同じ頭の下を読む
   slack_webhook_parameter_prefix = "/quiz-app/dev"
+
+  event_bus = {
+    name = module.events.bus_name
+    arn  = module.events.bus_arn
+  }
 
   db_endpoint      = module.database.cluster_endpoint
   db_port          = module.database.port
