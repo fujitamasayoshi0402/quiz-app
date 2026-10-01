@@ -69,10 +69,12 @@ jobs:
           ./gradlew
           :services:quiz-service:ktlintCheck :services:quiz-service:detekt
           :libs:quiz-events:ktlintCheck :libs:quiz-events:detekt
+          :services:notification-service:ktlintCheck :services:notification-service:detekt
 
-      # Testcontainers が PostgreSQL を起動する。ランナーには Docker が入っている
+      # Testcontainers が PostgreSQL と LocalStack を起動する。ランナーには Docker が入っている。
+      # notification-service の成果物（zip）とデプロイは DEV-99 で載せる
       - name: test
-        run: ./gradlew :services:quiz-service:test
+        run: ./gradlew :services:quiz-service:test :services:notification-service:test
 
       # 閾値では落とさない。数値はジョブのサマリーに出して、PR ごとの目安にする
       - name: カバレッジを集計する

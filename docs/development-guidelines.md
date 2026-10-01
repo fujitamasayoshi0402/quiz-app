@@ -598,7 +598,7 @@ ECS のコンテナのヘルスチェックが定期的に叩くと、Aurora Ser
 | quiz-service | 8080 | `dev` プロファイル。migrate が成功してから起動する |
 | migrate | なし | quiz-service と同じイメージを `dev,migrate` で起動する。マイグレーションとシードを流して終了する |
 | PostgreSQL | 5432 | ユーザー / パスワード / DB 名はすべて `quiz` |
-| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda / SSM。起動のたびに解説図のバケットと、イベントのバスを作る（中身は再起動で消える） |
+| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda / SSM / DynamoDB。起動のたびに解説図のバケットと、イベントのバスを作る（中身は再起動で消える）。notification-service は手で載せる（[通知](#通知notification-service)） |
 
 PostgreSQL は本番の Aurora とメジャーバージョンを揃えて 16 系を使う（min 0 ACU は 16.3 以降が前提）。
 タイムゾーンは本番との差異を減らすため UTC に固定している。
@@ -1061,6 +1061,70 @@ aws events describe-archive --archive-name "$(terraform output -raw events_archi
 
 拾い直しが動いたかは、アプリのログ（`/ecs/quiz-app-dev/quiz-service`）の「送れていなかったイベントを拾い直しました」で分かる。
 
+#### 通知（notification-service）
+
+`modules/notification-service` で作る（[ADR-0022](adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)、DEV-98）。
+コードは `services/notification-service`（Kotlin、Spring は使わない）。
+
+```
+カスタムバス → ルール（通知するものだけ）→ Lambda（非同期。VPC の外。Java 21 / arm64 / 512 MB）
+  ├ SSM Parameter Store: テナントの Webhook の URL を読む（無ければ何もしない）
+  ├ DynamoDB: イベントの ID で重複を捨てる
+  └ Slack（Incoming Webhook、Block Kit）
+送れなかったもの → SQS（DLQ、14 日）→ CloudWatch のアラーム → SNS → メール
+```
+
+- **何を通知するかは、ルールが決める**（`event-pattern.json`）。公開の状態の `QuizCreated` と `QuizUpdated`、`QuizPublished`、公開のものを含む `QuizzesImported`。
+  下書きの編集と、公開を下書きに戻したことは知らせない。絞り込みは `EventPatternTest` が LocalStack の EventBridge に同じ JSON を当てて確かめる
+- 通知には、何が起きたか、問題文の冒頭、テナント、カテゴリ、管理画面へのリンクを載せる（`SlackMessages`）。
+  管理者が書いた文字の `<` `>` `&` は書式として読ませない。`<!channel>` のような全員への呼び出しを、問題文から作れないようにする
+- **Webhook の URL はログに出さない。** 通信の例外もつながない。例外の文に URL が入ると、Lambda が失敗として書くログに残る
+- 送る前にも、URL が `https://hooks.slack.com/` の下を指すかを確かめる。リダイレクトはたどらない
+- 重複は DynamoDB の条件付きの書き込みで捨てる（`DynamoDbDeliveries`）。「処理中」として書いてから送り、送れたら「済み」にする。記録は TTL で 7 日後に消える（アーカイブと揃える）
+  - **処理中の期限は 1 分。** Lambda の時間切れ（30 秒）より長く、非同期呼び出しの再試行の間隔（約 1 分）より短くする。
+    ADR-0022 の 5 分では、時間切れで落ちたときに 2 回の再試行がどちらも「処理中」として捨てられ、DLQ にも入らずに通知が消える
+- Slack が 429・5xx を返したとき、通信に失敗したときは、記録を消して例外で終わる。Lambda が 2 回まで再試行し、尽きたら DLQ に入る。
+  ほかの 4xx（Webhook が消された、など）は、ログに残して終わる
+- 知らない版のイベントは、例外で終わらせて DLQ に残す。受け手を直してから、アーカイブから流し直す
+- 起動の速さとメモリ（DEV-98 で dev で測った。512 MB）: 起動したばかりの環境では、初期化 1.2 秒と処理 5.6 秒（SDK と TLS の初回の準備）。
+  続けて呼ばれた環境では 0.4 秒。使ったメモリは 206 MB。通知は急がないため、SnapStart は入れていない
+- **DLQ に 1 件でも入ると、メールが届く。** アドレスは `terraform.tfvars` の `alarm_email`（公開リポジトリに載せない）。
+  apply のあとに届く確認のメール（AWS Notifications）のリンクを開くまで、届かない
+
+**コードは Terraform では載せ替えない。** 関数を作るときにだけ zip を読む（`package_path`）。以後は zip を作り直し、CLI で載せる。
+CI からの自動のデプロイは DEV-99 で入れる。
+
+```bash
+./gradlew :services:notification-service:buildZip   # 関数を作る apply の前にも要る
+cd infra/terraform/envs/dev
+aws lambda update-function-code --function-name "$(terraform output -raw notification_function_name)" \
+  --zip-file fileb://../../../../services/notification-service/build/distributions/notification-service.zip
+```
+
+ログは CloudWatch Logs の `/aws/lambda/quiz-app-dev-notification-service`（14 日）。届いたイベントごとに「知らせました」「通知先が設定されていないため、知らせません」などが 1 行出る。
+
+DLQ に入ったものは、中身を見て原因を直してから、バスのアーカイブから流し直す（重複は捨てられる）。見終えたものは、DLQ から消す。
+
+```bash
+cd infra/terraform/envs/dev
+aws sqs receive-message --queue-url "$(terraform output -raw notification_dlq_url)" \
+  --max-number-of-messages 10 --visibility-timeout 0 --query 'Messages[].Body'
+```
+
+**ローカル**では、LocalStack に手で載せる。既定では Slack へ送らず、送る内容を Lambda のログに出す（`SLACK_DELIVERY=log`）。
+Webhook は画面の「通知」で、`https://hooks.slack.com/services/...` の形の URL を設定しておく（LocalStack の SSM に入る）。
+
+```bash
+docker compose up -d
+./gradlew :services:notification-service:buildZip
+services/notification-service/scripts/deploy-localstack.sh
+aws --endpoint-url http://localhost:4566 logs tail /aws/lambda/quiz-app-local-notification-service --follow
+```
+
+- LocalStack は再起動で中身が消える。そのたびにスクリプトを流し直す
+- 本当に Slack へ送るときは、`SLACK_DELIVERY=send` を付けてスクリプトを流す
+- LocalStack は、Lambda に自分を指す `AWS_ENDPOINT_URL` を渡す。関数のコードは接続先を持たず、SDK がこれを読む
+
 #### デプロイ
 
 develop にマージすると、CI（`ci.yml`）のチェックが通ったあとに、`deploy-dev.yml` が dev に載せる
@@ -1199,6 +1263,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 | Cloud Map（タスクの登録） | 約 0.6 ドル（プライベートのホストゾーン 0.5 ドル、登録したタスク 1 つ 0.1 ドル） | 続く |
 | Secrets Manager（Aurora のマスター） | 0.4 ドル | 続く |
 | 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |
+| 通知（Lambda、DynamoDB、SQS、SNS、アラーム） | アラーム 1 つで 0.1 ドル。ほかはイベントの数だけで、dev の量ではほぼ 0 | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
 | ECS のタスク（0.5 vCPU / 1 GB） | 約 13.5 ドル（1 時間 0.0246 ドル × 1 日 18 時間） | 止まる |
