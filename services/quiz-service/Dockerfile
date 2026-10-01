@@ -20,6 +20,8 @@ COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
 COPY libs/quiz-events/build.gradle.kts libs/quiz-events/
 COPY services/quiz-service/build.gradle.kts services/quiz-service/
+# settings.gradle.kts が読むプロジェクトは、ディレクトリが無いと Gradle が止まる。使わないが、ビルドの定義だけを置く
+COPY services/notification-service/build.gradle.kts services/notification-service/
 RUN ./gradlew :libs:quiz-events:downloadDependencies :services:quiz-service:downloadDependencies --no-daemon --quiet
 
 # 共有するイベントの型（ADR-0022）。quiz-service の jar に入る

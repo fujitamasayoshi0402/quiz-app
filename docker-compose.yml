@@ -32,11 +32,11 @@ services:
     restart: unless-stopped
 
   localstack:
-    # S3 / EventBridge / SQS / Secrets Manager / SSM をローカルで代替する
+    # S3 / EventBridge / SQS / Secrets Manager / SSM / Lambda / DynamoDB をローカルで代替する
     image: localstack/localstack:4.9
     container_name: quiz-app-localstack
     environment:
-      SERVICES: s3,secretsmanager,events,sqs,lambda,ssm
+      SERVICES: s3,secretsmanager,events,sqs,lambda,ssm,dynamodb
       DEBUG: 0
       # 認証情報は検証されないが、SDK が要求するためダミーを渡す
       AWS_DEFAULT_REGION: ap-northeast-1

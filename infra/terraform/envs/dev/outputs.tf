@@ -97,3 +97,12 @@ output "e2e_user_password" {
   value     = module.auth.e2e_user_password
   sensitive = true
 }
+
+# 関数のコードを載せ替えるときと、送れなかったものを見るときに使う。開発ガイドラインの「通知（notification-service）」を参照
+output "notification_function_name" {
+  value = module.notification_service.function_name
+}
+
+output "notification_dlq_url" {
+  value = module.notification_service.dlq_url
+}

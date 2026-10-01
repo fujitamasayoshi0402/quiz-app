@@ -30,16 +30,38 @@ module "database" {
   apply_immediately     = true
 }
 
+locals {
+  # テナントの Slack の Webhook の URL を置く SSM のパラメータの頭（ADR-0022）。quiz-service が書き、notification-service が読む
+  slack_webhook_parameter_prefix = "/quiz-app/dev"
+}
+
 # ドメインの登録時に作られたホストゾーン。環境をまたいで使うため、ここでは管理せず参照だけする
 data "aws_route53_zone" "this" {
   name = var.domain_name
 }
 
-# クイズのイベントを流すバス（ADR-0022）。quiz-service が送り、notification-service（DEV-98）が受ける
+# クイズのイベントを流すバス（ADR-0022）。quiz-service が送り、notification-service が受ける
 module "events" {
   source = "../../modules/events"
 
   name = "quiz-app-dev"
+}
+
+# クイズのイベントを受けて、テナントが設定した Slack に知らせる（ADR-0022）
+module "notification_service" {
+  source = "../../modules/notification-service"
+
+  name                     = "quiz-app-dev"
+  event_bus_name           = module.events.bus_name
+  webhook_parameter_prefix = local.slack_webhook_parameter_prefix
+  web_base_url             = "https://dev.${var.domain_name}"
+
+  # 関数を作るときにだけ読む。先に ./gradlew :services:notification-service:buildZip で作っておく
+  package_path = "${path.root}/../../../../services/notification-service/build/distributions/notification-service.zip"
+
+  alarm_email = var.alarm_email
+
+  log_retention_days = 14
 }
 
 module "quiz_service" {
@@ -69,8 +91,7 @@ module "quiz_service" {
     private_key_parameter_arn = module.figures.private_key_parameter_arn
   }
 
-  # notification-service（DEV-98）も、同じ頭の下を読む
-  slack_webhook_parameter_prefix = "/quiz-app/dev"
+  slack_webhook_parameter_prefix = local.slack_webhook_parameter_prefix
 
   event_bus = {
     name = module.events.bus_name

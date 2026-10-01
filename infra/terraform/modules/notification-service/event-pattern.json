@@ -1,0 +1,16 @@
+{
+  "source": ["quiz-app.quiz-service"],
+  "$or": [
+    {
+      "detail-type": ["QuizCreated", "QuizUpdated"],
+      "detail": { "quiz": { "status": ["PUBLISHED"] } }
+    },
+    {
+      "detail-type": ["QuizPublished"]
+    },
+    {
+      "detail-type": ["QuizzesImported"],
+      "detail": { "imported": { "published": [{ "numeric": [">", 0] }] } }
+    }
+  ]
+}
