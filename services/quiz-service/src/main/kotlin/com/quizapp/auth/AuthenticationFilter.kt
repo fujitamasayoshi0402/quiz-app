@@ -1,5 +1,6 @@
 package com.quizapp.auth
 
+import com.quizapp.logging.LogContext
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -23,11 +24,15 @@ class AuthenticationFilter(private val authenticator: Authenticator) : OncePerRe
         filterChain: FilterChain,
     ) {
         try {
-            authenticator.authenticate(request)?.let { UserContext.set(CurrentUser(it)) }
+            authenticator.authenticate(request)?.let {
+                UserContext.set(CurrentUser(it))
+                LogContext.putUser(it)
+            }
             filterChain.doFilter(request, response)
         } finally {
             // スレッドはプールで使い回されるため、必ず消す。
-            // 残すと次のリクエストが前の利用者を引き継ぐ
+            // 残すと次のリクエストが前の利用者を引き継ぐ。
+            // ログの文脈（MDC）は残す。要求の終わりの 1 行に載せ、RequestLogFilter が消す
             UserContext.clear()
         }
     }

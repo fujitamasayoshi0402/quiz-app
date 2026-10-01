@@ -925,7 +925,7 @@ TF_VAR_github_access_token=<トークン> terraform apply
   受信は API Gateway の VPC リンクからだけ
 - DB へは AWS Advanced JDBC Wrapper の `iam` プラグインで接続する。接続先の URL が `jdbc:aws-wrapper:postgresql:` のときだけ使われ、
   ローカルは素の PostgreSQL ドライバのまま。違いはタスク定義の環境変数だけにある
-- ログは CloudWatch Logs の `/ecs/quiz-app-dev/quiz-service`（`app/` と `migrate/`）。14 日で消える
+- ログは CloudWatch Logs の `/ecs/quiz-app-dev/quiz-service`（`app/` と `migrate/`）。JSON で出し、14 日で消える（[ログ](#ログquiz-service)）
 - 起動に失敗したら、前のタスク定義に自動で戻る（デプロイサーキットブレーカー）
 - **深夜（2:00〜8:00、日本時間）は止める。** EventBridge Scheduler がタスクの数を 0 にし、朝に 1 に戻す（`schedule.tf`）。
   止まっている間、API は API Gateway が 503 を返し（送り先のタスクがない）、画面には「サーバーが止まっているか、起動の途中です」と出る。
@@ -944,6 +944,53 @@ aws ecs update-service --cluster quiz-app-dev --service quiz-service --desired-c
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" "$(terraform output -raw quiz_service_url)/api/t/smoke/admin/categories"
+```
+
+#### ログ（quiz-service）
+
+AWS では、ログを JSON（ECS 形式）で出す（タスク定義の環境変数 `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`）。
+Logs Insights が項目を読み取り、要求の ID やテナントで絞り込める。例外のスタックトレースも 1 件のログに収まる（平文では行ごとに分かれる）。
+**ローカルは平文のまま。** 手元で JSON を見たいときは、同じ環境変数を付けて起動する。
+
+各行に、要求の文脈が載る（`logging/LogContext.kt`）。
+
+| 項目 | 中身 |
+| --- | --- |
+| `http.request.id` | 要求の ID。API Gateway の要求の ID を引き継ぐ（アクセスログの `requestId` と同じ値）。応答の `X-Request-Id` にも返る |
+| `tenant.id` | パスのテナント |
+| `user.id` | アプリの利用者の ID（`core.users.id`） |
+
+**載せるのは ID だけ。** メールアドレス、トークン、Webhook の URL は、文脈にもメッセージにも出さない（`RequestLogApiTest`、`SlackWebhookApiTest`）。
+
+`/api` の要求は、終わりに 1 行を出す（`RequestLogFilter`）。メソッド、ルートの型（`http.route`）、ステータス（`http.response.status_code`）、
+かかった時間（`http.duration_ms`）を持つ。**パスではなくルートの型を出す。** 招待を受け入れる API のパスにはトークンが入る。
+ヘルスチェックは出さない。
+
+Outbox を送るスレッドにも、要求の ID とテナントを引き継ぐ。拾い直し（`OutboxRelay`）は要求と関係なく動くため、載らない。
+
+Logs Insights では、ロググループ `/ecs/quiz-app-dev/quiz-service` を選んで流す。
+
+```
+# 1 つの要求を追う（画面に出たエラーの X-Request-Id、アクセスログの requestId から）
+fields @timestamp, log.level, message, error.type
+| filter http.request.id = "<要求の ID>"
+| sort @timestamp asc
+
+# 5xx の多いテナント
+filter http.response.status_code >= 500
+| stats count(*) as errors by tenant.id
+| sort errors desc
+
+# 遅い API。ルートの型ごとに数える
+filter ispresent(http.duration_ms)
+| stats count(*) as requests, avg(http.duration_ms) as avg_ms, pct(http.duration_ms, 95) as p95_ms, max(http.duration_ms) as max_ms
+  by http.request.method, http.route
+| sort p95_ms desc
+
+# 警告と例外
+fields @timestamp, log.level, message, error.type, tenant.id, http.request.id
+| filter log.level in ["WARN", "ERROR"]
+| sort @timestamp desc
 ```
 
 #### 解説図（S3 + CloudFront）

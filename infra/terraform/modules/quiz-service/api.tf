@@ -73,9 +73,12 @@ resource "aws_apigatewayv2_integration" "quiz_service" {
   # 間に合わなければ 504 が返り、画面が再試行する（apps/web/src/app/providers.tsx）
   timeout_milliseconds = 30000
 
-  # パスをそのまま渡す。ステージの名前がパスに入る構成にしても、タスクに届くパスが変わらないように
+  # パスをそのまま渡す。ステージの名前がパスに入る構成にしても、タスクに届くパスが変わらないように。
+  # 要求の ID をタスクに渡す。アプリはこれを自分のログの要求の ID にし（RequestLogFilter）、アクセスログの requestId と結び付く。
+  # 上書きするので、外から送られた値はタスクに届かない
   request_parameters = {
-    "overwrite:path" = "$request.path"
+    "overwrite:path"                = "$request.path"
+    "overwrite:header.x-request-id" = "$context.requestId"
   }
 }
 
