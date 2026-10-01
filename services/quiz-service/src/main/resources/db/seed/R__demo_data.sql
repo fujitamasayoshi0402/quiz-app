@@ -117,8 +117,12 @@ INSERT INTO quiz.quizzes (id, tenant_id, category_id, difficulty_id, question, e
      '作成途中のクイズです。下書きは出題されません。', 'draft')
     ON CONFLICT (id) DO NOTHING;
 
--- 選択肢。正解は 1 クイズにつき 1 つ（部分ユニークインデックスが保証する）
-INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order) VALUES
+-- 選択肢。正解は 1 クイズにつき 1 つ（部分ユニークインデックスが保証する）。
+-- **選択肢がまだ無いクイズにだけ入れる。** 画面でクイズを編集すると、選択肢は新しい識別子で入れ直される。
+-- 識別子だけで重複を避けると、流し直したときにシードの選択肢が足され、正解が 2 つになって一意制約で落ちる（DEV-104 のデプロイ）。
+-- 選択肢の識別子以外の衝突まで ON CONFLICT DO NOTHING で避けると、正解でない選択肢だけが足されて数が増える
+INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order)
+SELECT v.id::uuid, v.tenant_id::uuid, v.quiz_id::uuid, v.body, v.is_correct, v.sort_order FROM (VALUES
     ('6b439e75-f3f3-5ad4-bae0-9715fbd5627b', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', '808eab59-8191-526d-8019-0ffb31f67840',
      'EC2 インスタンス上の OS へのパッチ適用', true, 1),
     ('04aa9adf-d32d-5e0c-8d11-66cabf596dd2', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', '808eab59-8191-526d-8019-0ffb31f67840',
@@ -219,6 +223,8 @@ INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order) 
      'フィールドの追加は任意項目として行う', true, 1),
     ('3cfcd5ea-900e-50fe-a23d-94ce62b16ec6', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', '8d4f8264-ecb2-583b-b69b-1a40071c3fa6',
      '既存フィールドを削除する', false, 2)
+    ) AS v (id, tenant_id, quiz_id, body, is_correct, sort_order)
+    WHERE NOT EXISTS (SELECT 1 FROM quiz.choices c WHERE c.quiz_id = v.quiz_id::uuid)
     ON CONFLICT (id) DO NOTHING;
 
 -- 技術のクイズ（DEV-80） -------------------------------------------------------
@@ -425,7 +431,8 @@ PKCE も同じ種類の攻撃を防ぎますが、`state` は戻り先などの�
 - ログインの画面を操作するのが利用者ごとに 1 回で済み、外部の画面（このアプリでは Cognito）の変化に影響される場所を減らせる', 'published')
     ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order) VALUES
+INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order)
+SELECT v.id::uuid, v.tenant_id::uuid, v.quiz_id::uuid, v.body, v.is_correct, v.sort_order FROM (VALUES
     ('002e97ef-9b4e-58e7-82ba-c9a35e338256', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', '86c57514-06d0-5f72-b21b-769dd758c2e1',
      '1 つの AZ が、複数のリージョンにまたがって置かれる', false, 1),
     ('bb8dd93f-7be2-50fa-b436-0c3185003d0b', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', '86c57514-06d0-5f72-b21b-769dd758c2e1',
@@ -642,6 +649,8 @@ INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order) 
      'E2E のためのログイン API をアプリに足し、本番にも置いておく', false, 3),
     ('d341e9d3-a39d-5657-a861-1d8dde84290c', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', 'dc00e34a-9dad-5d88-a88a-abc9f60e67b6',
      '一度ログインして `storageState`（Cookie とストレージ）を保存し、各テストのブラウザのコンテキストに読み込む', true, 4)
+    ) AS v (id, tenant_id, quiz_id, body, is_correct, sort_order)
+    WHERE NOT EXISTS (SELECT 1 FROM quiz.choices c WHERE c.quiz_id = v.quiz_id::uuid)
     ON CONFLICT (id) DO NOTHING;
 
 -- 地理の勉強会 ----------------------------------------------------------------
@@ -668,7 +677,8 @@ INSERT INTO quiz.quizzes (id, tenant_id, category_id, difficulty_id, question, e
      '最大の都市はイスタンブールですが、首都はアンカラです。1923 年、共和国の成立にあわせてアナトリア中央部のアンカラが首都に定められました。', 'published')
     ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order) VALUES
+INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order)
+SELECT v.id::uuid, v.tenant_id::uuid, v.quiz_id::uuid, v.body, v.is_correct, v.sort_order FROM (VALUES
     ('ec6e78df-4d7e-5fd6-b8ee-4e62396e5698', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '8a0fe98a-5ca7-526d-bc59-143bab566d83', 'キャンベラ', true, 1),
     ('18264ac8-8e4e-50d7-9232-7db52cf0d4f8', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '8a0fe98a-5ca7-526d-bc59-143bab566d83', 'シドニー', false, 2),
     ('ffcefcc0-7acd-508f-90cd-49bbf6317aa9', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '8a0fe98a-5ca7-526d-bc59-143bab566d83', 'メルボルン', false, 3),
@@ -681,4 +691,6 @@ INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order) 
     ('050896ba-a08f-568e-89d4-07369127857d', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '39571769-55b9-567a-84e4-37348b49d135', 'イズミル', false, 2),
     ('0afb6125-fa30-523e-841b-4703dd446d52', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '39571769-55b9-567a-84e4-37348b49d135', 'アンカラ', true, 3),
     ('240939f6-719b-58df-b8d4-3182f3d35560', '9efd94a0-e517-573b-b46e-0f1ae96fc342', '39571769-55b9-567a-84e4-37348b49d135', 'アンタルヤ', false, 4)
+    ) AS v (id, tenant_id, quiz_id, body, is_correct, sort_order)
+    WHERE NOT EXISTS (SELECT 1 FROM quiz.choices c WHERE c.quiz_id = v.quiz_id::uuid)
     ON CONFLICT (id) DO NOTHING;

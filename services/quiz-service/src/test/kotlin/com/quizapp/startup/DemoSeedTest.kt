@@ -73,6 +73,35 @@ class DemoSeedTest {
     }
 
     @Test
+    @DisplayName("画面で編集して選択肢が入れ直されたクイズがあっても流し直せ、選択肢は増えない")
+    fun seedSkipsQuizzesWhoseChoicesWereReplaced() {
+        applySeed()
+        // 画面でクイズを編集すると、選択肢は新しい識別子で入れ直される（DEV-104 のデプロイで、dev がこの状態だった）
+        val quiz = "808eab59-8191-526d-8019-0ffb31f67840"
+        val tenant = "7fd43527-dbbf-525e-9f33-f48e4e507fd1"
+        TestPostgres.adminJdbcTemplate.update("DELETE FROM quiz.choices WHERE quiz_id = ?::uuid", quiz)
+        (1..4).forEach { order ->
+            TestPostgres.adminJdbcTemplate.update(
+                """
+                INSERT INTO quiz.choices (tenant_id, quiz_id, body, is_correct, sort_order)
+                VALUES (?::uuid, ?::uuid, ?, ?, ?)
+                """,
+                tenant,
+                quiz,
+                "編集した選択肢 $order",
+                order == 1,
+                order,
+            )
+        }
+
+        applySeed()
+
+        assertThat(count("SELECT count(*) FROM quiz.choices WHERE quiz_id = '$quiz'")).isEqualTo(4)
+        assertThat(count("SELECT count(*) FROM quiz.choices WHERE quiz_id = '$quiz' AND body LIKE '編集した選択肢%'"))
+            .isEqualTo(4)
+    }
+
+    @Test
     @DisplayName("行レベルセキュリティが効くロールでも流せる")
     fun seedPassesRowLevelSecurity() {
         // Aurora でマイグレーションを流す quiz はスーパーユーザーではなく、FORCE ROW LEVEL SECURITY で
