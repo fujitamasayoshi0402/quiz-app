@@ -1072,6 +1072,42 @@ aws cloudwatch set-alarm-state --alarm-name quiz-app-dev-quiz-service-server-err
   --state-value ALARM --state-reason "通知の確認"
 ```
 
+#### ダッシュボード
+
+運用で見るものを、CloudWatch のダッシュボード `quiz-app-dev` の 1 画面にまとめている（DEV-109。`modules/dashboard`）。
+**コンソールで直接変えない。** 変えたら、Terraform を書き換えて apply する。
+
+```bash
+cd infra/terraform/envs/dev
+terraform output -raw dashboard_url
+```
+
+上から、要求が流れる順に並べている。
+
+| 段 | 載せているもの |
+| --- | --- |
+| アラーム | [アラーム](#アラーム)の状態 |
+| 要求（API Gateway） | 要求の数、応答の時間（p50 / p95、タスクの p95）、4xx・5xx・アプリの 5xx・502 / 504 |
+| quiz-service（ECS） | 動いているタスクの数、CPU とメモリ、遅い API（ルートの型ごとの p95。ログから） |
+| Aurora | ACU、接続の数と CPU、Outbox の送れていない最も古いイベント |
+| イベントと通知 | EventBridge に送った数と失敗、通知のルール（当てはまった・Lambda に送った・送れなかった）、Lambda の実行とエラー、DLQ |
+| ログ | quiz-service の警告と例外（新しい順） |
+
+ふつうに見える形。異常と取り違えない。
+
+- **夜間（2:00〜8:00）は、タスクの数が 0 になり、ECS の線が途切れる**（[ECS](#ecsquiz-service)）
+- **Aurora の ACU は、使われないと 0 になる**（一時停止）。使い始めの要求は、タスクの p95 が数秒〜20 秒ほどに跳ねる。復帰を待っている
+- API Gateway の 5xx には、夜間の停止中の 503 が入る。アプリの不具合はアプリの 5xx で見る
+- EventBridge に送った数は、バスごとには出ない（アカウントで 1 つ）。いま送るのは quiz-service だけ
+
+載せていないもの。
+
+- トレース（要求が web から quiz-service、イベントまでどう流れたか）は、DEV-110 で入れる
+- Amplify（web）の SSR の時間とエラーは、Amplify のコンソールで見る
+
+費用はかからない。ダッシュボードは 3 つ（それぞれメトリクス 50 個）まで無料で、これは 1 つ・約 20 個。
+ログのウィジェット（Logs Insights）だけは、開くたびに読んだ量（1 GB あたり 0.0076 ドル）がかかる。dev の量ではほぼ 0。
+
 #### 解説図（S3 + CloudFront）
 
 `modules/figures` で作る（[ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md)）。
@@ -1405,7 +1441,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 | Secrets Manager（Aurora のマスター） | 0.4 ドル | 続く |
 | 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |
 | 通知（Lambda、DynamoDB、SQS） | イベントの数だけで、dev の量ではほぼ 0 | — |
-| アラーム（CloudWatch のアラーム 4 つ、メトリクスフィルタのメトリクス 3 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
+| アラームとダッシュボード（CloudWatch のアラーム 4 つ、メトリクスフィルタのメトリクス 3 つ、ダッシュボード 1 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
 | ECS のタスク（0.5 vCPU / 1 GB） | 約 13.5 ドル（1 時間 0.0246 ドル × 1 日 18 時間） | 止まる |

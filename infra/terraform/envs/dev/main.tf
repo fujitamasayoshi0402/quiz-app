@@ -55,6 +55,17 @@ module "alarms" {
   email = var.alarm_email
 }
 
+# 運用で見るものを 1 画面にまとめる（DEV-109）
+module "dashboard" {
+  source = "../../modules/dashboard"
+
+  name                        = "quiz-app-dev"
+  quiz_service                = module.quiz_service.monitoring
+  notification                = module.notification_service.monitoring
+  database_cluster_identifier = module.database.cluster_identifier
+  guide_url                   = "https://github.com/fujitamasayoshi0402/quiz-app/blob/develop/docs/development-guidelines.md#ダッシュボード"
+}
+
 # クイズのイベントを受けて、テナントが設定した Slack に知らせる（ADR-0022）
 module "notification_service" {
   source = "../../modules/notification-service"
