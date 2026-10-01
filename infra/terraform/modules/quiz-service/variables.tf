@@ -160,3 +160,8 @@ variable "force_delete_images" {
   description = "イメージが残っていてもリポジトリを消せるようにする。dev で環境ごと作り直すため"
   type        = bool
 }
+
+variable "alarm_topic_arn" {
+  description = "アラームの送り先（modules/alarms の SNS のトピック）"
+  type        = string
+}

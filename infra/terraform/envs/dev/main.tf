@@ -47,6 +47,14 @@ module "events" {
   name = "quiz-app-dev"
 }
 
+# アラームの送り先。各モジュールのアラームがここへ送り、メールで知らせる（DEV-108）
+module "alarms" {
+  source = "../../modules/alarms"
+
+  name  = "quiz-app-dev"
+  email = var.alarm_email
+}
+
 # クイズのイベントを受けて、テナントが設定した Slack に知らせる（ADR-0022）
 module "notification_service" {
   source = "../../modules/notification-service"
@@ -59,7 +67,7 @@ module "notification_service" {
   # 関数を作るときにだけ読む。先に ./gradlew :services:notification-service:buildZip で作っておく
   package_path = "${path.root}/../../../../services/notification-service/build/distributions/notification-service.zip"
 
-  alarm_email = var.alarm_email
+  alarm_topic_arn = module.alarms.topic_arn
 
   log_retention_days = 14
 }
@@ -119,6 +127,8 @@ module "quiz_service" {
 
   # dev はデモに使う。スタブ認証とシードを有効にする（prod / stg では起動に失敗する）
   spring_profiles = ["dev"]
+
+  alarm_topic_arn = module.alarms.topic_arn
 
   log_retention_days  = 14
   force_delete_images = true

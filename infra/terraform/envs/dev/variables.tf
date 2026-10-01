@@ -19,6 +19,6 @@ variable "github_access_token" {
 }
 
 variable "alarm_email" {
-  description = "送れなかった通知（notification-service の DLQ）を知らせるメールアドレス。公開リポジトリに載せない"
+  description = "アラームを知らせるメールアドレス（modules/alarms）。公開リポジトリに載せない"
   type        = string
 }

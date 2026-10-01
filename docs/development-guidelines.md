@@ -500,7 +500,7 @@ UPDATE_EVENT_SAMPLES=true ./gradlew :services:quiz-service:test --tests '*QuizEv
 - **起動したときには拾わない。** 夜間の停止の明け（8:00）に、毎朝 Aurora を起こさない
 - そのため、送れなかったものは**次に誰かが使うまで遅れる。** 通知は急がないため、受け入れている（ADR-0022）
 - 拾い直しは `app.outbox_relay` を立て、`FOR UPDATE SKIP LOCKED` で読む。デプロイの入れ替え中にタスクが 2 つあっても、同じ行を送らない。それでも重なったものは、受け手がイベントの ID で捨てる
-- 拾い直しは、送ってから 7 日たった行を消す。送れていない最も古い行の経過時間をログに出す（Phase 6 で閾値を決め、アラームにする）
+- 拾い直しは、送ってから 7 日たった行を消す。送れていない最も古い行の経過時間をログに出し、3 分を超えるとアラームが鳴る（[アラーム](#アラーム)）
 - `PutEvents` は 1 回 10 件まで。一部だけ失敗した応答も扱い、失敗したものは行を残す
 - 間隔と時間は `app.events.relay.*`（`EventsProperties`）で変えられる。テストでは止め、手で呼ぶ
 - ローカルは LocalStack の EventBridge のバス（`quiz-app-local`）へ送る。起動のたびに作る。テストはメモリのバスに送り、EventBridge へ届くことは LocalStack を使うテスト（`EventBridgeEventBusLocalStackTest`）が見る
@@ -993,6 +993,46 @@ fields @timestamp, log.level, message, error.type, tenant.id, http.request.id
 | sort @timestamp desc
 ```
 
+#### アラーム
+
+異常は、メールで知らせる（DEV-108）。送り先は環境に 1 つの SNS のトピック（`modules/alarms`）で、アドレスは `terraform.tfvars` の `alarm_email`。
+**購読は、届いた確認のメールのリンクを開くまで有効にならない。** トピックを作り直したときも、確かめ直す。
+
+| アラーム | 鳴る条件 | 鳴ったら見るもの |
+| --- | --- | --- |
+| `quiz-app-dev-quiz-service-server-errors` | アプリが 5xx を返した（5 分で 1 回でも） | Logs Insights で `http.response.status_code >= 500` の行を探し、`http.request.id` でその要求のログを追う（[ログ](#ログquiz-service)） |
+| `quiz-app-dev-quiz-service-gateway-errors` | API Gateway がタスクから応答を得られなかった（502 / 504 が 5 分で 3 回） | アクセスログの `requestId` から、アプリのログの `http.request.id` を引く。タスクが固まっていないか、DB の接続を待っていないか |
+| `quiz-app-dev-quiz-service-outbox-stuck` | Outbox に 3 分以上送れていないイベントがある | アプリのログの「イベントを送れませんでした」で理由を見る。送れるようになれば、拾い直しが送る |
+| `quiz-app-dev-notification-dlq-not-empty` | 通知が DLQ に入った（[通知](#通知notification-service)） | DLQ の中身と、Lambda のログ |
+| タスクの停止（EventBridge のルール） | quiz-service のタスクが落ちた、起動に失敗した、ヘルスチェックに落ちた | メールの理由と、`/ecs/quiz-app-dev/quiz-service` の止まる前のログ |
+
+数えるものの多くは、アプリが JSON で出すログ（[ログ](#ログquiz-service)）から、メトリクスフィルタで作る（`modules/quiz-service` の `alarms.tf`）。
+**ログの項目の名前（`http.response.status_code`、`outbox.oldest_unpublished_seconds`）を変えると、アラームが黙って鳴らなくなる。**
+
+**誤報を出さない。** 夜間の停止、デプロイの入れ替え、止まっている Aurora の復帰は、ふつうに起きる。
+
+- **API Gateway の 5xx の率は使わない。** 夜間の停止中は、送り先のタスクがなく 503 が返る。アプリの 5xx と、API Gateway の 502 / 504 を分けて数え、503 は数えない。昼にタスクがなくなったことは、タスクの停止で分かる
+- 止まっている Aurora の復帰が 30 秒を超えると、504 が 1 回出て画面が再試行する。5 分で 3 回からにして、これでは鳴らさない
+- タスクの停止は、ECS が自分で止めたもの（デプロイの入れ替え、夜間の停止）とマイグレーションの単発タスクを除く。絞り込みは、本物の EventBridge で確かめた（`aws events test-event-pattern`）
+- データが無い時間（使われていない、夜間）は、異常とみなさない
+- Outbox の閾値は、拾い直しが動く時間（利用者が DB を使ってから 5 分）より短くする。長いと、測れないうちに拾い直しが止まる
+
+アラームにしなかったもの。
+
+- **デプロイのサーキットブレーカーが戻した**: デプロイのジョブが失敗し、GitHub から通知が届く。重ねない
+- **Aurora の復帰の失敗、長すぎる復帰**: 利用者には 5xx か 504 として表れ、上のアラームで分かる。RDS のイベントは、一時停止と復帰のたびに出て、失敗だけを選べない
+
+回復したとき（OK に戻ったとき）は知らせない。タスクが落ちては起動し直すことを繰り返すと、そのたびにメールが届く。
+
+鳴ったときの手順の詳細は、Runbook（DEV-116）にまとめる。
+
+メールまで届くかは、アラームの状態を手で変えて確かめられる。次の評価で、実際の値に戻る。
+
+```bash
+aws cloudwatch set-alarm-state --alarm-name quiz-app-dev-quiz-service-server-errors \
+  --state-value ALARM --state-reason "通知の確認"
+```
+
 #### 解説図（S3 + CloudFront）
 
 `modules/figures` で作る（[ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md)）。
@@ -1138,8 +1178,7 @@ aws events describe-archive --archive-name "$(terraform output -raw events_archi
 - 知らない版のイベントは、例外で終わらせて DLQ に残す。受け手を直してから、アーカイブから流し直す
 - 起動の速さとメモリ（DEV-98 で dev で測った。512 MB）: 起動したばかりの環境では、初期化 1.2 秒と処理 5.6 秒（SDK と TLS の初回の準備）。
   続けて呼ばれた環境では 0.4 秒。使ったメモリは 206 MB。通知は急がないため、SnapStart は入れていない
-- **DLQ に 1 件でも入ると、メールが届く。** アドレスは `terraform.tfvars` の `alarm_email`（公開リポジトリに載せない）。
-  apply のあとに届く確認のメール（AWS Notifications）のリンクを開くまで、届かない
+- **DLQ に 1 件でも入ると、メールが届く。** 送り先は、ほかのアラームと共通のトピック（[アラーム](#アラーム)）
 
 **コードは Terraform では載せ替えない。** 関数を作るときにだけ zip を読む（`package_path`）。以後は、develop へのマージでデプロイが載せる（[デプロイ](#デプロイ)、DEV-99）。
 quiz-service の ECS と同じく、Terraform が持つのは関数の形（ロール、環境変数、メモリなど）までで、どのコードを動かすかは持たない（ADR-0015 と同じ分け方）。
@@ -1326,7 +1365,8 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 | Cloud Map（タスクの登録） | 約 0.6 ドル（プライベートのホストゾーン 0.5 ドル、登録したタスク 1 つ 0.1 ドル） | 続く |
 | Secrets Manager（Aurora のマスター） | 0.4 ドル | 続く |
 | 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |
-| 通知（Lambda、DynamoDB、SQS、SNS、アラーム） | アラーム 1 つで 0.1 ドル。ほかはイベントの数だけで、dev の量ではほぼ 0 | 続く |
+| 通知（Lambda、DynamoDB、SQS） | イベントの数だけで、dev の量ではほぼ 0 | — |
+| アラーム（CloudWatch のアラーム 4 つ、メトリクスフィルタのメトリクス 3 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
 | ECS のタスク（0.5 vCPU / 1 GB） | 約 13.5 ドル（1 時間 0.0246 ドル × 1 日 18 時間） | 止まる |

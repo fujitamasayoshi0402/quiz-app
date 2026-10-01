@@ -140,18 +140,7 @@ resource "aws_sqs_queue_policy" "dlq" {
   })
 }
 
-# **1 件でも入ったら知らせる。** 黙って捨てない（ADR-0022 の 6）。監視の作り込みは Phase 6
-resource "aws_sns_topic" "alarms" {
-  name = "${var.name}-notification-alarms"
-}
-
-# メールの購読は、届いた確認のメールのリンクを開くまで有効にならない
-resource "aws_sns_topic_subscription" "alarm_email" {
-  topic_arn = aws_sns_topic.alarms.arn
-  protocol  = "email"
-  endpoint  = var.alarm_email
-}
-
+# **1 件でも入ったら知らせる。** 黙って捨てない（ADR-0022 の 6）。送り先は環境で共通のトピック（modules/alarms）
 resource "aws_cloudwatch_metric_alarm" "dlq" {
   alarm_name        = "${var.name}-notification-dlq-not-empty"
   alarm_description = "Slack に知らせられなかったイベントが DLQ（${aws_sqs_queue.dlq.name}）にあります。開発ガイドラインの「通知（notification-service）」を参照"
@@ -168,5 +157,5 @@ resource "aws_cloudwatch_metric_alarm" "dlq" {
   # 空のキューは、しばらくするとメトリクスを出さなくなる
   treat_missing_data = "notBreaching"
 
-  alarm_actions = [aws_sns_topic.alarms.arn]
+  alarm_actions = [var.alarm_topic_arn]
 }

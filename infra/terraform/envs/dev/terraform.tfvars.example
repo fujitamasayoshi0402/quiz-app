@@ -7,6 +7,6 @@ domain_name = "example.com"
 # サービスを作るときにだけ使う。以降のデプロイは GitHub Actions が行い、この値を変えても動くタスクは替わらない
 quiz_service_image_tag = "0123456789ab"
 
-# Slack に知らせられなかったイベントが DLQ に入ったとき、アラームを受け取るアドレス。
+# アラーム（API の 5xx、タスクの停止、Outbox の滞留、通知の DLQ など）を受け取るアドレス。
 # apply のあとに届く確認のメールのリンクを開くまで、知らせは届かない
 alarm_email = "you@example.com"

@@ -1,11 +1,15 @@
 package com.quizapp.quiz.infrastructure.outbox
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.quizapp.support.MutableClock
 import com.quizapp.support.fake.InMemoryEventBus
 import com.quizapp.support.fake.InMemoryOutboxRows
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import java.time.Duration
 
 /**
@@ -102,5 +106,27 @@ class OutboxRelayTest {
         assertThat(outbox.exists(expired.id)).isFalse()
         assertThat(outbox.exists(recent.id)).isTrue()
         assertThat(outbox.exists(stuck.id)).isTrue()
+    }
+
+    @Test
+    @DisplayName("送れていない最も古い行の経過時間を、アラームが数える項目（秒）としてログに出す")
+    fun logsOldestUnpublishedAge() {
+        val logs = ListAppender<ILoggingEvent>().apply { start() }
+        val logger = LoggerFactory.getLogger(OutboxRelay::class.java) as Logger
+        logger.addAppender(logs)
+        try {
+            unsent()
+            bus.failing += outbox.add(occurredAt = clock.instant().minus(Duration.ofMinutes(4))).id
+            activity.record()
+
+            relay.tick()
+        } finally {
+            logger.detachAppender(logs)
+        }
+
+        val ages = logs.list.flatMap { it.keyValuePairs.orEmpty() }
+            .filter { it.key == OutboxRelay.OLDEST_UNPUBLISHED_SECONDS }
+            .map { it.value }
+        assertThat(ages).containsExactly(240L)
     }
 }

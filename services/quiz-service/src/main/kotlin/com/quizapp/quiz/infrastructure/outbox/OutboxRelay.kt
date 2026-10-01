@@ -44,9 +44,16 @@ class OutboxRelay(
             log.info("送れていなかったイベントを拾い直しました: 送った {} 件, 送れなかった {} 件", result.sent, result.failed)
         }
         if (result.deleted > 0) log.info("送ってから時間のたった Outbox の行を消しました: {} 件", result.deleted)
-        // 監視（Phase 6）で閾値を決め、アラームにする。いまはログに出すだけ
+        // 経過時間を項目として出し、アラームが数える（modules/quiz-service の alarms.tf）。**項目の名前を変えると、アラームが鳴らなくなる**
         result.oldestUnpublished?.let {
-            log.info("送れていない最も古いイベント: {} 分前", Duration.between(it, now).toMinutes())
+            val age = Duration.between(it, now)
+            log.atInfo()
+                .addKeyValue(OLDEST_UNPUBLISHED_SECONDS, age.toSeconds())
+                .log("送れていない最も古いイベント: {} 分前", age.toMinutes())
         }
+    }
+
+    companion object {
+        const val OLDEST_UNPUBLISHED_SECONDS = "outbox.oldest_unpublished_seconds"
     }
 }
