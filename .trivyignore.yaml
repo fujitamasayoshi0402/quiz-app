@@ -1,0 +1,10 @@
+# Trivy が見つけても止めない脆弱性（DEV-113）。trivy.yaml から読む。
+#
+# 足すときは、影響がない理由（statement）と、見直す期限（expired_at）を必ず書く。期限を過ぎると、また CI が止まる。
+# 直せるなら直す。ここは、ベースイメージの更新待ちのように、こちらで直せないものの置き場所
+vulnerabilities:
+  # quiz-service のベースイメージ（eclipse-temurin:21-jre-noble）の OpenSSL。最新のベースイメージにも修正が入っていない。
+  # JVM は TLS に OpenSSL を使わない（JSSE）。イメージの中で OpenSSL を使うのは、ヘルスチェックの curl が localhost に HTTP で繋ぐときだけ
+  - id: CVE-2026-84782
+    statement: JVM は OpenSSL を使わず、curl は localhost への HTTP にしか使わない。ベースイメージの更新待ち
+    expired_at: 2026-11-01

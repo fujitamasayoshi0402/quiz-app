@@ -1,4 +1,5 @@
 # GitHub Actions のアクションを上げる PR を作る（DEV-63）。
+# Gradle と pnpm の依存は、脆弱性の修正だけを PR にする（DEV-113）。
 #
 # ワークフローのアクションは、タグではなくコミットの SHA で固定している（`uses: actions/checkout@<SHA> # v7.0.1`）。
 # タグは付け替えられるため、アクションのリポジトリが乗っ取られると、書き換えられたコードがそのまま動く。
@@ -22,4 +23,39 @@ updates:
         patterns: ["*"]
     commit-message:
       prefix: chore
+      include: scope
+
+  # Gradle と pnpm は、版を上げるだけの PR は作らない（open-pull-requests-limit: 0）。脆弱性の修正（security updates）だけが届く。
+  # 版を上げる PR を常に受けると、Spring Boot が揃えている版をばらばらに上げることになる。
+  # 脆弱性は Dependabot alerts（リポジトリの設定で有効）と、CI の Trivy（trivy.yaml）が知らせる
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 0
+    groups:
+      gradle-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    commit-message:
+      prefix: fix
+      include: scope
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 0
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    commit-message:
+      prefix: fix
       include: scope

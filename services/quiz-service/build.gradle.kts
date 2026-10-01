@@ -31,6 +31,12 @@ java {
     }
 }
 
+// Spring Boot が決める版のうち、脆弱性の修正が出ているものを上げる（DEV-113。開発ガイドライン「脆弱性の検出」）。
+// Spring Boot を上げて、同じか新しい版になったら消す
+extra["tomcat.version"] = "11.0.26"
+extra["jackson-bom.version"] = "3.1.7"
+extra["jackson-2-bom.version"] = "2.21.7"
+
 repositories {
     mavenCentral()
 }

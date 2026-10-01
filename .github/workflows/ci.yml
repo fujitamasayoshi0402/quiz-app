@@ -38,6 +38,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       notification: ${{ steps.filter.outputs.notification }}
+      vulnerability-scan: ${{ steps.filter.outputs.vulnerability-scan }}
       frontend: ${{ steps.filter.outputs.frontend }}
       terraform: ${{ steps.filter.outputs.terraform }}
       e2e: ${{ steps.filter.outputs.e2e }}
@@ -53,7 +54,7 @@ jobs:
   backend:
     name: backend
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.vulnerability-scan == 'true'
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -100,8 +101,16 @@ jobs:
         with:
           context: .
           file: services/quiz-service/Dockerfile
+          # 脆弱性を調べるため、docker に読み込む
+          tags: quiz-service:ci
+          load: true
           cache-from: type=gha,scope=quiz-service
           cache-to: ${{ env.IMAGE_CACHE_TO && format('{0},scope=quiz-service', env.IMAGE_CACHE_TO) || '' }}
+
+      # 修正版のある HIGH 以上が見つかったら止める（DEV-113。基準は trivy.yaml、無視するものは .trivyignore.yaml）。
+      # jar（Spring Boot の依存）と、ベースイメージの OS のパッケージを見る
+      - name: 脆弱性を調べる（Trivy）
+        run: trivy image quiz-service:ci
 
       # 失敗したときだけ残す。OpenAPI の乖離やテストの詳細はレポートを見ないと分からない
       - name: レポートを保存する
@@ -116,14 +125,14 @@ jobs:
   notification:
     name: notification
     needs: changes
-    if: needs.changes.outputs.notification == 'true'
+    if: needs.changes.outputs.notification == 'true' || needs.changes.outputs.vulnerability-scan == 'true'
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
         with:
-          install_args: java
+          install_args: java trivy
 
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
@@ -138,6 +147,12 @@ jobs:
       - name: build
         run: ./gradlew :services:notification-service:buildZip
 
+      # Lambda に載せる jar を見る（DEV-113）。OS は Lambda のランタイムのもので、AWS が更新する
+      - name: 脆弱性を調べる（Trivy）
+        run: |
+          unzip -q services/notification-service/build/distributions/notification-service.zip -d "$RUNNER_TEMP/notification-service"
+          trivy rootfs "$RUNNER_TEMP/notification-service"
+
       - name: レポートを保存する
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -149,7 +164,7 @@ jobs:
   frontend:
     name: frontend
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.vulnerability-scan == 'true'
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -205,8 +220,16 @@ jobs:
         with:
           context: .
           file: apps/web/Dockerfile
+          # 脆弱性を調べるため、docker に読み込む
+          tags: web:ci
+          load: true
           cache-from: type=gha,scope=web
           cache-to: ${{ env.IMAGE_CACHE_TO && format('{0},scope=web', env.IMAGE_CACHE_TO) || '' }}
+
+      # 実行時の依存（standalone の node_modules）と、ベースイメージの OS のパッケージを見る（DEV-113）。
+      # 開発だけで使う依存は入らない。そちらは Dependabot alerts が pnpm-lock.yaml から見る
+      - name: 脆弱性を調べる（Trivy）
+        run: trivy image web:ci
 
   # 権限まわりの E2E テスト（DEV-77）。docker compose でアプリ一式を起動し、Playwright で画面から確かめる。
   # ログインは dev の Cognito を使う（ADR-0016）。クライアントのシークレットとテストの利用者のパスワードは、リポジトリの secret にある。
@@ -345,6 +368,32 @@ jobs:
       # リポジトリは Public で、ログも誰でも読める。見つけた値は伏せる
       - name: secret を探す（gitleaks）
         run: gitleaks git --log-opts=HEAD --redact --no-banner --verbose
+
+  # Gradle の依存の一覧を GitHub に送る（DEV-113）。Dependabot alerts は、これを見て脆弱な依存を知らせる。
+  # build.gradle.kts は版を BOM に任せているため、GitHub はファイルから版を読めない。
+  # alerts が見るのは既定のブランチ（develop）なので、develop への push でだけ送る。デプロイの条件（ci）には含めない
+  dependency-graph:
+    name: dependency-graph
+    needs: changes
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/develop'
+      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.notification == 'true')
+    runs-on: ubuntu-26.04
+    permissions:
+      # 依存の一覧（dependency snapshot）を書く
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+        with:
+          install_args: java
+
+      # 送るのは、動くときに載る依存だけ。lint やテスト、ビルドの道具（detekt が固定する古い Kotlin のコンパイラなど）は、
+      # 載らないものの知らせで、本当に直すべきものが埋もれる
+      - uses: gradle/actions/dependency-submission@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          dependency-graph-include-configurations: '^(runtimeClasspath|productionRuntimeClasspath)$'
 
   # 必須ステータスチェックはこのジョブだけを指定する（DEV-16）。
   # ジョブを足すたびに Ruleset を触らずに済み、パスの出し分けでスキップされても

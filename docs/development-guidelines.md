@@ -209,13 +209,14 @@ pnpm --filter web lint
 | ジョブ | 内容 |
 | --- | --- |
 | `changes` | 変更パスを見て後続を出し分ける |
-| `backend` | quiz-service。ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド |
-| `notification` | notification-service（Lambda）。ktlint / detekt → test（Testcontainers の LocalStack）→ zip のビルド |
-| `frontend` | API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → build → イメージのビルド |
+| `backend` | quiz-service。ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド → 脆弱性の検査（Trivy） |
+| `notification` | notification-service（Lambda）。ktlint / detekt → test（Testcontainers の LocalStack）→ zip のビルド → 脆弱性の検査（Trivy） |
+| `frontend` | API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → build → イメージのビルド → 脆弱性の検査（Trivy） |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりの流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
 | `ci` | 先行ジョブの結果を集約する |
+| `dependency-graph` | develop への push で、Gradle の依存の一覧を GitHub に送る。Dependabot alerts が読む（[脆弱性の検出](#脆弱性の検出)） |
 | `deploy-dev` | develop への push で、`ci` が通ったあとに dev へ載せる。何を載せるかは、dev で動いているものと比べて決める（`deploy-dev.yml`。[デプロイ](#デプロイ)） |
 
 **Ruleset の必須チェックには `ci` だけを指定する。** ジョブを足すたびに設定を触らずに済み、
@@ -305,6 +306,41 @@ dev で動いているものとの差で載せるものを決めている（[デ
 - **誤検知**: 行末に `gitleaks:allow` を書くか、`.gitleaksignore` にフィンガープリントを足す。どちらも理由を残す
 
 いまは許可リストを持っていない。ローカル専用の認証情報（`docker-compose.yml` の `quiz` など）は、既定のルールに当たらない。
+
+### 脆弱性の検出
+
+依存とコンテナイメージの脆弱性を、2 つの道具で見る（DEV-113）。
+
+| 道具 | いつ | 見る範囲 |
+| --- | --- | --- |
+| [Trivy](https://trivy.dev/)（CI） | PR と push。`backend` / `notification` / `frontend` のジョブ | 作ったイメージ（quiz-service、web）と、Lambda の zip（notification-service）。jar、Node.js の依存、ベースイメージの OS のパッケージ |
+| Dependabot（GitHub） | 新しい脆弱性が公表されたとき | develop の依存（Gradle、pnpm）。見つけたら Security タブに知らせ（alerts）、修正版に上げる PR を作る（security updates） |
+
+**CI が止めるのは、修正版が出ている HIGH 以上だけ**（`trivy.yaml`）。修正版のないものは、止めても待つことしかできない。
+Dependabot は、CI を通ったあとに公表された脆弱性を拾う。CI は、PR が足した依存と、作り直したイメージを見る。
+
+- **見るのは、動くときに載るものだけ。** イメージと zip を調べるので、テストやビルドの道具は入らない。
+  Gradle の依存の一覧を GitHub に送るときも、実行時の依存（`runtimeClasspath` / `productionRuntimeClasspath`）に絞る（`dependency-graph` ジョブ）
+- Gradle の依存は、ファイルからは版が読めない（Spring Boot の BOM が決める）。そのため、Dependabot alerts は送った一覧を見る
+- Dependabot は、Gradle と pnpm について版を上げるだけの PR は作らない（`open-pull-requests-limit: 0`）。脆弱性の修正だけが PR になる
+- web のイメージから npm を外している。実行には node だけを使い、npm が抱える依存は検査に掛かるだけ
+- Trivy のアクションは使わず、mise で版を固定して入れる（`.mise.toml`）。Trivy のアクションは、タグを乗っ取られて書き換えられたことがある
+- 手元でも同じ基準で流せる
+
+```bash
+docker build -f services/quiz-service/Dockerfile -t quiz-service:local .
+trivy image quiz-service:local                 # trivy.yaml を読む。止まる基準も CI と同じ
+```
+
+**見つかったとき。**
+
+1. **直せるなら直す。** 依存は修正版に上げる。Spring Boot が版を決める依存（Tomcat、Jackson など）は、`services/quiz-service/build.gradle.kts` の
+   `extra["<名前>.version"]` で上書きする。プロパティの名前は Spring Boot の `spring-boot-dependencies` の pom にある。
+   Spring Boot を上げて、同じか新しい版になったら上書きを消す
+2. ベースイメージの OS のパッケージは、ベースイメージの更新を待つ。CI は毎回、タグの最新を取り直す
+3. **直せないものは `.trivyignore.yaml` に足す。** 影響がない理由（`statement`）と、見直す期限（`expired_at`）を必ず書く。
+   期限を過ぎると CI がまた止まり、見直すきっかけになる
+4. 公表されたばかりの脆弱性で、関係のない PR まで止まることがある。別の PR で直してから、元の PR を流し直す
 
 ### テスト
 

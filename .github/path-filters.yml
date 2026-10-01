@@ -73,6 +73,12 @@ terraform:
   - '.mise.toml'
   - '.github/path-filters.yml'
   - '.github/workflows/ci.yml'
+# 脆弱性の検査の基準（DEV-113）。変わったら、イメージと zip を調べ直す（backend / notification / frontend のジョブ）。
+# CI だけが使う。基準を変えただけで、dev に載せ直さない
+vulnerability-scan:
+  - 'trivy.yaml'
+  - '.trivyignore.yaml'
+  - '.github/path-filters.yml'
 # バックエンドか画面が変わったときにも流す（e2e ジョブの条件）。ここはそれ以外で E2E に関わるもの
 e2e:
   - 'tests/e2e/**'
