@@ -29,3 +29,8 @@ output "iam_db_user_arns" {
     app     = "arn:aws:rds-db:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:dbuser:${aws_rds_cluster.this.cluster_resource_id}/quiz_app"
   }
 }
+
+output "cluster_identifier" {
+  description = "クラスタの名前。CloudWatch のメトリクスの次元（DBClusterIdentifier）に使う"
+  value       = aws_rds_cluster.this.cluster_identifier
+}

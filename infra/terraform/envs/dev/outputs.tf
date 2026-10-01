@@ -106,3 +106,8 @@ output "notification_function_name" {
 output "notification_dlq_url" {
   value = module.notification_service.dlq_url
 }
+
+output "dashboard_url" {
+  description = "CloudWatch のダッシュボード（DEV-109）"
+  value       = module.dashboard.url
+}

@@ -42,3 +42,23 @@ output "task_role_arns" {
 output "log_group_name" {
   value = aws_cloudwatch_log_group.quiz_service.name
 }
+
+# ---- ダッシュボード（modules/dashboard）に渡す ----
+
+output "monitoring" {
+  description = "メトリクスの次元、ロググループ、アラーム。ダッシュボードが読む"
+  value = {
+    api_id                = aws_apigatewayv2_api.this.id
+    api_stage             = aws_apigatewayv2_stage.default.name
+    cluster_name          = aws_ecs_cluster.this.name
+    service_name          = aws_ecs_service.app.name
+    log_group_name        = aws_cloudwatch_log_group.quiz_service.name
+    access_log_group_name = aws_cloudwatch_log_group.api_access.name
+    metric_namespace      = local.metric_namespace
+    alarm_arns = [
+      aws_cloudwatch_metric_alarm.server_errors.arn,
+      aws_cloudwatch_metric_alarm.gateway_errors.arn,
+      aws_cloudwatch_metric_alarm.outbox_oldest_unpublished.arn,
+    ]
+  }
+}
