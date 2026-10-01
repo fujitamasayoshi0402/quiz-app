@@ -37,6 +37,9 @@ WORKDIR /app
 COPY --from=build --chown=node:node /repo/apps/web/.next/standalone ./
 COPY --from=build --chown=node:node /repo/apps/web/.next/static ./apps/web/.next/static
 
+# 実行には node だけを使う。公式イメージに入っている npm（と、npm が抱える依存）は脆弱性の検査に掛かるだけなので外す（DEV-113）
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 # 公式イメージに用意されている root 以外の利用者
 USER node
 EXPOSE 3000

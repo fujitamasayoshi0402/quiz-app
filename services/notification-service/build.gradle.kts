@@ -40,7 +40,7 @@ dependencies {
     implementation("com.amazonaws:aws-lambda-java-core:1.4.0")
 
     // イベントを共有の型に読む。版は quiz-service（Spring Boot が持つ版）と揃える
-    implementation(platform("tools.jackson:jackson-bom:3.1.5"))
+    implementation(platform("tools.jackson:jackson-bom:3.1.7"))
     implementation("tools.jackson.core:jackson-databind")
     implementation("tools.jackson.module:jackson-module-kotlin")
     // jackson-module-kotlin が引く版は古い。Kotlin の標準ライブラリと版を揃える（版はルートの Kotlin のプラグインが決める）
