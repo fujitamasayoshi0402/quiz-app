@@ -1029,6 +1029,38 @@ fields @timestamp, log.level, message, error.type, tenant.id, http.request.id
 | sort @timestamp desc
 ```
 
+#### データの整合性
+
+DB の制約では表しきれない決まりを、quiz-service が **1 日に 1 回** 確かめる（DEV-115。`quiz/infrastructure/integrity/`）。
+ドメインは保存のたびに守っているが、シード、手で流した SQL、マイグレーションはドメインを通らない。
+
+| 決まり（`integrity.rule`） | 中身 |
+| --- | --- |
+| `choice-count` | 公開中のクイズの選択肢が 4 つちょうどでない。下書きで 5 つ以上ある |
+| `correct-choice-count` | 公開中のクイズの正解が 1 つでない（2 つ以上は DB の一意索引が止めるため、0 個） |
+| `explanation-blank` | 公開中のクイズの解説が空白だけ |
+| `missing-figure` | 解説が、同じテナントにない図（`figure:<ID>`）を指している |
+| `alive-under-deleted-parent` | 削除済みのカテゴリか難易度の下に、削除されていない難易度やクイズがある |
+
+- 削除済みのクイズは見ない。出題されないため
+- Outbox の送り残しは、ここでは見ない。拾い直しが経過時間を出し、アラームが鳴る（[イベント](#イベント)）
+- **利用者が DB を使ってから 5 分の間に、前に流してから 1 日たっていれば流す。** Outbox の拾い直しと同じく、Aurora を起こさない（min 0 ACU）。
+  決まった時刻に流すと、そのたびに一時停止中の Aurora を起こす。前に流した時刻はタスクごとに持ち、タスクは毎朝起動し直すため、その日の最初の利用で流れる
+- 誰も使わない日は流れない。その日はデータも変わらない
+- **テナントを 1 つずつ、そのテナントを設定して読む。** テナントをまたいで読む印（Outbox の `app.outbox_relay`）は作らない。行レベルセキュリティの外に出る口を増やさない
+- 読むだけ。崩れたものは直さない。直し方は崩れ方による
+- 崩れたものは 1 件ずつ WARN でログに出す。**載せるのは ID だけで、問題文や解説は出さない。** 最後に件数（`integrity.violations`）を 1 行出し、1 以上でアラームが鳴る（[アラーム](#アラーム)）
+- 確かめられなかったとき（DB の失敗）は、ログに残して次の回（1 分後）にやり直す
+- デモのシードも、同じ決まりを満たすことを `DemoSeedTest` が確かめる。dev へ載せる前に気づける
+
+流れたかどうかは、ロググループ `/ecs/quiz-app-dev/quiz-service` を Logs Insights で見る。
+
+```
+fields @timestamp, log.level, message, integrity.rule, tenant.id, integrity.subject_id
+| filter ispresent(integrity.violations) or ispresent(integrity.rule)
+| sort @timestamp desc
+```
+
 #### アラーム
 
 異常は、メールで知らせる（DEV-108）。送り先は環境に 1 つの SNS のトピック（`modules/alarms`）で、アドレスは `terraform.tfvars` の `alarm_email`。
@@ -1039,11 +1071,12 @@ fields @timestamp, log.level, message, error.type, tenant.id, http.request.id
 | `quiz-app-dev-quiz-service-server-errors` | アプリが 5xx を返した（5 分で 1 回でも） | Logs Insights で `http.response.status_code >= 500` の行を探し、`http.request.id` でその要求のログを追う（[ログ](#ログquiz-service)） |
 | `quiz-app-dev-quiz-service-gateway-errors` | API Gateway がタスクから応答を得られなかった（502 / 504 が 5 分で 3 回） | アクセスログの `requestId` から、アプリのログの `http.request.id` を引く。タスクが固まっていないか、DB の接続を待っていないか |
 | `quiz-app-dev-quiz-service-outbox-stuck` | Outbox に 3 分以上送れていないイベントがある | アプリのログの「イベントを送れませんでした」で理由を見る。送れるようになれば、拾い直しが送る |
+| `quiz-app-dev-quiz-service-integrity-violations` | データの整合性が崩れている（1 件でも。[データの整合性](#データの整合性)） | アプリのログの「データの整合性が崩れています」で、決まり（`integrity.rule`）、`tenant.id`、対象の ID（`integrity.subject_id`）を見る |
 | `quiz-app-dev-notification-dlq-not-empty` | 通知が DLQ に入った（[通知](#通知notification-service)） | DLQ の中身と、Lambda のログ |
 | タスクの停止（EventBridge のルール） | quiz-service のタスクが落ちた、起動に失敗した、ヘルスチェックに落ちた | メールの理由と、`/ecs/quiz-app-dev/quiz-service` の止まる前のログ |
 
 数えるものの多くは、アプリが JSON で出すログ（[ログ](#ログquiz-service)）から、メトリクスフィルタで作る（`modules/quiz-service` の `alarms.tf`）。
-**ログの項目の名前（`http.response.status_code`、`outbox.oldest_unpublished_seconds`）を変えると、アラームが黙って鳴らなくなる。**
+**ログの項目の名前（`http.response.status_code`、`outbox.oldest_unpublished_seconds`、`integrity.violations`）を変えると、アラームが黙って鳴らなくなる。**
 
 **誤報を出さない。** 夜間の停止、デプロイの入れ替え、止まっている Aurora の復帰は、ふつうに起きる。
 
@@ -1402,7 +1435,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 | Secrets Manager（Aurora のマスター） | 0.4 ドル | 続く |
 | 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |
 | 通知（Lambda、DynamoDB、SQS） | イベントの数だけで、dev の量ではほぼ 0 | — |
-| アラーム（CloudWatch のアラーム 4 つ、メトリクスフィルタのメトリクス 3 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
+| アラーム（CloudWatch のアラーム 5 つ、メトリクスフィルタのメトリクス 4 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
 | ECS のタスク（0.5 vCPU / 1 GB） | 約 13.5 ドル（1 時間 0.0246 ドル × 1 日 18 時間） | 止まる |

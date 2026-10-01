@@ -61,5 +61,7 @@ object TestPostgres {
         // 拾い直しは定期的に動かさない。テストは手で呼ぶ（OutboxDeliveryApiTest）。
         // 動かすと、別のテストが残した送れていない行を、思わぬ時に送ってしまう
         registry.add("app.events.relay.enabled") { "false" }
+        // データの整合性の確認も同じ。テストは手で呼ぶ（IntegrityChecksApiTest）
+        registry.add("app.integrity.enabled") { "false" }
     }
 }

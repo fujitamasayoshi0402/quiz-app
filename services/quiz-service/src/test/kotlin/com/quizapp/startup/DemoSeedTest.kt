@@ -1,9 +1,11 @@
 package com.quizapp.startup
 
+import com.quizapp.quiz.infrastructure.integrity.IntegrityChecks
 import com.quizapp.quiz.support.TestPostgres
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.core.io.ClassPathResource
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator
@@ -11,6 +13,7 @@ import org.springframework.jdbc.datasource.init.ScriptUtils
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import java.sql.DriverManager
+import java.util.UUID
 
 /**
  * デモ用シードの検証。
@@ -21,6 +24,7 @@ import java.sql.DriverManager
  * あわせて、シードが**ドメインの不変条件を満たしていること**を確かめる。
  * SQL で直接入れるため、公開クイズの「選択肢ちょうど 4 つ・正解ちょうど 1 つ」は
  * アプリケーション層の検証を通らない。DB の制約だけでは行数の条件を表現できない。
+ * dev ではデータの整合性の確認（`IntegrityCheck`）も同じ決まりを当てるが、気づくのはデプロイの後になる。
  *
  * Flyway の履歴を汚さないよう、ここでは locations を切り替えず SQL を直接流す。
  *
@@ -29,6 +33,8 @@ import java.sql.DriverManager
  */
 @SpringBootTest
 class DemoSeedTest {
+
+    @Autowired private lateinit var integrityChecks: IntegrityChecks
 
     companion object {
         @JvmStatic
@@ -118,20 +124,18 @@ class DemoSeedTest {
     }
 
     @Test
-    @DisplayName("公開クイズは選択肢 4 つ・正解 1 つを満たす")
-    fun publishedQuizzesSatisfyInvariants() {
+    @DisplayName("データの整合性の決まりを満たす（公開クイズの選択肢と正解と解説、解説が指す図、削除の連鎖）")
+    fun satisfiesIntegrityRules() {
         applySeed()
 
-        val broken = count(
-            """
-            SELECT count(*) FROM quiz.quizzes q
-            WHERE q.tenant_id IN $SEEDED AND q.status = 'published'
-              AND ( (SELECT count(*) FROM quiz.choices c WHERE c.quiz_id = q.id) <> 4
-                 OR (SELECT count(*) FROM quiz.choices c WHERE c.quiz_id = q.id AND c.is_correct) <> 1 )
-            """,
-        )
+        // 決まりはデータの整合性の確認（DEV-115）と同じものを使う。ここで書き直すと、2 つがずれる
+        val tenants = TestPostgres.adminJdbcTemplate.queryForList(
+            "SELECT id FROM core.tenants WHERE id IN $SEEDED",
+            UUID::class.java,
+        ).filterNotNull()
 
-        assertThat(broken).isZero()
+        assertThat(tenants).hasSize(2)
+        assertThat(tenants.flatMap(integrityChecks::check)).isEmpty()
         assertThat(count("SELECT count(*) FROM quiz.quizzes WHERE tenant_id IN $SEEDED AND status = 'published'"))
             .isGreaterThan(0)
     }

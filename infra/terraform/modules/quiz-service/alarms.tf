@@ -2,7 +2,7 @@
 # 一覧と、鳴ったときに見るものは、開発ガイドラインの「アラーム」にある。
 #
 # 数えるものの多くは、アプリが JSON で出すログ（DEV-107）から、メトリクスフィルタで作る。
-# **ログの項目の名前を変えると、ここが黙って数えなくなる。** 名前は RequestLogFilter と OutboxRelay にある。
+# **ログの項目の名前を変えると、ここが黙って数えなくなる。** 名前は RequestLogFilter、OutboxRelay、IntegrityCheck にある。
 #
 # **誤報を出さない。** 夜間の停止（schedule.tf）、デプロイの入れ替え、止まっている Aurora の復帰は、ふつうに起きる。
 # - API Gateway の 5xx の率は使わない。止まっている間の 503 が入る。アプリの 5xx と、API Gateway が送り先から応答を得られなかったもの（502 / 504）を分けて数える
@@ -111,6 +111,41 @@ resource "aws_cloudwatch_metric_alarm" "outbox_oldest_unpublished" {
 
   comparison_operator = "GreaterThanOrEqualToThreshold"
   threshold           = 180
+  evaluation_periods  = 1
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [var.alarm_topic_arn]
+}
+
+# ---- データの整合性が崩れている ----
+# DB の制約で表しきれない決まり（公開中のクイズの選択肢と正解と解説、解説が指す図、削除の連鎖）を、
+# 利用者が DB を使っている間に 1 日 1 回確かめる（IntegrityCheck、DEV-115）。崩れていたものの件数を出す。
+# 1 件でも鳴らす。シードや手で流した SQL で崩れたもので、時間がたっても直らない
+
+resource "aws_cloudwatch_log_metric_filter" "integrity_violations" {
+  name           = "${var.name}-quiz-service-integrity-violations"
+  log_group_name = aws_cloudwatch_log_group.quiz_service.name
+  pattern        = "{ $.integrity.violations >= 0 }"
+
+  metric_transformation {
+    namespace = local.metric_namespace
+    name      = "IntegrityViolations"
+    value     = "$.integrity.violations"
+    unit      = "Count"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "integrity_violations" {
+  alarm_name        = "${var.name}-quiz-service-integrity-violations"
+  alarm_description = "データの整合性が崩れています。ログの「データの整合性が崩れています」で、決まり（integrity.rule）と tenant.id、対象の ID（integrity.subject_id）を見る（開発ガイドライン「アラーム」）"
+
+  namespace   = local.metric_namespace
+  metric_name = aws_cloudwatch_log_metric_filter.integrity_violations.metric_transformation[0].name
+  statistic   = "Maximum"
+  period      = 300
+
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = 1
   evaluation_periods  = 1
   treat_missing_data  = "notBreaching"
 
