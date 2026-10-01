@@ -58,5 +58,8 @@ object TestPostgres {
         registry.add("spring.flyway.password") { "quiz" }
         registry.add("app.auth.issuer") { com.quizapp.support.TestJwt.ISSUER }
         registry.add("app.auth.client-id") { com.quizapp.support.TestJwt.CLIENT_ID }
+        // 拾い直しは定期的に動かさない。テストは手で呼ぶ（OutboxDeliveryApiTest）。
+        // 動かすと、別のテストが残した送れていない行を、思わぬ時に送ってしまう
+        registry.add("app.events.relay.enabled") { "false" }
     }
 }

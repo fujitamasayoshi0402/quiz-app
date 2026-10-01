@@ -17,6 +17,8 @@ import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizChange
 import com.quizapp.quiz.domain.QuizEventOutbox
 import com.quizapp.quiz.domain.QuizStatus
+import com.quizapp.quiz.infrastructure.outbox.OutboxEntry
+import com.quizapp.quiz.infrastructure.outbox.OutboxPublisher
 import com.quizapp.tenant.TenantContext
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
@@ -29,11 +31,15 @@ import java.util.UUID
  * クイズのイベントを `quiz.outbox` に書く（ADR-0022）。
  *
  * 呼び出し側のトランザクションに乗る。テナントは [TenantContext] から取り、行レベルセキュリティの下で書く。
- * 行の `payload` が EventBridge の `detail`、`event_type` が `detail-type` になる
+ * 行の `payload` が EventBridge の `detail`、`event_type` が `detail-type` になる。
+ * 書いたイベントは、コミットの直後に [OutboxPublisher] が送る（DEV-97）
  */
 @Component
-class QuizEventOutboxJdbc(private val jdbcTemplate: JdbcTemplate, private val categoryRepository: CategoryRepository) :
-    QuizEventOutbox {
+class QuizEventOutboxJdbc(
+    private val jdbcTemplate: JdbcTemplate,
+    private val categoryRepository: CategoryRepository,
+    private val publisher: OutboxPublisher,
+) : QuizEventOutbox {
 
     override fun quizChanged(change: QuizChange, quiz: Quiz) {
         val eventId = UUID.randomUUID()
@@ -55,6 +61,7 @@ class QuizEventOutboxJdbc(private val jdbcTemplate: JdbcTemplate, private val ca
     )
 
     private fun append(event: QuizEvent) {
+        val payload = QuizEventJson.write(event)
         jdbcTemplate.update(
             """
             INSERT INTO quiz.outbox (id, tenant_id, event_type, payload, occurred_at)
@@ -63,9 +70,10 @@ class QuizEventOutboxJdbc(private val jdbcTemplate: JdbcTemplate, private val ca
             event.eventId,
             event.tenant.id,
             event.detailType,
-            QuizEventJson.write(event),
+            payload,
             event.occurredAt.atOffset(ZoneOffset.UTC),
         )
+        publisher.publishAfterCommit(OutboxEntry(event.eventId, event.tenant.id, event.detailType, payload))
     }
 
     /** `core.tenants` は行レベルセキュリティの対象外。テナントの名前と slug は、通知の文面とリンクに使う */

@@ -104,6 +104,14 @@ variable "slack_webhook_parameter_prefix" {
   }
 }
 
+variable "event_bus" {
+  description = "クイズのイベントを送る EventBridge のカスタムバス（ADR-0022）。アプリのタスクにだけ渡し、送る権限もこのバスだけに絞る"
+  type = object({
+    name = string
+    arn  = string
+  })
+}
+
 # ---- タスク ----
 
 variable "image_tag" {

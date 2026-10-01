@@ -78,6 +78,8 @@ dependencies {
     implementation("software.amazon.awssdk:cloudfront")
     // テナントの Slack の Webhook の URL を、SSM Parameter Store に置く（ADR-0022）
     implementation("software.amazon.awssdk:ssm")
+    // クイズのイベントを、Outbox から EventBridge のカスタムバスへ送る（ADR-0022）
+    implementation("software.amazon.awssdk:eventbridge")
 
     // PDF の 1 ページ目を画像にして、解説の中に出す（ADR-0021）
     implementation("org.apache.pdfbox:pdfbox:3.0.7")
@@ -99,6 +101,9 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+    // EventBridge へ送ったイベントが、ルールから SQS に届くかを LocalStack で確かめる
+    testImplementation("org.testcontainers:testcontainers-localstack")
+    testImplementation("software.amazon.awssdk:sqs")
 }
 
 kotlin {

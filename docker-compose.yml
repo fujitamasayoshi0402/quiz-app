@@ -99,6 +99,8 @@ services:
       FIGURES_S3_PUBLIC_ENDPOINT: http://localhost:${LOCALSTACK_PORT:-4566}
       # テナントの Slack の Webhook の URL は、LocalStack の SSM に置く（ADR-0022）
       NOTIFICATIONS_SSM_ENDPOINT: http://localstack:4566
+      # クイズのイベントは、LocalStack の EventBridge のバスへ送る（ADR-0022）
+      EVENTS_ENDPOINT: http://localstack:4566
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
