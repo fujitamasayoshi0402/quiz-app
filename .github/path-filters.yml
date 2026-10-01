@@ -4,8 +4,12 @@
 #   deploy-dev.yml の deploy  … dev に何を載せるかを決める。dev でいま動いているもののコミットとの差を見る（DEV-79）
 #
 # 同じ一覧を使い、「CI が見るもの」と「デプロイが載せるもの」を揃える。migration はデプロイだけが使う
+#
+# backend は quiz-service、notification は notification-service（Lambda）。片方だけを変えたときに、もう片方を載せ直さない
 backend:
-  - 'services/**'
+  - 'services/quiz-service/**'
+  # quiz-service のイメージのビルドが読む。壊れていると、イメージが作れない
+  - 'services/notification-service/build.gradle.kts'
   # サービスの間で共有する型（ADR-0022）。quiz-service のイメージにも入る
   - 'libs/**'
   - 'build.gradle.kts'
@@ -23,6 +27,23 @@ backend:
   - '.github/scripts/deployed-commits.sh'
   - '.github/scripts/deploy-quiz-service.sh'
   - '.github/scripts/smoke-token.sh'
+notification:
+  - 'services/notification-service/**'
+  - 'libs/**'
+  # テストが、ルールの絞り込みを Terraform と同じ JSON で確かめる（EventPatternTest）
+  - 'infra/terraform/modules/notification-service/event-pattern.json'
+  - 'build.gradle.kts'
+  - 'config/detekt.yml'
+  - '.editorconfig'
+  - 'gradle/**'
+  - 'gradlew'
+  - 'settings.gradle.kts'
+  - '.mise.toml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci.yml'
+  - '.github/workflows/deploy-dev.yml'
+  - '.github/scripts/deployed-commits.sh'
+  - '.github/scripts/deploy-notification-service.sh'
 frontend:
   - 'apps/**'
   - '.dockerignore'

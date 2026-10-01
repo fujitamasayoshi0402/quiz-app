@@ -209,7 +209,8 @@ pnpm --filter web lint
 | ジョブ | 内容 |
 | --- | --- |
 | `changes` | 変更パスを見て後続を出し分ける |
-| `backend` | ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド |
+| `backend` | quiz-service。ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド |
+| `notification` | notification-service（Lambda）。ktlint / detekt → test（Testcontainers の LocalStack）→ zip のビルド |
 | `frontend` | API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → build → イメージのビルド |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりの流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
@@ -1093,14 +1094,11 @@ aws events describe-archive --archive-name "$(terraform output -raw events_archi
 - **DLQ に 1 件でも入ると、メールが届く。** アドレスは `terraform.tfvars` の `alarm_email`（公開リポジトリに載せない）。
   apply のあとに届く確認のメール（AWS Notifications）のリンクを開くまで、届かない
 
-**コードは Terraform では載せ替えない。** 関数を作るときにだけ zip を読む（`package_path`）。以後は zip を作り直し、CLI で載せる。
-CI からの自動のデプロイは DEV-99 で入れる。
+**コードは Terraform では載せ替えない。** 関数を作るときにだけ zip を読む（`package_path`）。以後は、develop へのマージでデプロイが載せる（[デプロイ](#デプロイ)、DEV-99）。
+quiz-service の ECS と同じく、Terraform が持つのは関数の形（ロール、環境変数、メモリなど）までで、どのコードを動かすかは持たない（ADR-0015 と同じ分け方）。
 
 ```bash
-./gradlew :services:notification-service:buildZip   # 関数を作る apply の前にも要る
-cd infra/terraform/envs/dev
-aws lambda update-function-code --function-name "$(terraform output -raw notification_function_name)" \
-  --zip-file fileb://../../../../services/notification-service/build/distributions/notification-service.zip
+./gradlew :services:notification-service:buildZip   # 関数を作る apply の前に要る
 ```
 
 ログは CloudWatch Logs の `/aws/lambda/quiz-app-dev-notification-service`（14 日）。届いたイベントごとに「知らせました」「通知先が設定されていないため、知らせません」などが 1 行出る。
@@ -1133,7 +1131,8 @@ develop にマージすると、CI（`ci.yml`）のチェックが通ったあ�
 （[ADR-0015](adr/0015-deploy-by-registering-task-definitions-from-ci.md)）。
 
 ```
-イメージを作る（arm64）→ ECR に push → マイグレーション（単発タスク。変更があるときだけ）→ サービスの入れ替え → web のビルド（Amplify）→ スモークテスト
+notification-service（zip を作る → 関数に載せる → 1 度呼んで確かめる）
+→ イメージを作る（arm64）→ ECR に push → マイグレーション（単発タスク。変更があるときだけ）→ サービスの入れ替え → web のビルド（Amplify）→ スモークテスト
 ```
 
 - **dev で動いているものと比べて、変わったほうだけを載せる**（DEV-79）。動いているもののコミットから develop の先頭までに、
@@ -1142,6 +1141,14 @@ develop にマージすると、CI（`ci.yml`）のチェックが通ったあ�
   - 直前の push との差で決めると、続けてマージして待ちの実行が取り消されたとき（[CI](#ci)）、その分が載らない。
     動いているものと比べれば、次の実行がまとめて載せる。デプロイが失敗したときも、次の実行が載せ直す
   - 動いているもののコミットが分からないときは、載せる。動いているほうが新しいときは、載せない（古い実行をやり直しても、新しいものを上書きしない）
+- **notification-service は、`notification` のパスが変わったときだけ載せる**（DEV-99）。quiz-service だけを変えたときは、関数に触れない
+  - **quiz-service より先に載せる。** イベントの受け手は、新しい版を読めるようにしてから送る側を替える（ADR-0022）
+  - 載せたコミットは、関数のタグ `DeployedCommit` に残す。Terraform はこのタグを無視する（`envs/dev/versions.tf` の `ignore_tags`）。
+    説明（description）や環境変数に書くと、デプロイのロールに関数の形を変える権限（`UpdateFunctionConfiguration`）が要る
+  - 載せたあと、知らない種類のイベントで 1 度呼び、起動できるか（環境変数、依存の jar、AWS のクライアント）を確かめる。何もせずに返るので、Slack には送らない
+  - **確かめるのに失敗しても、前のコードには戻らない。** その間に届いたイベントは再試行のあと DLQ に入り、メールが届く。
+    直したものが載ったら、アーカイブから流し直す。dev だけのため、版とエイリアスで切り替える仕組みは入れていない
+  - 失敗したときはタグを書かない。次のデプロイが、直したものを載せ直す
 - **マイグレーションは、DB に流れるもの（`migration` のパス）が変わったときだけ流す**（DEV-88）。変わっていなければ、単発タスクを飛ばす（約 1.6 分）。
   飛ばしたかどうかは、デプロイのジョブのサマリーに出る
   - 比べる相手は、quiz-service の動いているもののコミット。**そのコミットまでのマイグレーションは、流し終わっている。**
@@ -1160,13 +1167,14 @@ develop にマージすると、CI（`ci.yml`）のチェックが通ったあ�
 - イメージのタグはコミットの SHA（先頭 12 桁）。ECR には直近 10 個が残る
 - マージから載り終えるまで約 9 分（イメージ 2 分、quiz-service 5 分、web 2 分）。起動に失敗して前のリビジョンに戻るときは、失敗が分かるまで 15 分ほどかかる
 
-手で流すとき（形を変えたあと、失敗をやり直すときなど）。`backend` と `frontend` は `auto`（動いているものと比べる）/ `deploy`（必ず載せる）/ `skip`（載せない）、
+手で流すとき（形を変えたあと、失敗をやり直すときなど）。`backend`、`frontend`、`notification` は `auto`（動いているものと比べる）/ `deploy`（必ず載せる）/ `skip`（載せない）、
 `migration` は `auto` / `run`（必ず流す）を指定できる。
 
 ```bash
 gh workflow run deploy-dev.yml --ref develop                                     # 動いているものと比べて、変わったほうを載せる
 gh workflow run deploy-dev.yml --ref develop -f backend=deploy -f frontend=skip  # quiz-service だけを載せ直す（形を変えたあと）
 gh workflow run deploy-dev.yml --ref develop -f backend=deploy -f frontend=skip -f migration=run  # マイグレーションも流し直す
+gh workflow run deploy-dev.yml --ref develop -f backend=skip -f frontend=skip -f notification=deploy  # notification-service だけを載せ直す
 ```
 
 GitHub Actions が使えないときは、手元から同じスクリプトで流せる。
@@ -1180,12 +1188,18 @@ aws ecr get-login-password | docker login --username AWS --password-stdin "${REP
 docker build --platform linux/arm64 -f ../../../../services/quiz-service/Dockerfile -t "$REPO:$TAG" ../../../..
 docker push "$REPO:$TAG"
 ../../../../.github/scripts/deploy-quiz-service.sh quiz-app-dev quiz-service quiz-app-dev-quiz-service-migrate "$REPO:$TAG"
+
+# notification-service
+(cd ../../../.. && ./gradlew :services:notification-service:buildZip)
+../../../../.github/scripts/deploy-notification-service.sh "$(terraform output -raw notification_function_name)" \
+  ../../../../services/notification-service/build/distributions/notification-service.zip "$(git rev-parse HEAD)"
 ```
 
 **GitHub Actions は OIDC でロールを引き受ける。アクセスキーは使わない**（`modules/deploy-role`）。
 
 - 引き受けられるのは、このリポジトリの Environment `dev` で動くジョブだけ。`dev` は develop からしか使えない（GitHub の設定）
-- ロールにできるのは、ECR への push、2 つのタスク定義の登録、マイグレーションの起動、サービスの更新、Amplify のビルドの起動だけ
+- ロールにできるのは、ECR への push、2 つのタスク定義の登録、マイグレーションの起動、サービスの更新、Amplify のビルドの起動、
+  notification-service の関数のコードの載せ替え（と、確かめるための呼び出し、`DeployedCommit` のタグ）だけ。ほかの Lambda には触れない
 - OIDC のプロバイダはアカウントに 1 つだけ作れる。`infra/terraform/account` に置いている
 
 Environment `dev` には、次を置く。値は Terraform の出力から入れる。

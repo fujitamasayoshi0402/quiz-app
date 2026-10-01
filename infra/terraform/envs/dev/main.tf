@@ -209,4 +209,6 @@ module "deploy_role" {
   task_role_arns           = module.quiz_service.task_role_arns
 
   amplify_branch_arn = module.web.branch_arn
+
+  notification_function_arn = module.notification_service.function_arn
 }
