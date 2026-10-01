@@ -118,9 +118,10 @@ flowchart LR
 └── .github/workflows/           # GitHub Actions のワークフロー
 ```
 
-サービスの境界は DB スキーマ単位で分離します。回答・採点・履歴を担う `answer-service` は、
-当面 `quiz-service` 内のモジュールとして実装し、ドメイン境界が安定してから物理的に分割します。
-理由は [ADR-0004](docs/adr/0004-split-services-incrementally.md) を参照してください。
+サービスの境界は DB スキーマ単位で分離します。回答・採点・履歴を担う `answer` は、
+`quiz-service` 内のモジュールとして実装し、物理的には分けないと判断しました。
+分けたときの費用と往復に、独立したデプロイとスケールが見合わないためです。
+判断の過程は [ADR-0004](docs/adr/0004-split-services-incrementally.md) と [ADR-0023](docs/adr/0023-keep-answer-as-module-in-quiz-service.md) を参照してください。
 
 ## 動かしてみる
 

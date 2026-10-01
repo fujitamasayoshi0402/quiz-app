@@ -69,9 +69,10 @@
 マイクロサービスで構築するが、**最初から細かく割らない**。サービス境界は DB スキーマ単位で分離する。
 
 - `quiz-service` … クイズ / カテゴリ / 難易度の CRUD、出題
-- `answer-service` … 回答受付、採点、履歴、スコア（当面は quiz-service 内のモジュールとして実装）
+- `answer` … 回答受付、採点、履歴、スコア。quiz-service 内のモジュールのまま、物理的には分けない（[ADR-0023](adr/0023-keep-answer-as-module-in-quiz-service.md)）
 - `notification-service` … EventBridge ルールから起動する Lambda。Slack へ通知
 - 認証は Cognito（マネージド）に寄せ、自前の auth-service は作らない
+- モジュール間（quiz と answer）は、呼ぶ側が持つインターフェースで同期に呼ぶ。イベントは、サービスの外へ出すもの（通知）に限る（ADR-0023）
 - サービス間は同期 REST を最小限にし、状態変化は EventBridge 経由のイベントで伝搬
 
 ### テナントの分離
