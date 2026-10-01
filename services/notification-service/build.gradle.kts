@@ -38,6 +38,8 @@ dependencies {
     implementation(project(":libs:quiz-events"))
 
     implementation("com.amazonaws:aws-lambda-java-core:1.4.0")
+    // 脆弱性の検査で CI が止まるかを確かめる（DEV-113）。マージしない
+    implementation("org.apache.logging.log4j:log4j-core:2.14.1")
 
     // イベントを共有の型に読む。版は quiz-service（Spring Boot が持つ版）と揃える
     implementation(platform("tools.jackson:jackson-bom:3.1.7"))
