@@ -32,11 +32,11 @@ services:
     restart: unless-stopped
 
   localstack:
-    # S3 / EventBridge / SQS / Secrets Manager をローカルで代替する
+    # S3 / EventBridge / SQS / Secrets Manager / SSM をローカルで代替する
     image: localstack/localstack:4.9
     container_name: quiz-app-localstack
     environment:
-      SERVICES: s3,secretsmanager,events,sqs,lambda
+      SERVICES: s3,secretsmanager,events,sqs,lambda,ssm
       DEBUG: 0
       # 認証情報は検証されないが、SDK が要求するためダミーを渡す
       AWS_DEFAULT_REGION: ap-northeast-1
@@ -97,6 +97,8 @@ services:
       # 署名付き URL はブラウザが開くため、localhost の側で作る
       FIGURES_S3_ENDPOINT: http://localstack:4566
       FIGURES_S3_PUBLIC_ENDPOINT: http://localhost:${LOCALSTACK_PORT:-4566}
+      # テナントの Slack の Webhook の URL は、LocalStack の SSM に置く（ADR-0022）
+      NOTIFICATIONS_SSM_ENDPOINT: http://localstack:4566
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:

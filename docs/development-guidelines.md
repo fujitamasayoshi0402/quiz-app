@@ -553,7 +553,7 @@ ECS のコンテナのヘルスチェックが定期的に叩くと、Aurora Ser
 | quiz-service | 8080 | `dev` プロファイル。migrate が成功してから起動する |
 | migrate | なし | quiz-service と同じイメージを `dev,migrate` で起動する。マイグレーションとシードを流して終了する |
 | PostgreSQL | 5432 | ユーザー / パスワード / DB 名はすべて `quiz` |
-| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda。起動のたびに解説図のバケットを作る（中身は再起動で消える） |
+| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda / SSM。起動のたびに解説図のバケットを作る（中身は再起動で消える） |
 
 PostgreSQL は本番の Aurora とメジャーバージョンを揃えて 16 系を使う（min 0 ACU は 16.3 以降が前提）。
 タイムゾーンは本番との差異を減らすため UTC に固定している。
@@ -966,6 +966,31 @@ PDF は、1 ページ目の画像と、その下にファイル名を文字に�
 ```bash
 cd infra/terraform/envs/dev
 aws s3 ls "s3://$(terraform output -raw figures_bucket_name)/svg/" --recursive
+```
+
+#### 通知の設定（SSM）
+
+テナントの管理者が、管理画面の「通知」で Slack の Incoming Webhook の URL を設定する（[ADR-0022](adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)、DEV-102）。
+
+```
+管理者 → web の proxy → quiz-service ─┬─ SSM Parameter Store（SecureString）: URL
+                                      └─ quiz.slack_webhooks: 設定したという印と日時
+```
+
+- **URL は、画面にも API の応答にもログにも出さない。** `GET` は設定したかどうかと日時だけを返す。変えたいときは新しい URL で置き換える
+- URL は `/quiz-app/dev/tenants/{テナントの ID}/slack-webhook-url` に置く。**アプリのロールは、この名前への書き込みと削除だけを持ち、読めない。**
+  読むのは notification-service だけ（DEV-98）
+- 設定したかどうかは、SSM ではなく DB の印で答える。SSM に問い合わせるには読む権限が要り、AWS 管理のキー（aws/ssm）では値まで読めてしまう
+- `https://hooks.slack.com/` の下を指し、英数字と `/`・`_`・`-` だけでできた URL だけを受け付ける（`SlackWebhookUrl`）。任意の URL を許すと、Lambda が管理者の指定した先へ要求を送る踏み台になる
+- SSM への書き込みは、印を書く DB のトランザクションの中で行う。SSM が失敗すれば印も残らない（503 を返す）
+- URL は Terraform を通らないため、state にも残らない
+- ローカルは LocalStack の SSM に置く。再起動で消える
+
+置かれているかどうかは、名前の一覧で確かめる。**値は読まない。**
+
+```bash
+aws ssm describe-parameters --parameter-filters "Key=Name,Option=BeginsWith,Values=/quiz-app/dev/tenants/" \
+  --query 'Parameters[].[Name,LastModifiedDate]' --output table
 ```
 
 #### デプロイ

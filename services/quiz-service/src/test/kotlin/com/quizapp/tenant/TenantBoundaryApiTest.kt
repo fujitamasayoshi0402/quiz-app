@@ -5,6 +5,7 @@ import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
 import com.quizapp.support.TestTenant
 import com.quizapp.support.fake.InMemoryBucket
+import com.quizapp.support.fake.InMemorySlackWebhookStore
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.SoftAssertions
 import org.junit.jupiter.api.DisplayName
@@ -101,6 +102,8 @@ class TenantBoundaryApiTest {
 
     @Autowired private lateinit var bucket: InMemoryBucket
 
+    @Autowired private lateinit var slackWebhooks: InMemorySlackWebhookStore
+
     @Autowired
     @Qualifier("requestMappingHandlerMapping")
     private lateinit var handlerMapping: RequestMappingHandlerMapping
@@ -191,7 +194,7 @@ class TenantBoundaryApiTest {
     private fun probes(ids: Ids): List<Probe> =
         categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
             figureProbes(ids) + playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids) + historyProbes() +
-            rankingProbes()
+            rankingProbes() + notificationProbes()
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -511,6 +514,22 @@ class TenantBoundaryApiTest {
         )
     }
 
+    /** victim は Slack の通知先を設定している。own で設定し直しても消しても、victim の URL と印は変わらない */
+    private fun notificationProbes(): List<Probe> {
+        val base = "/api/t/{slug}/admin/notifications/slack"
+        return listOf(
+            Probe(HttpMethod.GET, base, "victim の設定が見えない", status = 200),
+            Probe(
+                HttpMethod.PUT,
+                base,
+                "設定しても victim の URL は変わらない",
+                body = """{"url":"https://hooks.slack.com/services/T0/B0/own"}""",
+                status = 200,
+            ),
+            Probe(HttpMethod.DELETE, base, "消しても victim の設定は残る", status = 204),
+        )
+    }
+
     private fun quizBody(categoryId: UUID, difficultyId: UUID): String {
         val choices = (1..4).joinToString(",") { """{"body":"選択肢 $it","isCorrect":${it == 1}}""" }
         return """
@@ -585,6 +604,12 @@ class TenantBoundaryApiTest {
             header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isCreated() } }.andReturn().response.contentAsString.let(objectMapper::readTree)
 
+        mockMvc.put("/api/t/${victimTenant.slug}/admin/notifications/slack") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"url":"https://hooks.slack.com/services/T0/B0/$SECRET"}"""
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isOk() } }
+
         recordVictimActivity()
 
         // 攻撃者自身が victim で挑戦を中断している
@@ -649,7 +674,7 @@ class TenantBoundaryApiTest {
         .toSet()
 
     /**
-     * `tenant_id` を持つ全テーブルの、victim の行。
+     * `tenant_id` を持つ全テーブルの、victim の行と、DB の外に置いた victim の Slack の通知先。
      *
      * テーブルは information_schema から引く。テーブルを足したときに書き換え検出の対象から漏れないようにする。
      * RLS を通さない所有者の接続で読む。
@@ -660,7 +685,7 @@ class TenantBoundaryApiTest {
             String::class.java,
             victimTenant.id,
         ).orEmpty()
-    }
+    } + ("SSM: slack-webhook-url" to slackWebhooks.find(victimTenant.id).orEmpty())
 
     /** victim の行が持つ ID。応答に 1 つでも現れたら漏洩とみなす。 */
     private fun victimRowIds(): Set<UUID> = tenantTables()

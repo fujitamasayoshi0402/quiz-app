@@ -72,6 +72,8 @@ dependencies {
     implementation(platform("software.amazon.awssdk:bom:2.55.4"))
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:cloudfront")
+    // テナントの Slack の Webhook の URL を、SSM Parameter Store に置く（ADR-0022）
+    implementation("software.amazon.awssdk:ssm")
 
     // PDF の 1 ページ目を画像にして、解説の中に出す（ADR-0021）
     implementation("org.apache.pdfbox:pdfbox:3.0.7")
