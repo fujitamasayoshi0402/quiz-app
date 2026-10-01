@@ -6,6 +6,8 @@ import com.quizapp.quiz.domain.DeletionRepository
 import com.quizapp.quiz.domain.DifficultyRepository
 import com.quizapp.quiz.domain.FigureRepository
 import com.quizapp.quiz.domain.Quiz
+import com.quizapp.quiz.domain.QuizChange
+import com.quizapp.quiz.domain.QuizEventOutbox
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
 import com.quizapp.tenant.TenantTransaction
@@ -19,6 +21,7 @@ class QuizUseCase(
     private val difficultyRepository: DifficultyRepository,
     private val deletion: DeletionRepository,
     private val figureRepository: FigureRepository,
+    private val outbox: QuizEventOutbox,
     private val tenantTransaction: TenantTransaction,
 ) {
     fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> =
@@ -46,7 +49,7 @@ class QuizUseCase(
             status = status,
         )
         verifyFigures(quiz)
-        quizRepository.save(quiz)
+        quizRepository.save(quiz).also { outbox.quizChanged(QuizChange.CREATED, it) }
     }
 
     fun update(
@@ -58,7 +61,7 @@ class QuizUseCase(
         choices: List<Choice>,
         status: QuizStatus,
     ): Quiz = tenantTransaction.execute {
-        quizRepository.findById(id) ?: throw QuizNotFoundException(id)
+        val before = quizRepository.findById(id) ?: throw QuizNotFoundException(id)
         verifyCategoryAndDifficulty(categoryId, difficultyId)
         val quiz = Quiz(
             id = id,
@@ -70,9 +73,12 @@ class QuizUseCase(
             status = status,
         )
         verifyFigures(quiz)
-        quizRepository.save(quiz)
+        quizRepository.save(quiz).also { saved ->
+            QuizChange.between(before, quiz)?.let { outbox.quizChanged(it, saved) }
+        }
     }
 
+    /** 削除と復活は、イベントを送らない（ADR-0022）。受け手がいない */
     fun delete(id: UUID) = tenantTransaction.executeWithoutResult {
         if (!deletion.deleteQuiz(id)) throw QuizNotFoundException(id)
     }

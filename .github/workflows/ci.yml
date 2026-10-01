@@ -65,7 +65,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: lint（ktlint / detekt）
-        run: ./gradlew :services:quiz-service:ktlintCheck :services:quiz-service:detekt
+        run: >-
+          ./gradlew
+          :services:quiz-service:ktlintCheck :services:quiz-service:detekt
+          :libs:quiz-events:ktlintCheck :libs:quiz-events:detekt
 
       # Testcontainers が PostgreSQL を起動する。ランナーには Docker が入っている
       - name: test

@@ -322,6 +322,28 @@ CREATE UNIQUE INDEX choices_order_key ON quiz.choices (quiz_id, sort_order);
 `choices` は論理削除しません。クイズに完全に従属し、単独で復活させる意味がないためです。
 クイズを論理削除した場合、選択肢はそのまま残ります（親が見えないため実質的に隠れます）。
 
+### quiz.outbox
+
+クイズのイベントの Outbox（[ADR-0022](adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)）。
+**クイズの変更と同じトランザクションで書きます。** 変更だけが残ってイベントが失われる、またはその逆を起こしません。
+
+| カラム | 型 | 制約 |
+| --- | --- | --- |
+| `id` | uuid | PK。イベントの ID（`eventId`）。アプリが作る |
+| `tenant_id` | uuid | NOT NULL, FK → `core.tenants(id)` |
+| `event_type` | text | NOT NULL。EventBridge の `detail-type` |
+| `payload` | jsonb | NOT NULL。EventBridge の `detail`（形は `docs/events/` の見本） |
+| `occurred_at` | timestamptz | NOT NULL |
+| `published_at` | timestamptz | 送れたら付ける（DEV-97） |
+
+```sql
+-- 送れていないものを古い順に拾う
+CREATE INDEX outbox_unpublished_idx ON quiz.outbox (occurred_at) WHERE published_at IS NULL;
+```
+
+`id` は送り直しても変わらないため、受け手が重複を捨てる鍵になります。EventBridge が付ける ID は送るたびに変わるため使えません。
+送れた行は 7 日で消します。論理削除にはしません。
+
 ### answer.answers
 
 | カラム | 型 | 制約 |
@@ -472,6 +494,23 @@ Spring Boot では `spring.datasource` に `quiz_app`、`spring.flyway.user` に
 
 RLS は「アクセス先のテナント」で絞るもので、所属は問いません。
 将来テナントを公開し、所属していない利用者が回答するようになっても矛盾しません。
+
+### quiz.outbox だけは、拾い直しがテナントをまたいで読む
+
+送れなかったイベントの拾い直し（DEV-97）は、テナントを問わずに古い順に読みます。
+**セッション変数 `app.outbox_relay` を `'on'` にしたときだけ**、`tenant_isolation` に加えて次のポリシーが効きます。
+
+```sql
+CREATE POLICY outbox_relay_select ON quiz.outbox FOR SELECT
+  USING (current_setting('app.outbox_relay', true) = 'on');
+-- UPDATE（送れた印）と DELETE（7 日を過ぎた行）も同じ条件。INSERT には付けない
+```
+
+- 立てるのは拾い直しの 1 か所だけです。`app.tenant_id` と同じく `SET LOCAL` 相当で立て、トランザクションの終わりで消えます
+- ほかのコードが絞り込みを書き漏らしても、別のテナントの行は返りません。RLS の役割は変わりません
+- **INSERT は許しません。** イベントを書くのは、テナントの決まった操作だけです。複数の許可ポリシーは OR で効くため、コマンドごとに分けています
+
+テナントごとに順に読む形は、テナントの数だけ問い合わせることになります。RLS を付けない別のスキーマに置く形は、書き漏らしたときに止めるものがありません。
 
 ---
 

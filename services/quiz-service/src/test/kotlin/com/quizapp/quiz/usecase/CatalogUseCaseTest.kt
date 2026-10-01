@@ -9,6 +9,7 @@ import com.quizapp.support.fake.InMemoryDifficultyRepository
 import com.quizapp.support.fake.InMemoryFigureRepository
 import com.quizapp.support.fake.InMemoryQuizRepository
 import com.quizapp.support.fake.RecordingDeletionRepository
+import com.quizapp.support.fake.RecordingQuizEventOutbox
 import com.quizapp.support.fake.fakeTenantTransaction
 import com.quizapp.tenant.TenantContext
 import org.assertj.core.api.Assertions.assertThat
@@ -37,7 +38,15 @@ class CatalogUseCaseTest {
 
     private val difficultyUseCase = DifficultyUseCase(difficulties, categories, deletion, transaction)
     private val quizUseCase =
-        QuizUseCase(quizzes, categories, difficulties, deletion, InMemoryFigureRepository(), transaction)
+        QuizUseCase(
+            quizzes,
+            categories,
+            difficulties,
+            deletion,
+            InMemoryFigureRepository(),
+            RecordingQuizEventOutbox(),
+            transaction,
+        )
 
     private lateinit var aws: UUID
     private lateinit var auth: UUID

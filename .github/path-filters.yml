@@ -6,6 +6,9 @@
 # 同じ一覧を使い、「CI が見るもの」と「デプロイが載せるもの」を揃える。migration はデプロイだけが使う
 backend:
   - 'services/**'
+  # サービスの間で共有する型（ADR-0022）。quiz-service のイメージにも入る
+  - 'libs/**'
+  - 'build.gradle.kts'
   - '.dockerignore'
   - 'config/detekt.yml'
   - '.editorconfig'
