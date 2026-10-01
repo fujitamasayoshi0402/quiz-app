@@ -28,6 +28,12 @@ provider "aws" {
       ManagedBy = "terraform"
     }
   }
+
+  # デプロイが notification-service の関数に、載せたコミットを書く（deploy-notification-service.sh）。
+  # Terraform の外で書くタグのため、plan で消そうとしないようにする
+  ignore_tags {
+    keys = ["DeployedCommit"]
+  }
 }
 
 # CloudFront の証明書は us-east-1 の ACM に置く（modules/figures）

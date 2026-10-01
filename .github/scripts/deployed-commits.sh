@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # dev でいま動いているもののコミットを調べる。deploy-dev.yml が、何を載せるかを決めるのに使う（DEV-79）。手元からも同じように流せる。
 #
-#   deployed-commits.sh <クラスタ> <サービス> <Amplify のアプリの ID> <ブランチ>
+#   deployed-commits.sh <クラスタ> <サービス> <Amplify のアプリの ID> <ブランチ> <通知の関数名>
 #
-# 次の 2 行を標準出力に出す（GITHUB_OUTPUT に書ける形）。調べられなかったものは空にする。呼び出し側は、空なら載せるものとして扱う。
+# 次の 3 行を標準出力に出す（GITHUB_OUTPUT に書ける形）。調べられなかったものは空にする。呼び出し側は、空なら載せるものとして扱う。
 #   backend=<quiz-service のコミット>
 #   web=<web のコミット>
+#   notification=<notification-service のコミット>
 # 調べられなかった理由は、標準エラーに警告として出す
 #
 # 直前の push との差ではなく、動いているものとの差で決める。
@@ -16,6 +17,7 @@ CLUSTER=$1
 SERVICE=$2
 APP_ID=$3
 BRANCH=$4
+FUNCTION=$5
 
 CONTAINER=quiz-service
 
@@ -53,5 +55,21 @@ web_commit() {
   commit_of "$(jq -r '. // empty' <<<"$commit")" "Amplify の最後のビルドのコミット"
 }
 
+# notification-service: 関数のタグ（DeployedCommit）。deploy-notification-service.sh が、載せて確かめたあとに書く。
+# Terraform が作ったばかりの関数にはタグがない。空にして、載せるものとして扱う
+notification_commit() {
+  local arn commit
+  arn=$(aws lambda get-function-configuration --function-name "$FUNCTION" \
+    --query FunctionArn --output text) || { warn "notification-service の関数を読めませんでした"; return 0; }
+  commit=$(aws lambda list-tags --resource "$arn" --query 'Tags.DeployedCommit' --output text) \
+    || { warn "notification-service のタグを読めませんでした"; return 0; }
+  if [[ "$commit" == "None" ]]; then
+    warn "notification-service に載せたコミットの記録（タグ DeployedCommit）がありません"
+    return 0
+  fi
+  commit_of "$commit" "notification-service のタグ"
+}
+
 echo "backend=$(backend_commit)"
 echo "web=$(web_commit)"
+echo "notification=$(notification_commit)"

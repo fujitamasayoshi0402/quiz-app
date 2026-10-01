@@ -48,3 +48,10 @@ variable "amplify_branch_arn" {
   description = "ビルドを起動する Amplify のブランチ。quiz-service のデプロイの後に起動する"
   type        = string
 }
+
+# ---- notification-service（modules/notification-service） ----
+
+variable "notification_function_arn" {
+  description = "コードを載せ替える Lambda。ほかの関数には触れさせない"
+  type        = string
+}

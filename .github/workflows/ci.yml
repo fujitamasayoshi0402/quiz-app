@@ -37,6 +37,7 @@ jobs:
       pull-requests: read
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
+      notification: ${{ steps.filter.outputs.notification }}
       frontend: ${{ steps.filter.outputs.frontend }}
       terraform: ${{ steps.filter.outputs.terraform }}
       e2e: ${{ steps.filter.outputs.e2e }}
@@ -69,12 +70,10 @@ jobs:
           ./gradlew
           :services:quiz-service:ktlintCheck :services:quiz-service:detekt
           :libs:quiz-events:ktlintCheck :libs:quiz-events:detekt
-          :services:notification-service:ktlintCheck :services:notification-service:detekt
 
-      # Testcontainers が PostgreSQL と LocalStack を起動する。ランナーには Docker が入っている。
-      # notification-service の成果物（zip）とデプロイは DEV-99 で載せる
+      # Testcontainers が PostgreSQL と LocalStack を起動する。ランナーには Docker が入っている
       - name: test
-        run: ./gradlew :services:quiz-service:test :services:notification-service:test
+        run: ./gradlew :services:quiz-service:test
 
       # 閾値では落とさない。数値はジョブのサマリーに出して、PR ごとの目安にする
       - name: カバレッジを集計する
@@ -111,6 +110,40 @@ jobs:
         with:
           name: backend-reports
           path: services/quiz-service/build/reports/
+          retention-days: 7
+
+  # notification-service（Lambda、ADR-0022）。quiz-service とはジョブを分け、片方だけを変えたときにもう片方を待たない
+  notification:
+    name: notification
+    needs: changes
+    if: needs.changes.outputs.notification == 'true'
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+        with:
+          install_args: java
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: lint（ktlint / detekt）
+        run: ./gradlew :services:notification-service:ktlintCheck :services:notification-service:detekt
+
+      # Testcontainers が LocalStack を起動し、SSM と DynamoDB、ルールの絞り込みを確かめる
+      - name: test
+        run: ./gradlew :services:notification-service:test
+
+      # デプロイと同じ zip を作る。作れないことに、develop に入ってから気づかないようにする
+      - name: build
+        run: ./gradlew :services:notification-service:buildZip
+
+      - name: レポートを保存する
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: notification-reports
+          path: services/notification-service/build/reports/
           retention-days: 7
 
   frontend:
@@ -319,7 +352,7 @@ jobs:
   ci:
     name: ci
     if: always()
-    needs: [changes, backend, frontend, e2e, terraform, secrets]
+    needs: [changes, backend, notification, frontend, e2e, terraform, secrets]
     runs-on: ubuntu-26.04
     steps:
       - name: 先行ジョブの結果を確かめる

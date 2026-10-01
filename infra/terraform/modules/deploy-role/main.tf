@@ -1,7 +1,8 @@
 # GitHub Actions が dev へのデプロイに使うロール（DEV-48）。アクセスキーは発行せず、OIDC で引き受ける。
 #
-# デプロイは、イメージの push → マイグレーションの単発タスク → サービスの更新 → web のビルドの順に進む（.github/workflows/deploy-dev.yml）。
-# タスク定義の形（環境変数、ロール、CPU など）は Terraform が持ち、CI はイメージだけを差し替えた新しいリビジョンを登録する（ADR-0015）。
+# デプロイは、notification-service のコード → イメージの push → マイグレーションの単発タスク → サービスの更新 → web のビルドの順に進む
+# （.github/workflows/deploy-dev.yml）。
+# タスク定義と関数の形（環境変数、ロール、CPU など）は Terraform が持ち、CI はイメージやコードだけを差し替える（ADR-0015）。
 # そのため、このロールには Terraform の state も、リソースを作り直す権限も与えない。
 
 # OIDC プロバイダはアカウントに 1 つだけ（infra/terraform/account）
@@ -175,6 +176,37 @@ data "aws_iam_policy_document" "deploy" {
     sid       = "ReadWebBuilds"
     actions   = ["amplify:ListJobs"]
     resources = [var.amplify_branch_arn, "${var.amplify_branch_arn}/jobs/*"]
+  }
+
+  # ---- notification-service ----
+
+  # コードだけを載せ替える（DEV-99）。形を変える UpdateFunctionConfiguration は与えない。ロールや環境変数を書き換えられるため。
+  # GetFunction も与えない。いま載っているコードを取り出せる URL を返す。切り替わりを待つ（aws lambda wait function-updated）のは
+  # GetFunctionConfiguration で足りる
+  statement {
+    sid = "DeployNotification"
+    actions = [
+      "lambda:UpdateFunctionCode",
+      "lambda:GetFunctionConfiguration",
+      # 載せたあとに 1 度呼び、起動できるかを確かめる
+      "lambda:InvokeFunction",
+      # 載せたコミットを読む（deployed-commits.sh）
+      "lambda:ListTags",
+    ]
+    resources = [var.notification_function_arn]
+  }
+
+  # 載せたコミットをタグに書く。書けるのは DeployedCommit だけで、Terraform が付けたタグ（Project / Env）は変えられない
+  statement {
+    sid       = "RecordNotificationCommit"
+    actions   = ["lambda:TagResource"]
+    resources = [var.notification_function_arn]
+
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "aws:TagKeys"
+      values   = ["DeployedCommit"]
+    }
   }
 }
 
