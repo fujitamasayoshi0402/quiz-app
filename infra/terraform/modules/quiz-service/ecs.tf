@@ -40,6 +40,13 @@ locals {
     { name = "FIGURES_CLOUDFRONT_URL", value = var.figures.base_url },
     { name = "FIGURES_S3_ENDPOINT", value = "" },
   ]
+
+  # テナントの Slack の Webhook の URL の置き場所（ADR-0022）。アプリのタスクにだけ渡す。
+  # SSM の接続先を空にして、ローカル用の既定値（LocalStack）を使わせない
+  notifications_environment = [
+    { name = "NOTIFICATIONS_PARAMETER_PREFIX", value = var.slack_webhook_parameter_prefix },
+    { name = "NOTIFICATIONS_SSM_ENDPOINT", value = "" },
+  ]
 }
 
 resource "aws_ecs_cluster" "this" {
@@ -98,7 +105,7 @@ resource "aws_ecs_task_definition" "app" {
       startPeriod = 180
     }
 
-    environment = concat(local.auth_environment, local.datasource_environment, local.figures_environment, [
+    environment = concat(local.auth_environment, local.datasource_environment, local.figures_environment, local.notifications_environment, [
       { name = "SPRING_PROFILES_ACTIVE", value = join(",", var.spring_profiles) },
     ])
 

@@ -580,7 +580,7 @@ ECS のコンテナのヘルスチェックが定期的に叩くと、Aurora Ser
 | quiz-service | 8080 | `dev` プロファイル。migrate が成功してから起動する |
 | migrate | なし | quiz-service と同じイメージを `dev,migrate` で起動する。マイグレーションとシードを流して終了する |
 | PostgreSQL | 5432 | ユーザー / パスワード / DB 名はすべて `quiz` |
-| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda。起動のたびに解説図のバケットを作る（中身は再起動で消える） |
+| LocalStack | 4566 | S3 / EventBridge / SQS / Secrets Manager / Lambda / SSM。起動のたびに解説図のバケットを作る（中身は再起動で消える） |
 
 PostgreSQL は本番の Aurora とメジャーバージョンを揃えて 16 系を使う（min 0 ACU は 16.3 以降が前提）。
 タイムゾーンは本番との差異を減らすため UTC に固定している。
@@ -647,6 +647,10 @@ Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SEC
 管理者はメールアドレス（`smoke@example.com`）だけで登録してあり、同じアドレスの Cognito の利用者（Terraform が作る）が最初にログインしたときに結び付く。
 カテゴリやクイズはテストが作って消すため、シードでは入れない。
 
+**見に来た人が試すための、共有のデモのアカウント**（`demo@example.com`）も入る（DEV-104）。デモのテナントの一般ユーザーで、クイズは変えられない。
+スモークテストの管理者と同じく、メールアドレスだけで登録してあり、同じアドレスの Cognito の利用者（Terraform が作る）が最初にログインしたときに結び付く。
+共有のアカウントなので、回答の履歴とランキングへの参加は、見た人同士で共有される。
+
 同じ内容を何度流しても増えない。repeatable マイグレーションは**内容を変えるたびに再実行される**ため、
 識別子を固定して `ON CONFLICT DO NOTHING` で入れている。
 
@@ -705,6 +709,7 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 | デモ管理者 | `67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab` | `demo`（管理者）、`geo-club`（一般ユーザー） |
 | デモ利用者 | `957d085e-3b87-5fa7-9283-5eb6229216b1` | `demo`（一般ユーザー） |
 | デモ未所属 | `7918a5c2-30ee-56c8-b76c-57c6a79774e3` | なし |
+| デモのアカウント | `0b66aaf5-727d-5da9-bf87-6756dff5b046` | `demo`（一般ユーザー）。Cognito の `demo@example.com` が最初にログインしたときに結び付く |
 
 #### 招待
 
@@ -832,6 +837,8 @@ Route 53 に登録済みのドメインを使う。**ドメイン名はリポジ
 - web のクライアントのスコープは `openid email aws.cognito.signin.user.admin`。最後のものは、バックエンドが確認済みのメールアドレスを取る（`GetUser`）ために要る。
   このスコープのトークンは自分の属性を書き換えられるが、トークンはブラウザに渡らない
 - スモークテストの利用者（`smoke@example.com`）も Terraform が作る。パスワードは `terraform output -raw smoke_user_password`
+- 見に来た人が試すための、共有のデモのアカウント（`demo@example.com`）も同じ。**パスワードは公開する前提**で、`terraform output -raw demo_user_password`。
+  `example.com` は誰も受け取れないので、パスワードを忘れた人の手続き（確認コード）で乗っ取られることはない
 - E2E テストの利用者（`e2e-*@example.com` の 4 人）も同じ。パスワードは全員で共通で、`terraform output -raw e2e_user_password`（[E2E テスト](#e2e-テスト)）
 
 Managed Login の画面は、web をつながなくても開ける。ログインのあとは `redirect_uri` に戻る（開いていなければエラーの画面になるが、ログインはできている）。
@@ -986,6 +993,31 @@ PDF は、1 ページ目の画像と、その下にファイル名を文字に�
 ```bash
 cd infra/terraform/envs/dev
 aws s3 ls "s3://$(terraform output -raw figures_bucket_name)/svg/" --recursive
+```
+
+#### 通知の設定（SSM）
+
+テナントの管理者が、管理画面の「通知」で Slack の Incoming Webhook の URL を設定する（[ADR-0022](adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)、DEV-102）。
+
+```
+管理者 → web の proxy → quiz-service ─┬─ SSM Parameter Store（SecureString）: URL
+                                      └─ quiz.slack_webhooks: 設定したという印と日時
+```
+
+- **URL は、画面にも API の応答にもログにも出さない。** `GET` は設定したかどうかと日時だけを返す。変えたいときは新しい URL で置き換える
+- URL は `/quiz-app/dev/tenants/{テナントの ID}/slack-webhook-url` に置く。**アプリのロールは、この名前への書き込みと削除だけを持ち、読めない。**
+  読むのは notification-service だけ（DEV-98）
+- 設定したかどうかは、SSM ではなく DB の印で答える。SSM に問い合わせるには読む権限が要り、AWS 管理のキー（aws/ssm）では値まで読めてしまう
+- `https://hooks.slack.com/` の下を指し、英数字と `/`・`_`・`-` だけでできた URL だけを受け付ける（`SlackWebhookUrl`）。任意の URL を許すと、Lambda が管理者の指定した先へ要求を送る踏み台になる
+- SSM への書き込みは、印を書く DB のトランザクションの中で行う。SSM が失敗すれば印も残らない（503 を返す）
+- URL は Terraform を通らないため、state にも残らない
+- ローカルは LocalStack の SSM に置く。再起動で消える
+
+置かれているかどうかは、名前の一覧で確かめる。**値は読まない。**
+
+```bash
+aws ssm describe-parameters --parameter-filters "Key=Name,Option=BeginsWith,Values=/quiz-app/dev/tenants/" \
+  --query 'Parameters[].[Name,LastModifiedDate]' --output table
 ```
 
 #### デプロイ

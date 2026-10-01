@@ -62,6 +62,9 @@ module "quiz_service" {
     private_key_parameter_arn = module.figures.private_key_parameter_arn
   }
 
+  # notification-service（DEV-98）も、同じ頭の下を読む
+  slack_webhook_parameter_prefix = "/quiz-app/dev"
+
   db_endpoint      = module.database.cluster_endpoint
   db_port          = module.database.port
   db_name          = module.database.database_name
@@ -122,6 +125,9 @@ module "auth" {
 
   # スモークテスト（tests/api）の利用者。シードが同じアドレスでスモークテストのテナントの管理者を用意している
   smoke_user_email = "smoke@example.com"
+
+  # 見に来た人が試すための共有のデモのアカウント。シードが同じアドレスで、デモのテナントの一般ユーザーを用意している
+  demo_user_email = "demo@example.com"
 
   # E2E テスト（tests/e2e）の利用者。役割はテストがローカルの DB で割り当てる（管理者 / 一般ユーザー / 未所属 / 招待される人）
   e2e_user_emails = [

@@ -17,6 +17,12 @@ variable "smoke_user_email" {
   default     = null
 }
 
+variable "demo_user_email" {
+  description = "見に来た人が試すための、共有のデモのアカウントのメールアドレス。null なら作らない。パスワードは公開する前提"
+  type        = string
+  default     = null
+}
+
 variable "e2e_user_emails" {
   description = "E2E テスト（tests/e2e）が使う利用者のメールアドレス。空なら作らない。パスワードは全員で共通"
   type        = set(string)

@@ -54,10 +54,12 @@ import {
   QuizResponse,
   RankingView,
   ReceivedInvitationResponse,
+  SlackWebhookResponse,
   Trash
 } from './model';
 import type {
   AnswerRequest,
+  ConfigureSlackWebhookRequest,
   CreateCategoryRequest,
   CreateFigureRequest,
   CreateInvitationRequest,
@@ -2577,6 +2579,272 @@ export const useRevokeInvitation = <TError = ProblemDetail,
         TContext
       > => {
       return useMutation(getRevokeInvitationMutationOptions(options), queryClient);
+    }
+
+export const getRemoveSlackWebhookUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/notifications/slack`
+}
+
+/**
+ * @summary Slack の通知先を消す。設定していなくても成功する
+ */
+export const removeSlackWebhook = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getRemoveSlackWebhookUrl(slug),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveSlackWebhookMutationKey = () => ['removeSlackWebhook'] as const;
+
+export const getRemoveSlackWebhookMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSlackWebhook>>, TError,RemoveSlackWebhookMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeSlackWebhook>>, TError,RemoveSlackWebhookMutationVariables, TContext> => {
+
+const mutationKey = getRemoveSlackWebhookMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeSlackWebhook>>, RemoveSlackWebhookMutationVariables> = (props) => {
+          const {slug} = props ?? {};
+
+          return  removeSlackWebhook(slug,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveSlackWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof removeSlackWebhook>>>
+
+    export type RemoveSlackWebhookMutationError = ProblemDetail
+    export type RemoveSlackWebhookMutationVariables = {slug: string}
+
+    /**
+ * @summary Slack の通知先を消す。設定していなくても成功する
+ */
+export const useRemoveSlackWebhook = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSlackWebhook>>, TError,RemoveSlackWebhookMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeSlackWebhook>>,
+        TError,
+        RemoveSlackWebhookMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveSlackWebhookMutationOptions(options), queryClient);
+    }
+
+export const getGetSlackWebhookUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/notifications/slack`
+}
+
+/**
+ * @summary Slack の通知先を設定したかどうか
+ */
+export const getSlackWebhook = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<SlackWebhookResponse> => {
+
+  return apiFetch<SlackWebhookResponse>(getGetSlackWebhookUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: SlackWebhookResponse
+  }
+);}
+
+
+
+
+
+export const getGetSlackWebhookQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/admin/notifications/slack`
+    ] as const;
+    }
+
+
+export const getGetSlackWebhookQueryOptions = <TData = Awaited<ReturnType<typeof getSlackWebhook>>, TError = ProblemDetail>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlackWebhook>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSlackWebhookQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSlackWebhook>>> = ({ signal }) => getSlackWebhook(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSlackWebhook>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSlackWebhookQueryResult = NonNullable<Awaited<ReturnType<typeof getSlackWebhook>>>
+export type GetSlackWebhookQueryError = ProblemDetail
+
+
+export function useGetSlackWebhook<TData = Awaited<ReturnType<typeof getSlackWebhook>>, TError = ProblemDetail>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlackWebhook>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSlackWebhook>>,
+          TError,
+          Awaited<ReturnType<typeof getSlackWebhook>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSlackWebhook<TData = Awaited<ReturnType<typeof getSlackWebhook>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlackWebhook>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSlackWebhook>>,
+          TError,
+          Awaited<ReturnType<typeof getSlackWebhook>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSlackWebhook<TData = Awaited<ReturnType<typeof getSlackWebhook>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlackWebhook>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Slack の通知先を設定したかどうか
+ */
+
+export function useGetSlackWebhook<TData = Awaited<ReturnType<typeof getSlackWebhook>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlackWebhook>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSlackWebhookQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getConfigureSlackWebhookUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/notifications/slack`
+}
+
+/**
+ * @summary Slack の Incoming Webhook の URL を設定する。すでにあれば置き換える
+ */
+export const configureSlackWebhook = async (slug: string,
+    configureSlackWebhookRequest: ConfigureSlackWebhookRequest, options?: Parameters<typeof apiFetch>[1]): Promise<SlackWebhookResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<SlackWebhookResponse>(getConfigureSlackWebhookUrl(slug),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(configureSlackWebhookRequest),
+    schema: SlackWebhookResponse
+  }
+);}
+
+
+
+
+
+export const getConfigureSlackWebhookMutationKey = () => ['configureSlackWebhook'] as const;
+
+export const getConfigureSlackWebhookMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof configureSlackWebhook>>, TError,ConfigureSlackWebhookMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof configureSlackWebhook>>, TError,ConfigureSlackWebhookMutationVariables, TContext> => {
+
+const mutationKey = getConfigureSlackWebhookMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof configureSlackWebhook>>, ConfigureSlackWebhookMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  configureSlackWebhook(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfigureSlackWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof configureSlackWebhook>>>
+    export type ConfigureSlackWebhookMutationBody = ConfigureSlackWebhookRequest
+    export type ConfigureSlackWebhookMutationError = ProblemDetail
+    export type ConfigureSlackWebhookMutationVariables = {slug: string;data: ConfigureSlackWebhookRequest}
+
+    /**
+ * @summary Slack の Incoming Webhook の URL を設定する。すでにあれば置き換える
+ */
+export const useConfigureSlackWebhook = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof configureSlackWebhook>>, TError,ConfigureSlackWebhookMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof configureSlackWebhook>>,
+        TError,
+        ConfigureSlackWebhookMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfigureSlackWebhookMutationOptions(options), queryClient);
     }
 
 export const getSearchQuizzesUrl = (slug: string,
