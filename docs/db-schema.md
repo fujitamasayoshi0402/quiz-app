@@ -64,7 +64,7 @@ $$ LANGUAGE plpgsql;
 | --- | --- | --- |
 | `core` | `tenants` / `users` / `tenant_members` / `invitations` | 分離しない（共通） |
 | `quiz` | `categories` / `difficulties` / `quizzes` / `choices` | quiz-service |
-| `answer` | `attempts` / `attempt_quizzes` / `answers` | answer-service |
+| `answer` | `attempts` / `attempt_quizzes` / `answers` | 分けない（[ADR-0023](adr/0023-keep-answer-as-module-in-quiz-service.md)）。境界はスキーマのまま保つ |
 
 ### スキーマをまたぐ外部キーを貼らない
 
@@ -76,6 +76,9 @@ $$ LANGUAGE plpgsql;
 
 代わりに、回答時にクイズを取得する処理の中で存在を確認します。
 採点にはクイズの内容が必要なので、**確認は自然に行われます**。
+
+answer は分けないと決めました（[ADR-0023](adr/0023-keep-answer-as-module-in-quiz-service.md)）が、外部キーは貼らないままにします。
+ADR-0023 の「分けたくなる条件」に当たったとき、分ける作業を小さく保つためです。
 
 `core` への参照（`tenant_id` / `user_id`）は外部キーを貼ります。共通スキーマは分離しないためです。
 
