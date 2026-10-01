@@ -73,6 +73,8 @@
 - `notification-service` … EventBridge ルールから起動する Lambda。Slack へ通知
 - 認証は Cognito（マネージド）に寄せ、自前の auth-service は作らない
 - モジュール間（quiz と answer）は、呼ぶ側が持つインターフェースで同期に呼ぶ。イベントは、サービスの外へ出すもの（通知）に限る（ADR-0023）
+  - **相手のスキーマの表に触れない。相手の型は、2 つのインターフェース（`QuizCatalog`、`AnsweredQuizzes`）に出るものだけを使う。**
+    崩れると `ModuleBoundaryTest` が落ちる。相手のデータや型が要るときは、インターフェースに足す
 - サービス間は同期 REST を最小限にし、状態変化は EventBridge 経由のイベントで伝搬
 
 ### テナントの分離
@@ -314,7 +316,7 @@ pnpm --filter web test                  # web の単体テスト（Vitest）
 | --- | --- | --- |
 | 単体テスト | ドメインの不変条件、ユースケースの分岐。DB を使わない | `quiz/domain/QuizTest.kt`、`answer/usecase/AttemptUseCaseTest.kt` |
 | API テスト | コントローラから DB まで。Testcontainers の PostgreSQL を使う | `quiz/controller/QuizApiTest.kt` |
-| 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest` |
+| 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest`、`ModuleBoundaryTest` |
 | スモークテスト | デプロイした環境で、主要な導線が通るか。Newman で流す | `tests/api/` |
 | web の単体テスト | 画面の部品が守る性質。DOM を使わず、HTML の文字列にして確かめる | `apps/web/src/components/markdown.test.tsx` |
 | E2E テスト | 画面をまたいだ流れ（ログイン、招待、ロールによる出し分け）。Playwright で流す | `tests/e2e/` |

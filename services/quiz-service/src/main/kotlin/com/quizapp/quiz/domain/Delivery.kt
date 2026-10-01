@@ -92,4 +92,12 @@ data class DeliveredChoice(val id: UUID, val body: String)
  * 正誤の判定そのものは answer モジュールが行う（ADR-0004）。
  * quiz 側は「どれが正解か」という事実だけを渡し、採点の責務は持たない。
  */
-data class AnswerKey(val quizId: UUID, val correctChoiceId: UUID, val choiceIds: Set<UUID>, val explanation: String)
+data class AnswerKey(val quizId: UUID, val correctChoiceId: UUID, val choiceIds: Set<UUID>, val explanation: String) {
+    companion object {
+        /**
+         * [explanation] の書き方。answer が採点の結果に解説を載せるとき、API 定義の説明に使う。
+         * answer が [Quiz] を直接読まないよう、受け取る型から読めるようにしている（ADR-0023）
+         */
+        const val EXPLANATION_FORMAT = Quiz.EXPLANATION_FORMAT
+    }
+}
