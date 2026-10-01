@@ -15,7 +15,7 @@ import java.util.UUID
  * [QuizCatalog] の実装。quiz モジュールが自分のデータだけを読む。
  *
  * answer モジュールはこのクラスを知らない。インターフェース越しに使う。
- * [com.quizapp.answer.infrastructure.AnsweredQuizzesJdbc] と対になる、逆向きの実装。
+ * 逆向き（[com.quizapp.quiz.domain.AnsweredQuizzes]）の実装は、answer モジュールが持つ。
  */
 @Component
 class QuizCatalogAdapter(
