@@ -216,7 +216,7 @@ pnpm --filter web lint
 | `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりの流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
 | `ci` | 先行ジョブの結果を集約する |
-| `dependency-graph` | develop への push で、Gradle の依存の一覧を GitHub に送る。Dependabot alerts が読む（[脆弱性の検出](#脆弱性の検出)） |
+| `dependency-graph` | develop への push で、Gradle と pnpm の依存の一覧を GitHub に送る。Dependabot alerts が読む（[脆弱性の検出](#脆弱性の検出)） |
 | `deploy-dev` | develop への push で、`ci` が通ったあとに dev へ載せる。何を載せるかは、dev で動いているものと比べて決める（`deploy-dev.yml`。[デプロイ](#デプロイ)） |
 
 **Ruleset の必須チェックには `ci` だけを指定する。** ジョブを足すたびに設定を触らずに済み、
@@ -321,7 +321,10 @@ Dependabot は、CI を通ったあとに公表された脆弱性を拾う。CI 
 
 - **見るのは、動くときに載るものだけ。** イメージと zip を調べるので、テストやビルドの道具は入らない。
   Gradle の依存の一覧を GitHub に送るときも、実行時の依存（`runtimeClasspath` / `productionRuntimeClasspath`）に絞る（`dependency-graph` ジョブ）
-- Gradle の依存は、ファイルからは版が読めない（Spring Boot の BOM が決める）。そのため、Dependabot alerts は送った一覧を見る
+- GitHub は、どちらの依存もファイルからは読み切れない。そのため、Dependabot alerts は `dependency-graph` ジョブが送った一覧を見る
+  - Gradle: 版を Spring Boot の BOM が決めるので、`build.gradle.kts` に版がない。依存の一覧を Gradle に解かせて送る
+  - pnpm: `pnpm-lock.yaml` を読まず、`package.json` に直接書いた依存（30 件ほど）しか見ない。Trivy で lockfile から一覧を作って送る（間接的な依存を含めて 870 件ほど）。
+    ビルドの道具も Amplify のビルドで動くため、開発用の依存も含める
 - Dependabot は、Gradle と pnpm について版を上げるだけの PR は作らない（`open-pull-requests-limit: 0`）。脆弱性の修正だけが PR になる
 - web のイメージから npm を外している。実行には node だけを使い、npm が抱える依存は検査に掛かるだけ
 - Trivy のアクションは使わず、mise で版を固定して入れる（`.mise.toml`）。Trivy のアクションは、タグを乗っ取られて書き換えられたことがある

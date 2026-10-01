@@ -369,15 +369,16 @@ jobs:
       - name: secret を探す（gitleaks）
         run: gitleaks git --log-opts=HEAD --redact --no-banner --verbose
 
-  # Gradle の依存の一覧を GitHub に送る（DEV-113）。Dependabot alerts は、これを見て脆弱な依存を知らせる。
-  # build.gradle.kts は版を BOM に任せているため、GitHub はファイルから版を読めない。
+  # Gradle と pnpm の依存の一覧を GitHub に送る（DEV-113）。Dependabot alerts は、これを見て脆弱な依存を知らせる。
+  # GitHub はどちらもファイルから読み切れない。build.gradle.kts は版を BOM に任せ、pnpm-lock.yaml は読まずに package.json の直接の依存だけを見る。
   # alerts が見るのは既定のブランチ（develop）なので、develop への push でだけ送る。デプロイの条件（ci）には含めない
   dependency-graph:
     name: dependency-graph
     needs: changes
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/develop'
-      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.notification == 'true')
+      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.notification == 'true'
+          || needs.changes.outputs.frontend == 'true')
     runs-on: ubuntu-26.04
     permissions:
       # 依存の一覧（dependency snapshot）を書く
@@ -387,13 +388,24 @@ jobs:
 
       - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
         with:
-          install_args: java
+          install_args: java trivy
 
       # 送るのは、動くときに載る依存だけ。lint やテスト、ビルドの道具（detekt が固定する古い Kotlin のコンパイラなど）は、
       # 載らないものの知らせで、本当に直すべきものが埋もれる
       - uses: gradle/actions/dependency-submission@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           dependency-graph-include-configurations: '^(runtimeClasspath|productionRuntimeClasspath)$'
+
+      # pnpm は、Trivy で pnpm-lock.yaml から一覧を作って送る。間接的に入る依存（800 件ほど）まで含める。
+      # 開発用の依存も含める。ビルドの道具（Next.js のビルド、orval など）は、Amplify のビルドで動く。
+      # 送り元の識別（correlator）は Gradle と分ける。同じだと、後から送ったほうが先の一覧を置き換える
+      - name: pnpm の依存の一覧を送る
+        run: |
+          trivy fs --quiet --format github --exit-code 0 --include-dev-deps --output "$RUNNER_TEMP/pnpm.json" pnpm-lock.yaml
+          jq '.job.correlator = "pnpm-lock"' "$RUNNER_TEMP/pnpm.json" \
+            | gh api --method POST "repos/${GITHUB_REPOSITORY}/dependency-graph/snapshots" --input - --jq '.message'
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   # 必須ステータスチェックはこのジョブだけを指定する（DEV-16）。
   # ジョブを足すたびに Ruleset を触らずに済み、パスの出し分けでスキップされても
