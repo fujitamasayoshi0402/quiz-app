@@ -50,6 +50,12 @@ locals {
 
   # クイズのイベントを送るバス（ADR-0022）。アプリのタスクにだけ渡す。
   # 接続先を空にして、ローカル用の既定値（LocalStack）を使わせない
+  # ログを JSON（ECS 形式）で出す。Logs Insights で項目として絞り込め、例外のスタックトレースも 1 件のログに収まる。
+  # ローカルは平文のまま（開発ガイドライン「ログ」）。マイグレーションのタスクも同じ形で出す
+  logging_environment = [
+    { name = "LOGGING_STRUCTURED_FORMAT_CONSOLE", value = "ecs" },
+  ]
+
   events_environment = [
     { name = "EVENTS_BUS_NAME", value = var.event_bus.name },
     { name = "EVENTS_ENDPOINT", value = "" },
@@ -112,7 +118,7 @@ resource "aws_ecs_task_definition" "app" {
       startPeriod = 180
     }
 
-    environment = concat(local.auth_environment, local.datasource_environment, local.figures_environment, local.notifications_environment, local.events_environment, [
+    environment = concat(local.auth_environment, local.datasource_environment, local.logging_environment, local.figures_environment, local.notifications_environment, local.events_environment, [
       { name = "SPRING_PROFILES_ACTIVE", value = join(",", var.spring_profiles) },
     ])
 
@@ -193,7 +199,7 @@ resource "aws_ecs_task_definition" "migrate" {
     image     = local.image
     essential = true
 
-    environment = concat(local.auth_environment, local.datasource_environment, [
+    environment = concat(local.auth_environment, local.datasource_environment, local.logging_environment, [
       { name = "SPRING_FLYWAY_PASSWORD", value = "" },
       { name = "SPRING_FLYWAY_USER", value = "quiz" },
       { name = "SPRING_PROFILES_ACTIVE", value = join(",", concat(var.spring_profiles, ["migrate"])) },

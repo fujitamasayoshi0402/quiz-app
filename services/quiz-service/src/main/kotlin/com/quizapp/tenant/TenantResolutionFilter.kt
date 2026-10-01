@@ -1,5 +1,6 @@
 package com.quizapp.tenant
 
+import com.quizapp.logging.LogContext
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -28,12 +29,16 @@ class TenantResolutionFilter(private val jdbcTemplate: JdbcTemplate) : OncePerRe
     ) {
         try {
             extractSlug(request.requestURI)?.let { slug ->
-                findTenantId(slug)?.let { TenantContext.set(it) }
+                findTenantId(slug)?.let {
+                    TenantContext.set(it)
+                    LogContext.putTenant(it)
+                }
             }
             filterChain.doFilter(request, response)
         } finally {
             // スレッドはプールで使い回されるため、必ず消す。
-            // 残すと次のリクエストが前のテナントを引き継ぐ
+            // 残すと次のリクエストが前のテナントを引き継ぐ。
+            // ログの文脈（MDC）は残す。要求の終わりの 1 行に載せ、RequestLogFilter が消す
             TenantContext.clear()
         }
     }

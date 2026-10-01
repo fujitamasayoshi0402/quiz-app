@@ -1,6 +1,7 @@
 package com.quizapp.quiz.infrastructure.outbox
 
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.concurrent.ExecutorService
@@ -30,9 +31,18 @@ class OutboxPublisher(private val bus: EventBus, private val rows: OutboxRows, p
         )
     }
 
+    /** 送るスレッドにも、要求のログの文脈（要求の ID、テナント）を引き継ぐ。送れなかったときのログを、元の操作と結び付ける */
     private fun dispatch(entry: OutboxEntry) {
+        val context = MDC.getCopyOfContextMap().orEmpty()
         try {
-            executor.execute { send(entry) }
+            executor.execute {
+                MDC.setContextMap(context)
+                try {
+                    send(entry)
+                } finally {
+                    MDC.clear()
+                }
+            }
         } catch (e: RejectedExecutionException) {
             log.warn("送る待ち行列があふれたか、止めている途中です。あとで拾い直します: {}, {}", entry.id, e.message)
         }
