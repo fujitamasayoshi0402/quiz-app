@@ -22,9 +22,13 @@ cd infra/terraform/envs/dev
 
 ## アラームが鳴った
 
+<!-- この節の見出しは、アラームの説明（メール）からリンクしている（modules/quiz-service/alarms.tf、modules/notification-service/main.tf）。見出しを変えたら Terraform も直す -->
+
 アラームの一覧と条件は、開発ガイドラインの[アラーム](development-guidelines.md#アラーム)にある。
 
-### `quiz-app-dev-quiz-service-server-errors`（アプリが 5xx を返した）
+### アプリが 5xx を返した
+
+アラーム `quiz-app-dev-quiz-service-server-errors`。
 
 1. Logs Insights（`/ecs/quiz-app-dev/quiz-service`）で、5xx の要求を探す
 
@@ -47,8 +51,9 @@ cd infra/terraform/envs/dev
 - `SQL の実行に失敗しました` は、マイグレーションとアプリの食い違いのことが多い。マイグレーションのログ（`migrate/quiz-service/<タスク ID>`）も見る
 - 扱っていない例外は、要求の終わりの 1 行（ERROR）に例外ごと出る。Tomcat も同じ例外を出すが、そちらには要求の ID がない
 
-### `quiz-app-dev-quiz-service-gateway-errors`（502 / 504）
+### API Gateway が 502 / 504 を返した
 
+アラーム `quiz-app-dev-quiz-service-gateway-errors`。
 API Gateway が、タスクから応答を得られなかった。
 
 1. アクセスログ（`/aws/apigateway/quiz-app-dev`）で、`status` が 502 / 504 の `requestId` を探す
@@ -63,7 +68,9 @@ API Gateway が、タスクから応答を得られなかった。
 
 止まっていた Aurora の復帰が 30 秒を超えたときの 504 は、1 回では鳴らない。続くときは、Aurora のイベント（RDS のコンソールの「イベント」）で復帰が止まっていないかを見る。
 
-### `quiz-app-dev-quiz-service-outbox-stuck`（イベントを送れていない）
+### イベントを送れていない（Outbox）
+
+アラーム `quiz-app-dev-quiz-service-outbox-stuck`。
 
 1. アプリのログで、「イベントを送れませんでした」を探す。EventBridge の失敗の理由（`errorCode`）が出ている
 2. よくある原因
@@ -73,8 +80,9 @@ API Gateway が、タスクから応答を得られなかった。
 
 送れていない行は消えない。直すまでの間のイベントも、後から順に送られる。
 
-### `quiz-app-dev-quiz-service-integrity-violations`（データの整合性が崩れている）
+### データの整合性が崩れている
 
+アラーム `quiz-app-dev-quiz-service-integrity-violations`。
 DB の制約で表しきれない決まりが崩れた（[データの整合性](development-guidelines.md#データの整合性)）。1 日に 1 回、利用者が使っている間に確かめている。
 
 1. Logs Insights（`/ecs/quiz-app-dev/quiz-service`）で、崩れたものを出す
@@ -101,19 +109,27 @@ DB の制約で表しきれない決まりが崩れた（[データの整合性]
    - SQL で直すときは、マイグレーションとして PR で入れる。テナント配下の行は、先に `app.tenant_id` を設定する（[マイグレーション](development-guidelines.md#マイグレーション)）
 5. 直ったかは、次の日の確認で件数が 0 になったことで分かる。すぐに確かめたいときは、タスクを入れ替えて（前に流した時刻はタスクが持つ）画面を開く
 
-### `quiz-app-dev-notification-dlq-not-empty`（通知が DLQ に入った）
+### 通知が DLQ に入った
 
-1. DLQ の中身を見る（イベントがそのまま入っている）
+アラーム `quiz-app-dev-notification-dlq-not-empty`。
+
+1. DLQ の中身を見る。入っているのは Lambda の失敗の記録で、イベントは `requestPayload` の中にある。
+   `condition` は諦めた理由（`RetriesExhausted` は 3 回試して失敗した）、`time` は流し直すときの範囲に使う
 
    ```bash
    aws sqs receive-message --queue-url "$(terraform output -raw notification_dlq_url)" \
-     --max-number-of-messages 10 --visibility-timeout 0 --query 'Messages[].Body'
+     --max-number-of-messages 10 --visibility-timeout 0 --query 'Messages[].Body' --output text \
+     | jq -c '{condition: .requestContext.condition, type: .requestPayload["detail-type"],
+               eventId: .requestPayload.detail.eventId, version: .requestPayload.detail.version, time: .requestPayload.time}' \
+     | sort -u
    ```
+
+   `--visibility-timeout 0` で読むため、同じものが何度か返る（`sort -u` でまとめる）。件数は `aws sqs get-queue-attributes --attribute-names ApproximateNumberOfMessages` で見る
 
 2. Lambda のログ（`/aws/lambda/quiz-app-dev-notification-service`）で、同じイベントの ID の失敗を探す
    - Slack が 429 / 5xx を返し続けた、通信に失敗した: Slack の障害なら、戻るのを待つ
-   - 知らない版のイベント: 受け手（notification-service）を直して載せる
-3. 直したら、[アーカイブから流し直す](#通知をアーカイブから流し直す)
+   - 知らない版のイベント（「読めない版のイベントです」）: 受け手（notification-service）を直して載せる
+3. 直したら、[アーカイブから流し直す](#通知をアーカイブから流し直す)。範囲は、手順 1 の `time` の最初と最後を含める
 4. 見終えたものを DLQ から消す。**戻せない。** 流し直しで届いたことを確かめてから消す
 
    ```bash
@@ -167,10 +183,10 @@ API Gateway が 503 を返している。送り先のタスクがない。
 
 順にたどる。どこで止まっているかで、見るものが変わる。
 
-1. アプリのログに「イベントを送れませんでした」がないか（[Outbox](#quiz-app-dev-quiz-service-outbox-stuckイベントを送れていない)）
+1. アプリのログに「イベントを送れませんでした」がないか（[Outbox](#イベントを送れていないoutbox)）
 2. ダッシュボードの「通知のルール」で、当てはまったか。下書きの編集など、通知しないイベントもある（`event-pattern.json`）
 3. Lambda のログに「通知先が設定されていないため、知らせません」がないか。管理画面の「通知」で Webhook を設定する
-4. DLQ に入っていないか（[DLQ](#quiz-app-dev-notification-dlq-not-empty通知が-dlq-に入った)）
+4. DLQ に入っていないか（[DLQ](#通知が-dlq-に入った)）
 
 ## デプロイが失敗した
 
@@ -230,6 +246,9 @@ aws events start-replay --replay-name "redrive-$(date +%Y%m%d%H%M)" \
 aws events describe-replay --replay-name <上の名前> --query '[State,StateReason]'
 ```
 
+流し直したものがどう扱われたかは、Lambda のログで見る。届いたことのあるものは「処理済みか処理中のイベントのため、知らせません」になり、Slack に二重には届かない。
+重複を捨てる記録は 7 日で消えるため、それより前のイベントを流し直すと、もう一度届く。
+
 ### Aurora のデータを戻す
 
 DEV-117 で、スナップショットからの戻し方を実地で確かめて書く。
@@ -257,6 +276,28 @@ DEV-117 で、スナップショットからの戻し方を実地で確かめて
 ## secret を push してしまった
 
 開発ガイドラインの[secret の検出](development-guidelines.md#secret-の検出)に従う。**まず値を無効にする。** 履歴は書き換えない。
+
+## 訓練
+
+手順が古くなっていないかは、dev で障害を起こして確かめる。手順を変えたとき、通知の仕組みを変えたときに流す。
+
+### 通知が DLQ に入る
+
+読めない版（99）のイベントを、カスタムバスに 1 件送る。受け手は版を確かめた時点で失敗し、Slack には送らない。
+約 3 分で DLQ に入り、5 分ほどでアラームのメールが届く。そこから[通知が DLQ に入った](#通知が-dlq-に入った)の手順で中身を確かめ、DLQ を空にする（訓練のイベントは流し直さない）。
+
+```bash
+aws events put-events --entries '[{
+  "EventBusName": "quiz-app-dev", "Source": "quiz-app.quiz-service", "DetailType": "QuizPublished",
+  "Detail": "{\"eventId\":\"00000000-0000-4000-8000-0000000000aa\",\"version\":99,\"tenant\":{\"id\":\"00000000-0000-4000-8000-0000000000dd\",\"slug\":\"drill\",\"name\":\"訓練\"}}"
+}]'
+```
+
+### 通知を流し直す
+
+[通知をアーカイブから流し直す](#通知をアーカイブから流し直す)の手順で、Slack に届いたことのあるイベントを含む範囲を流し直す。
+Lambda のログで、すべて「処理済みか処理中のイベントのため、知らせません」になれば通っている。範囲は、Lambda のログの「知らせました」の時刻から選ぶ。
+**訓練のイベント（読めない版）を含む範囲は避ける。** もう一度 DLQ に入る。
 
 ## 障害の記録
 

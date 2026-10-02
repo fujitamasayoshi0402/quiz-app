@@ -26,6 +26,14 @@ variable "api_origin" {
   type        = string
 }
 
+variable "content_security_policy_origins" {
+  description = "画面の CSP で許す、環境ごとに違う送り先（DEV-123）。images は解説図の CDN、connect は S3 への直接のアップロード"
+  type = object({
+    images  = list(string)
+    connect = list(string)
+  })
+}
+
 variable "auth" {
   description = "ログイン（modules/auth）。web のサーバーが OIDC のクライアントとして使う"
   type = object({

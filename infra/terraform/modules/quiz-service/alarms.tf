@@ -13,6 +13,15 @@
 
 locals {
   metric_namespace = "${var.name}/quiz-service"
+
+  # 鳴ったときの手順（docs/runbook.md）の節。見出しを変えたら、ここも直す
+  runbook = {
+    server_errors  = "${var.runbook_url}#${urlencode("アプリが-5xx-を返した")}"
+    gateway_errors = "${var.runbook_url}#${urlencode("api-gateway-が-502--504-を返した")}"
+    outbox         = "${var.runbook_url}#${urlencode("イベントを送れていないoutbox")}"
+    integrity      = "${var.runbook_url}#${urlencode("データの整合性が崩れている")}"
+    task_stopped   = "${var.runbook_url}#${urlencode("タスクの停止のメール")}"
+  }
 }
 
 # ---- アプリが 5xx を返した ----
@@ -33,7 +42,7 @@ resource "aws_cloudwatch_log_metric_filter" "server_errors" {
 
 resource "aws_cloudwatch_metric_alarm" "server_errors" {
   alarm_name        = "${var.name}-quiz-service-server-errors"
-  alarm_description = "quiz-service が 5xx を返しました。Logs Insights で http.response.status_code >= 500 の行から http.request.id を引き、その要求のログを追う（開発ガイドライン「アラーム」）"
+  alarm_description = "quiz-service が 5xx を返しました。Logs Insights で http.response.status_code >= 500 の行から http.request.id を引き、その要求のログを追う。手順: ${local.runbook.server_errors}"
 
   namespace   = local.metric_namespace
   metric_name = aws_cloudwatch_log_metric_filter.server_errors.metric_transformation[0].name
@@ -68,7 +77,7 @@ resource "aws_cloudwatch_log_metric_filter" "gateway_errors" {
 
 resource "aws_cloudwatch_metric_alarm" "gateway_errors" {
   alarm_name        = "${var.name}-quiz-service-gateway-errors"
-  alarm_description = "API Gateway が quiz-service から応答を得られません（502 / 504）。アクセスログの requestId と、アプリのログの http.request.id を突き合わせる（開発ガイドライン「アラーム」）"
+  alarm_description = "API Gateway が quiz-service から応答を得られません（502 / 504）。アクセスログの requestId と、アプリのログの http.request.id を突き合わせる。手順: ${local.runbook.gateway_errors}"
 
   namespace   = local.metric_namespace
   metric_name = aws_cloudwatch_log_metric_filter.gateway_errors.metric_transformation[0].name
@@ -102,7 +111,7 @@ resource "aws_cloudwatch_log_metric_filter" "outbox_oldest_unpublished" {
 
 resource "aws_cloudwatch_metric_alarm" "outbox_oldest_unpublished" {
   alarm_name        = "${var.name}-quiz-service-outbox-stuck"
-  alarm_description = "Outbox に 3 分以上送れていないイベントがあります。EventBridge に送れていない。ログの「イベントを送れませんでした」で理由を見る（開発ガイドライン「アラーム」）"
+  alarm_description = "Outbox に 3 分以上送れていないイベントがあります。EventBridge に送れていない。ログの「イベントを送れませんでした」で理由を見る。手順: ${local.runbook.outbox}"
 
   namespace   = local.metric_namespace
   metric_name = aws_cloudwatch_log_metric_filter.outbox_oldest_unpublished.metric_transformation[0].name
@@ -137,7 +146,7 @@ resource "aws_cloudwatch_log_metric_filter" "integrity_violations" {
 
 resource "aws_cloudwatch_metric_alarm" "integrity_violations" {
   alarm_name        = "${var.name}-quiz-service-integrity-violations"
-  alarm_description = "データの整合性が崩れています。ログの「データの整合性が崩れています」で、決まり（integrity.rule）と tenant.id、対象の ID（integrity.subject_id）を見る（開発ガイドライン「アラーム」）"
+  alarm_description = "データの整合性が崩れています。ログの「データの整合性が崩れています」で、決まり（integrity.rule）と tenant.id、対象の ID（integrity.subject_id）を見る。手順: ${local.runbook.integrity}"
 
   namespace   = local.metric_namespace
   metric_name = aws_cloudwatch_log_metric_filter.integrity_violations.metric_transformation[0].name
@@ -190,6 +199,6 @@ resource "aws_cloudwatch_event_target" "task_stopped" {
       reason = "$.detail.stoppedReason"
       task   = "$.detail.taskArn"
     }
-    input_template = "\"quiz-service のタスクが止まりました（<time>）。理由: <reason>（<code>）。タスク: <task>。CloudWatch Logs の /ecs/${var.name}/quiz-service で、止まる前のログを見る（開発ガイドライン「アラーム」）\""
+    input_template = "\"quiz-service のタスクが止まりました（<time>）。理由: <reason>（<code>）。タスク: <task>。CloudWatch Logs の /ecs/${var.name}/quiz-service で、止まる前のログを見る。手順: ${local.runbook.task_stopped}\""
   }
 }

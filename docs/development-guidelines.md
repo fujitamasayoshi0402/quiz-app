@@ -922,9 +922,10 @@ echo "$(terraform output -raw auth_managed_login_url)/login?client_id=$(terrafor
 
 - **画面にベーシック認証はかけない。** データはログインとテナントの所属で守られる（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。
   スタブ認証の間は、誰にでもなりすませるためかけていた
-- SSR の実行時には Amplify の環境変数が渡らない。`amplify.yml` がビルドの中で、サーバー側で読む値（`API_ORIGIN`、`AUTH_*`）だけを `.env.production` に書き出す。
+- SSR の実行時には Amplify の環境変数が渡らない。`amplify.yml` がビルドの中で、サーバー側で読む値（`API_ORIGIN`、`AUTH_*`、`CSP_*`）だけを `.env.production` に書き出す。
   `NEXT_PUBLIC_` を付けないので、ブラウザ向けのコードには入らない
 - pnpm は、ビルドの中でだけ `nodeLinker: hoisted` にする。既定の配置では Amplify が `next` を見つけられない
+- SSR の実行時に読む値には、画面の CSP で許す送り先（`CSP_IMG_SRC`、`CSP_CONNECT_SRC`）もある。Terraform が解説図の CDN と S3 から入れる（[画面のセキュリティのヘッダ](#画面のセキュリティのヘッダ)）
 - **push でビルドしない。** デプロイのワークフローが、quiz-service の後に起動する（[デプロイ](#デプロイ)）。ビルドは約 3 分。
   手で起動するときは次のコマンドを使う
 
@@ -933,6 +934,23 @@ cd infra/terraform/envs/dev
 aws amplify start-job --app-id "$(terraform output -raw web_amplify_app_id)" \
   --branch-name develop --job-type RELEASE
 ```
+
+#### 画面のセキュリティのヘッダ
+
+web はすべての応答にセキュリティのヘッダを付ける（DEV-123）。
+
+| ヘッダ | 付けるところ | 強制か |
+| --- | --- | --- |
+| `Strict-Transport-Security`、`X-Content-Type-Options`、`Referrer-Policy`、`X-Frame-Options`、`Permissions-Policy` | `next.config.ts` | 強制 |
+| CSP のうち、ほかのサイトへの埋め込み・`<base>`・`<object>` の禁止 | `next.config.ts` | 強制 |
+| CSP の本体（スクリプトは nonce を付けたものだけ、画像と接続の送り先） | proxy（`lib/content-security-policy.ts`） | **Report-Only** |
+
+- **スクリプトは、要求ごとの nonce で許す。** proxy が nonce を作って CSP を要求と応答の両方に載せ、Next.js は要求の CSP から nonce を読んで自分のスクリプトに付ける。
+  そのため、画面はすべて要求ごとに描く（静的に書き出すと nonce が付かない）
+- 環境ごとに違う送り先（解説図の CDN、S3 への直接のアップロード）は、環境変数 `CSP_IMG_SRC` と `CSP_CONNECT_SRC` で受ける。dev は Terraform（`modules/web`）、ローカルは docker compose と `.env.example`
+- **本体は Report-Only で出している。** 違反は `/csp-report` に届き、SSR のログに「CSP の違反」として 1 行で出る（URL はパスまで、招待のトークンは伏せる）。
+  取りこぼした送り先がないことを確かめてから、強制に切り替える（DEV-127）
+- 外部の画面を足すとき（埋め込み、外部の API、画像の配信元）は、`lib/content-security-policy.ts` に送り先を足す
 
 Cookie の暗号鍵を入れ替えるときは `terraform apply -replace=module.web.random_password.session` のあと、ビルドし直す。ログイン中の全員がログアウトされる。
 
