@@ -34,3 +34,8 @@ output "cluster_identifier" {
   description = "クラスタの名前。CloudWatch のメトリクスの次元（DBClusterIdentifier）に使う"
   value       = aws_rds_cluster.this.cluster_identifier
 }
+
+output "engine_version" {
+  description = "エンジンのバージョン。戻したクラスタを、元と同じバージョンで作るのに使う"
+  value       = aws_rds_cluster.this.engine_version
+}

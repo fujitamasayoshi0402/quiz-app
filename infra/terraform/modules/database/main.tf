@@ -9,6 +9,10 @@
 # | quiz_app   | quiz-service                   | IAM（rds-db:connect）                          |
 #
 # quiz / quiz_app は sql/bootstrap_roles.sql で作る。
+#
+# restore_from を渡すと、別のクラスタのバックアップから、指定した時刻（PITR）の中身で作る（DEV-117）。
+# 手順は Runbook の「Aurora のデータを戻す」にある。戻したクラスタは内部の ID（cluster_resource_id）が変わり、
+# IAM 認証の許可（iam_db_user_arns）も変わる。アプリをつなぐときは、出力をそのまま quiz-service に渡す
 
 locals {
   # ローカル（docker-compose）と揃える
@@ -74,6 +78,16 @@ resource "aws_rds_cluster" "this" {
   final_snapshot_identifier = var.deletion_protection ? "${var.name}-final" : null
 
   apply_immediately = var.apply_immediately
+
+  # 戻すときだけ。作るときにしか効かず、変えるとクラスタを作り直す
+  dynamic "restore_to_point_in_time" {
+    for_each = var.restore_from == null ? [] : [var.restore_from]
+    content {
+      source_cluster_identifier  = restore_to_point_in_time.value.source_cluster_identifier
+      restore_to_time            = restore_to_point_in_time.value.restore_to_time
+      use_latest_restorable_time = restore_to_point_in_time.value.restore_to_time == null
+    }
+  }
 }
 
 resource "aws_rds_cluster_instance" "writer" {
@@ -87,6 +101,26 @@ resource "aws_rds_cluster_instance" "writer" {
   auto_minor_version_upgrade = false
 
   apply_immediately = var.apply_immediately
+}
+
+# ---- 戻したクラスタの Data API ----
+# PITR で戻すと、enable_http_endpoint を書いても provider が有効にしない（DEV-117 の訓練で確かめた）。
+# 次の apply まで Data API が使えず、下のロールの作成も失敗する。戻したときだけ、ここで有効にする
+
+resource "terraform_data" "restored_data_api" {
+  count = var.restore_from == null ? 0 : 1
+
+  triggers_replace = aws_rds_cluster.this.cluster_resource_id
+
+  provisioner "local-exec" {
+    command = "aws rds enable-http-endpoint --region \"$REGION\" --resource-arn \"$CLUSTER_ARN\" > /dev/null"
+    environment = {
+      REGION      = data.aws_region.current.region
+      CLUSTER_ARN = aws_rds_cluster.this.arn
+    }
+  }
+
+  depends_on = [aws_rds_cluster_instance.writer]
 }
 
 # ---- ロールの作成 ----
@@ -131,7 +165,7 @@ resource "terraform_data" "bootstrap_roles" {
   }
 
   # 書き込み先のインスタンスができるまで、SQL は受け付けられない
-  depends_on = [aws_rds_cluster_instance.writer]
+  depends_on = [aws_rds_cluster_instance.writer, terraform_data.restored_data_api]
 }
 
 data "aws_region" "current" {}
