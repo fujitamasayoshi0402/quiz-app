@@ -19,11 +19,23 @@ export function isSecure(origin: string): boolean {
 
 /**
  * ログインのあとの戻り先。**このアプリの中のパスだけ**を許す。
- * `//evil.example` のようなものを通すと、ログインを経由した外部への誘導（オープンリダイレクト）になる
+ * `//evil.example` のようなものを通すと、ログインを経由した外部への誘導（オープンリダイレクト）になる。
+ *
+ * **文字列の先頭では判定せず、URL として解いてからオリジンを比べる**（DEV-114）。
+ * URL の解釈は、タブや改行を取り除き、`\` を `/` として読む。先頭の文字だけを見ると、`/<タブ>/evil.example` が外部に解ける
  */
 export function safeReturnTo(value: string | null | undefined): string {
-  return value && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\") ? value : "/";
+  if (!value?.startsWith("/")) return "/";
+  try {
+    const url = new URL(value, RETURN_TO_BASE);
+    return url.origin === RETURN_TO_BASE ? `${url.pathname}${url.search}${url.hash}` : "/";
+  } catch {
+    return "/";
+  }
 }
+
+/** 戻り先を解くときの仮のオリジン。実在しない名前（.invalid）にする */
+const RETURN_TO_BASE = "http://app.invalid";
 
 function firstOf(value: string | null): string | undefined {
   return value?.split(",")[0]?.trim() || undefined;
