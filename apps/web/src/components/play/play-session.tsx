@@ -22,7 +22,9 @@ import type { FeedbackMode } from "@/lib/play/mode";
  * **現在位置は保存しない。** 出題順と回答済みの一覧から、最初の未回答を導く（要件定義）。
  */
 export function PlaySession({ slug, attemptId, mode }: { slug: string; attemptId: string; mode: FeedbackMode }) {
-  const attempt = useResumeAttempt(slug, attemptId, { query: { staleTime: Infinity } });
+  // 画面を離れたらキャッシュを捨てる（gcTime: 0）。残すと、出題の画面から再開したときに、
+  // 最初に開いたときの回答済みの一覧から始まり、答えた問題がまた出る
+  const attempt = useResumeAttempt(slug, attemptId, { query: { staleTime: Infinity, gcTime: 0 } });
 
   if (attempt.isPending) return <Skeleton className="h-80 w-full" />;
   if (attempt.isError) return <ApiErrorAlert error={attempt.error} />;

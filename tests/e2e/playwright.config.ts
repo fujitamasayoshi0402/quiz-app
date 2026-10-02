@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 const noRecording = { trace: "off", screenshot: "off", video: "off" } as const;
 
 /**
- * 権限まわりの E2E テスト（DEV-77）。docker compose で起動した一式（http://localhost:3000）に向けて流す。
+ * 権限まわり（DEV-77）と、出題・管理の流れ（DEV-111）の E2E テスト。docker compose で起動した一式（http://localhost:3000）に向けて流す。
  *
  * ログインは、利用者ごとに 1 回だけ Managed Login の画面で行い、Cookie を保存して各テストで使い回す（`auth.setup.ts`）。
  * **パスワードを入力するプロジェクト（setup と login）では、トレースもスクリーンショットも残さない。**
