@@ -251,7 +251,75 @@ aws events describe-replay --replay-name <上の名前> --query '[State,StateRea
 
 ### Aurora のデータを戻す
 
-DEV-117 で、スナップショットからの戻し方を実地で確かめて書く。
+消したり壊したりしたデータを、バックアップの時刻に戻す。**元のクラスタは書き換えず、戻した中身で別のクラスタを作り、アプリをそちらにつなぎ替える。**
+元のクラスタは、原因を調べ終えるまで残しておける。
+
+戻せる範囲は、自動バックアップの保持（dev は 1 日）の間の任意の時刻（PITR）。
+
+```bash
+aws rds describe-db-clusters --db-cluster-identifier quiz-app-dev \
+  --query 'DBClusters[0].[EarliestRestorableTime,LatestRestorableTime]' --output text
+```
+
+- 使っている間、戻せる最も新しい時刻は 5 分ほど前まで進む。**一時停止している間は、止まった時刻のまま。** 止まっている間は書き込みがないため、失うものはない
+- 自動のスナップショット（1 日に 1 つ）からも戻せるが、PITR はその範囲を含む。保持より前に戻したいものは、手でスナップショットを取っておく
+
+手順は Terraform の `database_restore` で行う（`envs/dev` の `variables.tf`）。**最新の develop から流す。** 指定を付けずに apply すると、戻したクラスタを消す。
+
+1. 戻したクラスタ（`quiz-app-dev-restore`）を作る。時刻を書かなければ、戻せる最も新しい時刻になる
+
+   ```bash
+   terraform apply -var 'database_restore={restore_to_time="2026-01-01T00:00:00Z"}'   # 時刻は UTC
+   ```
+
+2. 中身を確かめる。Data API は、有効にしてしばらくは「有効になっていない」（`HttpEndpointNotEnabledException`）を返すことがある。少しおいてやり直す
+
+   ```bash
+   aws rds-data execute-statement \
+     --resource-arn "$(aws rds describe-db-clusters --db-cluster-identifier quiz-app-dev-restore --query 'DBClusters[0].DBClusterArn' --output text)" \
+     --secret-arn "$(aws rds describe-db-clusters --db-cluster-identifier quiz-app-dev-restore --query 'DBClusters[0].MasterUserSecret.SecretArn' --output text)" \
+     --database quiz --sql "SELECT count(*) FROM quiz.quizzes WHERE deleted_at IS NULL"
+   ```
+
+3. アプリをつなぎ替える。接続先と IAM 認証の許可が替わる（戻したクラスタは内部の ID が変わり、元の許可ではつなげない）。
+   **形が変わるので、apply のあとにデプロイを流す**
+
+   ```bash
+   terraform apply -var 'database_restore={restore_to_time="<1 と同じ>",use_for_app=true}'
+   gh workflow run deploy-dev.yml --ref develop -f backend=deploy -f frontend=skip
+   ```
+
+4. スモークテストが通り、画面からデータが見えることを確かめる
+
+戻したクラスタを使い続けるときは、`terraform.tfvars` に `database_restore` を書いて、指定を付けずに apply しても消えないようにする。
+元のクラスタに戻すときは、`use_for_app` を外して apply とデプロイをし、そのあと指定を付けずに apply して戻したクラスタを消す。
+
+**戻らないもの**
+
+- **Cognito の利用者。** Cognito はバックアップの外にある。戻した時刻より後にはじめてログインした人は、`core.users` に行がない。
+  次のログインで作り直されるが、アプリの ID は新しくなり、その間に増えた所属と回答の履歴は戻らない。招待されていたなら、招待し直す
+- **戻した時刻より後のデータ。** つなぎ替えるまでに元のクラスタへ書かれたものも含む。必要なら、元のクラスタから Data API で読んで、画面から入れ直す
+- **解説図。** 図は S3 にあり、DB と一緒には戻らない。戻した行が、後から消した図を指していることがある。
+  消した図は 7 日の間、前の版が残っている（バケットの版）。戻すときは、前の版をコピーし直す
+
+  ```bash
+  aws s3api list-object-versions --bucket "$(terraform output -raw figures_bucket_name)" --prefix "svg/<テナントの ID>/<図の ID>"
+  aws s3api copy-object --bucket <バケット> --key <キー> --copy-source "<バケット>/<キー>?versionId=<前の版の ID>"
+  ```
+
+- **Outbox の送れていないイベント。** 戻した時刻に送れていなかったものは、戻したクラスタでもう一度送られる。受け手がイベントの ID で重複を捨てる
+
+dev で測った時間（DEV-117。戻せる最も新しい時刻を指定）。
+
+| 段 | 時間 |
+| --- | --- |
+| 戻したクラスタができる | 約 6 分 |
+| 書き込み先のインスタンスができる（使えるようになる） | さらに約 7 分（合わせて約 13 分） |
+| つなぎ替えの apply | 約 4 分 |
+| デプロイ（サービスの入れ替えとスモークテスト） | 約 5 分 |
+| **戻すと決めてから、アプリが戻したデータで動くまで（RTO の目安）** | **約 25 分** |
+
+失うデータ（RPO の目安）は、使っている間は 5 分ほど。一時停止している間は 0。
 
 ## Terraform
 

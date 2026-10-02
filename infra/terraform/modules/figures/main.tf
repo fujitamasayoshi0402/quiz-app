@@ -117,10 +117,21 @@ resource "aws_s3_bucket_cors_configuration" "this" {
   }
 }
 
-# 検査されずに残った画像（上げたまま完了しなかったもの）を消す
+# 消した図を、しばらく戻せるようにする（DEV-117）。
+# Aurora をバックアップから戻すと、戻した時刻より後に消した図を、戻した行がまだ指している。
+# 図は消すとき以外に書き換えないため、残るのは消した図の前の版だけで、費用はほとんど増えない
+resource "aws_s3_bucket_versioning" "this" {
+  bucket = aws_s3_bucket.this.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "this" {
   bucket = aws_s3_bucket.this.id
 
+  # 検査されずに残った画像（上げたまま完了しなかったもの）を消す
   rule {
     id     = "expire-incoming"
     status = "Enabled"
@@ -133,4 +144,31 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
       days = 1
     }
   }
+
+  # 消した図の前の版は、Aurora のバックアップで戻せる範囲より長く残す
+  rule {
+    id     = "expire-noncurrent"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.deleted_retention_days
+    }
+  }
+
+  # 前の版が消えたあとに残る、削除の印を片付ける
+  rule {
+    id     = "remove-expired-delete-markers"
+    status = "Enabled"
+
+    filter {}
+
+    expiration {
+      expired_object_delete_marker = true
+    }
+  }
+
+  # 版を有効にしてから、ライフサイクルを置く
+  depends_on = [aws_s3_bucket_versioning.this]
 }

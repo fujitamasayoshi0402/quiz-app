@@ -881,6 +881,14 @@ aws rds-data execute-statement \
 
 一時停止している間は `DatabaseResumingException` が返る。十数秒おいてやり直す。
 
+**バックアップは、自動バックアップ（dev は保持 1 日）だけを使う。** 保持の間の任意の時刻に戻せる（PITR）。
+戻すときは、元のクラスタを書き換えず、戻した中身で別のクラスタ（`database_restore`）を作り、アプリをつなぎ替える。
+手順と、dev で測った時間（使えるまで約 13 分、アプリが戻したデータで動くまで約 25 分）は、[Runbook](runbook.md#aurora-のデータを戻す)にある。
+
+- **戻したクラスタは、内部の ID（`cluster_resource_id`）が変わる。** IAM 認証の許可（`rds-db:connect`）はこの ID に結び付くため、アプリをつなぐには許可も替える。`database_restore` の `use_for_app` がまとめて替える
+- PITR で戻すと、Terraform の provider は Data API を有効にしない。モジュールが、戻したときだけ AWS CLI で有効にしてからロールを作る
+- ロール（`quiz` / `quiz_app`）は中身と一緒に戻る。ロールの作成は、何度流しても同じ結果になる
+
 #### ドメイン
 
 Route 53 に登録済みのドメインを使う。**ドメイン名はリポジトリに書かず、`terraform.tfvars` の `domain_name` に置く**
@@ -1210,6 +1218,8 @@ terraform output -raw dashboard_url
 - アプリのロールは、バケットの一覧（ListBucket）も持つ。一覧の権限がないと、S3 は無いオブジェクトを 404 ではなく 403 で返し、
   「まだ上がっていない」と見分けられない
 - **図は変えない。** 描き直した図は新しい ID になる。キャッシュを無効にする操作は要らない
+- **消した図は、7 日の間、前の版が残る**（バケットの版。DEV-117）。Aurora をバックアップから戻すと、戻した行が後から消した図を指すことがあるため。
+  Aurora の保持（1 日）より長く残す。図は消すとき以外に書き換えないので、増える費用はほとんどない
 - 署名の秘密鍵は Terraform が作り、SSM Parameter Store（SecureString）に置く。アプリのタスクに ECS の `secrets` で渡す
 - 証明書は CloudFront のため us-east-1 に置く（`aws.us_east_1` の provider）
 - ローカルには CloudFront がない。LocalStack の S3 の署名付き URL を返す。応答ヘッダと署名の検証は、dev のスモークテストで確かめる

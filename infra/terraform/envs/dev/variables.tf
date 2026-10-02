@@ -22,3 +22,15 @@ variable "alarm_email" {
   description = "アラームを知らせるメールアドレス（modules/alarms）。公開リポジトリに載せない"
   type        = string
 }
+
+variable "database_restore" {
+  description = <<-EOT
+    Aurora をバックアップから戻すとき（Runbook「Aurora のデータを戻す」）。null なら、戻したクラスタを置かない。
+    restore_to_time: 戻す時刻（RFC 3339、UTC）。null なら戻せる最も新しい時刻。use_for_app: true なら、アプリを戻したクラスタにつなぐ
+  EOT
+  type = object({
+    restore_to_time = optional(string)
+    use_for_app     = optional(bool, false)
+  })
+  default = null
+}
