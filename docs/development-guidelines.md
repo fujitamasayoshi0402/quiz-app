@@ -559,6 +559,7 @@ UPDATE_EVENT_SAMPLES=true ./gradlew :services:quiz-service:test --tests '*QuizEv
 ### ドキュメント
 - 技術選定・設計判断は必ず [ADR](adr/) に残す。運用ルールは [docs/adr/README.md](adr/README.md) を参照
 - 記録対象は「後から変更するのが高くつく決定」に限定する。ライブラリの細かな選択は対象外
+- セキュリティの対策と残るリスクは、[セキュリティレビュー](security-review.md)に OWASP Top 10 の観点ごとにまとめている。認証や公開の範囲を変えたら、該当する観点を見直す
 
 ## 7. ローカル開発
 
