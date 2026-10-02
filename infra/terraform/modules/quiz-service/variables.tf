@@ -165,3 +165,8 @@ variable "alarm_topic_arn" {
   description = "アラームの送り先（modules/alarms の SNS のトピック）"
   type        = string
 }
+
+variable "runbook_url" {
+  description = "Runbook（docs/runbook.md）の URL。アラームの説明に、鳴ったときの手順の節へのリンクとして載せる"
+  type        = string
+}

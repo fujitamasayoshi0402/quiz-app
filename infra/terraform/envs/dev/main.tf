@@ -33,6 +33,10 @@ module "database" {
 locals {
   # テナントの Slack の Webhook の URL を置く SSM のパラメータの頭（ADR-0022）。quiz-service が書き、notification-service が読む
   slack_webhook_parameter_prefix = "/quiz-app/dev"
+
+  # 運用の文書。アラームの説明とダッシュボードから、ここへ案内する（公開リポジトリ）
+  docs_url    = "https://github.com/fujitamasayoshi0402/quiz-app/blob/develop/docs"
+  runbook_url = "${local.docs_url}/runbook.md"
 }
 
 # ドメインの登録時に作られたホストゾーン。環境をまたいで使うため、ここでは管理せず参照だけする
@@ -63,7 +67,7 @@ module "dashboard" {
   quiz_service                = module.quiz_service.monitoring
   notification                = module.notification_service.monitoring
   database_cluster_identifier = module.database.cluster_identifier
-  guide_url                   = "https://github.com/fujitamasayoshi0402/quiz-app/blob/develop/docs/development-guidelines.md#ダッシュボード"
+  guide_url                   = "${local.docs_url}/development-guidelines.md#ダッシュボード"
 }
 
 # クイズのイベントを受けて、テナントが設定した Slack に知らせる（ADR-0022）
@@ -79,6 +83,7 @@ module "notification_service" {
   package_path = "${path.root}/../../../../services/notification-service/build/distributions/notification-service.zip"
 
   alarm_topic_arn = module.alarms.topic_arn
+  runbook_url     = local.runbook_url
 
   log_retention_days = 14
 }
@@ -140,6 +145,7 @@ module "quiz_service" {
   spring_profiles = ["dev"]
 
   alarm_topic_arn = module.alarms.topic_arn
+  runbook_url     = local.runbook_url
 
   log_retention_days  = 14
   force_delete_images = true

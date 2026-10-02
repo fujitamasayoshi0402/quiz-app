@@ -143,7 +143,7 @@ resource "aws_sqs_queue_policy" "dlq" {
 # **1 件でも入ったら知らせる。** 黙って捨てない（ADR-0022 の 6）。送り先は環境で共通のトピック（modules/alarms）
 resource "aws_cloudwatch_metric_alarm" "dlq" {
   alarm_name        = "${var.name}-notification-dlq-not-empty"
-  alarm_description = "Slack に知らせられなかったイベントが DLQ（${aws_sqs_queue.dlq.name}）にあります。開発ガイドラインの「通知（notification-service）」を参照"
+  alarm_description = "Slack に知らせられなかったイベントが DLQ（${aws_sqs_queue.dlq.name}）にあります。手順: ${var.runbook_url}#${urlencode("通知が-dlq-に入った")}"
 
   namespace   = "AWS/SQS"
   metric_name = "ApproximateNumberOfMessagesVisible"

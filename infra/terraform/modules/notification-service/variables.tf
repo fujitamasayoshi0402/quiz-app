@@ -44,3 +44,8 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+variable "runbook_url" {
+  description = "Runbook（docs/runbook.md）の URL。アラームの説明に、鳴ったときの手順の節へのリンクとして載せる"
+  type        = string
+}
