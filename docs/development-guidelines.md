@@ -213,7 +213,7 @@ pnpm --filter web lint
 | `notification` | notification-service（Lambda）。ktlint / detekt → test（Testcontainers の LocalStack）→ zip のビルド → 脆弱性の検査（Trivy） |
 | `frontend` | API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → build → イメージのビルド → 脆弱性の検査（Trivy） |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
-| `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりの流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
+| `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりと出題・管理の流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
 | `ci` | 先行ジョブの結果を集約する |
 | `dependency-graph` | develop への push で、Gradle と pnpm の依存の一覧を GitHub に送る。Dependabot alerts が読む（[脆弱性の検出](#脆弱性の検出)） |
@@ -359,7 +359,7 @@ pnpm --filter web test                  # web の単体テスト（Vitest）
 | 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest`、`ModuleBoundaryTest` |
 | スモークテスト | デプロイした環境で、主要な導線が通るか。Newman で流す | `tests/api/` |
 | web の単体テスト | 画面の部品が守る性質。DOM を使わず、HTML の文字列にして確かめる | `apps/web/src/components/markdown.test.tsx` |
-| E2E テスト | 画面をまたいだ流れ（ログイン、招待、ロールによる出し分け）。Playwright で流す | `tests/e2e/` |
+| E2E テスト | 画面をまたいだ流れ（ログイン、招待、ロールによる出し分け、作ったクイズを解く、中断と再開）。Playwright で流す | `tests/e2e/` |
 
 **単体テストにするのは、分岐や不変条件を持つものだけ。** リポジトリへ素通しするだけのユースケースには書かない。
 SQL が担うこと（絞り込み・並び順・行レベルセキュリティ・連鎖削除）は、フェイクでは確かめられないので API テストで見る。
@@ -427,8 +427,9 @@ dev では、デプロイの最後に自動で流れる（[デプロイ](#デプ
 
 #### E2E テスト
 
-[Playwright](https://playwright.dev/) で、**権限まわりの流れを画面から**確かめる（`tests/e2e/`）。
+[Playwright](https://playwright.dev/) で、**権限まわりと、出題・管理の主な流れを画面から**確かめる（`tests/e2e/`）。
 ログインのあとに元の画面へ戻るか、ロールによって管理画面に入れるか、招待のリンクで招待された人だけが参加できるか。
+管理者が作って公開したクイズ（解説の画像を含む）を一般ユーザーが解き、結果と履歴で振り返れるか。途中でやめたクイズを続きから解けるか（DEV-111）。
 API の細かい仕様は JUnit、デプロイした環境のつながりはスモークテストが見る。ここは画面をまたいだ流れだけを見る。
 
 ```bash
@@ -448,6 +449,10 @@ pnpm test:e2e
 - 利用者は、管理者・一般ユーザー・未所属・招待される人の 4 人。Cognito の利用者は Terraform（`modules/auth` の `e2e_user_emails`）が作り、パスワードは全員で共通
 - **所属とロールは、テストの前に DB に作る**（`fixtures.sql` を `global-setup.ts` が docker compose の postgres に流す）。
   そのため、docker compose で起動した一式（ローカルと CI）にだけ向ける。dev の DB には E2E の所属がなく、dev でログインしてもどこにも入れない
+- **E2E のテナントのカテゴリ・クイズ・図・回答は、テストの前に行ごと消し、再開のテストが解く 2 問だけを入れ直す**（`fixtures.sql`）。
+  管理のテストは決まった名前でカテゴリを作るため、前の実行の残りがあると作れない。論理削除ではゴミ箱にたまる
+- 中断と再開は、スマホの幅（360px）で流し、各画面が横にはみ出さないことも見る（[コード](#コード)の「画面の幅」）
+- 流していないもの: draw.io で図を描く（`embed.diagrams.net` の画面に依存する）、まとめて取り込む（読み取りの規則は JUnit が見る。画面はファイルを選ぶだけ）
 - 招待される人の所属は、テストの前に外す。何度流しても、同じ状態から始まる
 - テスト同士が状態を共有する（招待を受け入れると所属が増える）ため、並列にせず、やり直しもしない
 - **パスワードを入力するプロジェクト（setup と login）では、トレースもスクリーンショットも残さない。**
