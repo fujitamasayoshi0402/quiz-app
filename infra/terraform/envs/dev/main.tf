@@ -224,6 +224,8 @@ module "web" {
   }
 
   github_access_token = var.github_access_token
+
+  log_retention_days = 14
 }
 
 # GitHub Actions が dev へのデプロイに使うロール。develop にだけ使わせる（GitHub の Environment dev で絞る）

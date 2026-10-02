@@ -15,3 +15,8 @@ output "branch_arn" {
 output "url" {
   value = "https://${var.subdomain_prefix}.${var.domain_name}"
 }
+
+output "ssr_log_group_name" {
+  description = "SSR のログ（CSP の違反の報告を含む）"
+  value       = aws_cloudwatch_log_group.ssr.name
+}

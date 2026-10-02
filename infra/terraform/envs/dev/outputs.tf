@@ -49,6 +49,10 @@ output "web_amplify_app_id" {
   value = module.web.app_id
 }
 
+output "web_ssr_log_group_name" {
+  value = module.web.ssr_log_group_name
+}
+
 
 output "auth_user_pool_id" {
   value = module.auth.user_pool_id

@@ -72,8 +72,17 @@ resource "aws_amplify_domain_association" "this" {
   }
 }
 
+# ---- SSR のログ ----
+# Amplify は、ロググループを作らずにストリームだけを作ろうとする（CloudTrail で CreateLogGroup が一度も呼ばれず、
+# CreateLogStream が ResourceNotFoundException で失敗していた）。グループは Terraform が作り、保持の期間もここで決める
+
+resource "aws_cloudwatch_log_group" "ssr" {
+  name              = "/aws/amplify/${aws_amplify_app.this.id}"
+  retention_in_days = var.log_retention_days
+}
+
 # ---- サービスロール ----
-# SSR の実行ログを CloudWatch Logs に書く。Amplify が使うロググループ（/aws/amplify/）に絞る
+# SSR の実行ログを、上のロググループに書く
 
 resource "aws_iam_role" "service" {
   name = "${var.name}-amplify"
@@ -99,12 +108,9 @@ resource "aws_iam_role_policy" "service" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect = "Allow"
-        Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
-        Resource = [
-          "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/amplify/*",
-          "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/amplify/*:log-stream:*",
-        ]
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "${aws_cloudwatch_log_group.ssr.arn}:*"
       },
       {
         Effect   = "Allow"

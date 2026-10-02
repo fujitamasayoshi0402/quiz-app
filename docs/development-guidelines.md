@@ -926,6 +926,8 @@ echo "$(terraform output -raw auth_managed_login_url)/login?client_id=$(terrafor
   `NEXT_PUBLIC_` を付けないので、ブラウザ向けのコードには入らない
 - pnpm は、ビルドの中でだけ `nodeLinker: hoisted` にする。既定の配置では Amplify が `next` を見つけられない
 - SSR の実行時に読む値には、画面の CSP で許す送り先（`CSP_IMG_SRC`、`CSP_CONNECT_SRC`）もある。Terraform が解説図の CDN と S3 から入れる（[画面のセキュリティのヘッダ](#画面のセキュリティのヘッダ)）
+- **SSR のログは、CloudWatch Logs の `/aws/amplify/<アプリの ID>` に出る**（14 日）。ロググループは Terraform が作る（`modules/web`）。
+  Amplify はストリームを作るだけで、グループが無いと書けずに捨てる。グループの名前は `terraform output -raw web_ssr_log_group_name`
 - **push でビルドしない。** デプロイのワークフローが、quiz-service の後に起動する（[デプロイ](#デプロイ)）。ビルドは約 3 分。
   手で起動するときは次のコマンドを使う
 
@@ -948,7 +950,7 @@ web はすべての応答にセキュリティのヘッダを付ける（DEV-123
 - **スクリプトは、要求ごとの nonce で許す。** proxy が nonce を作って CSP を要求と応答の両方に載せ、Next.js は要求の CSP から nonce を読んで自分のスクリプトに付ける。
   そのため、画面はすべて要求ごとに描く（静的に書き出すと nonce が付かない）
 - 環境ごとに違う送り先（解説図の CDN、S3 への直接のアップロード）は、環境変数 `CSP_IMG_SRC` と `CSP_CONNECT_SRC` で受ける。dev は Terraform（`modules/web`）、ローカルは docker compose と `.env.example`
-- **本体は Report-Only で出している。** 違反は `/csp-report` に届き、SSR のログに「CSP の違反」として 1 行で出る（URL はパスまで、招待のトークンは伏せる）。
+- **本体は Report-Only で出している。** 違反は `/csp-report` に届き、SSR のログ（[Amplify](#amplifyweb)）に「CSP の違反」として 1 行で出る（URL はパスまで、招待のトークンは伏せる）。
   取りこぼした送り先がないことを確かめてから、強制に切り替える（DEV-127）
 - 外部の画面を足すとき（埋め込み、外部の API、画像の配信元）は、`lib/content-security-policy.ts` に送り先を足す
 
@@ -1158,7 +1160,7 @@ terraform output -raw dashboard_url
 載せていないもの。
 
 - トレース（要求が web から quiz-service、イベントまでどう流れたか）は、DEV-110 で入れる
-- Amplify（web）の SSR の時間とエラーは、Amplify のコンソールで見る
+- Amplify（web）の SSR の時間とエラーは、Amplify のコンソールで見る。SSR のログは `/aws/amplify/<アプリの ID>` にある
 
 費用はかからない。ダッシュボードは 3 つ（それぞれメトリクス 50 個）まで無料で、これは 1 つ・約 20 個。
 ログのウィジェット（Logs Insights）だけは、開くたびに読んだ量（1 GB あたり 0.0076 ドル）がかかる。dev の量ではほぼ 0。

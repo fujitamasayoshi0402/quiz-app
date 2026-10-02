@@ -51,3 +51,8 @@ variable "github_access_token" {
   default     = null
 }
 
+
+variable "log_retention_days" {
+  description = "SSR のログを残す日数"
+  type        = number
+}
