@@ -4,6 +4,7 @@ import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.usecase.QuizImportRejectedException
 import com.quizapp.quiz.usecase.QuizImportRow
 import com.quizapp.quiz.usecase.QuizImportUseCase
+import com.quizapp.ratelimit.HeavyOperation
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -37,6 +38,7 @@ class QuizImportController(private val useCase: QuizImportUseCase) {
         summary = "クイズをまとめて取り込む",
         description = "1 件でも取り込めない行があれば、1 件も取り込まずに 400 を返す。理由は `rows` に行ごとに入る",
     )
+    @HeavyOperation
     fun import(@Valid @RequestBody request: ImportQuizzesRequest): ImportQuizzesResponse =
         ImportQuizzesResponse(importedCount = useCase.import(request.quizzes.map { it.toRow() }))
 

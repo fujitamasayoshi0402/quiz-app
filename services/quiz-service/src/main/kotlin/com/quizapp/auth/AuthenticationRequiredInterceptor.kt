@@ -1,7 +1,9 @@
 package com.quizapp.auth
 
+import com.quizapp.ratelimit.RateLimitInterceptor
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Component
 import org.springframework.web.servlet.HandlerInterceptor
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
@@ -25,15 +27,21 @@ class AuthenticationRequiredInterceptor : HandlerInterceptor {
     }
 }
 
-/** インターセプタは登録した順に動く。認証 → テナントの所属とロール。 */
+/**
+ * インターセプタは登録した順に動く。認証 → 利用者ごとの流量の上限 → テナントの所属とロール。
+ *
+ * 流量の上限は、所属を確かめる前に掛ける。超えた要求で、所属を DB に問い合わせない
+ */
 @Component
 class ApiAccessConfigurer(
     private val authenticationRequired: AuthenticationRequiredInterceptor,
+    private val rateLimit: ObjectProvider<RateLimitInterceptor>,
     private val tenantAccess: TenantAccessInterceptor,
 ) : WebMvcConfigurer {
 
     override fun addInterceptors(registry: InterceptorRegistry) {
         registry.addInterceptor(authenticationRequired).addPathPatterns(API)
+        rateLimit.ifAvailable { registry.addInterceptor(it).addPathPatterns(API) }
         registry.addInterceptor(tenantAccess).addPathPatterns(TENANT_SCOPED)
     }
 
