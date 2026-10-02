@@ -24,6 +24,8 @@ resource "aws_amplify_app" "this" {
   environment_variables = {
     AMPLIFY_MONOREPO_APP_ROOT = "apps/web"
     API_ORIGIN                = var.api_origin
+    CSP_IMG_SRC               = join(" ", var.content_security_policy_origins.images)
+    CSP_CONNECT_SRC           = join(" ", var.content_security_policy_origins.connect)
     AUTH_ISSUER               = var.auth.issuer
     AUTH_CLIENT_ID            = var.auth.client_id
     AUTH_CLIENT_SECRET        = var.auth.client_secret

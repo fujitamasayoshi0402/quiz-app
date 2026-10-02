@@ -26,3 +26,8 @@ output "private_key_parameter_arn" {
 output "distribution_id" {
   value = aws_cloudfront_distribution.this.id
 }
+
+output "upload_origin" {
+  description = "ブラウザが原本を上げる先（署名付き PUT の URL のオリジン）。画面の CSP の connect-src に使う"
+  value       = "https://${aws_s3_bucket.this.bucket_regional_domain_name}"
+}
