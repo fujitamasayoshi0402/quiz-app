@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { refreshTokens } from "@/lib/auth/oidc";
 import { appOrigin, isSecure } from "@/lib/auth/request";
 import { readRefreshToken, readSession, writeSession } from "@/lib/auth/session";
+import { contentSecurityPolicy, createNonce, originsFrom } from "@/lib/content-security-policy";
 
 /** 期限の少し前に更新する。ちょうど切れるころに送ると、バックエンドに届いた時点で切れている */
 const REFRESH_MARGIN_SECONDS = 60;
@@ -11,21 +12,47 @@ const REFRESH_MARGIN_SECONDS = 60;
  *
  * - `/api` … バックエンドへ中継し、利用者のアクセストークンを付ける（{@link proxyApi}）
  * - ログインが要る画面 … ログインしていなければ、開こうとした画面を戻り先にしてログインへ移す（{@link requireLogin}）
+ * - 画面 … 要求ごとの nonce で CSP を付ける（{@link withContentSecurityPolicy}）
  */
 export async function proxy(request: NextRequest) {
-  return request.nextUrl.pathname.startsWith("/api/") ? proxyApi(request) : requireLogin(request);
+  const { pathname } = request.nextUrl;
+  if (pathname.startsWith("/api/")) return proxyApi(request);
+  if (LOGIN_REQUIRED.test(pathname) && !(await readSession(request.cookies))) return requireLogin(request);
+  return withContentSecurityPolicy(request);
+}
+
+/** ログインが要る画面。/login と /auth は含めない（含めると、ログインへ移す先でまたログインを求める） */
+const LOGIN_REQUIRED = /^\/(t|invitations)(\/|$)/;
+
+const CSP_HEADER = "Content-Security-Policy-Report-Only";
+
+/**
+ * 画面に CSP（いまは Report-Only）を付ける（`lib/content-security-policy.ts`、DEV-123）。
+ *
+ * 同じ値を要求のヘッダにも載せる。Next.js は要求の CSP から nonce を読み、自分が出すスクリプトに付ける
+ */
+function withContentSecurityPolicy(request: NextRequest) {
+  const policy = contentSecurityPolicy({
+    nonce: createNonce(),
+    development: process.env.NODE_ENV === "development",
+    imageOrigins: originsFrom(process.env.CSP_IMG_SRC),
+    connectOrigins: originsFrom(process.env.CSP_CONNECT_SRC),
+  });
+  const headers = new Headers(request.headers);
+  headers.set(CSP_HEADER, policy);
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set(CSP_HEADER, policy);
+  return response;
 }
 
 /**
- * ログインしていなければ、開こうとした画面（パスとクエリ）を戻り先にしてログインへ移す。
+ * 開こうとした画面（パスとクエリ）を戻り先にしてログインへ移す。
  *
  * レイアウトでも同じ判定をしているが、レイアウトは開いているパスを知らない。
  * そこで戻り先を決めると、テナントのトップ（`/t/{slug}`）にしか戻せず、共有されたリンクの画面に着かない。
  * 認可ではない。セッションがあるかどうかだけを見て、中身の判定はバックエンドに任せる
  */
-async function requireLogin(request: NextRequest) {
-  if (await readSession(request.cookies)) return NextResponse.next();
-
+function requireLogin(request: NextRequest) {
   const login = new URL("/login", appOrigin(request));
   login.searchParams.set("returnTo", `${request.nextUrl.pathname}${request.nextUrl.search}`);
   return NextResponse.redirect(login);
@@ -87,6 +114,7 @@ async function refresh(request: NextRequest) {
 }
 
 export const config = {
-  // 画面はログインが要るものだけ。/login と /auth は含めない（含めると、ログインへ移す先でまたログインを求める）
-  matcher: ["/api/:path*", "/t/:path*", "/invitations/:path*"],
+  // 画面はすべて（CSP を付けるため）。ログインを求めるのは LOGIN_REQUIRED のものだけ。
+  // 静的なファイルと、CSP の違反の報告（/csp-report）は通さない
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|csp-report).*)"],
 };

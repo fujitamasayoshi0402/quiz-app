@@ -131,6 +131,9 @@ services:
     environment:
       # /api の中継先。実行時に読むので、イメージを作り直さずに変えられる
       API_ORIGIN: http://quiz-service:8080
+      # 画面の CSP（DEV-123）。解説図と、原本のアップロードは LocalStack の S3 に向く
+      CSP_IMG_SRC: http://localhost:${LOCALSTACK_PORT:-4566}
+      CSP_CONNECT_SRC: http://localhost:${LOCALSTACK_PORT:-4566}
       AUTH_ISSUER: ${AUTH_ISSUER:?.env に AUTH_ISSUER を設定してください（.env.example）}
       AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:?.env に AUTH_CLIENT_ID を設定してください（.env.example）}
       AUTH_CLIENT_SECRET: ${AUTH_CLIENT_SECRET:?.env に AUTH_CLIENT_SECRET を設定してください（.env.example）}

@@ -206,6 +206,11 @@ module "web" {
 
   api_origin = module.quiz_service.api_url
 
+  content_security_policy_origins = {
+    images  = [module.figures.base_url]
+    connect = [module.figures.upload_origin]
+  }
+
   auth = {
     issuer        = module.auth.issuer
     client_id     = module.auth.client_id
