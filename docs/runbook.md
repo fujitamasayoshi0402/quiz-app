@@ -73,6 +73,34 @@ API Gateway が、タスクから応答を得られなかった。
 
 送れていない行は消えない。直すまでの間のイベントも、後から順に送られる。
 
+### `quiz-app-dev-quiz-service-integrity-violations`（データの整合性が崩れている）
+
+DB の制約で表しきれない決まりが崩れた（[データの整合性](development-guidelines.md#データの整合性)）。1 日に 1 回、利用者が使っている間に確かめている。
+
+1. Logs Insights（`/ecs/quiz-app-dev/quiz-service`）で、崩れたものを出す
+
+   ```
+   fields @timestamp, integrity.rule, tenant.id, integrity.subject_id
+   | filter ispresent(integrity.rule)
+   | sort @timestamp desc
+   ```
+
+2. 起き始めた時刻を、直前のデプロイ（シードやマイグレーションを流したか）と、手で流した SQL と比べる
+3. 中身を Data API で読む。**マスターで読むため、行レベルセキュリティは効かない。** `tenant.id` と ID で絞って読むだけにする
+
+   ```bash
+   aws rds-data execute-statement \
+     --resource-arn "$(terraform output -raw database_cluster_arn)" \
+     --secret-arn "$(terraform output -raw database_master_user_secret_arn)" \
+     --database quiz \
+     --sql "SELECT id, status, deleted_at FROM quiz.quizzes WHERE tenant_id = '<tenant.id>' AND id = '<integrity.subject_id>'"
+   ```
+
+4. 直す。**画面で直せるなら画面で直す**（ドメインの検証を通る）。公開中のクイズなら、管理画面で下書きに戻してから直す
+   - シードが原因なら、シードを直して PR で入れる。`DemoSeedTest` が同じ決まりで確かめる
+   - SQL で直すときは、マイグレーションとして PR で入れる。テナント配下の行は、先に `app.tenant_id` を設定する（[マイグレーション](development-guidelines.md#マイグレーション)）
+5. 直ったかは、次の日の確認で件数が 0 になったことで分かる。すぐに確かめたいときは、タスクを入れ替えて（前に流した時刻はタスクが持つ）画面を開く
+
 ### `quiz-app-dev-notification-dlq-not-empty`（通知が DLQ に入った）
 
 1. DLQ の中身を見る（イベントがそのまま入っている）

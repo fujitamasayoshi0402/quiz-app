@@ -59,6 +59,7 @@ output "monitoring" {
       aws_cloudwatch_metric_alarm.server_errors.arn,
       aws_cloudwatch_metric_alarm.gateway_errors.arn,
       aws_cloudwatch_metric_alarm.outbox_oldest_unpublished.arn,
+      aws_cloudwatch_metric_alarm.integrity_violations.arn,
     ]
   }
 }
