@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.stereotype.Component
 import org.springframework.web.servlet.HandlerInterceptor
+import org.springframework.web.servlet.HandlerMapping
 
 /**
  * テナント配下のエンドポイントへのアクセスを検査する。
@@ -35,7 +36,7 @@ class TenantAccessInterceptor(private val memberships: TenantMemberships) : Hand
         val userId = UserContext.require()
         val role = memberships.findRole(tenantId, userId) ?: throw TenantAccessDeniedException()
 
-        if (isAdminPath(request.requestURI) && role != TenantRole.ADMIN) {
+        if (isAdminRoute(request) && role != TenantRole.ADMIN) {
             throw AdminRoleRequiredException()
         }
 
@@ -44,8 +45,17 @@ class TenantAccessInterceptor(private val memberships: TenantMemberships) : Hand
         return true
     }
 
-    private fun isAdminPath(uri: String): Boolean = uri.trim('/').split('/').let { segments ->
+    /**
+     * 管理者用のルートか。**生の URI ではなく、振り分けた先のルートの型（`/api/t/{slug}/admin/...`）で決める**（DEV-114）。
+     *
+     * 生の URI には、エンコードした文字やパスの引数（`;` 以降）が残る。Spring はそれらを解いてからルートを選ぶため、
+     * URI の文字列で判定すると、管理者用のルートに振り分けられる要求を、一般の要求と取り違えうる。
+     * 判定と振り分けで、同じ解釈を使う。型が取れないときは、管理者用として扱う
+     */
+    private fun isAdminRoute(request: HttpServletRequest): Boolean {
+        val pattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE) as? String ?: return true
+        val segments = pattern.trim('/').split('/')
         val index = segments.indexOf("t")
-        index >= 0 && index + 2 < segments.size && segments[index + 2] == "admin"
+        return index >= 0 && index + 2 < segments.size && segments[index + 2] == "admin"
     }
 }

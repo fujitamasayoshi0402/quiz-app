@@ -216,7 +216,7 @@ pnpm --filter web lint
 | `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりの流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
 | `ci` | 先行ジョブの結果を集約する |
-| `dependency-graph` | develop への push で、Gradle の依存の一覧を GitHub に送る。Dependabot alerts が読む（[脆弱性の検出](#脆弱性の検出)） |
+| `dependency-graph` | develop への push で、Gradle と pnpm の依存の一覧を GitHub に送る。Dependabot alerts が読む（[脆弱性の検出](#脆弱性の検出)） |
 | `deploy-dev` | develop への push で、`ci` が通ったあとに dev へ載せる。何を載せるかは、dev で動いているものと比べて決める（`deploy-dev.yml`。[デプロイ](#デプロイ)） |
 
 **Ruleset の必須チェックには `ci` だけを指定する。** ジョブを足すたびに設定を触らずに済み、
@@ -321,7 +321,10 @@ Dependabot は、CI を通ったあとに公表された脆弱性を拾う。CI 
 
 - **見るのは、動くときに載るものだけ。** イメージと zip を調べるので、テストやビルドの道具は入らない。
   Gradle の依存の一覧を GitHub に送るときも、実行時の依存（`runtimeClasspath` / `productionRuntimeClasspath`）に絞る（`dependency-graph` ジョブ）
-- Gradle の依存は、ファイルからは版が読めない（Spring Boot の BOM が決める）。そのため、Dependabot alerts は送った一覧を見る
+- GitHub は、どちらの依存もファイルからは読み切れない。そのため、Dependabot alerts は `dependency-graph` ジョブが送った一覧を見る
+  - Gradle: 版を Spring Boot の BOM が決めるので、`build.gradle.kts` に版がない。依存の一覧を Gradle に解かせて送る
+  - pnpm: `pnpm-lock.yaml` を読まず、`package.json` に直接書いた依存（30 件ほど）しか見ない。Trivy で lockfile から一覧を作って送る（間接的な依存を含めて 870 件ほど）。
+    ビルドの道具も Amplify のビルドで動くため、開発用の依存も含める
 - Dependabot は、Gradle と pnpm について版を上げるだけの PR は作らない（`open-pull-requests-limit: 0`）。脆弱性の修正だけが PR になる
 - web のイメージから npm を外している。実行には node だけを使い、npm が抱える依存は検査に掛かるだけ
 - Trivy のアクションは使わず、mise で版を固定して入れる（`.mise.toml`）。Trivy のアクションは、タグを乗っ取られて書き換えられたことがある
@@ -556,6 +559,7 @@ UPDATE_EVENT_SAMPLES=true ./gradlew :services:quiz-service:test --tests '*QuizEv
 ### ドキュメント
 - 技術選定・設計判断は必ず [ADR](adr/) に残す。運用ルールは [docs/adr/README.md](adr/README.md) を参照
 - 記録対象は「後から変更するのが高くつく決定」に限定する。ライブラリの細かな選択は対象外
+- セキュリティの対策と残るリスクは、[セキュリティレビュー](security-review.md)に OWASP Top 10 の観点ごとにまとめている。認証や公開の範囲を変えたら、該当する観点を見直す
 
 ## 7. ローカル開発
 
@@ -829,6 +833,9 @@ terraform apply
 **apply はローカルから行う。** CI は整形と `validate` だけで、Terraform からは AWS に触れない。
 デプロイに使うロールにも、Terraform を動かす権限は与えていない（[ADR-0015](adr/0015-deploy-by-registering-task-definitions-from-ci.md)）。
 
+- **最新の develop から apply する。** 古いブランチや worktree から流すと、先に apply された別の変更を、その形に戻してしまう。
+  PR のブランチから流すときも、develop が先に進んでいたら取り込んでから流す
+- **Terraform の変更（権限、環境変数）を含む PR は、マージより前に apply する。** 先にマージすると、デプロイが新しい形を前提に動いて止まる
 - 同時に操作すると、あとから始めたほうがロックで止まる（`Error acquiring the state lock`）。
   ロックは S3 上の `*.tflock` で、異常終了で残ったときは `terraform force-unlock <ID>` で外す
 - **apply の途中で SSO の認証が切れると、state を S3 に書けない。** 作ったリソースは手元の `errored.tfstate` にだけ記録され、ロックも残る。
@@ -1093,7 +1100,7 @@ fields @timestamp, log.level, message, integrity.rule, tenant.id, integrity.subj
 
 回復したとき（OK に戻ったとき）は知らせない。タスクが落ちては起動し直すことを繰り返すと、そのたびにメールが届く。
 
-鳴ったときの手順の詳細は、Runbook（DEV-116）にまとめる。
+鳴ったときの手順は、[Runbook](runbook.md) にある。
 
 メールまで届くかは、アラームの状態を手で変えて確かめられる。次の評価で、実際の値に戻る。
 
@@ -1101,6 +1108,42 @@ fields @timestamp, log.level, message, integrity.rule, tenant.id, integrity.subj
 aws cloudwatch set-alarm-state --alarm-name quiz-app-dev-quiz-service-server-errors \
   --state-value ALARM --state-reason "通知の確認"
 ```
+
+#### ダッシュボード
+
+運用で見るものを、CloudWatch のダッシュボード `quiz-app-dev` の 1 画面にまとめている（DEV-109。`modules/dashboard`）。
+**コンソールで直接変えない。** 変えたら、Terraform を書き換えて apply する。
+
+```bash
+cd infra/terraform/envs/dev
+terraform output -raw dashboard_url
+```
+
+上から、要求が流れる順に並べている。
+
+| 段 | 載せているもの |
+| --- | --- |
+| アラーム | [アラーム](#アラーム)の状態 |
+| 要求（API Gateway） | 要求の数、応答の時間（p50 / p95、タスクの p95）、4xx・5xx・アプリの 5xx・502 / 504 |
+| quiz-service（ECS） | 動いているタスクの数、CPU とメモリ、遅い API（ルートの型ごとの p95。ログから） |
+| Aurora | ACU、接続の数と CPU、Outbox の送れていない最も古いイベント |
+| イベントと通知 | EventBridge に送った数と失敗、通知のルール（当てはまった・Lambda に送った・送れなかった）、Lambda の実行とエラー、DLQ |
+| ログ | quiz-service の警告と例外（新しい順） |
+
+ふつうに見える形。異常と取り違えない。
+
+- **夜間（2:00〜8:00）は、タスクの数が 0 になり、ECS の線が途切れる**（[ECS](#ecsquiz-service)）
+- **Aurora の ACU は、使われないと 0 になる**（一時停止）。使い始めの要求は、タスクの p95 が数秒〜20 秒ほどに跳ねる。復帰を待っている
+- API Gateway の 5xx には、夜間の停止中の 503 が入る。アプリの不具合はアプリの 5xx で見る
+- EventBridge に送った数は、バスごとには出ない（アカウントで 1 つ）。いま送るのは quiz-service だけ
+
+載せていないもの。
+
+- トレース（要求が web から quiz-service、イベントまでどう流れたか）は、DEV-110 で入れる
+- Amplify（web）の SSR の時間とエラーは、Amplify のコンソールで見る
+
+費用はかからない。ダッシュボードは 3 つ（それぞれメトリクス 50 個）まで無料で、これは 1 つ・約 20 個。
+ログのウィジェット（Logs Insights）だけは、開くたびに読んだ量（1 GB あたり 0.0076 ドル）がかかる。dev の量ではほぼ 0。
 
 #### 解説図（S3 + CloudFront）
 
@@ -1435,7 +1478,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 | Secrets Manager（Aurora のマスター） | 0.4 ドル | 続く |
 | 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |
 | 通知（Lambda、DynamoDB、SQS） | イベントの数だけで、dev の量ではほぼ 0 | — |
-| アラーム（CloudWatch のアラーム 5 つ、メトリクスフィルタのメトリクス 4 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
+| アラームとダッシュボード（CloudWatch のアラーム 5 つ、メトリクスフィルタのメトリクス 4 つ、ダッシュボード 1 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
 | ECS のタスク（0.5 vCPU / 1 GB） | 約 13.5 ドル（1 時間 0.0246 ドル × 1 日 18 時間） | 止まる |
