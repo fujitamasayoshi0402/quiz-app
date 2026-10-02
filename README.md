@@ -40,6 +40,9 @@
   止められない費用は月に数ドルです（[コスト方針](docs/development-guidelines.md#8-コスト方針)）
 - **利用者が上げたものを、そのまま配らない。** 解説図の SVG はアプリのオリジンから返さず、CloudFront が CSP（`sandbox`）を付けて署名付き URL で配ります。
   画像は中身で種類を確かめて読み直し、位置情報などのメタデータを落とします（[ADR-0017](docs/adr/0017-deliver-figures-with-cloudfront-signed-urls.md)、[ADR-0020](docs/adr/0020-reference-figures-from-explanations-and-add-images-and-pdfs.md)）
+- **異常に気づき、戻せる。** ログは JSON で出し、要求の ID・テナント・利用者で 1 本の要求を追えます。アプリの 5xx、タスクの停止、イベントの滞留はアラームがメールで知らせ、
+  夜間の停止や Aurora の一時停止といったふつうの動きでは鳴らないようにしています。状態は CloudWatch のダッシュボードの 1 画面で見て、
+  鳴ったときに何を見てどう戻すかは [Runbook](docs/runbook.md) にあります
 - **判断の根拠を残す。** 技術選定と設計のトレードオフを、採らなかった案とともに [ADR](docs/adr/) に残しています（22 本）
 
 ## アーキテクチャ
@@ -114,7 +117,8 @@ flowchart LR
 ├── docs/
 │   ├── adr/                     # アーキテクチャ決定記録（MADR 形式）
 │   ├── architecture/            # C4 図・draw.io 原本
-│   └── api/                     # OpenAPI 定義
+│   ├── api/                     # OpenAPI 定義
+│   └── runbook.md               # 異常に気づいたときの手順
 └── .github/workflows/           # GitHub Actions のワークフロー
 ```
 
