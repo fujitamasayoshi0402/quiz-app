@@ -832,6 +832,9 @@ terraform apply
 **apply はローカルから行う。** CI は整形と `validate` だけで、Terraform からは AWS に触れない。
 デプロイに使うロールにも、Terraform を動かす権限は与えていない（[ADR-0015](adr/0015-deploy-by-registering-task-definitions-from-ci.md)）。
 
+- **最新の develop から apply する。** 古いブランチや worktree から流すと、先に apply された別の変更を、その形に戻してしまう。
+  PR のブランチから流すときも、develop が先に進んでいたら取り込んでから流す
+- **Terraform の変更（権限、環境変数）を含む PR は、マージより前に apply する。** 先にマージすると、デプロイが新しい形を前提に動いて止まる
 - 同時に操作すると、あとから始めたほうがロックで止まる（`Error acquiring the state lock`）。
   ロックは S3 上の `*.tflock` で、異常終了で残ったときは `terraform force-unlock <ID>` で外す
 - **apply の途中で SSO の認証が切れると、state を S3 に書けない。** 作ったリソースは手元の `errored.tfstate` にだけ記録され、ロックも残る。
@@ -1063,7 +1066,7 @@ fields @timestamp, log.level, message, error.type, tenant.id, http.request.id
 
 回復したとき（OK に戻ったとき）は知らせない。タスクが落ちては起動し直すことを繰り返すと、そのたびにメールが届く。
 
-鳴ったときの手順の詳細は、Runbook（DEV-116）にまとめる。
+鳴ったときの手順は、[Runbook](runbook.md) にある。
 
 メールまで届くかは、アラームの状態を手で変えて確かめられる。次の評価で、実際の値に戻る。
 
