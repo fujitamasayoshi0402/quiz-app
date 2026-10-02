@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import tools.jackson.databind.ObjectMapper
+import java.net.URI
 import java.util.UUID
 
 /**
@@ -127,6 +128,24 @@ class AuthorizationApiTest {
             content = """{"name":"勝手に作ったカテゴリ"}"""
             header("Authorization", TestAuth.bearer(TestAuth.MEMBER))
         }.andExpect { status { isForbidden() } }
+    }
+
+    @Test
+    @DisplayName("パスの書き方を変えても、一般ユーザーは管理 API を使えない")
+    fun memberCannotUseAdminApiWithAlteredPath() {
+        // どれも Spring が管理 API のルートに振り分ける書き方。判定がルートと別の解釈でパスを読むと、一般ユーザーが通る（DEV-114）
+        val slug = tenant.slug
+        val encodedSlug = "%" + "%02X".format(slug.first().code) + slug.drop(1)
+        listOf(
+            "/api/t/$slug/%61dmin/categories",
+            "/api/t/$slug/admin;x=1/categories",
+            "/api/t/$slug;x=1/admin/categories",
+            "/api/t/$encodedSlug/admin/categories",
+        ).forEach { path ->
+            mockMvc.get(URI(path)) {
+                header("Authorization", TestAuth.bearer(TestAuth.MEMBER))
+            }.andExpect { status { isForbidden() } }
+        }
     }
 
     @Test

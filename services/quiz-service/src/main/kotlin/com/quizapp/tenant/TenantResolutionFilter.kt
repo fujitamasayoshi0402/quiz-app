@@ -8,6 +8,7 @@ import org.springframework.core.annotation.Order
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import org.springframework.web.util.UrlPathHelper
 import java.util.UUID
 
 /**
@@ -28,7 +29,9 @@ class TenantResolutionFilter(private val jdbcTemplate: JdbcTemplate) : OncePerRe
         filterChain: FilterChain,
     ) {
         try {
-            extractSlug(request.requestURI)?.let { slug ->
+            // 生の URI ではなく、Spring がルートを選ぶときと同じく、デコードしてパスの引数（`;` 以降）を外したパスから取る（DEV-114）。
+            // 解釈が食い違うと、テナントを決めたパスと、振り分けたルートが別のものを指しうる
+            extractSlug(UrlPathHelper.defaultInstance.getPathWithinApplication(request))?.let { slug ->
                 findTenantId(slug)?.let {
                     TenantContext.set(it)
                     LogContext.putTenant(it)
