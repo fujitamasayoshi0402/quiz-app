@@ -798,6 +798,9 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 
 - ログインの始まり（`/auth/login`）で、`state` と PKCE の verifier を暗号化した Cookie に置き、コールバックで照合する
 - ログアウト（`/auth/logout`）は POST だけを受ける。リフレッシュトークンを失効させ、Cognito のセッションも終える
+- **状態を変える要求（POST・PUT・PATCH・DELETE）は、アプリのオリジンから来たものだけを通す**（DEV-124。`isSameOriginRequest`）。
+  proxy が `Origin` を、利用者から見たオリジン（`appOrigin`）と比べ、違えば 403 を返す。`Origin` が無ければ `Sec-Fetch-Site` で決める。
+  Cookie の `SameSite=Lax` だけでは、同じドメインの別のサブドメインからの要求に Cookie が付く。どちらも無い要求はブラウザからではないとして通す（スモークテスト）
 - ログインのセッションが無い要求は、`Authorization` をそのまま渡す。スモークテストのように、トークンを自分で取る呼び出し元のため
 - ログインが要る画面（`/t/...`、`/invitations/...`）を未ログインで開くと、proxy が**開こうとしたパスとクエリ**を戻り先にしてログインへ移す。
   レイアウトは開いているパスを知らないため、そこで戻り先を決めると、テナントのトップにしか戻せない
