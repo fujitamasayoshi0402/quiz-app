@@ -102,6 +102,12 @@ output "e2e_user_password" {
   sensitive = true
 }
 
+# 負荷試験の利用者の共通のパスワード。開発ガイドラインの「負荷試験」を参照
+output "load_user_password" {
+  value     = module.auth.load_user_password
+  sensitive = true
+}
+
 # 関数のコードを載せ替えるときと、送れなかったものを見るときに使う。開発ガイドラインの「通知（notification-service）」を参照
 output "notification_function_name" {
   value = module.notification_service.function_name

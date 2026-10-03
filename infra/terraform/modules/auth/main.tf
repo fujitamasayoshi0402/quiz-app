@@ -219,3 +219,31 @@ resource "aws_cognito_user" "e2e" {
 
   message_action = "SUPPRESS"
 }
+
+# ---- 負荷試験の利用者 ----
+# 負荷試験（tests/load）が、API でこの利用者のトークンを取る（DEV-112）。
+# 利用者ごとに流量の上限（5 件/秒）があるため、1 人では負荷にならない。人数を分けて掛ける。
+# アプリの側は、同じメールアドレスで事前に登録した利用者（シードの R__load_data.sql）に、最初のログインで結び付く。
+# パスワードは全員で共通にする（E2E と同じ）
+
+resource "random_password" "load" {
+  count = length(var.load_user_emails) == 0 ? 0 : 1
+
+  length  = 32
+  special = false
+}
+
+resource "aws_cognito_user" "load" {
+  for_each = var.load_user_emails
+
+  user_pool_id = aws_cognito_user_pool.this.id
+  username     = each.value
+  password     = random_password.load[0].result
+
+  attributes = {
+    email          = each.value
+    email_verified = "true"
+  }
+
+  message_action = "SUPPRESS"
+}

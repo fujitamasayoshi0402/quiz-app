@@ -42,3 +42,8 @@ output "e2e_user_password" {
   value     = one(random_password.e2e[*].result)
   sensitive = true
 }
+
+output "load_user_password" {
+  value     = one(random_password.load[*].result)
+  sensitive = true
+}
