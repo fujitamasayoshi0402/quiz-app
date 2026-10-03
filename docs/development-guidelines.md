@@ -1520,6 +1520,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 | Amplify | ビルド（1 分 0.01 ドル）と SSR の実行。使った分だけ | — |
 
 **止められない費用は、月に数ドルに収まる。** 以前は ALB がパブリック IPv4 を含めて月に約 25 ドルかかり、使っていなくても減らなかった（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)）。
+- **prod は、公開（Phase 7）のときから常時動かす**（[ADR-0024](adr/0024-run-prod-in-same-account-and-launch-at-release.md)）。常時の費用は約 25 ドルで、dev と合わせると予算を超えるため、公開のときに予算を上げるか dev を縮める
 - **予算は月 30 ドル。** 実績が 85% と 100% を超えたとき、月末の予測が 100% を超えたときにメールで届く
   （`infra/terraform/account`）。通知先は公開リポジトリに載せないため、`terraform.tfvars`（Git の管理外）で渡す
   - 予測でも知らせるのは、月の途中で止める判断をするため。実績だけだと、気づいたときには超えている

@@ -29,6 +29,7 @@
 | [0021](0021-render-first-page-of-pdfs-as-images.md) | PDF の 1 ページ目を置くときに画像にし、解説の中に出す | Accepted |
 | [0022](0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md) | クイズの変更を Outbox から EventBridge に送り、テナントごとの Slack へ Lambda が知らせる | Accepted |
 | [0023](0023-keep-answer-as-module-in-quiz-service.md) | 回答・採点は quiz-service の中のモジュールのまま分けない。分けるときの通信の使い分けを先に決めておく | Accepted |
+| [0024](0024-run-prod-in-same-account-and-launch-at-release.md) | prod は同じアカウントに環境として置き、常時動かすのは公開のときから。main へのマージと承認で載せる | Accepted |
 
 ## 運用ルール
 
