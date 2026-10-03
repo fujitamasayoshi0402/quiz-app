@@ -1,6 +1,7 @@
 package com.quizapp.quiz.controller
 
 import com.quizapp.quiz.usecase.FigureUseCase
+import com.quizapp.ratelimit.HeavyOperation
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
@@ -32,6 +33,7 @@ class FigureController(private val useCase: FigureUseCase) {
         summary = "解説図を置く",
         description = "SVG は無害化しない。配るときに、アプリと別のオリジンから、スクリプトを止めるヘッダを付けて返す",
     )
+    @HeavyOperation
     fun create(@RequestBody request: CreateFigureRequest): FigureResponse =
         FigureResponse(useCase.create(request.source, request.svg))
 
@@ -58,6 +60,7 @@ class FigureController(private val useCase: FigureUseCase) {
             "PDF はそのまま置き、1 ページ目を画像にして本文の中に出せるようにする。パスワードのかかった PDF は受け付けない。" +
             "上げたものは、検査に通らなくても消える",
     )
+    @HeavyOperation
     fun completeUpload(@PathVariable id: UUID): FigureDetailResponse =
         FigureDetailResponse(id, useCase.completeUpload(id).name.lowercase())
 

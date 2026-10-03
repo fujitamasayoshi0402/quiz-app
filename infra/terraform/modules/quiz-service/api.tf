@@ -99,11 +99,13 @@ resource "aws_apigatewayv2_stage" "default" {
   name        = "$default"
   auto_deploy = true
 
-  # 叩かれ続けても、費用に上限を付ける。10 件/秒で 1 か月続いても約 2,600 万回（約 33 ドル）で、予算の通知が先に届く。
-  # web の画面が一度に出す要求は数件なので、使う人が数人なら当たらない
+  # 叩かれ続けても、費用に上限を付ける。20 件/秒で 1 か月続いても約 5,200 万回（約 67 ドル）で、予算の通知が先に届く。
+  # **API 全体に 1 つ。** 1 人がこれを使い切ると全員が 429 になるため、quiz-service が利用者ごとの上限（5 件/秒、バースト 30）を掛ける（DEV-125、RateLimitProperties）。
+  # 利用者ごとの上限より十分大きくする。同じだと、1 人で全員を止められる。
+  # アクセストークンのない要求は利用者ごとには数えられず、ここで受ける
   default_route_settings {
-    throttling_rate_limit  = 10
-    throttling_burst_limit = 30
+    throttling_rate_limit  = 20
+    throttling_burst_limit = 60
   }
 
   # パスは残さない。招待の受け入れ（/api/me/invitations/{token}）のパスにはトークンが入る。

@@ -63,5 +63,8 @@ object TestPostgres {
         registry.add("app.events.relay.enabled") { "false" }
         // データの整合性の確認も同じ。テストは手で呼ぶ（IntegrityChecksApiTest）
         registry.add("app.integrity.enabled") { "false" }
+        // 利用者ごとの流量の上限も止める。テストは同じ利用者（TestAuth.ADMIN）で多くの要求を続けて送り、コンテキストは使い回される。
+        // 上限そのものは RateLimitApiTest が、上限を小さくして確かめる
+        registry.add("app.rate-limit.enabled") { "false" }
     }
 }

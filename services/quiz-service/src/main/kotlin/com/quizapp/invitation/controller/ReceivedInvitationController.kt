@@ -2,6 +2,7 @@ package com.quizapp.invitation.controller
 
 import com.quizapp.auth.MyTenantResponse
 import com.quizapp.invitation.usecase.InvitationUseCase
+import com.quizapp.ratelimit.HeavyOperation
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.MediaType
@@ -25,10 +26,12 @@ class ReceivedInvitationController(private val useCase: InvitationUseCase) {
 
     @GetMapping("/{token}")
     @Operation(operationId = "getReceivedInvitation", summary = "受け取った招待。受け入れる前に招待先を確かめる")
+    @HeavyOperation
     fun get(@PathVariable token: String): ReceivedInvitationResponse =
         ReceivedInvitationResponse.from(useCase.receive(token))
 
     @PostMapping("/{token}/accept")
     @Operation(operationId = "acceptInvitation", summary = "招待を受け入れ、テナントに所属する")
+    @HeavyOperation
     fun accept(@PathVariable token: String): MyTenantResponse = MyTenantResponse.from(useCase.accept(token))
 }

@@ -2,6 +2,7 @@ package com.quizapp.invitation.controller
 
 import com.quizapp.auth.TenantRole
 import com.quizapp.invitation.usecase.InvitationUseCase
+import com.quizapp.ratelimit.HeavyOperation
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -37,6 +38,7 @@ class InvitationController(private val useCase: InvitationUseCase) {
         operationId = "createInvitation",
         summary = "招待を作る。同じアドレスへの受け入れ待ちの招待は取り消される",
     )
+    @HeavyOperation
     fun create(@Valid @RequestBody request: CreateInvitationRequest): CreatedInvitationResponse =
         CreatedInvitationResponse.from(useCase.create(request.email, TenantRole.from(request.role)))
 

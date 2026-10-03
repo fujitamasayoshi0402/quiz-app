@@ -8,7 +8,8 @@ import { ApiError } from "@/lib/api/fetcher";
  * - 401 … ログインへ誘導する（セッションが切れた、または更新できなかった）
  * - 400 の入力エラー … バックエンドが項目ごとの理由（`errors`）を返すので、それを並べる
  * - 理由のないエラー … 通信の失敗や、バックエンドに届く前に返った応答。時間をおいて試すよう伝える。
- *   AWS では、夜間にバックエンドを止めている間、API Gateway が 503 を返す（`{"message": ...}` の JSON で、ProblemDetail ではない）
+ *   AWS では、夜間にバックエンドを止めている間、API Gateway が 503 を返す（`{"message": ...}` の JSON で、ProblemDetail ではない）。
+ *   API 全体の流量の上限を超えたときの 429 も、API Gateway が同じ形で返す。利用者ごとの上限の 429 は、バックエンドが理由を付けて返す
  */
 export function ApiErrorAlert({ error }: { error: unknown }) {
   const apiError = error instanceof ApiError ? error : null;
@@ -29,6 +30,7 @@ export function ApiErrorAlert({ error }: { error: unknown }) {
         {!apiError?.problem && (
           <p>
             {apiError?.status === 503 && "サーバーが止まっているか、起動の途中です。"}
+            {apiError?.status === 429 && "混み合っています。"}
             時間をおいてもう一度お試しください
           </p>
         )}
