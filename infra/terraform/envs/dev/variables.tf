@@ -34,3 +34,18 @@ variable "database_restore" {
   })
   default = null
 }
+
+variable "api_throttling" {
+  description = <<-EOT
+    API 全体の流量の上限。ふだんはモジュールの既定（20 件/秒、バースト 60）のまま。
+    負荷試験の間だけ -var で上げ、終わったら -var を付けずに apply して戻す（開発ガイドラインの「負荷試験」）
+  EOT
+  type = object({
+    rate_limit  = number
+    burst_limit = number
+  })
+  default = {
+    rate_limit  = 20
+    burst_limit = 60
+  }
+}

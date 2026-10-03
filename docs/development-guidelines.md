@@ -360,6 +360,7 @@ pnpm --filter web test                  # web の単体テスト（Vitest）
 | スモークテスト | デプロイした環境で、主要な導線が通るか。Newman で流す | `tests/api/` |
 | web の単体テスト | 画面の部品が守る性質。DOM を使わず、HTML の文字列にして確かめる | `apps/web/src/components/markdown.test.tsx` |
 | E2E テスト | 画面をまたいだ流れ（ログイン、招待、ロールによる出し分け、作ったクイズを解く、中断と再開）。Playwright で流す | `tests/e2e/` |
+| 負荷試験 | どれだけの利用に耐えるか、どこが先に詰まるか。dev に向けて手で流す。k6 を使う | `tests/load/` |
 
 **単体テストにするのは、分岐や不変条件を持つものだけ。** リポジトリへ素通しするだけのユースケースには書かない。
 SQL が担うこと（絞り込み・並び順・行レベルセキュリティ・連鎖削除）は、フェイクでは確かめられないので API テストで見る。
@@ -478,6 +479,15 @@ cd infra/terraform/envs/dev
 terraform output -raw auth_client_secret | gh secret set AUTH_CLIENT_SECRET --app dependabot
 terraform output -raw e2e_user_password | gh secret set E2E_USER_PASSWORD --app dependabot
 ```
+
+#### 負荷試験
+
+dev に向けて、[k6](https://k6.io/) で手で流す（DEV-112）。CI では流さない。手順、費用、測った結果は [負荷試験](load-test.md) にある。
+
+- **専用のテナント `load` と、負荷試験の利用者 51 人で流す**（シード `R__load_data.sql`、Terraform の `load_user_emails`）。
+  利用者ごとに流量の上限があり、1 人では負荷にならない
+- API 全体の流量の上限（20 件/秒）は、試験の間だけ `-var 'api_throttling=...'` で上げ、終わったら戻す
+- API Gateway を直接叩く。web の proxy は通さない
 
 ### OpenAPI
 

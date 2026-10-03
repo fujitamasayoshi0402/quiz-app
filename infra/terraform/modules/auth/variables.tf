@@ -29,6 +29,12 @@ variable "e2e_user_emails" {
   default     = []
 }
 
+variable "load_user_emails" {
+  description = "負荷試験（tests/load）が使う利用者のメールアドレス。空なら作らない。パスワードは全員で共通"
+  type        = set(string)
+  default     = []
+}
+
 variable "deletion_protection" {
   description = "User Pool を消せないようにする。消すと、利用者とパスキーがすべて失われる"
   type        = bool

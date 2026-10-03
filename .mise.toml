@@ -12,3 +12,5 @@ trivy = "0.74.0"
 lefthook = "2.1.14"
 # API のスモークテスト（tests/api）を流す。Postman のコレクションをそのまま実行できる
 "npm:newman" = "6.2.2"
+# 負荷試験（tests/load）を流す（DEV-112）
+k6 = "2.3.0"
