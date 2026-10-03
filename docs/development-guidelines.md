@@ -327,6 +327,8 @@ Dependabot は、CI を通ったあとに公表された脆弱性を拾う。CI 
     ビルドの道具も Amplify のビルドで動くため、開発用の依存も含める
 - Dependabot は、Gradle と pnpm について版を上げるだけの PR は作らない（`open-pull-requests-limit: 0`）。脆弱性の修正だけが PR になる
 - web のイメージから npm を外している。実行には node だけを使い、npm が抱える依存は検査に掛かるだけ
+- **npm の依存は、公開から 7 日たっていない版を入れない**（DEV-126。`pnpm-workspace.yaml` の `minimumReleaseAge`）。アクションと同じ日数。
+  依存を足すときと上げるときは、7 日より新しい版を選ばない。lockfile からのインストール（CI、Docker、Amplify）でも lockfile の版を確かめ、新しすぎる版があれば止まる
 - Trivy のアクションは使わず、mise で版を固定して入れる（`.mise.toml`）。Trivy のアクションは、タグを乗っ取られて書き換えられたことがある
 - 手元でも同じ基準で流せる
 
@@ -341,6 +343,8 @@ trivy image quiz-service:local                 # trivy.yaml を読む。止ま�
    `extra["<名前>.version"]` で上書きする。プロパティの名前は Spring Boot の `spring-boot-dependencies` の pom にある。
    Spring Boot を上げて、同じか新しい版になったら上書きを消す
 2. ベースイメージの OS のパッケージは、ベースイメージの更新を待つ。CI は毎回、タグの最新を取り直す
+   修正版が公開から 7 日たっていなければ、pnpm が入れない。急ぐなら、`pnpm-workspace.yaml` の `minimumReleaseAgeExclude` に版まで書いて足し（`<名前>@<版>`）、7 日たったら外す。
+   Dependabot の PR も同じ理由で作れないか、CI で止まる
 3. **直せないものは `.trivyignore.yaml` に足す。** 影響がない理由（`statement`）と、見直す期限（`expired_at`）を必ず書く。
    期限を過ぎると CI がまた止まり、見直すきっかけになる
 4. 公表されたばかりの脆弱性で、関係のない PR まで止まることがある。別の PR で直してから、元の PR を流し直す
