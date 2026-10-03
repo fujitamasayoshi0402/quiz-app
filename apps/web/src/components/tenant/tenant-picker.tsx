@@ -7,6 +7,7 @@ import { ChevronRight } from "lucide-react";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { SignOutButton } from "@/components/tenant/sign-out-button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListMyTenants } from "@/lib/api/generated/endpoints";
@@ -17,7 +18,7 @@ import { roleLabel } from "@/lib/auth/roles";
  *
  * | 所属 | 表示 |
  * | --- | --- |
- * | 0 | 招待を受けていない旨 |
+ * | 0 | 招待を受けていない旨と、公開テナントの一覧への案内 |
  * | 1 | そのテナントへ移る。選択肢が 1 つしかない画面は挟まない |
  * | 2 以上 | 選択画面 |
  *
@@ -42,9 +43,13 @@ export function TenantPicker() {
           <CardTitle>所属しているテナントがありません</CardTitle>
           <CardDescription>
             管理者から招待のリンクを受け取ったら、そのリンクを開いてください。参加すると、ここから入れるようになります。
+            公開されているテナントには、招待なしで参加できます。
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <Button asChild>
+            <Link href="/tenants">公開されているテナントを探す</Link>
+          </Button>
           <SignOutButton />
         </CardContent>
       </Card>
@@ -77,6 +82,9 @@ export function TenantPicker() {
           </li>
         ))}
       </ul>
+      <Link href="/tenants" className="text-center text-sm text-muted-foreground underline underline-offset-4">
+        公開されているテナントを探す
+      </Link>
       <SignOutButton className="text-center" />
     </>
   );

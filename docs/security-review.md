@@ -32,9 +32,10 @@
 | ロールと所属はトークンではなく DB から引く。所属を外せば次の要求から効く | [ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md) |
 | 管理 API と出題 API は URL を分け、出題 API は正解を返さない | 開発ガイドライン「API の URL」 |
 | 招待は、ログインした人の確認済みのメールアドレスが一致しなければ受け入れられない。DB にはトークンのハッシュだけを持つ | `Invitation` |
+| 招待なしで参加できるのは、管理者が公開したテナントだけ。一覧は名前と slug だけを返し、クイズは参加してから読む。非公開のテナントへの参加は、存在しないテナントと同じ 404 | [ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)、`PublicTenantsApiTest` |
 | 解説図は quiz-service が見せてよいかを決め、期限の短い署名付き URL で配る | [ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md) |
 
-残るリスク: 上の表の DEV-124。
+残るリスク: 上の表の DEV-124。公開テナントには、アカウントを作れる人なら誰でも参加できる。管理者は、参加した人を画面から外せない（ADR-0025）
 
 ### A02 設定の不備
 
