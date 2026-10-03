@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
 import { ChoiceList } from "@/components/play/choice-list";
+import { SwipeSession } from "@/components/play/swipe-session";
 import { ApiError } from "@/lib/api/fetcher";
 import { useAnswerQuiz, useResumeAttempt } from "@/lib/api/generated/endpoints";
 import type { AnswerResult, AttemptView } from "@/lib/api/generated/model";
@@ -28,6 +29,8 @@ export function PlaySession({ slug, attemptId, mode }: { slug: string; attemptId
 
   if (attempt.isPending) return <Skeleton className="h-80 w-full" />;
   if (attempt.isError) return <ApiErrorAlert error={attempt.error} />;
+  if (mode === "swipe" && attempt.data.status === "in_progress")
+    return <SwipeSession slug={slug} attempt={attempt.data} />;
   return <Session slug={slug} attempt={attempt.data} mode={mode} />;
 }
 
