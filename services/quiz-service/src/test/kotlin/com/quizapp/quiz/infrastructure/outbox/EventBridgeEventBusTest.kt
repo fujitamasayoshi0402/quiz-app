@@ -65,6 +65,21 @@ class EventBridgeEventBusTest {
     }
 
     @Test
+    @DisplayName("書いたときのトレースの文脈を、X-Ray のトレースヘッダにして渡す。無ければ付けない")
+    fun passesTraceHeader() {
+        val traced = entries(1).single().copy(traceParent = "00-6a1f3c2b0123456789abcdef01234567-0123456789abcdef-01")
+        val untraced = entries(1).single()
+
+        bus.publish(listOf(traced, untraced))
+
+        val sent = client.requests.single().entries()
+        assertThat(
+            sent[0].traceHeader(),
+        ).isEqualTo("Root=1-6a1f3c2b-0123456789abcdef01234567;Parent=0123456789abcdef;Sampled=1")
+        assertThat(sent[1].traceHeader()).isNull()
+    }
+
+    @Test
     @DisplayName("1 回に送るのは 10 件まで。超えた分は分けて送る")
     fun splitsIntoBatchesOfTen() {
         val all = entries(23)

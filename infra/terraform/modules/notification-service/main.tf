@@ -47,6 +47,12 @@ resource "aws_lambda_function" "this" {
     log_group  = aws_cloudwatch_log_group.this.name
   }
 
+  # 分散トレース（ADR-0026）。quiz-service が PutEvents に付けたトレースヘッダを EventBridge が渡し、
+  # この関数の区間が、イベントを書いた要求のトレースにつながる。記録するかは、quiz-service の判定に従う
+  tracing_config {
+    mode = "Active"
+  }
+
   # コードは Terraform の外で載せ替える。ここで追うと、zip が手元にない人の plan が失敗し、載せ替えたものを戻そうともする
   lifecycle {
     ignore_changes = [filename, source_code_hash]

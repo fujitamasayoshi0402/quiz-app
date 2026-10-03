@@ -31,6 +31,7 @@
 | [0023](0023-keep-answer-as-module-in-quiz-service.md) | 回答・採点は quiz-service の中のモジュールのまま分けない。分けるときの通信の使い分けを先に決めておく | Accepted |
 | [0024](0024-run-prod-in-same-account-and-launch-at-release.md) | prod は同じアカウントに環境として置き、常時動かすのは公開のときから。main へのマージと承認で載せる | Accepted |
 | [0025](0025-let-signed-in-users-join-public-tenants.md) | 公開テナントには、ログインした人が承認なしで自分で参加する。一覧と参加の API はテナントの外の `/api/me` に置く | Accepted |
+| [0026](0026-trace-requests-with-micrometer-and-x-ray.md) | 分散トレースは Micrometer Tracing（OpenTelemetry）で取り、同じタスクのコレクタから X-Ray へ送る。イベントは Outbox に文脈を残してつなぐ | Accepted |
 
 ## 運用ルール
 

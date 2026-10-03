@@ -56,6 +56,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // コンテナのヘルスチェック（docker compose / ECS）に使う
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // 分散トレース（ADR-0026）。Micrometer Tracing を OpenTelemetry で動かし、同じタスクのコレクタへ OTLP で送る
+    implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+    // DB への接続と問い合わせを、トレースの区間にする。止まっている Aurora の復帰を待つ時間も、接続の区間に出る
+    implementation("net.ttddyy.observation:datasource-micrometer-spring-boot:2.3.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     // Kotlin の data class をデシリアライズするために必要。
     // 入れないと**デフォルト引数が効かず**、省略可能なはずのフィールドを省いた JSON で失敗する。

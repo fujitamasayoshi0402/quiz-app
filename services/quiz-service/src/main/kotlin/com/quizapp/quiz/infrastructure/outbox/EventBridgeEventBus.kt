@@ -1,6 +1,7 @@
 package com.quizapp.quiz.infrastructure.outbox
 
 import com.quizapp.events.QuizEvent
+import com.quizapp.tracing.TraceHeaders
 import org.slf4j.LoggerFactory
 import software.amazon.awssdk.core.exception.SdkException
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient
@@ -12,7 +13,10 @@ import java.util.UUID
  * EventBridge のカスタムバスへ送る（ADR-0022）。
  *
  * `PutEvents` は 1 回 10 件まで。**一部だけが失敗することがある**（応答は成功のまま、失敗した項目だけが `errorCode` を持つ）。
- * 応答の項目は要求と同じ並びなので、位置で行と対応させる
+ * 応答の項目は要求と同じ並びなので、位置で行と対応させる。
+ *
+ * 書いたときのトレースの文脈を、X-Ray のトレースヘッダ（`TraceHeader`）として渡す（ADR-0026）。
+ * EventBridge が受け手の Lambda に渡し、Lambda の区間が、イベントを書いた要求のトレースにつながる
  */
 class EventBridgeEventBus(private val client: EventBridgeClient, private val busName: String) : EventBus {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -41,6 +45,7 @@ class EventBridgeEventBus(private val client: EventBridgeClient, private val bus
         .source(QuizEvent.SOURCE)
         .detailType(entry.eventType)
         .detail(entry.payload)
+        .traceHeader(entry.traceParent?.let(TraceHeaders::xrayTraceHeader))
         .build()
 
     companion object {
