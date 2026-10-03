@@ -22,3 +22,8 @@ variable "upload_allowed_origins" {
   description = "画像を上げる画面のオリジン（例: https://dev.example.com）。バケットの CORS で、ここからの PUT だけを許す"
   type        = list(string)
 }
+
+variable "deleted_retention_days" {
+  description = "消した図の前の版を残す日数。Aurora のバックアップの保持日数より長くする（DEV-117）"
+  type        = number
+}

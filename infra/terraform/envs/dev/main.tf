@@ -30,6 +30,35 @@ module "database" {
   apply_immediately     = true
 }
 
+# バックアップから戻したクラスタ（DEV-117）。ふだんは置かない。手順は Runbook の「Aurora のデータを戻す」。
+# 戻す元は上のクラスタのバックアップ。設定は上と揃える
+module "database_restore" {
+  source = "../../modules/database"
+  count  = var.database_restore == null ? 0 : 1
+
+  name              = "quiz-app-dev-restore"
+  engine_version    = module.database.engine_version
+  subnet_ids        = module.network.private_subnet_ids
+  security_group_id = module.network.security_group_ids.db
+
+  max_capacity             = 2
+  seconds_until_auto_pause = 1800
+
+  backup_retention_days = 1
+  deletion_protection   = false
+  apply_immediately     = true
+
+  restore_from = {
+    source_cluster_identifier = module.database.cluster_identifier
+    restore_to_time           = var.database_restore.restore_to_time
+  }
+}
+
+locals {
+  # アプリ（quiz-service とマイグレーション）がつなぐクラスタ。戻したクラスタに切り替えると、接続先と IAM 認証の許可が替わる
+  app_database = try(var.database_restore.use_for_app, false) ? module.database_restore[0] : module.database
+}
+
 locals {
   # テナントの Slack の Webhook の URL を置く SSM のパラメータの頭（ADR-0022）。quiz-service が書き、notification-service が読む
   slack_webhook_parameter_prefix = "/quiz-app/dev"
@@ -66,7 +95,7 @@ module "dashboard" {
   name                        = "quiz-app-dev"
   quiz_service                = module.quiz_service.monitoring
   notification                = module.notification_service.monitoring
-  database_cluster_identifier = module.database.cluster_identifier
+  database_cluster_identifier = local.app_database.cluster_identifier
   guide_url                   = "${local.docs_url}/development-guidelines.md#ダッシュボード"
 }
 
@@ -122,10 +151,10 @@ module "quiz_service" {
     arn  = module.events.bus_arn
   }
 
-  db_endpoint      = module.database.cluster_endpoint
-  db_port          = module.database.port
-  db_name          = module.database.database_name
-  iam_db_user_arns = module.database.iam_db_user_arns
+  db_endpoint      = local.app_database.cluster_endpoint
+  db_port          = local.app_database.port
+  db_name          = local.app_database.database_name
+  iam_db_user_arns = local.app_database.iam_db_user_arns
 
   image_tag = var.quiz_service_image_tag
 
@@ -169,6 +198,9 @@ module "figures" {
 
   # dev の図はデモとスモークテストのもの。環境ごと作り直せるようにする
   force_destroy = true
+
+  # Aurora のバックアップ（1 日）より長く残す。アーカイブ（7 日）と揃える
+  deleted_retention_days = 7
 }
 
 # 利用者の認証（ADR-0016）。ローカルの web も、この User Pool でログインする

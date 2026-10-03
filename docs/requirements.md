@@ -456,7 +456,7 @@ sequenceDiagram
 
 ## 公開テナントへの参加（Phase 7）
 
-テナントを `public` にすると、ログインした人が一覧から見つけて、招待なしで参加できます（[ADR-0024](adr/0024-let-signed-in-users-join-public-tenants.md)）。
+テナントを `public` にすると、ログインした人が一覧から見つけて、招待なしで参加できます（[ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)）。
 
 | 項目 | 扱い |
 | --- | --- |

@@ -42,3 +42,12 @@ variable "apply_immediately" {
   description = "設定の変更を、メンテナンスウィンドウを待たずに反映する"
   type        = bool
 }
+
+variable "restore_from" {
+  description = "バックアップから戻して作るときの元（Runbook「Aurora のデータを戻す」）。restore_to_time（RFC 3339、UTC）が null なら、戻せる最も新しい時刻。null なら空のクラスタを作る"
+  type = object({
+    source_cluster_identifier = string
+    restore_to_time           = optional(string)
+  })
+  default = null
+}
