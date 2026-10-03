@@ -133,6 +133,7 @@ web はセキュリティのヘッダを付けている（開発ガイドライ�
 | アクセスログにパスを残さない（招待の受け入れのパスにトークンが入る）。Webhook の URL もログに出さない | `modules/quiz-service`、`Notifier` |
 | API の 5xx、タスクの再起動、Outbox の滞留、通知の DLQ でアラームが鳴り、メールが届く | `modules/alarms`、`modules/quiz-service` |
 | 拒否したアクセス（所属していない、別のメールアドレスの招待）を WARN で残す | `ApiExceptionHandler` |
+| web の SSR のログ（例外、CSP の違反の報告）を CloudWatch Logs に残す | `modules/web` |
 
 残るリスク（受け入れる）: 認可の拒否（403 / 404）が急に増えたことでは鳴らない。いまは利用者が少なく、ログを検索すれば足りる。
 
