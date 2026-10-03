@@ -43,17 +43,24 @@
 - **異常に気づき、戻せる。** ログは JSON で出し、要求の ID・テナント・利用者で 1 本の要求を追えます。アプリの 5xx、タスクの停止、イベントの滞留はアラームがメールで知らせ、
   夜間の停止や Aurora の一時停止といったふつうの動きでは鳴らないようにしています。状態は CloudWatch のダッシュボードの 1 画面で見て、
   鳴ったときに何を見てどう戻すかは [Runbook](docs/runbook.md) にあります
-- **判断の根拠を残す。** 技術選定と設計のトレードオフを、採らなかった案とともに [ADR](docs/adr/) に残しています（24 本）
+- **判断の根拠を残す。** 技術選定と設計のトレードオフを、採らなかった案とともに [ADR](docs/adr/) に残しています（25 本）
 
 ## アーキテクチャ
 
-dev 環境の構成です。点線は実装中のもの（Phase 5、[ADR-0022](docs/adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)）です。
+C4 モデルの 2 段で描いています。原本は draw.io（`docs/architecture/*.drawio`）です。
+
+- **システムコンテキスト**（[context.svg](docs/architecture/context.svg)）: 誰が使い、外のどのシステムとつながるか
+- **コンテナ**（[container.svg](docs/architecture/container.svg)）: 中の部品と、その間で何をどう送るか（dev 環境）
+
+![コンテナ図](docs/architecture/container.svg)
+
+要点だけを 1 枚にすると、次のとおりです。
 
 ```mermaid
 flowchart LR
   browser([ブラウザ])
   gha[GitHub Actions]
-  slack([Slack]):::planned
+  slack([Slack])
 
   subgraph aws [AWS]
     cognito[Cognito<br/>Managed Login]
@@ -63,8 +70,8 @@ flowchart LR
     aurora[(Aurora Serverless v2<br/>PostgreSQL)]
     s3[(S3<br/>解説図)]
     cloudfront[CloudFront]
-    eventbridge[EventBridge]:::planned
-    lambda[Lambda<br/>notification-service]:::planned
+    eventbridge[EventBridge]
+    lambda[Lambda<br/>notification-service]
   end
 
   browser -- ログイン --> cognito
@@ -73,11 +80,9 @@ flowchart LR
   ecs -- IAM 認証 --> aurora
   ecs --> s3
   browser -- 署名付き URL --> cloudfront --> s3
-  ecs -.-> eventbridge -.-> lambda -.-> slack
+  ecs -- Outbox --> eventbridge --> lambda --> slack
   gha -- OIDC --> ecs
   gha -- ビルドを起動 --> amplify
-
-  classDef planned stroke-dasharray: 5 5
 ```
 
 ## 技術スタック
@@ -90,7 +95,7 @@ flowchart LR
 | 認証 | Amazon Cognito（Managed Login、パスキー + パスワード） | [ADR-0016](docs/adr/0016-authenticate-with-cognito-managed-login.md) |
 | 実行基盤 | ECS Fargate + API Gateway（HTTP API）、Amplify Hosting（フロント） | [ADR-0012](docs/adr/0012-serve-frontend-on-amplify-hosting.md)、[ADR-0019](docs/adr/0019-expose-api-through-api-gateway-http-api.md) |
 | ファイル | S3 + CloudFront（署名付き URL） | [ADR-0017](docs/adr/0017-deliver-figures-with-cloudfront-signed-urls.md) |
-| 非同期 / 通知 | EventBridge + Lambda + Slack Webhook（Phase 5 で実装中） | [ADR-0022](docs/adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md) |
+| 非同期 / 通知 | EventBridge + Lambda + Slack Webhook。Outbox から送り、受け手が重複を捨てる | [ADR-0022](docs/adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md) |
 | IaC | Terraform | [ADR-0011](docs/adr/0011-terraform-state-and-environments.md) |
 | CI/CD | GitHub Actions（OIDC） | [ADR-0015](docs/adr/0015-deploy-by-registering-task-definitions-from-ci.md) |
 | API 定義 | OpenAPI（コードから生成し、フロントの型を自動生成） | [ADR-0010](docs/adr/0010-generate-openapi-from-code.md) |
@@ -104,7 +109,7 @@ flowchart LR
 │   └── web/                     # Next.js フロントエンド
 ├── services/
 │   ├── quiz-service/            # クイズ / カテゴリ / 難易度の CRUD、出題と採点
-│   └── notification-service/    # EventBridge から起動し Slack へ通知する Lambda（Phase 5 で実装中）
+│   └── notification-service/    # EventBridge から起動し Slack へ通知する Lambda
 ├── infra/
 │   └── terraform/
 │       ├── bootstrap/           # tfstate を置く S3 バケット
@@ -196,8 +201,8 @@ pnpm install && pnpm --filter web dev
 
 ## ステータス
 
-Phase 1（ローカルで動く MVP）、Phase 2（AWS 基盤と継続的デリバリ）、Phase 4（管理機能の作り込み）を終えています。
-いまは Phase 5（イベント駆動と Slack 通知）を進めています。Phase 3（パスキー認証とロール分離）は、パスキーの自前実装が残っています。
+Phase 1（ローカルで動く MVP）、Phase 2（AWS 基盤と継続的デリバリ）、Phase 4（管理機能の作り込み）、Phase 5（イベント駆動と Slack 通知）を終えています。
+いまは Phase 6（品質と運用）と Phase 7（公開）を進めています。Phase 3（パスキー認証とロール分離）は、パスキーの自前実装が残っています。
 
 - クイズ・カテゴリ・難易度の管理から、出題・回答・結果の確認までひと通り動きます。回答の履歴、カテゴリごとの正答率、テナント内のランキングも見られます。スマホの幅でも操作できます
 - 解説は Markdown で書き、draw.io で描いた図と、画像・PDF を入れられます。PDF は 1 ページ目を画像にして解説の中に出します
@@ -207,7 +212,9 @@ Phase 1（ローカルで動く MVP）、Phase 2（AWS 基盤と継続的デリ�
 - ログインは Amazon Cognito（Managed Login、パスキー + パスワード）です。トークンはブラウザに渡さず、web のサーバーが暗号化した Cookie に持ちます。
   利用者の ID は Cognito から切り離してあり、あとで自前のパスキーの実装に差し替えます（[ADR-0016](docs/adr/0016-authenticate-with-cognito-managed-login.md)）
 - 管理者は、一般ユーザーと管理者を招待できます。招待のリンクを画面に出して渡し、受け入れるときにメールアドレスが招待と一致するかを確かめます
-- 権限まわり（ログイン・招待の受け入れ・ロールによる出し分け）は、Playwright の E2E テストで PR ごとに確かめています
-- 次は、クイズの変更をテナントごとの Slack に知らせる仕組み（Outbox → EventBridge → Lambda）です。監視（ダッシュボード、アラーム、構造化ログ）と負荷試験は Phase 6 で扱います
+- 管理者がテナントを公開すると、ログインした人が一覧から見つけて、招待なしで参加できます（[ADR-0025](docs/adr/0025-let-signed-in-users-join-public-tenants.md)）
+- クイズの追加・更新は、テナントの管理者が設定した Slack に知らせます（Outbox → EventBridge → Lambda。[ADR-0022](docs/adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)）
+- 権限まわり（ログイン・招待・ロールによる出し分け・公開テナントへの参加）と、出題・管理の主な流れは、Playwright の E2E テストで PR ごとに確かめています
+- ログは JSON で出し、アラームと CloudWatch のダッシュボードで見ています。鳴ったときの手順は [Runbook](docs/runbook.md) にあります
 
 進捗は [ロードマップ](docs/ROADMAP.md) を参照してください。
