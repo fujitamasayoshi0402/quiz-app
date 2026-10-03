@@ -15,7 +15,7 @@ import {
   useListPlayableCategories,
   useStartAttempt,
 } from "@/lib/api/generated/endpoints";
-import { type FeedbackMode, rememberMode } from "@/lib/play/mode";
+import { type FeedbackMode, parseMode, rememberMode } from "@/lib/play/mode";
 import { rangeOptions, toCriteria } from "@/lib/play/range";
 import { SCOPES } from "@/lib/play/scope";
 
@@ -35,6 +35,7 @@ const LIMITS = [
 const MODES = [
   { value: "learn", label: "学習モード", hint: "1 問ごとに正誤と解説を見る" },
   { value: "exam", label: "模試モード", hint: "最後にまとめて答え合わせする" },
+  { value: "swipe", label: "テンポモード", hint: "縦にスワイプして次々に解く。スマホ向け" },
 ];
 
 /** 出題条件の選択。カテゴリ → 範囲 → 出題対象・並び・出題数 → フィードバック方式の順に選ぶ。 */
@@ -135,7 +136,7 @@ export function PlaySetup({ slug }: { slug: string }) {
               name="mode"
               columns={2}
               value={mode}
-              onChange={(value) => setMode(value === "exam" ? "exam" : "learn")}
+              onChange={(value) => setMode(parseMode(value))}
               options={MODES}
             />
           </Section>
