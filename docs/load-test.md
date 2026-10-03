@@ -47,12 +47,13 @@ quiz-service がどれだけの利用に耐えるか、どこが先に詰まる�
    cd -
    ```
 
-3. つながるかを確かめてから、流す。結果の HTML（時系列のグラフ）は `tests/load/results/` に残る（Git の管理外）
+3. つながるかを確かめてから、流す。結果の HTML（時系列のグラフ）は `tests/load/results/` に残る（Git の管理外）。
+   **`caffeinate -i` を付けて、Mac をスリープさせない。** 途中でスリープすると k6 が止まり、戻ったときに待ち時間切れの失敗がまとめて出る
 
    ```bash
    k6 run -e PROFILE=smoke tests/load/load-test.js
    K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=tests/load/results/load-$(date +%Y%m%d-%H%M).html \
-     k6 run -e PROFILE=load tests/load/load-test.js
+     caffeinate -i k6 run -e PROFILE=load tests/load/load-test.js
    ```
 
 4. 流している間と後に、[ダッシュボード](development-guidelines.md#ダッシュボード)で、タスクの CPU とメモリ、Aurora の ACU と接続の数を見る。
@@ -79,3 +80,71 @@ k6 は `.mise.toml` で版を固定している（`mise install` で入る）。
 | Cognito | 試験の利用者 51 人。Essentials は月 1 万人まで無料 |
 
 ECS のタスクは数を増やさないので、ふだんと同じ。
+
+## 結果
+
+dev（タスク 1 つ・0.5 vCPU / 1 GB、Aurora 最大 2 ACU、接続プール 5）で測った。
+
+### チューニングの前
+
+**エラーは出なかった。** `stress` の最後の段（`play` 40 人、約 100〜114 件/秒）で、Aurora とタスクの CPU がともに上限に近づいた。
+
+| 試験 | 要求 | 失敗 | k6 の p50 / p95 / p99 | 最大の速さ |
+| --- | --- | --- | --- | --- |
+| `load` | 24,880 | 0 | 58 / 240 / 369 ms | 約 45 件/秒 |
+| `stress` | 46,648 | 0 | 64 / 232 / 302 ms | 約 114 件/秒 |
+
+k6 の時間には、手元から東京リージョンまでの往復が入る。アプリの中の時間は、Logs Insights（`http.duration_ms`）で見た。
+
+`stress` の 1 分ごとの値（ダッシュボード）。
+
+| 件/秒 | API Gateway の p95 | タスクの CPU | Aurora の ACU | DB の CPU | DB の接続 |
+| --- | --- | --- | --- | --- | --- |
+| 32〜35 | 66〜69 ms | 25〜30% | 1.5 | 53〜56% | 5 |
+| 53〜71 | 73〜76 ms | 46〜53% | 2.0（上限） | 98〜100% | 5 |
+| 95〜114 | 91〜144 ms | 75〜97% | 2.0（上限） | 100% | 5 |
+
+`stress` の API ごとの時間（アプリの中。ms）。
+
+| API | 件数 | p50 | p95 | p99 |
+| --- | --- | --- | --- | --- |
+| `GET /admin/quizzes`（60 問） | 251 | 144 | 228 | 303 |
+| `POST /play/attempts/{id}/complete` | 3,115 | 70 | 145 | 202 |
+| `POST /play/attempts` | 3,109 | 70 | 141 | 197 |
+| `GET /play/history/attempts` | 1,566 | 33 | 99 | 161 |
+| `POST /play/attempts/{id}/answers` | 31,129 | 29 | 99 | 156 |
+| `GET /play/history/categories` | 1,565 | 20 | 93 | 167 |
+| `GET /play/ranking` | 1,565 | 20 | 91 | 133 |
+| `GET /play/categories` | 3,107 | 13 | 75 | 125 |
+
+**先に詰まるのは Aurora。** 約 70 件/秒で 2 ACU を使い切り、DB の CPU が 100% になった。タスクの CPU が 100% に近づくのは、その先（約 100 件/秒）。
+接続の数は、ずっと接続プールの上限（5）だった。DB の CPU が先に尽きているため、プールを大きくしても速くはならない。
+
+### 詰まったところ: 選択肢の N+1
+
+1 回の要求で送る SQL の本数を数えると（`QueryCountApiTest`）、**クイズを何件も読む API が、選択肢をクイズ 1 件ごとに問い合わせていた。**
+Spring Data JDBC の `@Query` で集約を読むと、子（選択肢）を親 1 件ごとに読む。
+
+| API | 前（20 問のとき） | 後 |
+| --- | --- | --- |
+| `POST /play/attempts` | 29（うち選択肢 20） | 10 |
+| `POST /play/attempts/{id}/complete` | 30（うち選択肢 20） | 12 |
+| `GET /admin/quizzes` | 25（うち選択肢 20） | 6 |
+| `POST /play/attempts/{id}/answers` | 10 | 10 |
+
+- 挑戦を始めるときは、出題する 10 問ではなく、候補（難易度を選ぶと 20 問、カテゴリだけなら 60 問）すべての選択肢を読んでいた
+- 直し方: 何件も読む 3 つの読み込みを `QuizListJdbc` に移し、選択肢をクイズの ID の一覧で 1 本の SQL で読む。1 件の読み込みと保存は、集約のまま Spring Data JDBC に任せる
+- `QueryCountApiTest` が、2 問のときと 12 問のときで本数が同じであることを確かめる。元の読み方に戻すと落ちる
+
+どの要求にも、テナント・利用者・所属を引く 3 本と、テナントの設定（`set_config`）の 1 本が付く。回答では 10 本のうち 4 本にあたる。
+減らすには利用者と所属をタスクのメモリに持つことになり、所属を外したときに効くまでの遅れが生まれる。いまは採らない。
+
+## ADR-0023 の検証事項への答え
+
+[ADR-0023](adr/0023-keep-answer-as-module-in-quiz-service.md) は、回答・採点が、クイズの管理や出題と違う負荷の特性を持つかを、負荷試験で確かめるとしていた。
+
+**「分けたくなる条件」には当たらない。**
+
+- 回答（`answers`）は要求の数では 7 割を占めるが、1 件は軽い（SQL 10 本、p95 99 ms）。重かったのは、quiz の側の読み方（選択肢の N+1）で、挑戦の開始・結果・管理の一覧に効いていた
+- 先に尽きるのは、両方が共有する Aurora。answer だけを別のタスクに分けても、同じ DB の上限に当たる
+- タスクの CPU は約 100 件/秒で上限に近づくが、quiz-service はステートレスで、タスクを増やせば足りる（ADR-0023 の C のとおり）
