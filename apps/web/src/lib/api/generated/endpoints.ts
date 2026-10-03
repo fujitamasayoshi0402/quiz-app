@@ -55,6 +55,7 @@ import {
   RankingView,
   ReceivedInvitationResponse,
   SlackWebhookResponse,
+  TenantSettingsResponse,
   Trash
 } from './model';
 import type {
@@ -74,7 +75,8 @@ import type {
   SearchQuizzesParams,
   StartAttemptRequest,
   StartFigureUploadRequest,
-  UpdateCategoryRequest
+  UpdateCategoryRequest,
+  UpdateTenantSettingsRequest
 } from './model';
 
 import * as zod from 'zod';
@@ -3421,6 +3423,198 @@ export const useUpdateQuiz = <TError = ProblemDetail,
         TContext
       > => {
       return useMutation(getUpdateQuizMutationOptions(options), queryClient);
+    }
+
+export const getGetTenantSettingsUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/settings`
+}
+
+/**
+ * @summary テナントの設定
+ */
+export const getTenantSettings = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<TenantSettingsResponse> => {
+
+  return apiFetch<TenantSettingsResponse>(getGetTenantSettingsUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: TenantSettingsResponse
+  }
+);}
+
+
+
+
+
+export const getGetTenantSettingsQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/admin/settings`
+    ] as const;
+    }
+
+
+export const getGetTenantSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getTenantSettings>>, TError = ProblemDetail>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTenantSettingsQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTenantSettings>>> = ({ signal }) => getTenantSettings(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTenantSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getTenantSettings>>>
+export type GetTenantSettingsQueryError = ProblemDetail
+
+
+export function useGetTenantSettings<TData = Awaited<ReturnType<typeof getTenantSettings>>, TError = ProblemDetail>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTenantSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getTenantSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTenantSettings<TData = Awaited<ReturnType<typeof getTenantSettings>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTenantSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getTenantSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTenantSettings<TData = Awaited<ReturnType<typeof getTenantSettings>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary テナントの設定
+ */
+
+export function useGetTenantSettings<TData = Awaited<ReturnType<typeof getTenantSettings>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTenantSettingsQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTenantSettingsUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/settings`
+}
+
+/**
+ * @summary テナントの設定を置き換える
+ */
+export const updateTenantSettings = async (slug: string,
+    updateTenantSettingsRequest: UpdateTenantSettingsRequest, options?: Parameters<typeof apiFetch>[1]): Promise<TenantSettingsResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<TenantSettingsResponse>(getUpdateTenantSettingsUrl(slug),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateTenantSettingsRequest),
+    schema: TenantSettingsResponse
+  }
+);}
+
+
+
+
+
+export const getUpdateTenantSettingsMutationKey = () => ['updateTenantSettings'] as const;
+
+export const getUpdateTenantSettingsMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTenantSettings>>, TError,UpdateTenantSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTenantSettings>>, TError,UpdateTenantSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateTenantSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTenantSettings>>, UpdateTenantSettingsMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  updateTenantSettings(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTenantSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateTenantSettings>>>
+    export type UpdateTenantSettingsMutationBody = UpdateTenantSettingsRequest
+    export type UpdateTenantSettingsMutationError = ProblemDetail
+    export type UpdateTenantSettingsMutationVariables = {slug: string;data: UpdateTenantSettingsRequest}
+
+    /**
+ * @summary テナントの設定を置き換える
+ */
+export const useUpdateTenantSettings = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTenantSettings>>, TError,UpdateTenantSettingsMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateTenantSettings>>,
+        TError,
+        UpdateTenantSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateTenantSettingsMutationOptions(options), queryClient);
     }
 
 export const getListTrashUrl = (slug: string,) => {

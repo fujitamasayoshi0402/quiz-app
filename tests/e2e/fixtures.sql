@@ -5,6 +5,8 @@
 -- 未所属の人と招待される人は、所属を持たない状態に戻す。前の実行で招待を受け入れていても、もう一度招待できる
 
 INSERT INTO core.tenants (slug, name) VALUES ('e2e', 'E2E テスト') ON CONFLICT DO NOTHING;
+-- 公開設定のテストは公開してから戻す。途中で止まって公開のまま残っても、非公開から始める
+UPDATE core.tenants SET visibility = 'private' WHERE slug = 'e2e';
 
 INSERT INTO core.users (email, display_name)
 VALUES ('e2e-admin@example.com', 'E2E 管理者'),

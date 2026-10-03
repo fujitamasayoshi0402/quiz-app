@@ -194,7 +194,7 @@ class TenantBoundaryApiTest {
     private fun probes(ids: Ids): List<Probe> =
         categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
             figureProbes(ids) + playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids) + historyProbes() +
-            rankingProbes() + notificationProbes()
+            rankingProbes() + notificationProbes() + settingsProbes()
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -530,6 +530,15 @@ class TenantBoundaryApiTest {
         )
     }
 
+    /** own を公開にしても非公開に戻しても、victim の公開設定は変わらない（ADR-0025） */
+    private fun settingsProbes(): List<Probe> {
+        val base = "/api/t/{slug}/admin/settings"
+        return listOf(
+            Probe(HttpMethod.GET, base, "victim の設定が見えない", status = 200),
+            Probe(HttpMethod.PUT, base, "公開にしても victim は変わらない", body = """{"visibility":"public"}""", status = 200),
+        )
+    }
+
     private fun quizBody(categoryId: UUID, difficultyId: UUID): String {
         val choices = (1..4).joinToString(",") { """{"body":"選択肢 $it","isCorrect":${it == 1}}""" }
         return """
@@ -685,7 +694,15 @@ class TenantBoundaryApiTest {
             String::class.java,
             victimTenant.id,
         ).orEmpty()
-    } + ("SSM: slack-webhook-url" to slackWebhooks.find(victimTenant.id).orEmpty())
+    } + ("SSM: slack-webhook-url" to slackWebhooks.find(victimTenant.id).orEmpty()) +
+        ("core.tenants" to victimTenantRow())
+
+    /** テナント本体は tenant_id の列を持たないため、[tenantTables] に入らない。公開設定などの書き換えは、ここで見る */
+    private fun victimTenantRow(): String = TestPostgres.adminJdbcTemplate.queryForObject(
+        "SELECT row_to_json(t)::text FROM core.tenants t WHERE id = ?",
+        String::class.java,
+        victimTenant.id,
+    ).orEmpty()
 
     /** victim の行が持つ ID。応答に 1 つでも現れたら漏洩とみなす。 */
     private fun victimRowIds(): Set<UUID> = tenantTables()
