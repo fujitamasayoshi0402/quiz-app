@@ -51,6 +51,7 @@ import {
   MyTenantResponse,
   Participation,
   PlayableCategoryResponse,
+  PublicTenantResponse,
   QuizResponse,
   RankingView,
   ReceivedInvitationResponse,
@@ -276,6 +277,183 @@ export const useAcceptInvitation = <TError = unknown,
         TContext
       > => {
       return useMutation(getAcceptInvitationMutationOptions(options), queryClient);
+    }
+
+export const getListPublicTenantsUrl = () => {
+
+
+
+
+  return `/api/me/public-tenants`
+}
+
+/**
+ * @summary 公開テナントの一覧。参加済みかどうかも返す
+ */
+export const listPublicTenants = async ( options?: Parameters<typeof apiFetch>[1]): Promise<PublicTenantResponse[]> => {
+
+  return apiFetch<PublicTenantResponse[]>(getListPublicTenantsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: zod.array(PublicTenantResponse)
+  }
+);}
+
+
+
+
+
+export const getListPublicTenantsQueryKey = () => {
+    return [
+    `/api/me/public-tenants`
+    ] as const;
+    }
+
+
+export const getListPublicTenantsQueryOptions = <TData = Awaited<ReturnType<typeof listPublicTenants>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPublicTenants>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPublicTenantsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPublicTenants>>> = ({ signal }) => listPublicTenants({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPublicTenants>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPublicTenantsQueryResult = NonNullable<Awaited<ReturnType<typeof listPublicTenants>>>
+export type ListPublicTenantsQueryError = unknown
+
+
+export function useListPublicTenants<TData = Awaited<ReturnType<typeof listPublicTenants>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPublicTenants>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPublicTenants>>,
+          TError,
+          Awaited<ReturnType<typeof listPublicTenants>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPublicTenants<TData = Awaited<ReturnType<typeof listPublicTenants>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPublicTenants>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPublicTenants>>,
+          TError,
+          Awaited<ReturnType<typeof listPublicTenants>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPublicTenants<TData = Awaited<ReturnType<typeof listPublicTenants>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPublicTenants>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 公開テナントの一覧。参加済みかどうかも返す
+ */
+
+export function useListPublicTenants<TData = Awaited<ReturnType<typeof listPublicTenants>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPublicTenants>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPublicTenantsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getJoinPublicTenantUrl = (slug: string,) => {
+
+
+
+
+  return `/api/me/public-tenants/${slug}/join`
+}
+
+/**
+ * @summary 公開テナントに一般ユーザーとして参加する。すでに所属していれば何も変えない
+ */
+export const joinPublicTenant = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<MyTenantResponse> => {
+
+  return apiFetch<MyTenantResponse>(getJoinPublicTenantUrl(slug),
+  {
+    ...options,
+    method: 'POST'
+
+    ,
+    schema: MyTenantResponse
+  }
+);}
+
+
+
+
+
+export const getJoinPublicTenantMutationKey = () => ['joinPublicTenant'] as const;
+
+export const getJoinPublicTenantMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinPublicTenant>>, TError,JoinPublicTenantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof joinPublicTenant>>, TError,JoinPublicTenantMutationVariables, TContext> => {
+
+const mutationKey = getJoinPublicTenantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof joinPublicTenant>>, JoinPublicTenantMutationVariables> = (props) => {
+          const {slug} = props ?? {};
+
+          return  joinPublicTenant(slug,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type JoinPublicTenantMutationResult = NonNullable<Awaited<ReturnType<typeof joinPublicTenant>>>
+
+    export type JoinPublicTenantMutationError = unknown
+    export type JoinPublicTenantMutationVariables = {slug: string}
+
+    /**
+ * @summary 公開テナントに一般ユーザーとして参加する。すでに所属していれば何も変えない
+ */
+export const useJoinPublicTenant = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinPublicTenant>>, TError,JoinPublicTenantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof joinPublicTenant>>,
+        TError,
+        JoinPublicTenantMutationVariables,
+        TContext
+      > => {
+      return useMutation(getJoinPublicTenantMutationOptions(options), queryClient);
     }
 
 export const getListMyTenantsUrl = () => {

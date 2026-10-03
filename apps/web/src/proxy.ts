@@ -24,7 +24,7 @@ export async function proxy(request: NextRequest) {
 }
 
 /** ログインが要る画面。/login と /auth は含めない（含めると、ログインへ移す先でまたログインを求める） */
-const LOGIN_REQUIRED = /^\/(t|invitations)(\/|$)/;
+const LOGIN_REQUIRED = /^\/(t|invitations|tenants)(\/|$)/;
 
 function originOf(request: NextRequest) {
   return {

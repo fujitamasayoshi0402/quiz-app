@@ -25,6 +25,8 @@ tags:
   name: ランキング
 - description: クイズの追加・更新を知らせる Slack の通知先。設定した URL は返さない
   name: 通知
+- description: 公開テナントの一覧と、招待なしでの参加
+  name: 公開テナント
 - description: カテゴリ配下の難易度を CRUD する。体系はカテゴリごとに決める
   name: 難易度
 - description: ログインしている利用者自身の情報
@@ -84,6 +86,40 @@ paths:
       summary: 招待を受け入れ、テナントに所属する
       tags:
       - 利用者
+  /api/me/public-tenants:
+    get:
+      operationId: listPublicTenants
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicTenantResponse"
+          description: OK
+      summary: 公開テナントの一覧。参加済みかどうかも返す
+      tags:
+      - 公開テナント
+  /api/me/public-tenants/{slug}/join:
+    post:
+      operationId: joinPublicTenant
+      parameters:
+      - in: path
+        name: slug
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyTenantResponse"
+          description: OK
+      summary: 公開テナントに一般ユーザーとして参加する。すでに所属していれば何も変えない
+      tags:
+      - 公開テナント
   /api/me/tenants:
     get:
       operationId: listMyTenants
@@ -2944,6 +2980,19 @@ components:
         type:
           type: string
           format: uri
+    PublicTenantResponse:
+      type: object
+      properties:
+        joined:
+          type: boolean
+        name:
+          type: string
+        slug:
+          type: string
+      required:
+      - joined
+      - name
+      - slug
     QuizResponse:
       type: object
       properties:

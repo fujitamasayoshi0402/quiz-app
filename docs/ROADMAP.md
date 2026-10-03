@@ -185,7 +185,7 @@
 - [ ] README: デモ URL（誰でも入れるテナントか、デモ用アカウントができてから）
 - [ ] アーキテクチャ図（C4 の Context / Container）を draw.io で作成
 - [ ] デモ用アカウントの用意
-- [ ] テナントの公開設定（`public`）と、公開テナントを見つけて招待なしで参加する導線（[ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)。時期を決めていなかったものから移した）
+- [x] テナントの公開設定（`public`）と、公開テナントを見つけて招待なしで参加する導線（[ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)。時期を決めていなかったものから移した）
 - [ ] ADR インデックスの整備
 - [ ] コストの最終調整
 

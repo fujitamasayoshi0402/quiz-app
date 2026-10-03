@@ -93,6 +93,10 @@ class TenantBoundaryApiTest {
                 "招待された人はまだ所属していない。範囲はトークンと本人のメールアドレスで絞る（InvitationApiTest）",
             "POST /api/me/invitations/{token}/accept" to
                 "招待された人はまだ所属していない。範囲はトークンと本人のメールアドレスで絞る（InvitationApiTest）",
+            "GET /api/me/public-tenants" to
+                "公開テナントを、所属する前に探す。読むのは core だけで、公開しているテナントの名前と slug しか返さない（PublicTenantsApiTest）",
+            "POST /api/me/public-tenants/{slug}/join" to
+                "所属する前に呼ぶ。公開しているテナントにだけ一般ユーザーとして所属し、ほかは存在しないものと同じ 404（PublicTenantsApiTest）",
         )
     }
 
