@@ -163,6 +163,9 @@ module "quiz_service" {
   memory        = 1024
   desired_count = 1
 
+  # ふだんは既定（20 件/秒）。負荷試験の間だけ -var で上げる
+  throttling = var.api_throttling
+
   # 使わない深夜は止める。Aurora のストレージなどは、止めている間も課金が続く
   nightly_stop = {
     stop     = "cron(0 2 * * ? *)"
@@ -228,6 +231,12 @@ module "auth" {
     "e2e-outsider@example.com",
     "e2e-invitee@example.com",
   ]
+
+  # 負荷試験（tests/load）の利用者。シードが同じアドレスで、負荷試験のテナントの管理者 1 人と一般ユーザー 50 人を用意している
+  load_user_emails = concat(
+    ["load-admin@example.com"],
+    [for n in range(1, 51) : format("load-%02d@example.com", n)],
+  )
 
   deletion_protection = false
 }

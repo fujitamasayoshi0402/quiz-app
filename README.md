@@ -113,11 +113,13 @@ flowchart LR
 │       └── envs/                # dev / prod の環境定義
 ├── tests/
 │   ├── api/                     # API のスモークテスト（Postman / Newman）
-│   └── e2e/                     # 画面の E2E テスト（Playwright）
+│   ├── e2e/                     # 画面の E2E テスト（Playwright）
+│   └── load/                    # 負荷試験（k6）
 ├── docs/
 │   ├── adr/                     # アーキテクチャ決定記録（MADR 形式）
 │   ├── architecture/            # C4 図・draw.io 原本
 │   ├── api/                     # OpenAPI 定義
+│   ├── load-test.md             # 負荷試験の手順と結果
 │   └── runbook.md               # 異常に気づいたときの手順
 └── .github/workflows/           # GitHub Actions のワークフロー
 ```

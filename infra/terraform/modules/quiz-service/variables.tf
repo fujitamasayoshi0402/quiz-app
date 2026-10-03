@@ -134,6 +134,24 @@ variable "desired_count" {
   type        = number
 }
 
+variable "throttling" {
+  description = <<-EOT
+    API 全体の流量の上限（件/秒と、バースト）。叩かれ続けても、費用に上限を付ける。
+    20 件/秒で 1 か月続いても約 5,200 万回（約 67 ドル）で、予算の通知が先に届く。
+    **API 全体に 1 つ。** 1 人がこれを使い切ると全員が 429 になるため、quiz-service が利用者ごとの上限
+    （5 件/秒、バースト 30）を掛ける（DEV-125、RateLimitProperties）。利用者ごとの上限より十分大きくする。
+    同じだと、1 人で全員を止められる。アクセストークンのない要求は利用者ごとには数えられず、ここで受ける
+  EOT
+  type = object({
+    rate_limit  = number
+    burst_limit = number
+  })
+  default = {
+    rate_limit  = 20
+    burst_limit = 60
+  }
+}
+
 variable "nightly_stop" {
   description = <<-EOT
     夜間にサービスを止める時間帯。止める時刻（stop）と戻す時刻（start）を、EventBridge Scheduler の cron 式で渡す。
