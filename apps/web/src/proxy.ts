@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { refreshTokens } from "@/lib/auth/oidc";
-import { appOrigin, isSecure } from "@/lib/auth/request";
+import { appOrigin, isSameOriginRequest, isSecure } from "@/lib/auth/request";
 import { readRefreshToken, readSession, writeSession } from "@/lib/auth/session";
 import { contentSecurityPolicy, createNonce, originsFrom } from "@/lib/content-security-policy";
 
@@ -10,12 +10,14 @@ const REFRESH_MARGIN_SECONDS = 60;
 /**
  * 画面と API の入口。
  *
+ * - 状態を変える要求 … ほかのオリジンから来たものは 403 で止める（{@link rejectCrossOrigin}）
  * - `/api` … バックエンドへ中継し、利用者のアクセストークンを付ける（{@link proxyApi}）
  * - ログインが要る画面 … ログインしていなければ、開こうとした画面を戻り先にしてログインへ移す（{@link requireLogin}）
  * - 画面 … 要求ごとの nonce で CSP を付ける（{@link withContentSecurityPolicy}）
  */
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (!isSameOriginRequest(originOf(request))) return rejectCrossOrigin(request);
   if (pathname.startsWith("/api/")) return proxyApi(request);
   if (LOGIN_REQUIRED.test(pathname) && !(await readSession(request.cookies))) return requireLogin(request);
   return withContentSecurityPolicy(request);
@@ -23,6 +25,32 @@ export async function proxy(request: NextRequest) {
 
 /** ログインが要る画面。/login と /auth は含めない（含めると、ログインへ移す先でまたログインを求める） */
 const LOGIN_REQUIRED = /^\/(t|invitations)(\/|$)/;
+
+function originOf(request: NextRequest) {
+  return {
+    method: request.method,
+    origin: request.headers.get("origin"),
+    secFetchSite: request.headers.get("sec-fetch-site"),
+    appOrigin: appOrigin(request),
+  };
+}
+
+/**
+ * ほかのオリジンから来た、状態を変える要求を止める（DEV-124）。`/api` にはバックエンドと同じ形（RFC 9457）で返す。
+ *
+ * ログには方法と送り元だけを残す。パスには招待のトークンが入りうる
+ */
+function rejectCrossOrigin(request: NextRequest) {
+  console.warn(
+    "送り元の違う要求を止めました",
+    JSON.stringify({ method: request.method, origin: request.headers.get("origin") }),
+  );
+  if (!request.nextUrl.pathname.startsWith("/api/")) return new NextResponse(null, { status: 403 });
+  return NextResponse.json(
+    { type: "about:blank", title: "権限がありません", status: 403, detail: "この画面の外からの要求は受け付けません" },
+    { status: 403, headers: { "content-type": "application/problem+json" } },
+  );
+}
 
 const CSP_HEADER = "Content-Security-Policy-Report-Only";
 

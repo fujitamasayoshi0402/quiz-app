@@ -37,6 +37,34 @@ export function safeReturnTo(value: string | null | undefined): string {
 /** 戻り先を解くときの仮のオリジン。実在しない名前（.invalid）にする */
 const RETURN_TO_BASE = "http://app.invalid";
 
+/**
+ * 状態を変える要求が、このアプリの画面から来たか（DEV-124）。ほかのサイトに置いたフォームや `fetch` から、
+ * 利用者の Cookie を付けて送らせる攻撃（CSRF）を止める。
+ *
+ * Cookie の `SameSite=Lax` だけでは、同じドメインの別のサブドメイン（同じサイト）からの要求に Cookie が付く。
+ * ブラウザは、状態を変える要求に必ず `Origin` を付け、ページの側からは書き換えられない。これをアプリのオリジンと比べる。
+ *
+ * - `Origin` が無く、`Sec-Fetch-Site` も無い要求は通す。ブラウザではない呼び出し元（スモークテスト）で、利用者の Cookie を持たない
+ * - `Origin` が無くても、`Sec-Fetch-Site` が同じオリジン以外を示していれば止める
+ * - `Origin: null`（サンドボックスの iframe など）は、オリジンが違うものとして止める
+ */
+export function isSameOriginRequest(request: {
+  method: string;
+  origin: string | null;
+  secFetchSite: string | null;
+  appOrigin: string;
+}): boolean {
+  if (SAFE_METHODS.has(request.method.toUpperCase())) return true;
+  if (request.origin !== null) return request.origin === request.appOrigin;
+  return request.secFetchSite === null || SAME_ORIGIN_FETCH_SITES.has(request.secFetchSite);
+}
+
+/** 状態を変えない方法。HTTP の決まりの上で安全とされるもので、アプリもこれで状態を変えない */
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/** `none` は、利用者がアドレスバーやブックマークから開いたもの */
+const SAME_ORIGIN_FETCH_SITES = new Set(["same-origin", "none"]);
+
 function firstOf(value: string | null): string | undefined {
   return value?.split(",")[0]?.trim() || undefined;
 }
