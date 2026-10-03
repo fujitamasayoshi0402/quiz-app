@@ -10,6 +10,7 @@ const ITEMS = [
   { segment: "trash", label: "削除済み" },
   { segment: "invitations", label: "招待" },
   { segment: "notifications", label: "通知" },
+  { segment: "settings", label: "設定" },
 ];
 
 export function AdminNav({ slug }: { slug: string }) {

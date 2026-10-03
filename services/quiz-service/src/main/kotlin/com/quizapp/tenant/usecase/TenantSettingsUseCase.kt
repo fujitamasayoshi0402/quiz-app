@@ -1,0 +1,21 @@
+package com.quizapp.tenant.usecase
+
+import com.quizapp.tenant.TenantContext
+import com.quizapp.tenant.TenantTransaction
+import com.quizapp.tenant.domain.TenantSettings
+import com.quizapp.tenant.domain.TenantSettingsStore
+import org.springframework.stereotype.Service
+
+/** テナントの設定を読み書きする。管理者だけが触れる（パスの規約。`/api/t/{slug}/admin/...`） */
+@Service
+class TenantSettingsUseCase(private val store: TenantSettingsStore, private val tenantTransaction: TenantTransaction) {
+
+    fun find(): TenantSettings = tenantTransaction.execute { store.find(TenantContext.require()) }
+
+    /** 置き換える。同じ値でも成功にする */
+    fun update(settings: TenantSettings): TenantSettings = tenantTransaction.execute {
+        val tenantId = TenantContext.require()
+        store.save(tenantId, settings)
+        store.find(tenantId)
+    }
+}
