@@ -360,7 +360,7 @@ pnpm --filter web test                  # web の単体テスト（Vitest）
 | --- | --- | --- |
 | 単体テスト | ドメインの不変条件、ユースケースの分岐。DB を使わない | `quiz/domain/QuizTest.kt`、`answer/usecase/AttemptUseCaseTest.kt` |
 | API テスト | コントローラから DB まで。Testcontainers の PostgreSQL を使う | `quiz/controller/QuizApiTest.kt` |
-| 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest`、`ModuleBoundaryTest` |
+| 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest`、`ModuleBoundaryTest`、`QueryCountApiTest`（件数によって SQL が増えないか） |
 | スモークテスト | デプロイした環境で、主要な導線が通るか。Newman で流す | `tests/api/` |
 | web の単体テスト | 画面の部品が守る性質。DOM を使わず、HTML の文字列にして確かめる | `apps/web/src/components/markdown.test.tsx` |
 | E2E テスト | 画面をまたいだ流れ（ログイン、招待、ロールによる出し分け、作ったクイズを解く、中断と再開）。Playwright で流す | `tests/e2e/` |
