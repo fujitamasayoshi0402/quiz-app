@@ -977,14 +977,15 @@ web はすべての応答にセキュリティのヘッダを付ける（DEV-123
 | --- | --- | --- |
 | `Strict-Transport-Security`、`X-Content-Type-Options`、`Referrer-Policy`、`X-Frame-Options`、`Permissions-Policy` | `next.config.ts` | 強制 |
 | CSP のうち、ほかのサイトへの埋め込み・`<base>`・`<object>` の禁止 | `next.config.ts` | 強制 |
-| CSP の本体（スクリプトは nonce を付けたものだけ、画像と接続の送り先） | proxy（`lib/content-security-policy.ts`） | **Report-Only** |
+| CSP の本体（スクリプトは nonce を付けたものだけ、画像と接続の送り先） | proxy（`lib/content-security-policy.ts`） | 強制（DEV-127） |
 
 - **スクリプトは、要求ごとの nonce で許す。** proxy が nonce を作って CSP を要求と応答の両方に載せ、Next.js は要求の CSP から nonce を読んで自分のスクリプトに付ける。
   そのため、画面はすべて要求ごとに描く（静的に書き出すと nonce が付かない）
 - 環境ごとに違う送り先（解説図の CDN、S3 への直接のアップロード）は、環境変数 `CSP_IMG_SRC` と `CSP_CONNECT_SRC` で受ける。dev は Terraform（`modules/web`）、ローカルは docker compose と `.env.example`
-- **本体は Report-Only で出している。** 違反は `/csp-report` に届き、SSR のログ（[Amplify](#amplifyweb)）に「CSP の違反」として 1 行で出る（URL はパスまで、招待のトークンは伏せる）。
-  取りこぼした送り先がないことを確かめてから、強制に切り替える（DEV-127）
+- **違反したものは、黙って止まる。** 画像は出ず、アップロードは通信エラーになる。違反は `/csp-report` に届き、SSR のログ（[Amplify](#amplifyweb)）に「CSP の違反」として 1 行で出る（URL はパスまで、招待のトークンは伏せる）
+- **CI の `e2e` は、E2E のあとに web のログに違反があれば落ちる。** テストが表示を確かめていない所でも気づける。draw.io の編集画面は E2E で開かないため、そこを変えたときは手で確かめる
 - 外部の画面を足すとき（埋め込み、外部の API、画像の配信元）は、`lib/content-security-policy.ts` に送り先を足す
+- **`eval` は許さない。** Zod は検証を速くするために `new Function` を使えるか試し、どの画面でも違反が報告される。`jitless` で止めている（`lib/zod-config.ts`）
 
 Cookie の暗号鍵を入れ替えるときは `terraform apply -replace=module.web.random_password.session` のあと、ビルドし直す。ログイン中の全員がログアウトされる。
 

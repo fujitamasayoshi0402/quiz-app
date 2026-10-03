@@ -304,6 +304,15 @@ jobs:
       - name: E2E テスト
         run: pnpm test:e2e
 
+      # 画面の CSP は強制で、違反したものは黙って止まる（DEV-127）。テストが表示を確かめていない所でも、ここで気づく。
+      # 違反はブラウザが /csp-report へ送り、web がログに 1 行ずつ出す
+      - name: CSP の違反がないかを確かめる
+        run: |
+          if docker compose logs --no-color web | grep "CSP の違反"; then
+            echo "::error::画面の CSP の違反が報告されました。送り先なら apps/web/src/lib/content-security-policy.ts に足します"
+            exit 1
+          fi
+
       - name: 起動の記録を出す
         if: failure()
         run: docker compose logs --no-color --tail 200 migrate quiz-service web
