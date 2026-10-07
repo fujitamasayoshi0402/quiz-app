@@ -5,7 +5,7 @@ import { password } from "./users";
  * アプリのログインの画面（`/login`）から、Cognito の Managed Login でログインし、アプリに戻るまで待つ。
  *
  * **Cognito の画面に依存するのはここだけ。** 文言は日本語の画面（`lang=ja`）のもの。
- * 認証を自前の実装に替えたら（DEV-59）、ここを書き換える
+ * 認証を自前の実装に替えるなら（ADR-0027）、ここを Chrome の仮想の認証器でのログインに書き換える
  */
 export async function signIn(page: Page, email: string) {
   const appOrigin = new URL(page.url()).origin;
