@@ -188,3 +188,13 @@ variable "runbook_url" {
   description = "Runbook（docs/runbook.md）の URL。アラームの説明に、鳴ったときの手順の節へのリンクとして載せる"
   type        = string
 }
+
+variable "tracing_sampling_probability" {
+  description = "トレースを記録する要求の割合（0〜1。ADR-0026）"
+  type        = number
+
+  validation {
+    condition     = var.tracing_sampling_probability >= 0 && var.tracing_sampling_probability <= 1
+    error_message = "0 から 1 の間で指定してください"
+  }
+}

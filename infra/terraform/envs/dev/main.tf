@@ -181,6 +181,9 @@ module "quiz_service" {
 
   log_retention_days  = 14
   force_delete_images = true
+
+  # dev は量が少ないため、すべて記録する。X-Ray は月 10 万件まで無料
+  tracing_sampling_probability = 1
 }
 
 # 解説図の置き場所と配信（ADR-0017）。web は dev.<ドメイン>、図は figures.dev.<ドメイン> から配る

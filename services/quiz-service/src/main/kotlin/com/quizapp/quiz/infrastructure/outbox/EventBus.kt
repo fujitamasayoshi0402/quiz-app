@@ -3,8 +3,17 @@ package com.quizapp.quiz.infrastructure.outbox
 import java.time.Instant
 import java.util.UUID
 
-/** Outbox の 1 行。[payload] は EventBridge の `detail`、[eventType] は `detail-type` にそのまま使う */
-data class OutboxEntry(val id: UUID, val tenantId: UUID, val eventType: String, val payload: String)
+/**
+ * Outbox の 1 行。[payload] は EventBridge の `detail`、[eventType] は `detail-type` にそのまま使う。
+ * [traceParent] は書いたときのトレースの文脈（ADR-0026）。送るときに、イベントを同じトレースへつなぐ
+ */
+data class OutboxEntry(
+    val id: UUID,
+    val tenantId: UUID,
+    val eventType: String,
+    val payload: String,
+    val traceParent: String? = null,
+)
 
 /**
  * イベントを送る先（ADR-0022）。AWS では EventBridge のカスタムバス。

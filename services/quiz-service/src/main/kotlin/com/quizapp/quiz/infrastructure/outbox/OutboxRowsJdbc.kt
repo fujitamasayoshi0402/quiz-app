@@ -45,7 +45,7 @@ class OutboxRowsJdbc(
             // 送っている間もロックを持ち続ける。デプロイの入れ替え中にタスクが 2 つあっても、同じ行を送らない
             val entries = jdbcTemplate.query(
                 """
-                SELECT id, tenant_id, event_type, payload::text AS payload FROM quiz.outbox
+                SELECT id, tenant_id, event_type, payload::text AS payload, trace_parent FROM quiz.outbox
                 WHERE published_at IS NULL AND occurred_at < ?
                 ORDER BY occurred_at
                 LIMIT ?
@@ -85,6 +85,7 @@ class OutboxRowsJdbc(
                 tenantId = rs.getObject("tenant_id", UUID::class.java),
                 eventType = rs.getString("event_type"),
                 payload = rs.getString("payload"),
+                traceParent = rs.getString("trace_parent"),
             )
         }
     }
