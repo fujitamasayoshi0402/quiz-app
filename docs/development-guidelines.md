@@ -54,7 +54,7 @@
 | DB | Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止） | サービスごとにスキーマ分離。コスト最優先 |
 | マイグレーション | Flyway | |
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui | TanStack Query / Zod。単体テストは Vitest |
-| 認証 | Amazon Cognito（Managed Login、パスワード + パスキー） | ロールはアプリのデータで持つ。後で自前実装に差し替える（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)） |
+| 認証 | Amazon Cognito（Managed Login、パスワード + パスキー） | ロールはアプリのデータで持つ（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。自前実装は設計だけ決めて見送り（[ADR-0027](adr/0027-design-self-hosted-passkeys-and-keep-cognito.md)） |
 | コンテナ基盤 | ECS Fargate + API Gateway（HTTP API） | Kubernetes は採用しない。ロードバランサーは置かない（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)） |
 | フロントの配信 | Amplify Hosting | [ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md) |
 | 非同期 / 通知 | EventBridge → Lambda → Slack Incoming Webhook（DLQ に SQS） | 常駐リソースを増やさない |
@@ -451,7 +451,7 @@ pnpm test:e2e
 
 - **ログインは、利用者ごとに 1 回だけ Managed Login の画面で行い、Cookie を保存して使い回す**（`auth.setup.ts`）。
   本物のログインの流れを毎回通しつつ、Cognito の画面に依存するのを `support/sign-in.ts` の 1 か所に閉じ込める。
-  認証を自前の実装に替えたら（DEV-59）、ここを書き換える
+  認証を自前の実装に替えるなら（[ADR-0027](adr/0027-design-self-hosted-passkeys-and-keep-cognito.md)）、ここを Chrome の仮想の認証器でのログインに書き換える
 - API でトークンを取ってセッションの Cookie を作る方法は採らなかった。速いが、ログインの画面とコールバックを通らず、テストが Cookie の暗号鍵を持つことになる
 - 利用者は、管理者・一般ユーザー・未所属・招待される人の 4 人。Cognito の利用者は Terraform（`modules/auth` の `e2e_user_emails`）が作り、パスワードは全員で共通
 - **所属とロールは、テストの前に DB に作る**（`fixtures.sql` を `global-setup.ts` が docker compose の postgres に流す）。

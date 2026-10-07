@@ -21,7 +21,7 @@
 | [0013](0013-run-ecs-tasks-in-public-subnets.md) | ECS のタスクはパブリックサブネットに置き、NAT Gateway も VPC Endpoint も使わない | Accepted |
 | [0014](0014-connect-to-aurora-with-iam-auth.md) | Aurora へは IAM 認証で接続し、ロールは Data API で作る | Accepted |
 | [0015](0015-deploy-by-registering-task-definitions-from-ci.md) | dev へのデプロイは GitHub Actions がタスク定義のリビジョンを登録して行い、Terraform はタスク定義の形だけを持つ | Accepted |
-| [0016](0016-authenticate-with-cognito-managed-login.md) | 認証は Cognito の Managed Login とパスキーで作り、利用者の ID を Cognito から切り離す | Accepted |
+| [0016](0016-authenticate-with-cognito-managed-login.md) | 認証は Cognito の Managed Login とパスキーで作り、利用者の ID を Cognito から切り離す | Accepted（自前の実装への差し替えは [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) で見送り） |
 | [0017](0017-deliver-figures-with-cloudfront-signed-urls.md) | 解説図は非公開の S3 に置き、API が出す CloudFront の署名付き URL で配る | Accepted |
 | [0018](0018-write-explanations-in-markdown-and-render-on-screen.md) | 解説は Markdown の原文で持ち、画面で変換する。生の HTML は通さない | Accepted |
 | [0019](0019-expose-api-through-api-gateway-http-api.md) | API の入口を ALB から API Gateway（HTTP API）に替え、秘密のヘッダをやめる | Accepted |
@@ -32,6 +32,7 @@
 | [0024](0024-run-prod-in-same-account-and-launch-at-release.md) | prod は同じアカウントに環境として置き、常時動かすのは公開のときから。main へのマージと承認で載せる | Accepted |
 | [0025](0025-let-signed-in-users-join-public-tenants.md) | 公開テナントには、ログインした人が承認なしで自分で参加する。一覧と参加の API はテナントの外の `/api/me` に置く | Accepted |
 | [0026](0026-trace-requests-with-micrometer-and-x-ray.md) | 分散トレースは Micrometer Tracing（OpenTelemetry）で取り、同じタスクのコレクタから X-Ray へ送る。イベントは Outbox に文脈を残してつなぐ | Accepted |
+| [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) | パスキーを自前で実装するときの設計を決め、いまは Cognito を使い続ける | Accepted |
 
 ## 運用ルール
 
