@@ -47,6 +47,10 @@ on:
         description: quiz-service を載せるとき、マイグレーションを流すか（auto / run）
         type: string
         default: auto
+    outputs:
+      deployed:
+        description: 何かを載せたか（true / false）。prod では、載せたときだけリリースを作る（ci.yml）
+        value: ${{ jobs.deploy.outputs.deployed }}
   workflow_dispatch:
     inputs:
       environment:
@@ -306,20 +310,3 @@ jobs:
           SMOKE_USER_EMAIL: smoke@example.com
           SMOKE_USER_PASSWORD: ${{ secrets.SMOKE_USER_PASSWORD }}
 
-  # prod に載せたら、リリースとして記録する（DEV-134）。タグと、前のリリースからの PR の一覧（リリースノート）を GitHub が作る。
-  # 何も載せなかったとき（ドキュメントだけのリリース）は作らない。戻すときは、前のリリースのタグを見る
-  release:
-    name: release
-    needs: [deploy]
-    if: inputs.environment == 'prod' && needs.deploy.outputs.deployed == 'true'
-    runs-on: ubuntu-26.04
-    permissions:
-      contents: write
-    steps:
-      - name: リリースを作る
-        run: |
-          TAG="release-$(date -u +%Y%m%d-%H%M%S)"
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --title "$TAG"
-          echo "- リリース: ${TAG}（${GITHUB_SHA::12}）" >> "$GITHUB_STEP_SUMMARY"
-        env:
-          GH_TOKEN: ${{ github.token }}

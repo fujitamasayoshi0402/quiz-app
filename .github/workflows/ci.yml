@@ -465,10 +465,29 @@ jobs:
       !cancelled() && needs.ci.result == 'success'
       && github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
-      # 載せたあとに、リリース（タグとリリースノート）を作る
-      contents: write
+      contents: read
       id-token: write
     uses: ./.github/workflows/deploy.yml
     with:
       environment: prod
     secrets: inherit
+
+  # prod に載せたら、リリースとして記録する（DEV-134）。タグと、前のリリースからの PR の一覧（リリースノート）を GitHub が作る。
+  # 何も載せなかったとき（ドキュメントだけのリリース）は作らない。戻すときは、前のリリースのタグを見る。
+  # デプロイのワークフロー（deploy.yml）の中には置かない。呼ばれた側のジョブは、呼び出し元が渡した権限しか持てず、
+  # dev の呼び出しにも書き込みの権限を渡すことになる
+  release:
+    name: release
+    needs: [deploy-prod]
+    if: needs.deploy-prod.outputs.deployed == 'true'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - name: リリースを作る
+        run: |
+          TAG="release-$(date -u +%Y%m%d-%H%M%S)"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --title "$TAG"
+          echo "- リリース: ${TAG}（${GITHUB_SHA::12}）" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1540,7 +1540,7 @@ develop → main の PR（タイトルは「release: <内容>」）→ CI → �
 4. 載せ終わると、リリース（`release-<日時>` のタグと、前のリリースからの PR の一覧）ができる。何も載せなかった（ドキュメントだけ）ときは作らない
 
 - **Environment `prod` は main からだけ使える。** develop や PR のジョブは、prod のロールを引き受けられない（`modules/deploy-role` の信頼の条件が Environment で絞る）
-- prod を手で流すときは `gh workflow run deploy.yml --ref main -f environment=prod`。これも承認を待つ
+- prod を手で流すときは `gh workflow run deploy.yml --ref main -f environment=prod`。これも承認を待つ。手で流したときは、リリースを作らない
 - **Terraform の変更を含むリリースは、main にマージしたあと、承認する前に apply する。** prod の apply は main から行う（[prod](#prod)）
 - 戻すときは、Runbook の「[prod のリリースを戻す](runbook.md#prod-のリリースを戻す)」
 
