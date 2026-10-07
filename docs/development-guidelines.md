@@ -217,7 +217,8 @@ pnpm --filter web lint
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
 | `ci` | 先行ジョブの結果を集約する |
 | `dependency-graph` | develop への push で、Gradle と pnpm の依存の一覧を GitHub に送る。Dependabot alerts が読む（[脆弱性の検出](#脆弱性の検出)） |
-| `deploy-dev` | develop への push で、`ci` が通ったあとに dev へ載せる。何を載せるかは、dev で動いているものと比べて決める（`deploy-dev.yml`。[デプロイ](#デプロイ)） |
+| `deploy-dev` | develop への push で、`ci` が通ったあとに dev へ載せる。何を載せるかは、dev で動いているものと比べて決める（`deploy.yml`。[デプロイ](#デプロイ)） |
+| `deploy-prod` | main への push で、`ci` が通ったあとに prod へ載せる。**Environment `prod` の承認を待つ**。載せたらリリース（タグとリリースノート）を作る（`deploy.yml`。[リリース](#リリース)） |
 
 **Ruleset の必須チェックには `ci` だけを指定する。** ジョブを足すたびに設定を触らずに済み、
 パスの出し分けでスキップされたジョブが「報告されないまま待ち続ける」状態にもならない。
@@ -1422,7 +1423,7 @@ aws --endpoint-url http://localhost:4566 logs tail /aws/lambda/quiz-app-local-no
 
 #### デプロイ
 
-develop にマージすると、CI（`ci.yml`）のチェックが通ったあとに、`deploy-dev.yml` が dev に載せる
+develop にマージすると、CI（`ci.yml`）のチェックが通ったあとに、`deploy.yml` が dev に載せる
 （[ADR-0015](adr/0015-deploy-by-registering-task-definitions-from-ci.md)）。
 
 ```
@@ -1466,10 +1467,10 @@ notification-service（zip を作る → 関数に載せる → 1 度呼んで�
 `migration` は `auto` / `run`（必ず流す）を指定できる。
 
 ```bash
-gh workflow run deploy-dev.yml --ref develop                                     # 動いているものと比べて、変わったほうを載せる
-gh workflow run deploy-dev.yml --ref develop -f backend=deploy -f frontend=skip  # quiz-service だけを載せ直す（形を変えたあと）
-gh workflow run deploy-dev.yml --ref develop -f backend=deploy -f frontend=skip -f migration=run  # マイグレーションも流し直す
-gh workflow run deploy-dev.yml --ref develop -f backend=skip -f frontend=skip -f notification=deploy  # notification-service だけを載せ直す
+gh workflow run deploy.yml --ref develop                                     # 動いているものと比べて、変わったほうを載せる
+gh workflow run deploy.yml --ref develop -f backend=deploy -f frontend=skip  # quiz-service だけを載せ直す（形を変えたあと）
+gh workflow run deploy.yml --ref develop -f backend=deploy -f frontend=skip -f migration=run  # マイグレーションも流し直す
+gh workflow run deploy.yml --ref develop -f backend=skip -f frontend=skip -f notification=deploy  # notification-service だけを載せ直す
 ```
 
 GitHub Actions が使えないときは、手元から同じスクリプトで流せる。
@@ -1522,6 +1523,45 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 この値はサービスを作るときにだけ使う。以降は変えても、動くタスクは替わらない。
 **最初のデプロイは `-f backend=deploy -f migration=run` で流す。** このタスクはマイグレーションを経ずに動き始めるため、
 「動いているもののコミットまでは流し終わっている」が成り立たず、`auto` では DB が空のままマイグレーションを飛ばしうる。
+
+#### リリース
+
+**develop から main への PR がリリース**（DEV-134、[ADR-0024](adr/0024-run-prod-in-same-account-and-launch-at-release.md)）。
+dev と同じワークフロー（`deploy.yml`）と同じスクリプトで、prod に載せる。違いは名前（`quiz-app-prod`）と Environment だけ。
+
+```
+develop → main の PR（タイトルは「release: <内容>」）→ CI → マージ → CI（main）→ deploy-prod が承認を待つ
+→ 承認 → notification-service → マイグレーション → quiz-service → web → スモークテスト → リリース（タグ release-<日時>）
+```
+
+1. develop で dev に載り、スモークテストが通っていることを確かめる
+2. develop から main への PR を作る。**マージは「merge」で行う**（squash しない）。squash すると main と develop の履歴が分かれ、次のリリースの PR に同じ変更が並ぶ
+3. マージすると、main の CI が通ったあと、`deploy-prod` が Environment `prod` の承認を待つ。Actions の画面で、載せるコミットを確かめて承認する
+4. 載せ終わると、リリース（`release-<日時>` のタグと、前のリリースからの PR の一覧）ができる。何も載せなかった（ドキュメントだけ）ときは作らない
+
+- **Environment `prod` は main からだけ使える。** develop や PR のジョブは、prod のロールを引き受けられない（`modules/deploy-role` の信頼の条件が Environment で絞る）
+- prod を手で流すときは `gh workflow run deploy.yml --ref main -f environment=prod`。これも承認を待つ。手で流したときは、リリースを作らない
+- **Terraform の変更を含むリリースは、main にマージしたあと、承認する前に apply する。** prod の apply は main から行う（[prod](#prod)）
+- 戻すときは、Runbook の「[prod のリリースを戻す](runbook.md#prod-のリリースを戻す)」
+
+Environment `prod` には、次を置く（値は `envs/prod` の Terraform の出力）。名前は dev と同じで、Environment が値を決める。
+
+| 名前 | 種類 | 値 |
+| --- | --- | --- |
+| `AWS_ROLE_ARN` | secret | `terraform output -raw deploy_role_arn` |
+| `AUTH_CLIENT_SECRET` | secret | `terraform output -raw auth_client_secret` |
+| `SMOKE_USER_PASSWORD` | secret | `terraform output -raw smoke_user_password` |
+| `AMPLIFY_APP_ID` | variable | `terraform output -raw web_amplify_app_id` |
+| `AUTH_CLIENT_ID` | variable | `terraform output -raw auth_client_id` |
+
+```bash
+cd infra/terraform/envs/prod
+gh secret set AWS_ROLE_ARN --env prod --body "$(terraform output -raw deploy_role_arn)"
+gh secret set AUTH_CLIENT_SECRET --env prod --body "$(terraform output -raw auth_client_secret)"
+gh secret set SMOKE_USER_PASSWORD --env prod --body "$(terraform output -raw smoke_user_password)"
+gh variable set AMPLIFY_APP_ID --env prod --body "$(terraform output -raw web_amplify_app_id)"
+gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_client_id)"
+```
 
 #### prod
 

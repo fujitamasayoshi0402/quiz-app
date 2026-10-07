@@ -1,7 +1,7 @@
-# GitHub Actions が dev へのデプロイに使うロール（DEV-48）。アクセスキーは発行せず、OIDC で引き受ける。
+# GitHub Actions が dev / prod へのデプロイに使うロール（DEV-48、DEV-134）。環境ごとに 1 つ作る。アクセスキーは発行せず、OIDC で引き受ける。
 #
 # デプロイは、notification-service のコード → イメージの push → マイグレーションの単発タスク → サービスの更新 → web のビルドの順に進む
-# （.github/workflows/deploy-dev.yml）。
+# （.github/workflows/deploy.yml）。
 # タスク定義と関数の形（環境変数、ロール、CPU など）は Terraform が持ち、CI はイメージやコードだけを差し替える（ADR-0015）。
 # そのため、このロールには Terraform の state も、リソースを作り直す権限も与えない。
 

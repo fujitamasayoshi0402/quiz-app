@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev でいま動いているもののコミットを調べる。deploy-dev.yml が、何を載せるかを決めるのに使う（DEV-79）。手元からも同じように流せる。
+# dev / prod でいま動いているもののコミットを調べる。deploy.yml が、何を載せるかを決めるのに使う（DEV-79）。手元からも同じように流せる。
 #
 #   deployed-commits.sh <クラスタ> <サービス> <Amplify のアプリの ID> <ブランチ> <通知の関数名>
 #

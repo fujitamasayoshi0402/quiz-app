@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# quiz-service を ECS にデプロイする。GitHub Actions（deploy-dev.yml）から呼ぶ。手元からも同じ手順で流せる。
+# quiz-service を ECS にデプロイする。GitHub Actions（deploy.yml）から呼ぶ。手元からも同じ手順で流せる。
 #
 #   deploy-quiz-service.sh <クラスタ> <サービス> <マイグレーションのタスク定義のファミリー> <イメージ> [run | skip]
 #
 # 5 つ目はマイグレーションを流すか。省くと流す。skip は、DB に流れるものが動いているものから変わっていないと
-# 分かっているときだけ使う（deploy-dev.yml が決める。DEV-88）
+# 分かっているときだけ使う（deploy.yml が決める。DEV-88）
 #
 # 1. マイグレーションのタスク定義に、新しいイメージのリビジョンを登録する
 # 2. マイグレーションを単発のタスクとして流す。終了コードが 0 でなければ、サービスは替えずに止める

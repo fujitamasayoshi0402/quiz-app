@@ -19,6 +19,11 @@ output "ecs_cluster_name" {
   value = module.quiz_service.cluster_name
 }
 
+# GitHub の Environment prod の secret（AWS_ROLE_ARN）に入れる。開発ガイドラインの「リリース」を参照
+output "deploy_role_arn" {
+  value = module.deploy_role.role_arn
+}
+
 # クイズのイベントが届いたかは、アーカイブのイベント数で確かめる。開発ガイドラインの「イベント（EventBridge）」を参照
 output "event_bus_name" {
   value = module.events.bus_name

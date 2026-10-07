@@ -33,7 +33,7 @@
   （[ADR-0010](docs/adr/0010-generate-openapi-from-code.md)）
 - **マージすれば dev に載る。** GitHub Actions は OIDC で AWS のロールを引き受け、アクセスキーを発行していません。
   dev で動いているものと比べて、変わったもの（quiz-service / web）だけを載せます。マイグレーションはサービスを入れ替える前に単発のタスクで流し、
-  最後にスモークテストで web → API → DB のつながりを確かめます（[ADR-0015](docs/adr/0015-deploy-by-registering-task-definitions-from-ci.md)、[deploy-dev.yml](.github/workflows/deploy-dev.yml)）。
+  最後にスモークテストで web → API → DB のつながりを確かめます（[ADR-0015](docs/adr/0015-deploy-by-registering-task-definitions-from-ci.md)、[deploy.yml](.github/workflows/deploy.yml)）。
   PR では、ログインや招待、ロールによる出し分けを Playwright の E2E テストで確かめます
 - **使っていない時間の費用をほぼ 0 にする。** Aurora Serverless v2 は使われていないと一時停止し（min 0 ACU）、ロードバランサーと NAT Gateway は置かず、
   API の入口は API Gateway（HTTP API）にしています（[ADR-0013](docs/adr/0013-run-ecs-tasks-in-public-subnets.md)、[ADR-0019](docs/adr/0019-expose-api-through-api-gateway-http-api.md)）。
