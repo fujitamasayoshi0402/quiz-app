@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { SlowRequestNotice } from "@/components/slow-request-notice";
 import { ApiError } from "@/lib/api/fetcher";
-import "@/lib/zod-locale";
+import "@/lib/zod-config";
 
 /**
  * 4xx は再試行しない。入力や権限の問題で、繰り返しても結果が変わらないため。

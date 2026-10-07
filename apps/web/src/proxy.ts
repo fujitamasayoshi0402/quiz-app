@@ -53,10 +53,10 @@ function rejectCrossOrigin(request: NextRequest) {
   );
 }
 
-const CSP_HEADER = "Content-Security-Policy-Report-Only";
+const CSP_HEADER = "Content-Security-Policy";
 
 /**
- * 画面に CSP（いまは Report-Only）を付ける（`lib/content-security-policy.ts`、DEV-123）。
+ * 画面に CSP を付ける（`lib/content-security-policy.ts`、DEV-123、DEV-127）。
  *
  * 同じ値を要求のヘッダにも載せる。Next.js は要求の CSP から nonce を読み、自分が出すスクリプトに付ける
  */
