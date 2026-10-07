@@ -1,6 +1,6 @@
 # ADR-0012: フロントは Amplify Hosting で配る
 
-- ステータス: Accepted
+- ステータス: Accepted（quiz-service の公開の仕方（ALB と秘密のヘッダ）は [ADR-0019](0019-expose-api-through-api-gateway-http-api.md) で置き換え）
 - 決定日: 2026-09-24
 
 ## 背景と課題

@@ -186,7 +186,7 @@
 - [x] アーキテクチャ図（C4 の Context / Container）を draw.io で作成（`docs/architecture/`）
 - [x] デモ用アカウントの用意（`demo@example.com`。デモのテナントの一般ユーザー）
 - [x] テナントの公開設定（`public`）と、公開テナントを見つけて招待なしで参加する導線（[ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)。時期を決めていなかったものから移した）
-- [ ] ADR インデックスの整備
+- [x] ADR インデックスの整備（テーマ別の索引と、置き換えの関係）
 - [ ] コストの最終調整
 
 ---
