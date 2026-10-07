@@ -100,7 +100,7 @@
 
 ---
 
-## Phase 3: パスキー認証とロール分離 🚧 進行中
+## Phase 3: パスキー認証とロール分離 ✅ 完了
 
 **ゴール: 本物の認証でユーザーと管理者を分離する**
 
@@ -117,7 +117,8 @@
 - [x] スタブ認証の撤去、dev のアクセス制限の見直し（ベーシック認証を外す）
 - [x] 権限まわりの E2E テスト（ログイン・招待の受け入れ・ロールによる出し分け）。Playwright を PR の CI で流す
 - [x] コスト: ALB をやめ、API Gateway（HTTP API）から VPC リンクで quiz-service に届ける。JWT はアプリだけで検証し、秘密のヘッダはやめる（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)）
-- [ ] 自前実装: パスキーを webauthn4j で実装し、Cognito と差し替える。比べた結果を ADR に残す（Cognito で動いてから。Phase 4 と並行してよい）
+- [x] ADR: パスキーを自前で実装するときの設計（webauthn4j、チャレンジとクレデンシャルの置き場所、セッション、復旧、移り方）。**いまは差し替えず、Cognito を使い続ける**（[ADR-0027](adr/0027-design-self-hosted-passkeys-and-keep-cognito.md)）
+- 自前実装（DEV-120〜122）は保留。ADR-0027 の「見直す条件」に当たったら始める
 
 **デモできること**: パスキーでのログイン、権限によるアクセス制御
 

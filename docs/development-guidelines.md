@@ -54,7 +54,7 @@
 | DB | Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止） | サービスごとにスキーマ分離。コスト最優先 |
 | マイグレーション | Flyway | |
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui | TanStack Query / Zod。単体テストは Vitest |
-| 認証 | Amazon Cognito（Managed Login、パスワード + パスキー） | ロールはアプリのデータで持つ。後で自前実装に差し替える（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)） |
+| 認証 | Amazon Cognito（Managed Login、パスワード + パスキー） | ロールはアプリのデータで持つ（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。自前実装は設計だけ決めて見送り（[ADR-0027](adr/0027-design-self-hosted-passkeys-and-keep-cognito.md)） |
 | コンテナ基盤 | ECS Fargate + API Gateway（HTTP API） | Kubernetes は採用しない。ロードバランサーは置かない（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)） |
 | フロントの配信 | Amplify Hosting | [ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md) |
 | 非同期 / 通知 | EventBridge → Lambda → Slack Incoming Webhook（DLQ に SQS） | 常駐リソースを増やさない |
@@ -423,7 +423,7 @@ dev では、デプロイの最後に自動で流れる（[デプロイ](#デプ
 こちらは「つながっているか」（web → API → DB、利用者の識別、マイグレーション）だけを見る。
 同じことを両方で検証すると、仕様を変えるたびに 2 か所を直すことになる。
 
-- **専用のテナント `smoke` で動く**（シード `R__smoke_data.sql`）。デプロイのたびに作っては消すので、
+- **専用のテナント `smoke` で動く**（シード `db/smoke/R__smoke_data.sql`。prod にも入る）。デプロイのたびに作っては消すので、
   デモのテナントでやるとゴミ箱にたまる。作ったものは最後に消し、途中で失敗しても片付けの段は実行される
 - スモークテストの利用者は、シードでメールアドレスだけを登録してある。最初のトークンが届いたときに結び付き、`smoke` テナントの管理者になる（[最初の管理者](#最初の管理者)と同じ仕組み）
 - **コレクションは手で書く。** OpenAPI から生成すると、呼ぶ順番と、作った ID を次の要求で使う流れを表せない。
@@ -451,7 +451,7 @@ pnpm test:e2e
 
 - **ログインは、利用者ごとに 1 回だけ Managed Login の画面で行い、Cookie を保存して使い回す**（`auth.setup.ts`）。
   本物のログインの流れを毎回通しつつ、Cognito の画面に依存するのを `support/sign-in.ts` の 1 か所に閉じ込める。
-  認証を自前の実装に替えたら（DEV-59）、ここを書き換える
+  認証を自前の実装に替えるなら（[ADR-0027](adr/0027-design-self-hosted-passkeys-and-keep-cognito.md)）、ここを Chrome の仮想の認証器でのログインに書き換える
 - API でトークンを取ってセッションの Cookie を作る方法は採らなかった。速いが、ログインの画面とコールバックを通らず、テストが Cookie の暗号鍵を持つことになる
 - 利用者は、管理者・一般ユーザー・未所属・招待される人の 4 人。Cognito の利用者は Terraform（`modules/auth` の `e2e_user_emails`）が作り、パスワードは全員で共通
 - **所属とロールは、テストの前に DB に作る**（`fixtures.sql` を `global-setup.ts` が docker compose の postgres に流す）。
@@ -726,7 +726,9 @@ Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SEC
 利用者は所属の数が 0 / 1 / 2 の 3 人で、`/` の出し分けをすべて試せる（[最初の管理者](#最初の管理者)の表）。
 **シードの利用者のままではログインできない。** 使うときは、自分のメールアドレスを割り当てる（[最初の管理者](#最初の管理者)）。
 
-ほかに、スモークテスト専用のテナント `smoke` と、その管理者が入る（`R__smoke_data.sql`）。
+ほかに、スモークテスト専用のテナント `smoke` と、その管理者が入る（`db/smoke/R__smoke_data.sql`）。
+**デモのシードとは置き場所を分けている**（DEV-133）。prod は `smoke` のプロファイル（`prod,smoke,migrate`）で、これだけを入れる（`application-smoke.yml`）。
+dev は `dev` のプロファイルで、デモのシードと両方を入れる。
 管理者はメールアドレス（`smoke@example.com`）だけで登録してあり、同じアドレスの Cognito の利用者（Terraform が作る）が最初にログインしたときに結び付く。
 カテゴリやクイズはテストが作って消すため、シードでは入れない。
 
@@ -1520,6 +1522,28 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 この値はサービスを作るときにだけ使う。以降は変えても、動くタスクは替わらない。
 **最初のデプロイは `-f backend=deploy -f migration=run` で流す。** このタスクはマイグレーションを経ずに動き始めるため、
 「動いているもののコミットまでは流し終わっている」が成り立たず、`auto` では DB が空のままマイグレーションを飛ばしうる。
+
+#### prod
+
+`envs/prod` に置く（DEV-133。[ADR-0024](adr/0024-run-prod-in-same-account-and-launch-at-release.md)）。モジュールは dev と同じで、違いは `envs/prod/main.tf` の値で表す。
+値の横のコメントに、dev と違う理由を書いている。
+
+| 項目 | dev | prod |
+| --- | --- | --- |
+| 名前 | `quiz-app-dev` | `quiz-app-prod` |
+| web / API / 図 | `dev.<ドメイン>` / `api.dev.<ドメイン>` / `figures.dev.<ドメイン>` | `quiz.<ドメイン>` / `api.quiz.<ドメイン>` / `figures.quiz.<ドメイン>` |
+| VPC | `10.0.0.0/16` | `10.1.0.0/16` |
+| Aurora | 止まるまで 30 分、バックアップ 1 日、削除保護なし | 止まるまで 60 分、バックアップ 7 日、削除保護と最終スナップショット |
+| ECS | 夜間（2:00〜8:00）に止める | 止めない |
+| ログ | 14 日 | 30 日 |
+| 消した図を残す日数 | 7 日 | 14 日 |
+| Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテストだけ |
+| シード | デモとスモークテスト（`dev`） | スモークテストだけ（`prod,smoke`） |
+| Amplify のブランチ | `develop` | `main` |
+
+- **apply は main から行う。** prod には、リリースしたものと同じ形だけを流す
+- `terraform.tfvars` は dev と同じ項目（`domain_name`、`quiz_service_image_tag`、`alarm_email`）。書き方は `envs/prod/terraform.tfvars.example`
+- 公開までは動かさない（ADR-0024 の B-1）
 
 #### state のバケットを作り直すとき
 
