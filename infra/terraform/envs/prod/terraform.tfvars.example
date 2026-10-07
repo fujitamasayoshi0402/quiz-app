@@ -1,0 +1,12 @@
+# cp terraform.tfvars.example terraform.tfvars で写して値を入れる。terraform.tfvars は Git の管理外
+
+# Route 53 に登録済みのドメイン（ホストゾーンの名前）
+domain_name = "example.com"
+
+# ECR に push したイメージのタグ（git rev-parse --short=12 HEAD）。
+# サービスを作るときにだけ使う。以降のデプロイは GitHub Actions が行い、この値を変えても動くタスクは替わらない
+quiz_service_image_tag = "0123456789ab"
+
+# アラーム（API の 5xx、タスクの停止、Outbox の滞留、通知の DLQ など）を受け取るアドレス。
+# apply のあとに届く確認のメールのリンクを開くまで、知らせは届かない
+alarm_email = "you@example.com"
