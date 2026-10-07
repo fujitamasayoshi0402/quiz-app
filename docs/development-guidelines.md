@@ -342,7 +342,8 @@ trivy image quiz-service:local                 # trivy.yaml を読む。止ま�
 1. **直せるなら直す。** 依存は修正版に上げる。Spring Boot が版を決める依存（Tomcat、Jackson など）は、`services/quiz-service/build.gradle.kts` の
    `extra["<名前>.version"]` で上書きする。プロパティの名前は Spring Boot の `spring-boot-dependencies` の pom にある。
    Spring Boot を上げて、同じか新しい版になったら上書きを消す
-2. ベースイメージの OS のパッケージは、ベースイメージの更新を待つ。CI は毎回、タグの最新を取り直す
+2. ベースイメージの OS のパッケージは、ベースイメージの更新を待つ。CI は毎回、タグの最新を取り直す。
+   web のイメージは、ビルドのときに Debian のセキュリティの更新を入れる（`apt-get upgrade`、DEV-132）。Node の版を固定したタグは、次の版が出ると作り直されないため
    修正版が公開から 7 日たっていなければ、pnpm が入れない。急ぐなら、`pnpm-workspace.yaml` の `minimumReleaseAgeExclude` に版まで書いて足し（`<名前>@<版>`）、7 日たったら外す。
    Dependabot の PR も同じ理由で作れないか、CI で止まる
 3. **直せないものは `.trivyignore.yaml` に足す。** 影響がない理由（`statement`）と、見直す期限（`expired_at`）を必ず書く。
