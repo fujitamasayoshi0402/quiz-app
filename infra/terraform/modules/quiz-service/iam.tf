@@ -156,6 +156,21 @@ resource "aws_iam_role_policy" "app_events" {
   })
 }
 
+# 分散トレース（ADR-0026）。同じタスクのコレクタが、このロールで X-Ray へ送る。
+# X-Ray の書き込みは、リソースで絞れない
+resource "aws_iam_role_policy" "app_tracing" {
+  name = "write-traces"
+  role = aws_iam_role.app.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+      Resource = "*"
+    }]
+  })
+}
+
 # ---- migrate ----
 
 resource "aws_iam_role" "migrate" {

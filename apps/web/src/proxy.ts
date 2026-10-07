@@ -3,6 +3,7 @@ import { refreshTokens } from "@/lib/auth/oidc";
 import { appOrigin, isSameOriginRequest, isSecure } from "@/lib/auth/request";
 import { readRefreshToken, readSession, writeSession } from "@/lib/auth/session";
 import { contentSecurityPolicy, createNonce, originsFrom } from "@/lib/content-security-policy";
+import { newTraceParent } from "@/lib/trace-context";
 
 /** 期限の少し前に更新する。ちょうど切れるころに送ると、バックエンドに届いた時点で切れている */
 const REFRESH_MARGIN_SECONDS = 60;
@@ -95,6 +96,9 @@ function requireLogin(request: NextRequest) {
  * ログインのセッションが無い要求は、`Authorization` をそのまま渡す。
  * スモークテストのように、トークンを自分で取る呼び出し元のため。受け付けるかどうかはバックエンドが検証して決める。
  *
+ * トレースの文脈（`traceparent`）は、**ここで作って付け直す**（ADR-0026）。ブラウザから届いたものは使わない。
+ * 呼び出し元に trace ID を選ばせない。
+ *
  * 中継先は**実行時の環境変数**から読む。`next.config.ts` の rewrites はビルド時に固定されるため、
  * 同じイメージを dev と本番で使い回せない。
  */
@@ -102,6 +106,8 @@ async function proxyApi(request: NextRequest) {
   const headers = new Headers(request.headers);
   // セッションの Cookie はバックエンドに要らない。トークンを余計な経路に流さない
   headers.delete("cookie");
+  headers.set("traceparent", newTraceParent());
+  headers.delete("tracestate");
 
   const session = await readSession(request.cookies);
   let refreshed: Awaited<ReturnType<typeof refreshTokens>> | undefined;

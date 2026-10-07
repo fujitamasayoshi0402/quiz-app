@@ -139,6 +139,7 @@ web はセキュリティのヘッダを付けている（開発ガイドライ�
 | API の 5xx、タスクの再起動、Outbox の滞留、通知の DLQ でアラームが鳴り、メールが届く | `modules/alarms`、`modules/quiz-service` |
 | 拒否したアクセス（所属していない、別のメールアドレスの招待）を WARN で残す | `ApiExceptionHandler` |
 | web の SSR のログ（例外、CSP の違反の報告）を CloudWatch Logs に残す | `modules/web` |
+| 1 回の操作を、web の proxy から通知まで 1 本のトレースで追う。trace ID はログにも載る。記録するかは quiz-service が決め、外から量を増やされない | [ADR-0026](adr/0026-trace-requests-with-micrometer-and-x-ray.md) |
 
 残るリスク（受け入れる）: 認可の拒否（403 / 404）が急に増えたことでは鳴らない。いまは利用者が少なく、ログを検索すれば足りる。
 

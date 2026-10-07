@@ -72,10 +72,43 @@ management:
     # DB に届かないときは、各 API がエラーを返すことで分かる
     db:
       enabled: false
+  # 分散トレース（ADR-0026）。送り先（同じタスクのコレクタ）は、AWS のタスク定義の環境変数
+  # MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT で渡す。無ければ送らない（ローカルとテスト）
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  opentelemetry:
+    tracing:
+      # 記録するかは、ここで trace ID から決める。呼び出し元（web の proxy、API を直接呼ぶ人）の印には従わない。
+      # 外から「記録する」の印を付けて送り続け、記録の量と費用を増やすことをさせない
+      sampler: trace-id-ratio
+  otlp:
+    metrics:
+      export:
+        # メトリクスは送らない。CloudWatch のメトリクスは、ログのメトリクスフィルタで作っている（modules/quiz-service の alarms.tf）
+        enabled: false
+  logging:
+    export:
+      otlp:
+        # ログも送らない。CloudWatch Logs に出している
+        enabled: false
 
 logging:
   level:
     org.flywaydb: INFO
+  structured:
+    json:
+      # trace ID と span ID を、ECS の名前（trace.id、span.id）で出す。Logs Insights で、トレースから同じ要求のログを引ける
+      rename:
+        traceId: trace.id
+        spanId: span.id
+
+# DB への接続と問い合わせを、トレースの区間にする（datasource-micrometer、ADR-0026）。
+# 問い合わせの値は載せない（SQL の文だけ）。結果の読み出しは区間にしない（行ごとに増える）
+jdbc:
+  includes: connection, query
+  datasource-proxy:
+    include-parameter-values: false
 
 app:
   auth:

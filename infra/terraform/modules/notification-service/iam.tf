@@ -54,6 +54,13 @@ data "aws_iam_policy_document" "this" {
     actions   = ["sqs:SendMessage"]
     resources = [aws_sqs_queue.dlq.arn]
   }
+
+  # アクティブトレース（ADR-0026）。X-Ray の書き込みは、リソースで絞れない
+  statement {
+    sid       = "WriteTraces"
+    actions   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "this" {

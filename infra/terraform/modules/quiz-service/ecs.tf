@@ -56,6 +56,35 @@ locals {
     { name = "LOGGING_STRUCTURED_FORMAT_CONSOLE", value = "ecs" },
   ]
 
+  # 分散トレース（ADR-0026）。アプリは同じタスクのコレクタへ OTLP で送り、コレクタが X-Ray へ送る。
+  # タスクの中のコンテナは、ネットワークを共有する（awsvpc）。コレクタは localhost でだけ受ける。
+  # マイグレーションのタスクには渡さない。送り先が無ければ、アプリはトレースを送らない
+  tracing_environment = [
+    { name = "MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT", value = "http://localhost:4318/v1/traces" },
+    { name = "TRACING_SAMPLING_PROBABILITY", value = tostring(var.tracing_sampling_probability) },
+  ]
+
+  # ADOT コレクタ。版はダイジェストで固定する（タグは付け替えられる）
+  otel_collector_image = "public.ecr.aws/aws-observability/aws-otel-collector:v0.50.0@sha256:7968fb60db6a2390a47ba6a2df029745638486e285c9b2487da1b722d0855a3e"
+
+  # コレクタの設定。受けたトレースを、まとめて X-Ray へ送るだけ。メトリクスとログは扱わない。
+  # memory_limiter は、コンテナのメモリの上限（128 MB）に届く前に受け付けを止める。アプリには影響しない（送れずに捨てる）
+  otel_collector_config = yamlencode({
+    extensions = { health_check = { endpoint = "localhost:13133" } }
+    receivers  = { otlp = { protocols = { http = { endpoint = "localhost:4318" } } } }
+    processors = {
+      memory_limiter = { check_interval = "1s", limit_mib = 100, spike_limit_mib = 20 }
+      batch          = { timeout = "1s" }
+    }
+    exporters = { awsxray = { region = data.aws_region.current.region } }
+    service = {
+      extensions = ["health_check"]
+      pipelines = {
+        traces = { receivers = ["otlp"], processors = ["memory_limiter", "batch"], exporters = ["awsxray"] }
+      }
+    }
+  })
+
   events_environment = [
     { name = "EVENTS_BUS_NAME", value = var.event_bus.name },
     { name = "EVENTS_ENDPOINT", value = "" },
@@ -99,6 +128,10 @@ resource "aws_ecs_task_definition" "app" {
     image     = local.image
     essential = true
 
+    # コレクタが起動してから起動する。受け手がいないうちのトレースを落とさない。
+    # 健全になるまでは待たない。コレクタが立ち上がらなくても、アプリは動く
+    dependsOn = [{ containerName = "otel-collector", condition = "START" }]
+
     portMappings = [{
       containerPort = local.quiz_service_port
       hostPort      = local.quiz_service_port
@@ -118,7 +151,7 @@ resource "aws_ecs_task_definition" "app" {
       startPeriod = 180
     }
 
-    environment = concat(local.auth_environment, local.datasource_environment, local.logging_environment, local.figures_environment, local.notifications_environment, local.events_environment, [
+    environment = concat(local.auth_environment, local.datasource_environment, local.logging_environment, local.figures_environment, local.notifications_environment, local.events_environment, local.tracing_environment, [
       { name = "SPRING_PROFILES_ACTIVE", value = join(",", var.spring_profiles) },
     ])
 
@@ -133,6 +166,33 @@ resource "aws_ecs_task_definition" "app" {
         awslogs-group         = aws_cloudwatch_log_group.quiz_service.name
         awslogs-region        = data.aws_region.current.region
         awslogs-stream-prefix = "app"
+      }
+    }
+    }, {
+    # 分散トレースのコレクタ（ADR-0026）。止まってもタスクは止めない（essential = false）。トレースが欠けるだけ
+    name      = "otel-collector"
+    image     = local.otel_collector_image
+    essential = false
+    memory    = 128
+
+    environment = [
+      { name = "AOT_CONFIG_CONTENT", value = local.otel_collector_config },
+    ]
+
+    healthCheck = {
+      command     = ["/healthcheck"]
+      interval    = 30
+      timeout     = 5
+      retries     = 3
+      startPeriod = 10
+    }
+
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.quiz_service.name
+        awslogs-region        = data.aws_region.current.region
+        awslogs-stream-prefix = "otel-collector"
       }
     }
   }])

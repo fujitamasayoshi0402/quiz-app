@@ -342,7 +342,8 @@ trivy image quiz-service:local                 # trivy.yaml を読む。止ま�
 1. **直せるなら直す。** 依存は修正版に上げる。Spring Boot が版を決める依存（Tomcat、Jackson など）は、`services/quiz-service/build.gradle.kts` の
    `extra["<名前>.version"]` で上書きする。プロパティの名前は Spring Boot の `spring-boot-dependencies` の pom にある。
    Spring Boot を上げて、同じか新しい版になったら上書きを消す
-2. ベースイメージの OS のパッケージは、ベースイメージの更新を待つ。CI は毎回、タグの最新を取り直す
+2. ベースイメージの OS のパッケージは、ベースイメージの更新を待つ。CI は毎回、タグの最新を取り直す。
+   web のイメージは、ビルドのときに Debian のセキュリティの更新を入れる（`apt-get upgrade`、DEV-132）。Node の版を固定したタグは、次の版が出ると作り直されないため
    修正版が公開から 7 日たっていなければ、pnpm が入れない。急ぐなら、`pnpm-workspace.yaml` の `minimumReleaseAgeExclude` に版まで書いて足し（`<名前>@<版>`）、7 日たったら外す。
    Dependabot の PR も同じ理由で作れないか、CI で止まる
 3. **直せないものは `.trivyignore.yaml` に足す。** 影響がない理由（`statement`）と、見直す期限（`expired_at`）を必ず書く。
@@ -360,7 +361,7 @@ pnpm --filter web test                  # web の単体テスト（Vitest）
 | --- | --- | --- |
 | 単体テスト | ドメインの不変条件、ユースケースの分岐。DB を使わない | `quiz/domain/QuizTest.kt`、`answer/usecase/AttemptUseCaseTest.kt` |
 | API テスト | コントローラから DB まで。Testcontainers の PostgreSQL を使う | `quiz/controller/QuizApiTest.kt` |
-| 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest`、`ModuleBoundaryTest` |
+| 構造のテスト | 規約が守られているか。守られていなければ落ちる | `TenantBoundaryApiTest`、`TenantIsolationTest`、`OpenApiSnapshotTest`、`ModuleBoundaryTest`、`QueryCountApiTest`（件数によって SQL が増えないか） |
 | スモークテスト | デプロイした環境で、主要な導線が通るか。Newman で流す | `tests/api/` |
 | web の単体テスト | 画面の部品が守る性質。DOM を使わず、HTML の文字列にして確かめる | `apps/web/src/components/markdown.test.tsx` |
 | E2E テスト | 画面をまたいだ流れ（ログイン、招待、ロールによる出し分け、作ったクイズを解く、中断と再開）。Playwright で流す | `tests/e2e/` |
@@ -1030,6 +1031,7 @@ TF_VAR_github_access_token=<トークン> terraform apply
 - DB へは AWS Advanced JDBC Wrapper の `iam` プラグインで接続する。接続先の URL が `jdbc:aws-wrapper:postgresql:` のときだけ使われ、
   ローカルは素の PostgreSQL ドライバのまま。違いはタスク定義の環境変数だけにある
 - ログは CloudWatch Logs の `/ecs/quiz-app-dev/quiz-service`（`app/` と `migrate/`）。JSON で出し、14 日で消える（[ログ](#ログquiz-service)）
+- タスクには、分散トレースのコレクタ（`otel-collector`、メモリ 128 MB まで）も入る（[分散トレース](#分散トレース)）
 - 起動に失敗したら、前のタスク定義に自動で戻る（デプロイサーキットブレーカー）
 - **深夜（2:00〜8:00、日本時間）は止める。** EventBridge Scheduler がタスクの数を 0 にし、朝に 1 に戻す（`schedule.tf`）。
   止まっている間、API は API Gateway が 503 を返し（送り先のタスクがない）、画面には「サーバーが止まっているか、起動の途中です」と出る。
@@ -1063,6 +1065,7 @@ Logs Insights が項目を読み取り、要求の ID やテナントで絞り�
 | `http.request.id` | 要求の ID。API Gateway の要求の ID を引き継ぐ（アクセスログの `requestId` と同じ値）。応答の `X-Request-Id` にも返る |
 | `tenant.id` | パスのテナント |
 | `user.id` | アプリの利用者の ID（`core.users.id`） |
+| `trace.id`、`span.id` | トレースの ID と区間の ID（[分散トレース](#分散トレース)）。入れ子ではなく、名前に `.` を含む 1 つの項目。Logs Insights では `` `trace.id` `` と書く |
 
 **載せるのは ID だけ。** メールアドレス、トークン、Webhook の URL は、文脈にもメッセージにも出さない（`RequestLogApiTest`、`SlackWebhookApiTest`）。
 
@@ -1096,6 +1099,35 @@ fields @timestamp, log.level, message, error.type, tenant.id, http.request.id
 | filter log.level in ["WARN", "ERROR"]
 | sort @timestamp desc
 ```
+
+#### 分散トレース
+
+1 回の操作を、web の proxy から quiz-service、DB、イベント、通知（Lambda）まで、1 本のトレースで追う（DEV-110。[ADR-0026](adr/0026-trace-requests-with-micrometer-and-x-ray.md)）。送り先は X-Ray。
+
+```
+web の proxy（traceparent を作る）→ API Gateway → quiz-service（HTTP、DB の接続と問い合わせ）→ 同じタスクのコレクタ → X-Ray
+quiz-service が Outbox に書く（traceparent も残す）→ PutEvents の TraceHeader → EventBridge → Lambda（アクティブトレース）→ X-Ray
+```
+
+- quiz-service は Micrometer Tracing（OpenTelemetry）で取り、同じタスクの ADOT コレクタ（`otel-collector`）へ OTLP で送る。
+  送り先は環境変数 `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT` で決まり、**ローカルとテストでは送らない**（trace ID は作られ、ログに載る）
+- **web の proxy は `traceparent` を毎回作り直す。** ブラウザから届いたものは使わない。web の中の時間はトレースに載らない
+- **記録するかは quiz-service が決める**（`trace-id-ratio`、割合は Terraform の `tracing_sampling_probability`。dev はすべて）。呼び出し元の印には従わない。外から記録の量を増やされないようにする
+- trace ID の先頭 8 桁は、作った時刻（エポック秒）。X-Ray は、先頭が時刻として読めない trace ID を捨てることがある。web と quiz-service が同じ形で作る
+- DB の区間は、接続（プールからの取り出し。止まっている Aurora の復帰を待つ時間を含む）と問い合わせ。SQL の文は載り、値は載らない
+- トレースにしないもの: ヘルスチェック、定期的な処理（拾い直し、整合性の確認）と、その中の DB の操作。拾い直しで送ったイベントは、Outbox の行に残した文脈で元の要求につながる
+- コレクタは止まってもタスクを止めない（`essential = false`）。トレースが欠けるだけ。コレクタのログは `/ecs/quiz-app-dev/quiz-service` の `otel-collector/`
+
+ログ（JSON）の各行に `trace.id` と `span.id` が載る。要求の ID（`http.request.id`）と並ぶので、行き来できる。
+
+```
+# トレースの ID から、その要求のログを引く（ロググループ /ecs/quiz-app-dev/quiz-service）
+fields @timestamp, log.level, message, http.request.id
+| filter `trace.id` = "<trace ID>"
+| sort @timestamp asc
+```
+
+トレースは、CloudWatch のコンソールの「トレース」（X-Ray）で、trace ID かサービスの地図から開く。X-Ray は trace ID を `1-<先頭 8 桁>-<残り 24 桁>` の形で表示する。
 
 #### データの整合性
 
@@ -1200,7 +1232,7 @@ terraform output -raw dashboard_url
 
 載せていないもの。
 
-- トレース（要求が web から quiz-service、イベントまでどう流れたか）は、DEV-110 で入れる
+- トレース（要求が web から quiz-service、イベントまでどう流れたか）は、X-Ray で見る（[分散トレース](#分散トレース)）
 - Amplify（web）の SSR の時間とエラーは、Amplify のコンソールで見る。SSR のログは `/aws/amplify/<アプリの ID>` にある
 
 費用はかからない。ダッシュボードは 3 つ（それぞれメトリクス 50 個）まで無料で、これは 1 つ・約 20 個。
@@ -1541,6 +1573,7 @@ gh variable set AUTH_CLIENT_ID --env dev --body "$(terraform output -raw auth_cl
 | Secrets Manager（Aurora のマスター） | 0.4 ドル | 続く |
 | 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |
 | 通知（Lambda、DynamoDB、SQS） | イベントの数だけで、dev の量ではほぼ 0 | — |
+| 分散トレース（X-Ray、コレクタ） | 月 10 万件の記録まで無料。コレクタは quiz-service のタスクの中で、タスクの費用は増えない | — |
 | アラームとダッシュボード（CloudWatch のアラーム 5 つ、メトリクスフィルタのメトリクス 4 つ、ダッシュボード 1 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |

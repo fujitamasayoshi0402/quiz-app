@@ -8,22 +8,20 @@ import com.quizapp.tenant.TenantContext
 import org.springframework.stereotype.Component
 import java.util.UUID
 
+/** 1 件は集約のまま Spring Data JDBC で、何件もまとめて読むものは [QuizListJdbc] で読む */
 @Component
-class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository) : QuizRepository {
+class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository, private val listJdbc: QuizListJdbc) :
+    QuizRepository {
 
     override fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> =
-        jdbcRepository.search(categoryId, difficultyId, status?.name?.lowercase()).map { it.toDomain() }
+        listJdbc.search(categoryId, difficultyId, status?.name?.lowercase())
 
     override fun findById(id: UUID): Quiz? = jdbcRepository.findActiveById(id)?.toDomain()
 
     override fun findPublishedCandidates(categoryId: UUID?, difficultyId: UUID?, level: Int?): List<Quiz> =
-        jdbcRepository.findPublishedCandidates(categoryId, difficultyId, level).map { it.toDomain() }
+        listJdbc.findPublishedCandidates(categoryId, difficultyId, level)
 
-    override fun findPublishedByIds(ids: List<UUID>): List<Quiz> {
-        // IN 句に空のリストを渡すと SQL が壊れる
-        if (ids.isEmpty()) return emptyList()
-        return jdbcRepository.findPublishedByIds(ids).map { it.toDomain() }
-    }
+    override fun findPublishedByIds(ids: List<UUID>): List<Quiz> = listJdbc.findPublishedByIds(ids)
 
     override fun save(quiz: Quiz): Quiz {
         val tenantId = TenantContext.require()
