@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# スモークテストの利用者でアクセストークンを取り、標準出力に書く。GitHub Actions（deploy-dev.yml）と手元の両方から使う。
+# スモークテストの利用者でアクセストークンを取り、標準出力に書く。GitHub Actions（deploy.yml）と手元の両方から使う。
 #
 #   AUTH_CLIENT_SECRET=... SMOKE_USER_PASSWORD=... smoke-token.sh <web のクライアント ID> <メールアドレス>
 #

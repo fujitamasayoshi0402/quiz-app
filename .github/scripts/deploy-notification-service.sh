@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# notification-service（Lambda）のコードを載せ替える。GitHub Actions（deploy-dev.yml）から呼ぶ。手元からも同じ手順で流せる。
+# notification-service（Lambda）のコードを載せ替える。GitHub Actions（deploy.yml）から呼ぶ。手元からも同じ手順で流せる。
 #
 #   deploy-notification-service.sh <関数名> <zip> <コミット>
 #

@@ -225,3 +225,23 @@ module "web" {
 
   log_retention_days = 30
 }
+
+# GitHub Actions が prod へのデプロイに使うロール（DEV-134）。dev のロールとは別。
+# 引き受けられるのは Environment prod のジョブだけで、prod は main からだけ使える（GitHub の設定）。dev のジョブは引き受けられない
+module "deploy_role" {
+  source = "../../modules/deploy-role"
+
+  name                  = "quiz-app-prod"
+  github_subject_prefix = "repo:fujitamasayoshi0402@62087486/quiz-app@1379474045"
+  github_environment    = "prod"
+
+  ecr_repository_arn       = module.quiz_service.ecr_repository_arn
+  ecs_cluster_arn          = module.quiz_service.cluster_arn
+  ecs_service_arn          = module.quiz_service.service_arn
+  task_definition_families = module.quiz_service.task_definition_families
+  task_role_arns           = module.quiz_service.task_role_arns
+
+  amplify_branch_arn = module.web.branch_arn
+
+  notification_function_arn = module.notification_service.function_arn
+}

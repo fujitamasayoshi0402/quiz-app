@@ -48,7 +48,7 @@ jobs:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
-          # 一覧は deploy-dev.yml と共有している
+          # 一覧は deploy.yml と共有している
           filters: .github/path-filters.yml
 
   backend:
@@ -449,7 +449,26 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: ./.github/workflows/deploy-dev.yml
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: dev
     # 渡さないと、呼び出した先のジョブが Environment dev を使っていても、その secret（AWS_ROLE_ARN など）が空になる。
     # ドキュメントの説明とは違うが、ランナーの既知の挙動（actions/runner#4453）
+    secrets: inherit
+
+  # main に入ったら prod に載せる（DEV-134、ADR-0024）。develop から main への PR がリリース。
+  # デプロイのジョブは Environment prod の承認を待ってから動き出す。条件と、何を載せるかの決め方は dev と同じ
+  deploy-prod:
+    name: deploy-prod
+    needs: [ci]
+    if: >-
+      !cancelled() && needs.ci.result == 'success'
+      && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      # 載せたあとに、リリース（タグとリリースノート）を作る
+      contents: write
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: prod
     secrets: inherit

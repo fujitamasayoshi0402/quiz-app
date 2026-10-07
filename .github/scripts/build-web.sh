@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# web を Amplify Hosting でビルドし、配信が切り替わるまで待つ（ADR-0012）。GitHub Actions（deploy-dev.yml）から呼ぶ。
+# web を Amplify Hosting でビルドし、配信が切り替わるまで待つ（ADR-0012）。GitHub Actions（deploy.yml）から呼ぶ。
 #
 #   build-web.sh <Amplify のアプリの ID> <ブランチ> <コミット>
 #

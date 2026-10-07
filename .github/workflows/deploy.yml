@@ -1,9 +1,12 @@
-name: deploy-dev
+name: deploy
 
-# develop に入ったものを dev に載せる。ci.yml が、develop への push でチェックが通ったあとに呼ぶ。
+# dev と prod に載せる。手順は同じで、名前と Environment だけが違う（ADR-0024）。
+#   dev  … develop に入ったもの。ci.yml が、develop への push でチェックが通ったあとに呼ぶ
+#   prod … main に入ったもの（develop から main への PR がリリース）。ci.yml が、main への push でチェックが通ったあとに呼ぶ。
+#          **Environment prod の承認を待ってから動く**（DEV-134）
 # Actions の画面から手で流すこともできる（Terraform でタスク定義の形を変えたあとなど）。
 #
-# **何を載せるかは、dev でいま動いているものと比べて決める**（DEV-79）。quiz-service、web、notification-service のそれぞれで、
+# **何を載せるかは、その環境でいま動いているものと比べて決める**（DEV-79）。quiz-service、web、notification-service のそれぞれで、
 # 動いているもののコミットから develop の先頭までに、関わるパス（.github/path-filters.yml）が変わっていれば載せる。
 # 直前の push との差で決めると、続けてマージして待ちの実行が取り消されたとき、その分が載らない。
 #
@@ -14,8 +17,9 @@ name: deploy-dev
 # notification-service（Lambda）は、quiz-service より先に載せる（DEV-99）。受け手は、新しい版のイベントを読めるようにしてから
 # 送る側を替える（ADR-0022）。載せたコミットは関数のタグ（DeployedCommit）に残し、次のデプロイがこれと比べる
 #
-# どれも GitHub の Environment dev で動く。dev は develop からしか使えず、
-# AWS のロールも、この Environment のジョブにしか引き受けさせない（modules/deploy-role）
+# GitHub の Environment（dev / prod）で動く。dev は develop から、prod は main からしか使えない。
+# AWS のロールは環境ごとに別で、その Environment のジョブにしか引き受けさせない（modules/deploy-role）。
+# Environment ごとの secret と variable（AWS_ROLE_ARN、AMPLIFY_APP_ID など）は同じ名前で、Environment が値を決める
 # 入力の backend、frontend、notification は auto（動いているものと比べる）/ deploy（必ず載せる）/ skip（載せない）。
 # Terraform でタスク定義の形を変えたあとは、コミットが同じでも載せ直すため deploy を指定する。
 # migration は auto（動いているものと比べる）/ run（必ず流す）。**飛ばす指定は持たない。** DB に流れるものを変えたコミットを、
@@ -23,6 +27,10 @@ name: deploy-dev
 on:
   workflow_call:
     inputs:
+      environment:
+        description: 載せる先（dev / prod）
+        type: string
+        required: true
       backend:
         description: quiz-service をデプロイするか（auto / deploy / skip）
         type: string
@@ -41,6 +49,11 @@ on:
         default: auto
   workflow_dispatch:
     inputs:
+      environment:
+        description: 載せる先。prod は main からだけ流せる（Environment prod の決まり）
+        type: choice
+        options: [dev, prod]
+        default: dev
       backend:
         description: quiz-service をデプロイするか
         type: choice
@@ -69,12 +82,13 @@ permissions:
 
 env:
   AWS_REGION: ap-northeast-1
-  ECR_REPOSITORY: quiz-app-dev/quiz-service
-  ECS_CLUSTER: quiz-app-dev
+  ECR_REPOSITORY: quiz-app-${{ inputs.environment }}/quiz-service
+  ECS_CLUSTER: quiz-app-${{ inputs.environment }}
   ECS_SERVICE: quiz-service
-  MIGRATE_FAMILY: quiz-app-dev-quiz-service-migrate
-  AMPLIFY_BRANCH: develop
-  NOTIFICATION_FUNCTION: quiz-app-dev-notification-service
+  MIGRATE_FAMILY: quiz-app-${{ inputs.environment }}-quiz-service-migrate
+  # Amplify は環境ごとにアプリが別で、配るブランチも違う（modules/web）
+  AMPLIFY_BRANCH: ${{ inputs.environment == 'prod' && 'main' || 'develop' }}
+  NOTIFICATION_FUNCTION: quiz-app-${{ inputs.environment }}-notification-service
 
 jobs:
   deploy:
@@ -82,15 +96,18 @@ jobs:
     # ECS のタスクは arm64（Graviton）。エミュレーションを挟まずにイメージを作る
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
+    # prod は、この Environment の承認を待ってから動き出す。承認の画面で、載せるコミットを確かめる
     environment:
-      name: dev
-      # 独自ドメインではなく Amplify の既定のドメインを載せる。どちらもベーシック認証がかかる
+      name: ${{ inputs.environment }}
+      # 独自ドメインではなく Amplify の既定のドメインを載せる。スモークテストもここに向けて流す
       url: https://${{ env.AMPLIFY_BRANCH }}.${{ vars.AMPLIFY_APP_ID }}.amplifyapp.com
     # 後から始まったデプロイは、先のデプロイが終わるまで待つ。追い越すと、古いコミットが後から載りうる。
     # 動いているものは止めない。マイグレーションの途中で止めると、どこまで流れたかが分からなくなる
     concurrency:
-      group: deploy-dev
+      group: deploy-${{ inputs.environment }}
       cancel-in-progress: false
+    outputs:
+      deployed: ${{ steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true' || steps.plan.outputs.notification == 'true' }}
     steps:
       # 動いているもののコミットとの差を取るため、履歴をすべて取る
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -104,7 +121,7 @@ jobs:
           # リポジトリは Public で、ログも誰でも読める。イメージの URL などに含まれるアカウント ID を伏せる
           mask-aws-account-id: true
 
-      - name: dev で動いているものを調べる
+      - name: 動いているものを調べる
         id: deployed
         run: >-
           .github/scripts/deployed-commits.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$AMPLIFY_APP_ID" "$AMPLIFY_BRANCH" "$NOTIFICATION_FUNCTION"
@@ -288,3 +305,21 @@ jobs:
           AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
           SMOKE_USER_EMAIL: smoke@example.com
           SMOKE_USER_PASSWORD: ${{ secrets.SMOKE_USER_PASSWORD }}
+
+  # prod に載せたら、リリースとして記録する（DEV-134）。タグと、前のリリースからの PR の一覧（リリースノート）を GitHub が作る。
+  # 何も載せなかったとき（ドキュメントだけのリリース）は作らない。戻すときは、前のリリースのタグを見る
+  release:
+    name: release
+    needs: [deploy]
+    if: inputs.environment == 'prod' && needs.deploy.outputs.deployed == 'true'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - name: リリースを作る
+        run: |
+          TAG="release-$(date -u +%Y%m%d-%H%M%S)"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --title "$TAG"
+          echo "- リリース: ${TAG}（${GITHUB_SHA::12}）" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ github.token }}

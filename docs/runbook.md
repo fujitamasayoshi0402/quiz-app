@@ -205,7 +205,7 @@ GitHub から通知が届く。`CI` のワークフローの `deploy-dev` のジ
 やり直すときは、ジョブを再実行するか、デプロイを手で流す。
 
 ```bash
-gh workflow run deploy-dev.yml --ref develop
+gh workflow run deploy.yml --ref develop
 ```
 
 ## 戻す・流し直す
@@ -228,6 +228,26 @@ aws ecs update-service --cluster quiz-app-dev --service quiz-service \
 
 - **マイグレーションは戻さない。** マイグレーションは 1 つ前のアプリと両立させる規約のため（[マイグレーション](development-guidelines.md#マイグレーション)）、前のアプリはそのまま動く
 - 戻ったかは、`aws ecs describe-services --cluster quiz-app-dev --services quiz-service --query 'services[0].deployments'` で見る
+
+### prod のリリースを戻す
+
+すぐに戻すための手当て（DEV-134）。**直したものは、develop で壊した PR を revert し、もう一度リリースする。**
+戻したままにすると、次のリリースが main の先頭を載せ直す（動いているものが古いため）。
+
+1. 戻す先を決める。前のリリースのタグ（`gh release list`）のコミット
+2. quiz-service は、前のリビジョンに戻す。上の「[quiz-service を前のリビジョンに戻す](#quiz-service-を前のリビジョンに戻す)」の `quiz-app-dev` を `quiz-app-prod` に読み替える
+3. web は、前のリリースのコミットで Amplify のビルドを流す
+
+   ```bash
+   cd infra/terraform/envs/prod
+   aws amplify start-job --app-id "$(terraform output -raw web_amplify_app_id)" --branch-name main \
+     --job-type RELEASE --commit-id <前のリリースのコミット（40 桁）>
+   ```
+
+4. notification-service は、前のリリースのコミットを手元に取り出し、zip を作って載せる（「[デプロイ](development-guidelines.md#デプロイ)」の手元から流す手順）
+
+- **マイグレーションは戻さない。** 1 つ前のアプリと両立させる規約のため、前のアプリはそのまま動く
+- 戻したあと、スモークテストを手元から流して確かめる（開発ガイドラインの「[スモークテスト](development-guidelines.md#スモークテスト)」。`baseUrl` を prod にする）
 
 ### 通知をアーカイブから流し直す
 
@@ -286,7 +306,7 @@ aws rds describe-db-clusters --db-cluster-identifier quiz-app-dev \
 
    ```bash
    terraform apply -var 'database_restore={restore_to_time="<1 と同じ>",use_for_app=true}'
-   gh workflow run deploy-dev.yml --ref develop -f backend=deploy -f frontend=skip
+   gh workflow run deploy.yml --ref develop -f backend=deploy -f frontend=skip
    ```
 
 4. スモークテストが通り、画面からデータが見えることを確かめる
