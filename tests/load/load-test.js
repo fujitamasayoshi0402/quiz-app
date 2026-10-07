@@ -182,7 +182,11 @@ function send(token, method, path, name, expected, body, area = 'play') {
     headers: { ...auth(token), 'Content-Type': 'application/json' },
     tags: { name, area },
   });
-  if (!check(res, { [`${name} が ${expected}`]: (r) => r.status === expected })) return null;
+  if (!check(res, { [`${name} が ${expected}`]: (r) => r.status === expected })) {
+    // 失敗したら 1 秒待つ。手元の通信が切れたとき、待たずに繰り返すと、1 秒に数千回の失敗でログが埋まる
+    sleep(1);
+    return null;
+  }
   return res.body ? res.json() : {};
 }
 
