@@ -1,6 +1,7 @@
 # マイグレーションだけを流して終了する。デプロイではアプリを入れ替える前に、同じイメージを単発で起動する。
 #   SPRING_PROFILES_ACTIVE=migrate       … スキーマのみ
-#   SPRING_PROFILES_ACTIVE=dev,migrate   … デモ用のシードも流す（application-dev.yml）
+#   SPRING_PROFILES_ACTIVE=dev,migrate   … デモ用のシードとスモークテストのテナントも流す（application-dev.yml）
+#   SPRING_PROFILES_ACTIVE=prod,smoke,migrate … スモークテストのテナントだけを流す（application-smoke.yml）
 # 終了は QuizServiceApplication の main が行う。
 spring:
   main:

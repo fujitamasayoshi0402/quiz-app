@@ -4,6 +4,8 @@ import org.assertj.core.api.Assertions.assertThatCode
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.config.YamlPropertiesFactoryBean
+import org.springframework.core.io.ClassPathResource
 import org.springframework.mock.env.MockEnvironment
 
 /**
@@ -35,6 +37,16 @@ class SeedDataGuardTest {
     fun productionWithoutSeedStarts() {
         assertThatCode { SeedDataGuard(environment("prod", "classpath:db/migration")).verify() }
             .doesNotThrowAnyException()
+    }
+
+    @Test
+    @DisplayName("本番プロファイルでも、スモークテストのテナント（smoke）だけなら起動する")
+    fun productionWithSmokeSeedStarts() {
+        val locations = YamlPropertiesFactoryBean().apply { setResources(ClassPathResource("application-smoke.yml")) }
+            .getObject()!!
+            .getProperty("spring.flyway.locations")
+
+        assertThatCode { SeedDataGuard(environment("prod", locations)).verify() }.doesNotThrowAnyException()
     }
 
     @Test
