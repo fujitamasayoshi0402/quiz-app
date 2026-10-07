@@ -11,7 +11,7 @@
 | 進め方 | [0001](0001-record-architecture-decisions.md) ADR を残す / [0004](0004-split-services-incrementally.md) サービスは段階的に分ける / [0023](0023-keep-answer-as-module-in-quiz-service.md) 回答・採点はモジュールのまま分けない |
 | 技術スタック | [0002](0002-use-kotlin-and-spring-boot.md) Kotlin + Spring Boot / [0008](0008-use-spring-boot-4.md) Spring Boot 4 / [0009](0009-use-spring-data-jdbc.md) Spring Data JDBC / [0003](0003-use-nextjs-for-frontend.md) Next.js |
 | テナントとデータ | [0006](0006-row-level-multi-tenancy.md) 行単位のマルチテナント（RLS） / [0007](0007-soft-delete-master-data.md) マスタデータの論理削除 / [0025](0025-let-signed-in-users-join-public-tenants.md) 公開テナントへの参加 |
-| 認証 | [0016](0016-authenticate-with-cognito-managed-login.md) Cognito の Managed Login、利用者の ID を切り離す |
+| 認証 | [0016](0016-authenticate-with-cognito-managed-login.md) Cognito の Managed Login、利用者の ID を切り離す / [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) パスキーの自前実装の設計。いまは Cognito を使い続ける |
 | API | [0010](0010-generate-openapi-from-code.md) OpenAPI をコードから生成する / [0019](0019-expose-api-through-api-gateway-http-api.md) 入口は API Gateway（HTTP API） |
 | 解説と解説図 | [0018](0018-write-explanations-in-markdown-and-render-on-screen.md) 解説は Markdown / [0017](0017-deliver-figures-with-cloudfront-signed-urls.md) 図は CloudFront の署名付き URL で配る / [0020](0020-reference-figures-from-explanations-and-add-images-and-pdfs.md) 画像と PDF、`figure:` で指す / [0021](0021-render-first-page-of-pdfs-as-images.md) PDF の 1 ページ目を画像にする |
 | イベントと通知 | [0022](0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md) Outbox から EventBridge、テナントごとの Slack へ |
@@ -28,6 +28,7 @@
 | [0005](0005-use-cognito-passkeys.md) | [0016](0016-authenticate-with-cognito-managed-login.md) | Cognito のパスキーと Group のロールから、Managed Login（パスワードとパスキー）に。ロールと利用者の ID はアプリのデータで持つ（全体を置き換え） |
 | [0012](0012-serve-frontend-on-amplify-hosting.md) | [0019](0019-expose-api-through-api-gateway-http-api.md) | quiz-service の入口を ALB から API Gateway に替え、秘密のヘッダをやめた（一部を置き換え） |
 | [0020](0020-reference-figures-from-explanations-and-add-images-and-pdfs.md) | [0021](0021-render-first-page-of-pdfs-as-images.md) | 0020 で後に回した PDF の見せ方を決めた。リンクで開くのに加え、1 ページ目を画像にして解説の中に出す（一部を置き換え） |
+| [0016](0016-authenticate-with-cognito-managed-login.md) | [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) | 自前の実装への差し替えを設計したうえで、見送った。0016 は有効のまま（見直して変えなかった） |
 | [0004](0004-split-services-incrementally.md) | [0022](0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)、[0023](0023-keep-answer-as-module-in-quiz-service.md) | 未決にしていたイベントの送り方と、回答・採点を分けるかを決めた（未決の点を決めた） |
 
 ## 一覧
