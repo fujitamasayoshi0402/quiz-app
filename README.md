@@ -201,8 +201,8 @@ pnpm install && pnpm --filter web dev
 
 ## ステータス
 
-Phase 1（ローカルで動く MVP）、Phase 2（AWS 基盤と継続的デリバリ）、Phase 4（管理機能の作り込み）、Phase 5（イベント駆動と Slack 通知）を終えています。
-いまは Phase 6（品質と運用）と Phase 7（公開）を進めています。Phase 3（パスキー認証とロール分離）は Cognito で動かし、パスキーの自前実装は設計を決めたうえで見送りました（[ADR-0027](docs/adr/0027-design-self-hosted-passkeys-and-keep-cognito.md)）。
+Phase 1（ローカルで動く MVP）から Phase 5（イベント駆動と Slack 通知）までを終えています。
+いまは Phase 6（品質と運用）の prod 環境と、Phase 7（公開）を進めています。Phase 3（パスキー認証とロール分離）は Cognito で動かし、パスキーの自前実装は設計を決めたうえで見送りました（[ADR-0027](docs/adr/0027-design-self-hosted-passkeys-and-keep-cognito.md)）。
 
 - クイズ・カテゴリ・難易度の管理から、出題・回答・結果の確認までひと通り動きます。回答の履歴、カテゴリごとの正答率、テナント内のランキングも見られます。スマホの幅でも操作できます
 - 解説は Markdown で書き、draw.io で描いた図と、画像・PDF を入れられます。PDF は 1 ページ目を画像にして解説の中に出します
