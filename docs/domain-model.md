@@ -33,6 +33,18 @@
 参加すると、一般ユーザーとして所属します。**招待で入った所属と区別しません。** 経路を持たないため、非公開に戻しても所属は残ります。
 公開であっても、クイズを読むのは所属してからです。所属していない人に、テナントの中身は見えません。
 
+### テナントの作成
+
+ログインした人は、自分のテナントを 1 つ作れます（[ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)）。作った人は、そのテナントの管理者として所属します。
+**作った人（`created_by`）を持つテナントを「利用者が作ったテナント」と呼びます。** 運用者がシードや運用の手順で作ったテナントは、作った人を持ちません。
+
+利用者が作ったテナントには、次の決まりがあります。
+
+- 1 人が持てるのは 1 つ（削除されていないもの）
+- クイズと図の数に上限がある。上限はテナントの列に持ち、空なら上限なし
+- 公開設定は `private` のまま変えられない
+- 共有のアカウント（デモのアカウント）は作れない。利用者の印で見分ける
+
 ---
 
 ## カテゴリ
@@ -315,6 +327,7 @@ AWS の資格のように、**同じ難度帯に複数の種類が並ぶ**体系
 ```mermaid
 erDiagram
     tenants ||--o{ tenant_members : "所属"
+    users |o--o| tenants : "作る（1 人 1 つ）"
     users ||--o{ tenant_members : "所属"
     tenants ||--o{ categories : "持つ"
     tenants ||--o{ attempts : "持つ"
@@ -335,6 +348,9 @@ erDiagram
         string slug UK "URL 用"
         string name
         string visibility "private / public"
+        uuid created_by FK "作った人。運用者が作ったものは空"
+        int quiz_limit "クイズの上限。空なら上限なし"
+        int figure_limit "図の上限。空なら上限なし"
     }
     tenant_members {
         uuid id PK
@@ -346,6 +362,7 @@ erDiagram
         uuid id PK
         string external_id UK "認証基盤の利用者の ID（sub）"
         string email UK "確認済みのメールアドレス"
+        boolean shared "共有のアカウント（デモ）か"
     }
     categories {
         uuid id PK
