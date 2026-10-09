@@ -4,9 +4,6 @@
 個々の技術選定の根拠は [ADR](adr/) に、開発規約は [開発ガイドライン](development-guidelines.md) に、
 日々のタスクは Jira に分離しています。
 
-扱う題材は技術知識（AWS / インフラ、イベント駆動・マイクロサービス設計、認証認可、バックエンド設計）です。
-本プロジェクトの実装で調べた内容や判断に迷った論点が、そのままクイズと図解解説の題材になります。
-
 ## なぜこの順序で作るのか
 
 多機能なアプリを一度に設計すると、完成するまで誰にも見せられない期間が長くなります。
@@ -20,112 +17,146 @@
    パスキー（WebAuthn）は実装コストが読みにくい。スタブ認証で先に業務ロジックを完成させ、認証は独立した差し替え作業にする。
 4. **サービス分割は最後に行う**（Phase 5）
    マイクロサービスを最初から細かく割ると、ドメイン境界が固まる前に分割線を引くことになり、結合と手戻りを招く。
-   まずは単一サービス内でモジュールとして実装し、**DB スキーマとドメインイベントで境界だけ先に引いておく**。実際の物理分割は、境界が安定してから行う。
+   まずは単一サービス内でモジュールとして実装し、**DB スキーマとドメインイベントで境界だけ先に引いておく**。実際の物理分割は、境界が安定してから判断する。
+   回答・採点は、判断の結果として分けないことにした（[ADR-0023](adr/0023-keep-answer-as-module-in-quiz-service.md)）。
 5. **運用（監視・テスト・Runbook）を作り込んでから公開する**（Phase 6 → 7）
    動くことよりも「運用を説明できること」を重視する。
 
 ---
 
-## Phase 0: 準備 ✅ 一部完了
+## Phase 0: 準備 ✅ 完了
 
 **ゴール: 開発を始められる状態**
 
 - [x] GitHub リポジトリ `quiz-app` 作成（Public。Free プランでは Private だとブランチ保護が使えないため）
 - [x] ブランチ保護（Rulesets: main / develop への直 push・force push・削除を禁止、PR 必須）
 - [x] `.gitignore` / README.md
-- [ ] CI 構築後に必須ステータスチェックを Ruleset へ追加
-- [ ] monorepo のディレクトリ雛形 + `.editorconfig`
-- [ ] Jira プロジェクト作成（キー: `QUIZ`）、Phase 単位で Epic を登録
-- [ ] GitHub ↔ Jira 連携（Smart Commits）
-- [ ] ADR-0001 ADR を採用する／0002 Kotlin + Spring Boot／0003 Next.js／0004 マイクロサービスの段階的分割／0005 Cognito パスキー
-- [ ] 要件整理: 画面一覧・ユースケース・ER 図初版（draw.io）
-- [ ] クイズのカテゴリ体系と難易度定義（AWS / インフラ、イベント駆動・マイクロサービス、認証認可、バックエンド設計）
-- [ ] ローカル環境: Java 21 (SDKMAN)、pnpm、Docker Compose (PostgreSQL)
-- [ ] AWS アカウント準備、IAM Identity Center、請求アラート
+- [x] 必須ステータスチェックを Ruleset へ追加（集約ジョブ `ci` のみを指定）
+- [x] monorepo のディレクトリ雛形 + `.editorconfig`
+- [x] Jira プロジェクト作成（課題キー `DEV`）
+- [x] Phase 単位で Epic を登録
+- [x] GitHub ↔ Jira 連携（Smart Commits）
+- [x] ADR-0001〜0005（ADR の採用 / Kotlin + Spring Boot / Next.js / サービスの段階的分割 / Cognito パスキー）
+- [x] 要件整理: [ユースケース・画面一覧・URL 構成](requirements.md)、[ER 図初版](domain-model.md#er-図初版)
+- [x] カテゴリと難易度の持ち方を決定（[ドメインモデル](domain-model.md)）
+- [x] ローカル環境: mise（Java 21 / Node.js / pnpm）、Docker Compose（PostgreSQL / LocalStack）
+- [x] AWS アカウント準備、IAM Identity Center、請求アラート
 
-**成果物**: リポジトリ、ADR 5 本、ER 図、Jira バックログ
+**成果物**: リポジトリ、ADR 10 本、要件定義・ドメインモデル・ER 図、Jira バックログ
 
 ---
 
-## Phase 1: MVP — ローカルで動くクイズアプリ
+## Phase 1: MVP — ローカルで動くクイズアプリ ✅ 完了
 
-**ゴール: 管理者がクイズを作り、ユーザーが解ける**
+**ゴール: 管理者が自分のテナントにクイズを作り、所属ユーザーが解ける**
 
-- [ ] DB 設計: `categories` / `difficulties` / `quizzes` / `choices` / `answers` / `users`
-- [ ] Flyway マイグレーション
-- [ ] quiz-service: カテゴリ・難易度・クイズの CRUD API
-- [ ] quiz-service: 出題 API（カテゴリ / 難易度でフィルタ）、回答 API（採点 + 解説返却）
-- [ ] OpenAPI 定義 + フロントの型を自動生成
-- [ ] Next.js: 出題 / 回答 / 結果画面、管理画面のクイズ一覧・作成・編集
-- [ ] 認証はスタブ（ヘッダでロール切替）。Phase 3 で差し替える前提の境界を切っておく
-- [ ] テスト: サービス層の単体テスト、Testcontainers による API 統合テスト
-- [ ] GitHub Actions: lint / test / build（PR 時）
-- [ ] `docker compose up` で一発起動
-- [ ] シードデータ: 各カテゴリ数問ずつの初期クイズ（開発中に調べた内容から作成）
+- [x] DB 設計: [スキーマ定義と制約](db-schema.md)
+- [x] テナント配下の全テーブルに `tenant_id` と RLS ポリシーを設定
+- [x] **RLS とコネクションプールの検証**: `SET LOCAL` 相当で解決。接続プール 1 本のテストで確認済み
+- [x] Flyway マイグレーション
+- [x] quiz-service: カテゴリと難易度の CRUD API
+- [x] quiz-service: クイズの CRUD API（下書き / 公開の状態を含む）
+- [x] quiz-service: 出題 API（カテゴリ / 難易度 / レベルでフィルタ、出題対象・並び・出題数の指定）
+- [x] quiz-service: 挑戦と回答 API（挑戦の開始・採点 + 解説返却・結果）
+- [x] OpenAPI 定義 + フロントの型を自動生成（コードから生成しスナップショットを固定）
+- [x] Next.js: 出題 / 回答 / 結果画面（学習モードと模試モード）
+- [x] Next.js: 管理画面（クイズ・カテゴリ・難易度の管理、削除済み一覧からの復活）
+- [x] 論理削除と削除済み一覧からの復活（連鎖削除・連鎖復活を含む）
+- [x] 回答の中断と再開（挑戦をサーバーに保存。別端末からも再開できる）
+- [x] 認証はスタブ（`X-User-Id` ヘッダ）。ロールと所属は DB から引く。Phase 3 で差し替える前提の境界を切っておく
+- [x] テナントの選択（所属の数で出し分け、ヘッダから切り替え）
+- [x] テスト: ドメイン・ユースケースの単体テスト、Testcontainers による API テスト、カバレッジの計測
+- [x] セキュリティテスト: 別テナントの ID を指定したアクセスが結果を返さないことを全エンドポイントで検証
+- [x] GitHub Actions: lint / test / build（PR 時）
+- [x] `docker compose up` で一発起動
+- [x] シードデータ: 各カテゴリ数問ずつの初期クイズ（`dev` プロファイルでのみ投入）
 
 **デモできること**: ローカルでクイズの作成から回答までひと通り
 
 ---
 
-## Phase 2: AWS 基盤と継続的デリバリ
+## Phase 2: AWS 基盤と継続的デリバリ ✅ 完了
 
 **ゴール: develop への merge で dev 環境に自動デプロイされる**
 
-- [ ] Terraform: tfstate バックエンド（S3 + ロック）、環境分割（dev / prod）
-- [ ] ネットワーク: VPC / Subnet / SecurityGroup / VPC Endpoint（NAT Gateway は使わない）
-- [ ] データ: Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止）+ Secrets Manager
-- [ ] 0 ACU 検証: 一時停止の発動条件、復帰時間、HikariCP の `minimum-idle: 0` 設定、初回アクセスのリトライ
-- [ ] 実行基盤: ECR、ECS Fargate、ALB、ACM、Route 53（独自ドメイン）
-- [ ] フロント配信: Amplify Hosting か CloudFront + ECS（ADR で決定）
-- [ ] GitHub Actions: OIDC で AssumeRole、イメージ build/push、ECS デプロイ、Flyway 実行
-- [ ] gitleaks による secret スキャンを CI と pre-commit に追加
-- [ ] コスト: Budget アラート、dev の夜間停止（EventBridge Scheduler）
+- [x] Terraform: tfstate バックエンド（S3 + ロック）、環境分割（dev / prod）
+- [x] ネットワーク: VPC / Subnet / SecurityGroup。NAT Gateway も VPC Endpoint も使わず、ECS のタスクをパブリックサブネットに置く（[ADR-0013](adr/0013-run-ecs-tasks-in-public-subnets.md)）
+- [x] データ: Aurora PostgreSQL Serverless v2（min 0 ACU / 自動一時停止）。アプリとマイグレーションはパスワードを持たず、IAM 認証で接続する（[ADR-0014](adr/0014-connect-to-aurora-with-iam-auth.md)）
+- [x] 0 ACU 検証: 一時停止の発動条件、復帰時間、HikariCP の `minimum-idle: 0` 設定、初回アクセスのリトライ
+- [x] 実行基盤: ECR、ECS Fargate（arm64）、ALB。スタブ認証の間は、web の proxy だけが知る秘密のヘッダを ALB で確かめる
+- [x] 独自ドメインと HTTPS: ACM、Route 53。ALB は HTTPS だけを受ける
+- [x] フロント配信の方式: Amplify Hosting（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）
+- [x] フロント配信: Amplify Hosting で web を dev に配る
+- [x] アクセス制限: スタブ認証の間は、画面をベーシック認証で、API を秘密のヘッダで守る
+- [x] GitHub Actions: OIDC で AssumeRole、イメージ build/push、マイグレーション（ECS の単発タスク）、ECS デプロイ（[ADR-0015](adr/0015-deploy-by-registering-task-definitions-from-ci.md)）
+- [x] マイグレーション: アプリの起動から切り離す（アプリのタスクに DDL の権限を持たせない）
+- [x] gitleaks による secret スキャンを CI と pre-commit に追加
+- [x] Postman コレクションと Newman による、デプロイ後のスモークテスト
+- [x] コスト: 予算のアラート（実績と予測）、コスト配分タグ
+- [x] コスト: dev の夜間停止（EventBridge Scheduler）
+- [x] 画面のレスポンシブ対応（スマホから出題・回答・結果まで操作できる）
 
-**デモできること**: 公開 URL で動くアプリ、PR マージからデプロイまでの自動化
+**デモできること**: 公開 URL で動くアプリ、PR マージからデプロイまでの自動化、スマホからの回答
 
 ---
 
-## Phase 3: パスキー認証とロール分離
+## Phase 3: パスキー認証とロール分離 ✅ 完了
 
 **ゴール: 本物の認証でユーザーと管理者を分離する**
 
-- [ ] Cognito User Pool（パスキー / WebAuthn 有効化）、Group で `user` / `admin`
-- [ ] フロント: 登録 / ログイン / パスキー再登録、セッション管理
-- [ ] バックエンド: JWT 検証、メソッドレベルの認可
-- [ ] 管理画面のルートガード、管理者招待フロー
-- [ ] スタブ認証の撤去、権限まわりの E2E テスト
-- [ ] ADR: パスキーの採用理由、Cognito と自前 WebAuthn 実装（webauthn4j）の比較
+先に Cognito（マネージド）で一通り動かし、その後、自前の実装に差し替える。
+差し替えで作り直すのはログインの画面と認証の実装だけに留める。そのため、利用者の ID を Cognito の `sub` にせず、外部の ID と対応付けて持つ。
+
+- [x] ADR: Cognito で作る構成と、自前実装への差し替えに備えた設計（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）
+- [x] Cognito のユーザーとテナントの対応付け: User Pool は 1 つ。所属とロールは Cognito の Group ではなくアプリのデータで持つ
+- [x] Cognito User Pool（Essentials、パスワード + パスキー、Managed Login）
+- [x] フロント: Managed Login への遷移とコールバック、トークンを `HttpOnly` の Cookie に置くセッション、proxy が `Authorization` を付ける
+- [x] バックエンド: JWT 検証、初回の要求での利用者の作成、**テナント境界の認可**
+- [x] 管理者・一般ユーザーの招待フロー（リンクを画面に出して渡す。有効期限 7 日、トークンはハッシュだけを持つ）
+- [x] 管理画面のルートガード: 管理者でなければ、入口で案内を出す。判定はバックエンドのまま
+- [x] スタブ認証の撤去、dev のアクセス制限の見直し（ベーシック認証を外す）
+- [x] 権限まわりの E2E テスト（ログイン・招待の受け入れ・ロールによる出し分け）。Playwright を PR の CI で流す
+- [x] コスト: ALB をやめ、API Gateway（HTTP API）から VPC リンクで quiz-service に届ける。JWT はアプリだけで検証し、秘密のヘッダはやめる（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)）
+- [x] ADR: パスキーを自前で実装するときの設計（webauthn4j、チャレンジとクレデンシャルの置き場所、セッション、復旧、移り方）。**いまは差し替えず、Cognito を使い続ける**（[ADR-0027](adr/0027-design-self-hosted-passkeys-and-keep-cognito.md)）
+- 自前実装（DEV-120〜122）は保留。ADR-0027 の「見直す条件」に当たったら始める
 
 **デモできること**: パスキーでのログイン、権限によるアクセス制御
 
 ---
 
-## Phase 4: 管理機能の作り込み
+## Phase 4: 管理機能の作り込み ✅ 完了
 
 **ゴール: 図解つき解説まで含めたクイズ管理**
 
-- [ ] 解説エディタ（Markdown）
-- [ ] draw.io 連携: 管理画面に embed.diagrams.net を埋め込み、`.drawio` を S3 に保存
-- [ ] SVG 書き出しと CloudFront 配信、ユーザー側の解説表示
-- [ ] カテゴリ / 難易度の管理 UI、並び順、下書き / 公開の状態管理
-- [ ] クイズの一括インポート（CSV / JSON）
-- [ ] ユーザー側: 回答履歴、カテゴリ別の正答率
-- [ ] ADR や実装中の知見をクイズ化するワークフローの確立
+- [x] 解説エディタ（Markdown）: 原文で持ち、画面で変換する。生の HTML は通さない（[ADR-0018](adr/0018-write-explanations-in-markdown-and-render-on-screen.md)）
+- [x] draw.io 連携: 管理画面に embed.diagrams.net を埋め込み、`.drawio` を S3 に保存。解説の本文から `figure:` の ID で指す（[ADR-0020](adr/0020-reference-figures-from-explanations-and-add-images-and-pdfs.md)）
+- [x] 解説図の置き場所と配信: 非公開の S3 に置き、API が出す CloudFront の署名付き URL で配る（[ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md)）
+- [x] ユーザー側の解説表示（図を含む）。図は押すと新しいタブで開き、狭い画面でも拡大して見られる
+- [x] 画像（PNG・JPEG）の解説図: ブラウザから S3 へ直接上げ、検査して読み直したものだけを配る。位置情報などのメタデータは残らない
+- [x] PDF の資料: 解説の中に 1 ページ目の画像を出し、押すとブラウザの PDF ビューアで新しいタブに開く。本体は読み直さず、そのまま置く（[ADR-0021](adr/0021-render-first-page-of-pdfs-as-images.md)）
+- [x] カテゴリ / 難易度の管理 UI、並び順、下書き / 公開の状態管理。並び順は上下のボタンで変え、カテゴリ一覧にクイズの数（全体と公開）を出す
+- [x] クイズの一括インポート（CSV / JSON）。全か無かで取り込み、取り込めない行はファイルの行番号で示す
+- [x] ユーザー側: 回答履歴、カテゴリ別の正答率。正答率は、いま出題できるクイズへの最新の回答で数える
+- [x] テナント内のランキング。参加を選んだ人だけが、決めた名前で載る。期間内に正解したクイズの数で並べる
 
 **デモできること**: 図解つきの解説が表示されるクイズ
 
 ---
 
-## Phase 5: イベント駆動と Slack 通知
+## Phase 5: イベント駆動と Slack 通知 ✅ 完了
 
 **ゴール: 疎結合な非同期設計とサービス分割の実証**
 
-- [ ] ドメインイベント設計（QuizCreated / QuizUpdated / QuizPublished）
-- [ ] EventBridge カスタムバス + ルール、失敗時の DLQ（SQS）
-- [ ] `notification-service` を Lambda で実装（EventBridge ターゲット）、Slack Incoming Webhook に Block Kit で通知
-- [ ] Outbox パターンによる送信保証、冪等性の担保
-- [ ] 境界が安定していれば `answer-service` を物理分割
-- [ ] ADR: サービス分割の粒度、同期 REST と非同期イベントの使い分け
+- [x] ドメインイベントの設計: 1 回の操作で 1 つ（QuizCreated / QuizUpdated / QuizPublished / QuizUnpublished / QuizzesImported）。正解と解説は載せない。
+  Outbox に書いてコミットの直後に送り、Aurora の自動一時停止を妨げないよう定期的には読まない（[ADR-0022](adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)）
+- [x] EventBridge カスタムバス + ルール、失敗時の DLQ（SQS）
+- [x] `notification-service` を Lambda（Kotlin）で実装（EventBridge ターゲット）、Slack Incoming Webhook に Block Kit で通知
+- [x] 通知先の Slack はテナントごと。管理者が Webhook を設定する画面と API（URL は SSM Parameter Store に置き、画面には出さない）
+- [x] Outbox パターンによる送信保証、冪等性の担保（受け手がイベントの ID の重複を DynamoDB で捨てる）
+- [x] `answer-service` を物理分割するかの判断: **分けない。** 費用が予算を超え、独立したデプロイとスケールにいまの規模では使い道がない。
+  分けたくなる条件を決めておき、境界は構造のテストで守る（[ADR-0023](adr/0023-keep-answer-as-module-in-quiz-service.md)）
+- [x] ADR: 同期の呼び出しと非同期のイベントの使い分け。モジュール間は同期のまま、イベントはサービスの外へ出すものに限る。
+  分けるときは、利用者を待たせて正しさが要るもの（出題・採点）は同期、集計の材料はイベントで写しを持つ（ADR-0023）
 
 **デモできること**: クイズ更新時の Slack 通知、複数サービス構成
 
@@ -136,10 +167,11 @@
 **ゴール: 「どう運用するか」を説明できる状態**
 
 - [ ] 監視: CloudWatch ダッシュボード、アラーム、構造化ログ、OpenTelemetry
-- [ ] E2E テスト（Playwright）を CI に組み込み
-- [ ] 負荷試験（k6）と、チューニング前後の計測結果の記録
+- [x] E2E テスト（Playwright）を、権限まわり（Phase 3 で CI に組み込み済み）から出題・回答や管理の操作に広げる
+- [x] 負荷試験（k6）と、チューニング前後の計測結果の記録（[負荷試験](load-test.md)）
 - [ ] セキュリティ: 依存脆弱性スキャン、OWASP 観点のレビュー
-- [ ] Runbook / 障害対応手順、バックアップとリストアの実地確認
+- [ ] データ整合性チェックのバッチ（選択肢が 4 つ揃っているか、正解が 1 つかなど）
+- [x] Runbook / 障害対応手順、バックアップとリストアの実地確認
 - [ ] prod 環境構築とリリース手順の確立
 
 **デモできること**: 監視ダッシュボード、自動テスト、運用ドキュメント
@@ -150,10 +182,12 @@
 
 **ゴール: 初見の第三者が 3 分でアーキテクチャと設計意図を把握できる状態**
 
-- [ ] README: 概要 / アーキテクチャ図 / 技術選定の理由 / デモ URL / 設計上の工夫
-- [ ] アーキテクチャ図（C4 の Context / Container）を draw.io で作成
-- [ ] デモ用アカウントの用意
-- [ ] ADR インデックスの整備
+- [x] README: 概要 / 画面 / アーキテクチャ図（Mermaid）/ 技術選定の記録 / 設計上の工夫
+- [ ] README: デモ URL（誰でも入れるテナントか、デモ用アカウントができてから）
+- [x] アーキテクチャ図（C4 の Context / Container）を draw.io で作成（`docs/architecture/`）
+- [x] デモ用アカウントの用意（`demo@example.com`。デモのテナントの一般ユーザー）
+- [x] テナントの公開設定（`public`）と、公開テナントを見つけて招待なしで参加する導線（[ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)。時期を決めていなかったものから移した）
+- [x] ADR インデックスの整備（テーマ別の索引と、置き換えの関係）
 - [ ] コストの最終調整
 
 ---
@@ -166,16 +200,29 @@
 
 ---
 
+## 時期を決めていないもの
+
+Phase から外し、着手する時期をまだ決めていないもの。着手するときに、改めていずれかの Phase に入れる。
+
+いまはない。
+
+---
+
 ## 設計上のトレードオフ
 
 意図的に選ばなかった選択肢と、その理由。
 
 | 論点 | 採用した方針 | 見送った選択肢とその理由 |
 | --- | --- | --- |
+| テナントの分離方式 | 単一スキーマ + `tenant_id` + RLS | DB 分離・スキーマ分離。テナント数に比例して運用コストが増え、Aurora 1 台・min 0 ACU の方針と両立しない。代償として絞り込み漏れが情報漏洩に直結するため、RLS で二重化する |
 | サービス分割の時期 | 単一サービスで開始し、DB スキーマとイベントで境界だけ先に引く | 初期からの細分割。ドメイン境界が固まる前に分割線を引くと、サービスをまたぐ変更が常態化する |
 | コンテナオーケストレーション | ECS Fargate | EKS。本アプリの規模に対して運用コストが見合わない |
 | DB のコスト設計 | Aurora Serverless v2 を min 0 ACU で自動一時停止 | 常時起動。アクセスのない時間帯の課金が支配的になるため。代償として復帰に約 15 秒かかるので、dev に限定し、prod では min 0.5 ACU を検討する |
 | 接続プール | dev では RDS Proxy を使わず HikariCP を `minimum-idle: 0` にする | RDS Proxy 常用。接続が維持され続けると 0 ACU への一時停止が発動しない |
+| マイグレーションの実行 | デプロイのたびに、サービスを入れ替える前に単発のタスクで流す。アプリには読み書きの権限だけを渡す | アプリの起動時に流す。アプリがスキーマ所有者の権限を持ち続け、行レベルセキュリティを外せてしまう。タスクが複数あると、それぞれが流そうとする |
+| デプロイ | CI がタスク定義のリビジョンを登録してサービスを入れ替え、Terraform はタスク定義の形だけを持つ。CI のロールは OIDC で引き受け、ECR と ECS の更新に絞る | CI から `terraform apply`。ロールが state にあるすべてのリソースを扱える必要があり、実質的に管理者になる |
+| DB の認証 | IAM 認証。アプリとマイグレーションはパスワードを持たず、タスクロールに接続の権限を与える | Secrets Manager のパスワード。設定する SQL に平文が入り、state に残さない工夫も要る |
 | 通知基盤 | EventBridge + Lambda | 常駐コンテナでのポーリング。イベント頻度が低く、常時起動のコストに見合わない |
 | 認証 | Cognito のパスキー機能 | 自前の WebAuthn 実装。実装・保守コストが本筋のドメイン実装を圧迫する。比較検討は ADR に残す |
-| NAT Gateway | 使わず VPC Endpoint で代替 | NAT Gateway。月額が固定で発生し、本アプリの通信量では割に合わない |
+| ECS のタスクの出口 | パブリックサブネットに置き、タスクのパブリック IP から直接出る。受信は SecurityGroup で API Gateway の VPC リンク経由に限る | NAT Gateway と VPC Endpoint。どちらもタスクを止めても課金が続き、月 40〜80 ドルかかる。NAT インスタンスは安いが、更新と障害時の切り替えを自分で持つことになる |
+| API の入口 | API Gateway（HTTP API）から VPC リンクで、Cloud Map に登録したタスクへ直接届ける。トークンはアプリだけで検証する | ALB。使っていなくても、パブリック IPv4 を含めて月に約 25 ドルかかる。REST API は、VPC リンクの先にロードバランサーを要する。入口でも JWT を検証すると、検証が 2 か所に分かれ、ローカルと経路が変わる |

@@ -1,0 +1,77 @@
+package com.quizapp.quiz.controller
+
+import com.quizapp.quiz.domain.QuizStatus
+import com.quizapp.quiz.usecase.QuizUseCase
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.ResponseStatus
+import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
+
+/**
+ * クイズの CRUD（管理者向け）。
+ *
+ * 下書きも含めて返す。出題 API（DEV-21）は公開済みのみを対象にする。
+ */
+@RestController
+@RequestMapping("/api/t/{slug}/admin/quizzes", produces = [MediaType.APPLICATION_JSON_VALUE])
+@Tag(name = "クイズ（管理）", description = "管理者がクイズを CRUD する。**応答に正解を含む**")
+class QuizController(private val useCase: QuizUseCase) {
+
+    @GetMapping
+    @Operation(operationId = "searchQuizzes", summary = "クイズを絞り込んで一覧")
+    fun search(
+        @RequestParam(required = false) categoryId: UUID?,
+        @RequestParam(required = false) difficultyId: UUID?,
+        @RequestParam(required = false) status: String?,
+    ): List<QuizResponse> =
+        useCase.search(categoryId, difficultyId, status?.let(QuizStatus::from)).map(QuizResponse::from)
+
+    @GetMapping("/{id}")
+    @Operation(operationId = "getQuiz", summary = "クイズを 1 件取得")
+    fun get(@PathVariable id: UUID): QuizResponse = QuizResponse.from(useCase.get(id))
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "createQuiz", summary = "クイズを作成")
+    fun create(@Valid @RequestBody request: SaveQuizRequest): QuizResponse = QuizResponse.from(
+        useCase.create(
+            categoryId = request.categoryId,
+            difficultyId = request.difficultyId,
+            question = request.question,
+            explanation = request.explanation,
+            choices = request.choices.map { it.toDomain() },
+            status = request.statusAsDomain(),
+        ),
+    )
+
+    @PutMapping("/{id}")
+    @Operation(operationId = "updateQuiz", summary = "クイズを更新")
+    fun update(@PathVariable id: UUID, @Valid @RequestBody request: SaveQuizRequest): QuizResponse = QuizResponse.from(
+        useCase.update(
+            id = id,
+            categoryId = request.categoryId,
+            difficultyId = request.difficultyId,
+            question = request.question,
+            explanation = request.explanation,
+            choices = request.choices.map { it.toDomain() },
+            status = request.statusAsDomain(),
+        ),
+    )
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "deleteQuiz", summary = "クイズを削除")
+    fun delete(@PathVariable id: UUID) = useCase.delete(id)
+}

@@ -1,0 +1,4 @@
+# ログインしたあとの Cookie。利用者のセッションそのものなので、コミットしない
+.auth/
+test-results/
+playwright-report/

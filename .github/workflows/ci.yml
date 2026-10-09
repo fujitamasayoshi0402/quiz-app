@@ -1,0 +1,493 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# PR に新しく push されたら、動いている古い実行を止める。
+# Testcontainers を使うジョブは実行時間が長く、積み上がると待ち時間になる。
+# develop / main への push は止めない。develop では最後に dev へのデプロイが走り、途中で止めると中途半端になる
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # コンテナイメージのレイヤーを GitHub Actions のキャッシュに書くときの指定（DEV-87）。
+  # **書くのは develop / main への push だけ。** PR は読むだけにする。
+  # PR で書いたキャッシュはその PR からしか読めず、マージしたあとは使われないまま上限（リポジトリで 10 GB）を埋める。
+  # mode=max でビルドの途中の段（Gradle と pnpm の依存）も残す。最後の段だけでは、依存を取り直すことになる
+  IMAGE_CACHE_TO: ${{ github.event_name == 'push' && 'type=gha,mode=max,ignore-error=true' || '' }}
+  # ビルドの記録を成果物として残さない。ジョブのサマリーには出る
+  DOCKER_BUILD_RECORD_UPLOAD: false
+
+# ランナーの OS は版を固定する（ubuntu-latest にしない）。latest は GitHub の予定で切り替わり、その日から CI が落ちうる。
+# 上げるときは、新しい版で全ジョブを流してから替える（DEV-83）。古い版がなくなる前に、実行の注意（annotation）で予告が出る
+jobs:
+  # 変更されたパスを見て、後続のジョブを出し分ける。
+  # monorepo なので、フロントだけの変更でバックエンドのテストまで回す必要はない
+  changes:
+    name: changes
+    runs-on: ubuntu-26.04
+    permissions:
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      notification: ${{ steps.filter.outputs.notification }}
+      vulnerability-scan: ${{ steps.filter.outputs.vulnerability-scan }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      terraform: ${{ steps.filter.outputs.terraform }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          # 一覧は deploy.yml と共有している
+          filters: .github/path-filters.yml
+
+  backend:
+    name: backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.vulnerability-scan == 'true'
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # ツールのバージョンは .mise.toml が持つ。CI 側で別に指定すると二重管理になる
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+
+      # v6 から、キャッシュの部分（gradle-actions-caching）は MIT ではなく Gradle の利用規約で配られる。
+      # 公開リポジトリは無料のため、規約に同意して使う（DEV-63）
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: lint（ktlint / detekt）
+        run: >-
+          ./gradlew
+          :services:quiz-service:ktlintCheck :services:quiz-service:detekt
+          :libs:quiz-events:ktlintCheck :libs:quiz-events:detekt
+
+      # Testcontainers が PostgreSQL と LocalStack を起動する。ランナーには Docker が入っている
+      - name: test
+        run: ./gradlew :services:quiz-service:test
+
+      # 閾値では落とさない。数値はジョブのサマリーに出して、PR ごとの目安にする
+      - name: カバレッジを集計する
+        run: >-
+          python3 .github/scripts/coverage-summary.py
+          services/quiz-service/build/reports/jacoco/test/jacocoTestReport.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: カバレッジのレポートを保存する
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-report
+          path: services/quiz-service/build/reports/jacoco/test/html/
+          retention-days: 7
+
+      - name: build
+        run: ./gradlew :services:quiz-service:bootJar
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Dockerfile が壊れていても、使うまで気づかない。Phase 2 のデプロイで初めて落ちないようにする。
+      # レイヤーは GitHub Actions のキャッシュから読む（DEV-87）。書くのは develop / main への push だけ（env.IMAGE_CACHE_TO）
+      - name: コンテナイメージをビルドする
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/quiz-service/Dockerfile
+          # 脆弱性を調べるため、docker に読み込む
+          tags: quiz-service:ci
+          load: true
+          cache-from: type=gha,scope=quiz-service
+          cache-to: ${{ env.IMAGE_CACHE_TO && format('{0},scope=quiz-service', env.IMAGE_CACHE_TO) || '' }}
+
+      # 修正版のある HIGH 以上が見つかったら止める（DEV-113。基準は trivy.yaml、無視するものは .trivyignore.yaml）。
+      # jar（Spring Boot の依存）と、ベースイメージの OS のパッケージを見る
+      - name: 脆弱性を調べる（Trivy）
+        run: trivy image quiz-service:ci
+
+      # 失敗したときだけ残す。OpenAPI の乖離やテストの詳細はレポートを見ないと分からない
+      - name: レポートを保存する
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-reports
+          path: services/quiz-service/build/reports/
+          retention-days: 7
+
+  # notification-service（Lambda、ADR-0022）。quiz-service とはジョブを分け、片方だけを変えたときにもう片方を待たない
+  notification:
+    name: notification
+    needs: changes
+    if: needs.changes.outputs.notification == 'true' || needs.changes.outputs.vulnerability-scan == 'true'
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+        with:
+          install_args: java trivy
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: lint（ktlint / detekt）
+        run: ./gradlew :services:notification-service:ktlintCheck :services:notification-service:detekt
+
+      # Testcontainers が LocalStack を起動し、SSM と DynamoDB、ルールの絞り込みを確かめる
+      - name: test
+        run: ./gradlew :services:notification-service:test
+
+      # デプロイと同じ zip を作る。作れないことに、develop に入ってから気づかないようにする
+      - name: build
+        run: ./gradlew :services:notification-service:buildZip
+
+      # Lambda に載せる jar を見る（DEV-113）。OS は Lambda のランタイムのもので、AWS が更新する
+      - name: 脆弱性を調べる（Trivy）
+        run: |
+          unzip -q services/notification-service/build/distributions/notification-service.zip -d "$RUNNER_TEMP/notification-service"
+          trivy rootfs "$RUNNER_TEMP/notification-service"
+
+      - name: レポートを保存する
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: notification-reports
+          path: services/notification-service/build/reports/
+          retention-days: 7
+
+  frontend:
+    name: frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.vulnerability-scan == 'true'
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+
+      - name: pnpm ストアの場所を調べる
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: 依存を入れる
+        run: pnpm install --frozen-lockfile
+
+      # 生成物をリポジトリに持っているので、作り直して差が出ないことを確かめる。
+      # ここが落ちるのは「API を変えたのにクライアントを作り直していない」とき。
+      # 操作が増えるとファイルも増えるため、変更だけでなく追加・削除も見る
+      - name: API クライアントが OpenAPI 定義から作り直されているか
+        run: |
+          pnpm --filter web generate:api
+          if [ -n "$(git status --porcelain -- apps/web/src/lib/api/generated)" ]; then
+            echo "::error::生成したクライアントが docs/api/openapi.yaml と合っていません。pnpm --filter web generate:api を実行してコミットしてください"
+            git status --short -- apps/web/src/lib/api/generated
+            exit 1
+          fi
+
+      # 整形されていないファイルがあれば落とす（DEV-78）。直すときは pnpm --filter web format
+      - name: 整形
+        run: pnpm --filter web format:check
+
+      - name: 型チェック
+        run: pnpm --filter web typecheck
+
+      - name: lint
+        run: pnpm --filter web lint
+
+      - name: 単体テスト
+        run: pnpm --filter web test
+
+      # 型チェックと lint では、Server / Client Components の境界の誤りやビルド設定の問題が分からない
+      - name: ビルド
+        run: pnpm --filter web build
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: コンテナイメージをビルドする
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          # 脆弱性を調べるため、docker に読み込む
+          tags: web:ci
+          load: true
+          cache-from: type=gha,scope=web
+          cache-to: ${{ env.IMAGE_CACHE_TO && format('{0},scope=web', env.IMAGE_CACHE_TO) || '' }}
+
+      # 実行時の依存（standalone の node_modules）と、ベースイメージの OS のパッケージを見る（DEV-113）。
+      # 開発だけで使う依存は入らない。そちらは Dependabot alerts が pnpm-lock.yaml から見る
+      - name: 脆弱性を調べる（Trivy）
+        run: trivy image web:ci
+
+  # 権限まわりの E2E テスト（DEV-77）。docker compose でアプリ一式を起動し、Playwright で画面から確かめる。
+  # ログインは dev の Cognito を使う（ADR-0016）。クライアントのシークレットとテストの利用者のパスワードは、リポジトリの secret にある。
+  # フォークからの PR には secret が渡らないので動かさない
+  e2e:
+    name: e2e
+    needs: changes
+    if: >-
+      (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.e2e == 'true')
+      && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    env:
+      AUTH_ISSUER: ${{ vars.AUTH_ISSUER }}
+      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
+      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+
+      - name: pnpm ストアの場所を調べる
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: 依存を入れる
+        run: pnpm install --frozen-lockfile
+
+      - name: 型チェック
+        run: pnpm --filter e2e typecheck
+
+      # Cookie の暗号鍵は、この実行の中でだけ使う。後の段も docker compose を呼ぶ（DB の準備、ログ）ため、ジョブの環境変数にする。
+      # docker compose は呼ぶたびに設定ファイル全体を読み、値が無いと止まる
+      - name: Cookie の暗号鍵を作る
+        run: |
+          secret="$(openssl rand -base64 48)"
+          echo "::add-mask::$secret"
+          echo "AUTH_SESSION_SECRET=$secret" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # docker compose と同じ定義（docker-compose.yml）からビルドし、docker に読み込む。
+      # backend と frontend のジョブが develop で書いたキャッシュを読む（DEV-87）。ここでは書かない。
+      # 同じ Dockerfile を同じ中身でビルドするため、ソースを変えていないほうのイメージはキャッシュだけで済む
+      - name: イメージをビルドする
+        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        with:
+          source: .
+          files: docker-compose.yml
+          targets: migrate,web
+          load: true
+          set: |
+            migrate.cache-from=type=gha,scope=quiz-service
+            web.cache-from=type=gha,scope=web
+
+      # depends_on の条件（マイグレーションの成功、quiz-service の healthy）を待ってから web を起動する
+      - name: アプリ一式を起動する
+        run: |
+          docker compose up --no-build --detach web
+          curl --silent --fail --retry 30 --retry-all-errors --retry-delay 2 --output /dev/null http://localhost:3000/login
+
+      - name: Playwright のブラウザを入れる
+        run: pnpm --filter e2e exec playwright install --with-deps chromium
+
+      - name: E2E テスト
+        run: pnpm test:e2e
+
+      # 画面の CSP は強制で、違反したものは黙って止まる（DEV-127）。テストが表示を確かめていない所でも、ここで気づく。
+      # 違反はブラウザが /csp-report へ送り、web がログに 1 行ずつ出す
+      - name: CSP の違反がないかを確かめる
+        run: |
+          if docker compose logs --no-color web | grep "CSP の違反"; then
+            echo "::error::画面の CSP の違反が報告されました。送り先なら apps/web/src/lib/content-security-policy.ts に足します"
+            exit 1
+          fi
+
+      - name: 起動の記録を出す
+        if: failure()
+        run: docker compose logs --no-color --tail 200 migrate quiz-service web
+
+      # 保存した Cookie を使うテスト（e2e のプロジェクト）の結果だけを残す。
+      # ログインするプロジェクト（setup と login）の結果は残さない。失敗したときの画面の記録に、入力したパスワードが入りうる。
+      # Cookie は、この実行の中でだけ使う暗号鍵で守られていて、あとから使えない
+      - name: テストの結果を保存する
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-results
+          path: tests/e2e/test-results/*-e2e/
+          retention-days: 7
+
+  # AWS には触れない。plan / apply はローカルから行う（ADR-0015）。デプロイのロールにも Terraform を動かす権限はない
+  terraform:
+    name: terraform
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
+    runs-on: ubuntu-26.04
+    env:
+      # AWS provider は大きい。ルートモジュールごとに取り直さないよう、ジョブの中で使い回す
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-plugin-cache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+        with:
+          install_args: terraform
+
+      - name: 整形（terraform fmt）
+        run: terraform fmt -check -recursive -diff infra/terraform
+
+      # backend は初期化しない。認証なしで、構文・型・参照の誤りだけを見る
+      - name: 検証（terraform validate）
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          for dir in infra/terraform/bootstrap infra/terraform/account infra/terraform/envs/*/; do
+            echo "::group::$dir"
+            terraform -chdir="$dir" init -backend=false -input=false -lockfile=readonly
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done
+
+  # パスの出し分けの対象外にして、常に走らせる。secret はどのファイルにも入りうる。
+  # pre-commit のフックは入れ忘れや --no-verify ですり抜けるため、ここで止める
+  secrets:
+    name: secrets
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # 途中のコミットで入れて後のコミットで消しても、履歴には残っている。履歴ごと見る
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+        with:
+          install_args: gitleaks
+
+      # 見るのは HEAD から辿れる履歴だけ。ほかのブランチの検出で、無関係な PR まで落ちないようにする。
+      # リポジトリは Public で、ログも誰でも読める。見つけた値は伏せる
+      - name: secret を探す（gitleaks）
+        run: gitleaks git --log-opts=HEAD --redact --no-banner --verbose
+
+  # Gradle と pnpm の依存の一覧を GitHub に送る（DEV-113）。Dependabot alerts は、これを見て脆弱な依存を知らせる。
+  # GitHub はどちらもファイルから読み切れない。build.gradle.kts は版を BOM に任せ、pnpm-lock.yaml は読まずに package.json の直接の依存だけを見る。
+  # alerts が見るのは既定のブランチ（develop）なので、develop への push でだけ送る。デプロイの条件（ci）には含めない
+  dependency-graph:
+    name: dependency-graph
+    needs: changes
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/develop'
+      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.notification == 'true'
+          || needs.changes.outputs.frontend == 'true')
+    runs-on: ubuntu-26.04
+    permissions:
+      # 依存の一覧（dependency snapshot）を書く
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+        with:
+          install_args: java trivy
+
+      # 送るのは、動くときに載る依存だけ。lint やテスト、ビルドの道具（detekt が固定する古い Kotlin のコンパイラなど）は、
+      # 載らないものの知らせで、本当に直すべきものが埋もれる
+      - uses: gradle/actions/dependency-submission@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          dependency-graph-include-configurations: '^(runtimeClasspath|productionRuntimeClasspath)$'
+
+      # pnpm は、Trivy で pnpm-lock.yaml から一覧を作って送る。間接的に入る依存（800 件ほど）まで含める。
+      # 開発用の依存も含める。ビルドの道具（Next.js のビルド、orval など）は、Amplify のビルドで動く。
+      # 送り元の識別（correlator）は Gradle と分ける。同じだと、後から送ったほうが先の一覧を置き換える
+      - name: pnpm の依存の一覧を送る
+        run: |
+          trivy fs --quiet --format github --exit-code 0 --include-dev-deps --output "$RUNNER_TEMP/pnpm.json" pnpm-lock.yaml
+          jq '.job.correlator = "pnpm-lock"' "$RUNNER_TEMP/pnpm.json" \
+            | gh api --method POST "repos/${GITHUB_REPOSITORY}/dependency-graph/snapshots" --input - --jq '.message'
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # 必須ステータスチェックはこのジョブだけを指定する（DEV-16）。
+  # ジョブを足すたびに Ruleset を触らずに済み、パスの出し分けでスキップされても
+  # 「報告されないまま待ち続ける」状態にならない
+  ci:
+    name: ci
+    if: always()
+    needs: [changes, backend, notification, frontend, e2e, terraform, secrets]
+    runs-on: ubuntu-26.04
+    steps:
+      - name: 先行ジョブの結果を確かめる
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "::error::先行ジョブが失敗またはキャンセルされました"
+          exit 1
+
+      - run: echo "すべてのチェックを通過しました"
+
+  # develop に入ったら dev に載せる（DEV-48）。チェックがすべて通ったときだけ動く。
+  # **何を載せるかは、ここでは決めない。** デプロイのジョブが、dev でいま動いているものと比べて決める（DEV-79）。
+  # この push の差（changes）で決めると、続けてマージして待ちの実行が取り消されたとき、その分が載らない。
+  # どちらも変わっていなければ（ドキュメントだけなど）、デプロイのジョブは何もせずに終わる
+  #
+  # 結果は ci で判定する。条件に状態の関数を書かないと success() が付き、間接的な依存（backend など）が
+  # パスの出し分けでスキップされただけで、このジョブもスキップされる
+  deploy-dev:
+    name: deploy-dev
+    needs: [ci]
+    if: >-
+      !cancelled() && needs.ci.result == 'success'
+      && github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: dev
+    # 渡さないと、呼び出した先のジョブが Environment dev を使っていても、その secret（AWS_ROLE_ARN など）が空になる。
+    # ドキュメントの説明とは違うが、ランナーの既知の挙動（actions/runner#4453）
+    secrets: inherit
+
+  # main に入ったら prod に載せる（DEV-134、ADR-0024）。develop から main への PR がリリース。
+  # デプロイのジョブは Environment prod の承認を待ってから動き出す。条件と、何を載せるかの決め方は dev と同じ
+  deploy-prod:
+    name: deploy-prod
+    needs: [ci]
+    if: >-
+      !cancelled() && needs.ci.result == 'success'
+      && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: prod
+    secrets: inherit
+
+  # prod に載せたら、リリースとして記録する（DEV-134）。タグと、前のリリースからの PR の一覧（リリースノート）を GitHub が作る。
+  # 何も載せなかったとき（ドキュメントだけのリリース）は作らない。戻すときは、前のリリースのタグを見る。
+  # デプロイのワークフロー（deploy.yml）の中には置かない。呼ばれた側のジョブは、呼び出し元が渡した権限しか持てず、
+  # dev の呼び出しにも書き込みの権限を渡すことになる
+  release:
+    name: release
+    needs: [deploy-prod]
+    if: needs.deploy-prod.outputs.deployed == 'true'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    steps:
+      - name: リリースを作る
+        run: |
+          TAG="release-$(date -u +%Y%m%d-%H%M%S)"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --title "$TAG"
+          echo "- リリース: ${TAG}（${GITHUB_SHA::12}）" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ github.token }}

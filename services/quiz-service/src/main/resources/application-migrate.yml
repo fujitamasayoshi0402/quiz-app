@@ -1,0 +1,18 @@
+# マイグレーションだけを流して終了する。デプロイではアプリを入れ替える前に、同じイメージを単発で起動する。
+#   SPRING_PROFILES_ACTIVE=migrate       … スキーマのみ
+#   SPRING_PROFILES_ACTIVE=dev,migrate   … デモ用のシードとスモークテストのテナントも流す（application-dev.yml）
+#   SPRING_PROFILES_ACTIVE=prod,smoke,migrate … スモークテストのテナントだけを流す（application-smoke.yml）
+# 終了は QuizServiceApplication の main が行う。
+spring:
+  main:
+    # HTTP を受けない。サービスではない単発のタスクなので、Cloud Map にも登録されず、API Gateway から要求は届かない
+    web-application-type: none
+  flyway:
+    enabled: true
+    # DDL はスキーマ所有者が実行する。値はローカル用。
+    # AWS ではパスワードを使わず、IAM 認証で接続する（ADR-0014）
+    user: quiz
+    password: quiz
+    # 一時停止している Aurora は、最初の接続で起き始め、戻るまでに十数秒かかる（24 時間を超えて止まっていると 30 秒を超えることがある）。
+    # Flyway は既定では 1 回しか接続を試みず、その間に失敗する。待ちを 1, 2, 4, 8, 16, 32 秒と倍にしながら試し直す
+    connect-retries: 6

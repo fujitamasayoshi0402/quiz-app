@@ -1,0 +1,152 @@
+// Kotlin・ktlint・detekt の版は、ルートの build.gradle.kts が持つ
+plugins {
+    kotlin("jvm")
+    kotlin("plugin.spring")
+    id("org.springframework.boot") version "4.1.1"
+    id("io.spring.dependency-management") version "1.1.7"
+    // 整形の規約。.editorconfig をそのまま読むので、設定を二重に持たない
+    id("org.jlleitschuh.gradle.ktlint")
+    // 静的解析。整形は ktlint、設計の匂いは detekt と役割を分ける
+    id("io.gitlab.arturbosch.detekt")
+    // カバレッジの計測。JaCoCo のバージョンは Gradle が持つ既定値に任せる（Gradle 自体は wrapper で固定している）
+    jacoco
+}
+
+ktlint {
+    version = "1.8.0"
+}
+
+detekt {
+    // 既定のルールに乗せて、合わないところだけ config で上書きする
+    buildUponDefaultConfig = true
+    config.setFrom(rootProject.file("config/detekt.yml"))
+}
+
+group = "com.quizapp"
+version = "0.0.1-SNAPSHOT"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// Spring Boot が決める版のうち、脆弱性の修正が出ているものを上げる（DEV-113。開発ガイドライン「脆弱性の検出」）。
+// Spring Boot を上げて、同じか新しい版になったら消す
+extra["tomcat.version"] = "11.0.26"
+extra["jackson-bom.version"] = "3.1.7"
+extra["jackson-2-bom.version"] = "2.21.7"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // detekt 1.23.8 は Kotlin 2.0 でコンパイルされており、2.3 のままでは起動を拒否する。
+    // detekt 専用のクラスパスだけ 2.0 系に固定する。
+    // このとき既定のクラスパスごと置き換わるため、CLI 本体も明示する必要がある
+    detekt("io.gitlab.arturbosch.detekt:detekt-cli:1.23.8")
+    detekt("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21")
+
+    // 送るイベントの型（ADR-0022）。notification-service と共有する
+    implementation(project(":libs:quiz-events"))
+
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    // コンテナのヘルスチェック（docker compose / ECS）に使う
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // 分散トレース（ADR-0026）。Micrometer Tracing を OpenTelemetry で動かし、同じタスクのコレクタへ OTLP で送る
+    implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+    // DB への接続と問い合わせを、トレースの区間にする。止まっている Aurora の復帰を待つ時間も、接続の区間に出る
+    implementation("net.ttddyy.observation:datasource-micrometer-spring-boot:2.3.0")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    // Kotlin の data class をデシリアライズするために必要。
+    // 入れないと**デフォルト引数が効かず**、省略可能なはずのフィールドを省いた JSON で失敗する。
+    // Jackson 3 系では groupId が tools.jackson に変わっている
+    implementation("tools.jackson.module:jackson-module-kotlin")
+
+    // Spring Boot 4 では autoconfigure がモジュール分割されたため、
+    // flyway-core だけでは自動設定が効かない。starter が必要
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
+    // Flyway 10 以降、PostgreSQL のサポートは別モジュールに分かれている
+    implementation("org.flywaydb:flyway-database-postgresql")
+
+    // OpenAPI 定義をコードから生成する（ADR-0010）。
+    // 3.x が Spring Boot 4 系の対応版。2.x は Boot 3 までなので上げられない
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
+
+    // Cognito が発行したアクセストークン（JWT）の署名と中身を確かめる（ADR-0016）。
+    // リソースサーバー（spring-boot-starter-oauth2-resource-server）は入れない。
+    // Spring Security のフィルタが前に立つと、401 の応答がアプリの形（RFC 9457）にならず、認可の判定も二重になる
+    implementation("org.springframework.security:spring-security-oauth2-jose")
+
+    // 解説図を S3 に置き、CloudFront の署名付き URL で配る（ADR-0017）。
+    // 署名は SDK の CloudFrontUtilities に任せる。ローカルは LocalStack の S3 の署名付き URL を使う
+    implementation(platform("software.amazon.awssdk:bom:2.55.4"))
+    implementation("software.amazon.awssdk:s3")
+    implementation("software.amazon.awssdk:cloudfront")
+    // テナントの Slack の Webhook の URL を、SSM Parameter Store に置く（ADR-0022）
+    implementation("software.amazon.awssdk:ssm")
+    // クイズのイベントを、Outbox から EventBridge のカスタムバスへ送る（ADR-0022）
+    implementation("software.amazon.awssdk:eventbridge")
+
+    // PDF の 1 ページ目を画像にして、解説の中に出す（ADR-0021）
+    implementation("org.apache.pdfbox:pdfbox:3.0.7")
+
+    runtimeOnly("org.postgresql:postgresql")
+
+    // AWS では Aurora へ IAM 認証で接続する（ADR-0014）。URL を jdbc:aws-wrapper:postgresql: にしたときだけ使われ、
+    // ローカルは素の PostgreSQL ドライバのまま。IAM のトークンを作るのに AWS SDK の rds モジュールが要る
+    runtimeOnly("software.amazon.jdbc:aws-advanced-jdbc-wrapper:4.4.0")
+    runtimeOnly("software.amazon.awssdk:rds")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    // Spring Boot 4 では MockMvc のテスト支援が spring-boot-starter-test から分離されている
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+
+    // Testcontainers 2.x で artifact 名が変わっている（postgresql → testcontainers-postgresql）。
+    // バージョンは Spring Boot の BOM が管理する
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+    // EventBridge へ送ったイベントが、ルールから SQS に届くかを LocalStack で確かめる
+    testImplementation("org.testcontainers:testcontainers-localstack")
+    testImplementation("software.amazon.awssdk:sqs")
+}
+
+kotlin {
+    compilerOptions {
+        // プラットフォーム型を許容せず、Java 側の null 許容を厳格に扱う
+        freeCompilerArgs.addAll("-Xjsr305=strict")
+    }
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
+
+// テストを流すたびにレポートを作る。閾値でビルドは落とさない（数値を目標にすると、意味の薄いテストが増える）。
+// 守りたい性質は、テナント境界の網羅のように専用のテストが構造で担保している
+tasks.test {
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        // xml は CI のサマリーに使う
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.bootJar {
+    // コンテナのビルドで参照するため、バージョンを含めない固定の名前にする。
+    // 既定の名前だとバージョンを上げるたびに Dockerfile も直すことになる
+    archiveFileName = "quiz-service.jar"
+}
+
+// コンテナイメージのビルドで先に依存を取るタスク（downloadDependencies）は、ルートの build.gradle.kts にある。
+// bootJar は libs/ のプロジェクトもコンパイルするため、両方で使う

@@ -7,6 +7,9 @@ Thumbs.db
 .vscode/
 *.iml
 .kotlin/
+# vim のスワップファイル
+*.swp
+*.swo
 
 # --- Java / Gradle ---
 build/
@@ -39,9 +42,12 @@ dist/
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+# plan には変数の値（通知先など）がそのまま入る
+*.tfplan
 crash.log
 crash.*.log
-.terraform.lock.hcl
+# .terraform.lock.hcl は意図的に追跡する（プロバイダのバージョンとハッシュを固定し、
+# ローカルと CI で同じプロバイダを使うため）
 
 # --- テスト / カバレッジ ---
 coverage/
@@ -52,3 +58,6 @@ test-results/
 # --- その他 ---
 tmp/
 *.bak
+
+# Next.js が生成する型定義。next dev / build のたびに作り直される
+next-env.d.ts

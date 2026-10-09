@@ -1,0 +1,5 @@
+# スモークテストのテナントと利用者だけを入れる（DEV-133）。prod は prod,smoke,migrate で流す。
+# デモのシード（db/seed）は入れない。dev は application-dev.yml が両方を入れる
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/smoke

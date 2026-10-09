@@ -1,0 +1,8 @@
+# 生成物（orval）。書き換えると、CI の「作り直して差が出ないか」の検査とぶつかる
+src/lib/api/generated/
+
+# Next.js が作るもの（Git の管理外）
+.next/
+next-env.d.ts
+AGENTS.md
+CLAUDE.md

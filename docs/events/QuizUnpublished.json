@@ -1,0 +1,19 @@
+{
+  "eventId" : "00000000-0000-4000-8000-000000000004",
+  "occurredAt" : "2026-09-30T09:00:00Z",
+  "tenant" : {
+    "id" : "0d6f1a4e-6b2c-4f5e-9a3d-2c1b0e9f8a70",
+    "slug" : "demo",
+    "name" : "デモ"
+  },
+  "quiz" : {
+    "id" : "5b3e8f2a-1c4d-4e6f-8a9b-0c1d2e3f4a5b",
+    "status" : "DRAFT",
+    "category" : {
+      "id" : "9e8d7c6b-5a49-4382-a1b0-c9d8e7f6a5b4",
+      "name" : "AWS / インフラ"
+    },
+    "question" : "VPC エンドポイントを使う目的として、最も適切なものはどれか。"
+  },
+  "version" : 1
+}

@@ -1,0 +1,312 @@
+name: deploy
+
+# dev と prod に載せる。手順は同じで、名前と Environment だけが違う（ADR-0024）。
+#   dev  … develop に入ったもの。ci.yml が、develop への push でチェックが通ったあとに呼ぶ
+#   prod … main に入ったもの（develop から main への PR がリリース）。ci.yml が、main への push でチェックが通ったあとに呼ぶ。
+#          **Environment prod の承認を待ってから動く**（DEV-134）
+# Actions の画面から手で流すこともできる（Terraform でタスク定義の形を変えたあとなど）。
+#
+# **何を載せるかは、その環境でいま動いているものと比べて決める**（DEV-79）。quiz-service、web、notification-service のそれぞれで、
+# 動いているもののコミットから develop の先頭までに、関わるパス（.github/path-filters.yml）が変わっていれば載せる。
+# 直前の push との差で決めると、続けてマージして待ちの実行が取り消されたとき、その分が載らない。
+#
+# quiz-service を載せるとき、**マイグレーションも同じ差で流すかを決める**（DEV-88）。動いているもののコミットから、
+# DB に流れるもの（path-filters.yml の migration）が変わっていなければ、単発タスクを飛ばす。
+# 動いているもののコミットまでは、流し終わっている。サービスは、マイグレーションが成功してからしか替わらないため。
+#
+# notification-service（Lambda）は、quiz-service より先に載せる（DEV-99）。受け手は、新しい版のイベントを読めるようにしてから
+# 送る側を替える（ADR-0022）。載せたコミットは関数のタグ（DeployedCommit）に残し、次のデプロイがこれと比べる
+#
+# GitHub の Environment（dev / prod）で動く。dev は develop から、prod は main からしか使えない。
+# AWS のロールは環境ごとに別で、その Environment のジョブにしか引き受けさせない（modules/deploy-role）。
+# Environment ごとの secret と variable（AWS_ROLE_ARN、AMPLIFY_APP_ID など）は同じ名前で、Environment が値を決める
+# 入力の backend、frontend、notification は auto（動いているものと比べる）/ deploy（必ず載せる）/ skip（載せない）。
+# Terraform でタスク定義の形を変えたあとは、コミットが同じでも載せ直すため deploy を指定する。
+# migration は auto（動いているものと比べる）/ run（必ず流す）。**飛ばす指定は持たない。** DB に流れるものを変えたコミットを、
+# 流さずに載せると、それが動いているものになり、以後は差がないとして流れなくなる
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 載せる先（dev / prod）
+        type: string
+        required: true
+      backend:
+        description: quiz-service をデプロイするか（auto / deploy / skip）
+        type: string
+        default: auto
+      frontend:
+        description: web（Amplify）をビルドし直すか（auto / deploy / skip）
+        type: string
+        default: auto
+      notification:
+        description: notification-service（Lambda）を載せるか（auto / deploy / skip）
+        type: string
+        default: auto
+      migration:
+        description: quiz-service を載せるとき、マイグレーションを流すか（auto / run）
+        type: string
+        default: auto
+    outputs:
+      deployed:
+        description: 何かを載せたか（true / false）。prod では、載せたときだけリリースを作る（ci.yml）
+        value: ${{ jobs.deploy.outputs.deployed }}
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 載せる先。prod は main からだけ流せる（Environment prod の決まり）
+        type: choice
+        options: [dev, prod]
+        default: dev
+      backend:
+        description: quiz-service をデプロイするか
+        type: choice
+        options: [auto, deploy, skip]
+        default: auto
+      frontend:
+        description: web（Amplify）をビルドし直すか
+        type: choice
+        options: [auto, deploy, skip]
+        default: auto
+      notification:
+        description: notification-service（Lambda）を載せるか
+        type: choice
+        options: [auto, deploy, skip]
+        default: auto
+      migration:
+        description: quiz-service を載せるとき、マイグレーションを流すか
+        type: choice
+        options: [auto, run]
+        default: auto
+
+permissions:
+  contents: read
+  # OIDC のトークンを取り、AWS のロールを引き受ける。アクセスキーは使わない
+  id-token: write
+
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REPOSITORY: quiz-app-${{ inputs.environment }}/quiz-service
+  ECS_CLUSTER: quiz-app-${{ inputs.environment }}
+  ECS_SERVICE: quiz-service
+  MIGRATE_FAMILY: quiz-app-${{ inputs.environment }}-quiz-service-migrate
+  # Amplify は環境ごとにアプリが別で、配るブランチも違う（modules/web）
+  AMPLIFY_BRANCH: ${{ inputs.environment == 'prod' && 'main' || 'develop' }}
+  NOTIFICATION_FUNCTION: quiz-app-${{ inputs.environment }}-notification-service
+
+jobs:
+  deploy:
+    name: deploy
+    # ECS のタスクは arm64（Graviton）。エミュレーションを挟まずにイメージを作る
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    # prod は、この Environment の承認を待ってから動き出す。承認の画面で、載せるコミットを確かめる
+    environment:
+      name: ${{ inputs.environment }}
+      # 独自ドメインではなく Amplify の既定のドメインを載せる。スモークテストもここに向けて流す
+      url: https://${{ env.AMPLIFY_BRANCH }}.${{ vars.AMPLIFY_APP_ID }}.amplifyapp.com
+    # 後から始まったデプロイは、先のデプロイが終わるまで待つ。追い越すと、古いコミットが後から載りうる。
+    # 動いているものは止めない。マイグレーションの途中で止めると、どこまで流れたかが分からなくなる
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    outputs:
+      deployed: ${{ steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true' || steps.plan.outputs.notification == 'true' }}
+    steps:
+      # 動いているもののコミットとの差を取るため、履歴をすべて取る
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          # リポジトリは Public で、ログも誰でも読める。イメージの URL などに含まれるアカウント ID を伏せる
+          mask-aws-account-id: true
+
+      - name: 動いているものを調べる
+        id: deployed
+        run: >-
+          .github/scripts/deployed-commits.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$AMPLIFY_APP_ID" "$AMPLIFY_BRANCH" "$NOTIFICATION_FUNCTION"
+          | tee -a "$GITHUB_OUTPUT"
+        env:
+          AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
+
+      # 調べられなかったとき（空）は差を取らず、載せるものとして扱う。
+      # backend が deploy のときも調べる。コミットが同じまま載せ直すとき（タスク定義の形を変えたあと）に、マイグレーションを飛ばすため
+      - name: quiz-service に関わる変更を探す
+        id: backend-changes
+        if: inputs.backend != 'skip' && steps.deployed.outputs.backend != ''
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          base: ${{ steps.deployed.outputs.backend }}
+          filters: .github/path-filters.yml
+
+      - name: web に関わる変更を探す
+        id: frontend-changes
+        if: inputs.frontend == 'auto' && steps.deployed.outputs.web != ''
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          base: ${{ steps.deployed.outputs.web }}
+          filters: .github/path-filters.yml
+
+      - name: notification-service に関わる変更を探す
+        id: notification-changes
+        if: inputs.notification == 'auto' && steps.deployed.outputs.notification != ''
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          base: ${{ steps.deployed.outputs.notification }}
+          filters: .github/path-filters.yml
+
+      - name: 載せるものを決める
+        id: plan
+        run: |
+          # $1: 指定（auto / deploy / skip）、$2: 動いているもののコミット、$3: 差があるか（調べていなければ空）
+          decide() {
+            case "$1" in
+              deploy) echo true; return ;;
+              skip) echo false; return ;;
+            esac
+            # 動いているほうが新しければ載せない。古い実行をやり直したときに、新しいものを古いもので上書きしない
+            if [[ -n "$2" && "$2" != "$GITHUB_SHA" ]] && git merge-base --is-ancestor "$GITHUB_SHA" "$2"; then
+              echo false; return
+            fi
+            [[ "$3" == "false" ]] && echo false || echo true
+          }
+          BACKEND=$(decide "$BACKEND_MODE" "$BACKEND_DEPLOYED" "$BACKEND_CHANGED")
+          FRONTEND=$(decide "$FRONTEND_MODE" "$WEB_DEPLOYED" "$FRONTEND_CHANGED")
+          NOTIFICATION=$(decide "$NOTIFICATION_MODE" "$NOTIFICATION_DEPLOYED" "$NOTIFICATION_CHANGED")
+          # マイグレーションは、差がないと分かったときだけ飛ばす。動いているものが不明で差を調べていなければ（空）流す
+          if [[ "$MIGRATION_MODE" != "run" && "$MIGRATION_CHANGED" == "false" ]]; then MIGRATION=skip; else MIGRATION=run; fi
+          {
+            echo "backend=$BACKEND"
+            echo "frontend=$FRONTEND"
+            echo "notification=$NOTIFICATION"
+            echo "migration=$MIGRATION"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "- 載せるコミット: ${GITHUB_SHA::12}"
+            echo "- quiz-service: 動いているもの ${BACKEND_DEPLOYED:0:12}（不明なら空）→ 載せる: ${BACKEND}"
+            if [[ "$BACKEND" == "true" ]]; then echo "  - マイグレーション: ${MIGRATION}"; fi
+            echo "- web: 動いているもの ${WEB_DEPLOYED:0:12}（不明なら空）→ 載せる: ${FRONTEND}"
+            echo "- notification-service: 動いているもの ${NOTIFICATION_DEPLOYED:0:12}（不明なら空）→ 載せる: ${NOTIFICATION}"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          BACKEND_MODE: ${{ inputs.backend }}
+          FRONTEND_MODE: ${{ inputs.frontend }}
+          NOTIFICATION_MODE: ${{ inputs.notification }}
+          MIGRATION_MODE: ${{ inputs.migration }}
+          BACKEND_DEPLOYED: ${{ steps.deployed.outputs.backend }}
+          WEB_DEPLOYED: ${{ steps.deployed.outputs.web }}
+          NOTIFICATION_DEPLOYED: ${{ steps.deployed.outputs.notification }}
+          BACKEND_CHANGED: ${{ steps.backend-changes.outputs.backend }}
+          FRONTEND_CHANGED: ${{ steps.frontend-changes.outputs.frontend }}
+          NOTIFICATION_CHANGED: ${{ steps.notification-changes.outputs.notification }}
+          MIGRATION_CHANGED: ${{ steps.backend-changes.outputs.migration }}
+
+      # ---- notification-service（quiz-service より先に載せる） ----
+
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+        if: steps.plan.outputs.notification == 'true'
+        with:
+          install_args: java
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        if: steps.plan.outputs.notification == 'true'
+
+      # テストは CI の notification ジョブで済んでいる。ここでは zip を作るだけ
+      - name: notification-service の zip を作る
+        if: steps.plan.outputs.notification == 'true'
+        run: ./gradlew :services:notification-service:buildZip
+
+      - name: notification-service を載せる
+        if: steps.plan.outputs.notification == 'true'
+        run: >-
+          .github/scripts/deploy-notification-service.sh "$NOTIFICATION_FUNCTION"
+          services/notification-service/build/distributions/notification-service.zip "$GITHUB_SHA"
+
+      # ---- quiz-service ----
+
+      - name: イメージの置き場所を決める
+        id: image
+        if: steps.plan.outputs.backend == 'true'
+        run: |
+          TAG="${GITHUB_SHA::12}"
+          REGISTRY="$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${AWS_REGION}.amazonaws.com"
+          echo "IMAGE=${REGISTRY}/${ECR_REPOSITORY}:${TAG}" >> "$GITHUB_ENV"
+
+          # タグは上書きできない。再実行で、同じコミットのイメージがすでにあれば作り直さない
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=${TAG}" > /dev/null 2>&1; then
+            echo "作成済みのイメージを使います: ${TAG}"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.plan.outputs.backend == 'true' && steps.image.outputs.exists != 'true'
+
+      # レイヤーは GitHub Actions のキャッシュに持ち越す（DEV-87）。CI（amd64）とは中身が違うので、置き場所を分ける。
+      # 来歴（provenance）は付けない。付けると、添付のマニフェストがタグのないイメージとして ECR に置かれ、
+      # ライフサイクルの規則（タグのないものは 1 日で消す）に掛かる。これまでの docker build と同じ、1 つのマニフェストにする
+      #
+      # **push は buildx ではなく docker で行う。** buildx（BuildKit）は push の前に ECR のマニフェストを読む（ecr:BatchGetImage）。
+      # デプロイのロールは push に要る権限しか持たないため、拒否される。読む権限を足すより、これまでと同じ docker push にする
+      - name: イメージを作る
+        if: steps.plan.outputs.backend == 'true' && steps.image.outputs.exists != 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/quiz-service/Dockerfile
+          tags: ${{ env.IMAGE }}
+          load: true
+          provenance: false
+          cache-from: type=gha,scope=quiz-service-arm64
+          cache-to: type=gha,scope=quiz-service-arm64,mode=max,ignore-error=true
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
+
+      - name: イメージを ECR に push する
+        if: steps.plan.outputs.backend == 'true' && steps.image.outputs.exists != 'true'
+        run: docker push "$IMAGE"
+
+      # マイグレーションが失敗したら、サービスは替えずにここで止まる
+      - name: quiz-service をデプロイする
+        if: steps.plan.outputs.backend == 'true'
+        run: .github/scripts/deploy-quiz-service.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$MIGRATE_FAMILY" "$IMAGE" "$MIGRATION"
+        env:
+          MIGRATION: ${{ steps.plan.outputs.migration }}
+
+      # ---- web ----
+
+      # quiz-service の後に流す。新しい画面が古い API を呼ばないように
+      - name: web をビルドする
+        if: steps.plan.outputs.frontend == 'true'
+        run: .github/scripts/build-web.sh "$AMPLIFY_APP_ID" "$AMPLIFY_BRANCH" "$GITHUB_SHA"
+        env:
+          AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
+
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+        if: steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true'
+        with:
+          install_args: node npm:newman
+
+      # web → API → DB がつながっているかを、画面と同じ経路（Amplify と proxy）で確かめる。
+      # スモークテストの利用者（Terraform の modules/auth が作る）でトークンを取り、Authorization に付けて呼ぶ。
+      # 失敗するとワークフローが失敗し、GitHub から通知が届く。何も載せなかったときは流さない
+      - name: スモークテスト
+        if: steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true'
+        run: |
+          TOKEN=$(.github/scripts/smoke-token.sh "$AUTH_CLIENT_ID" "$SMOKE_USER_EMAIL")
+          echo "::add-mask::$TOKEN"
+          newman run tests/api/quiz-app.postman_collection.json \
+            --env-var "baseUrl=https://${AMPLIFY_BRANCH}.${AMPLIFY_APP_ID}.amplifyapp.com" \
+            --env-var "accessToken=${TOKEN}"
+        env:
+          AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
+          AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+          AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
+          SMOKE_USER_EMAIL: smoke@example.com
+          SMOKE_USER_PASSWORD: ${{ secrets.SMOKE_USER_PASSWORD }}
+

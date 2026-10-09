@@ -1,0 +1,16 @@
+packages:
+  - apps/*
+  # E2E テスト（Playwright）。アプリではないが、依存の固定を同じ lockfile で行う
+  - tests/e2e
+
+# 依存パッケージのインストールスクリプトは既定で実行しない（サプライチェーン対策）。
+# 以下はいずれもプラットフォーム別のバイナリを optionalDependencies で受け取るため、スクリプトが不要
+allowBuilds:
+  esbuild: false
+  unrs-resolver: false
+
+# 公開から 7 日たっていない版は入れない（DEV-126。GitHub Actions のアクションと同じ日数）。
+# 乗っ取りで出された版は、公開から数日のうちに見つかって取り下げられることが多い。
+# 依存を足すときと上げるときに加え、lockfile からのインストール（CI、Docker、Amplify）でも、lockfile の版を確かめる。
+# 急ぐ脆弱性の修正は、版まで書いて minimumReleaseAgeExclude に足し、7 日たったら外す
+minimumReleaseAge: 10080

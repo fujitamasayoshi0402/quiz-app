@@ -1,0 +1,151 @@
+# ローカルでアプリ一式を動かす。
+#
+#   docker compose up                      # すべて起動して http://localhost:3000 で使う
+#   docker compose up -d postgres localstack  # アプリをホストで動かすときは依存だけを起動する
+#
+# ホスト側のポートは .env で変えられる（.env.example を参照）。
+services:
+  postgres:
+    # 本番の Aurora PostgreSQL Serverless v2 とメジャーバージョンを揃える。
+    # min 0 ACU（自動一時停止）は PostgreSQL 16.3 以降が前提のため 16 系を使う
+    image: postgres:16-alpine
+    container_name: quiz-app-postgres
+    environment:
+      POSTGRES_USER: quiz
+      POSTGRES_PASSWORD: quiz
+      POSTGRES_DB: quiz
+      # 本番との差異を減らすため UTC に固定する
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # depends_on の condition から参照する。起動直後の接続失敗を防ぐ
+      test: ["CMD-SHELL", "pg_isready -U quiz -d quiz"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  localstack:
+    # S3 / EventBridge / SQS / Secrets Manager / SSM / Lambda / DynamoDB をローカルで代替する
+    image: localstack/localstack:4.9
+    container_name: quiz-app-localstack
+    environment:
+      SERVICES: s3,secretsmanager,events,sqs,lambda,ssm,dynamodb
+      DEBUG: 0
+      # 認証情報は検証されないが、SDK が要求するためダミーを渡す
+      AWS_DEFAULT_REGION: ap-northeast-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      # 画像を上げる画面のオリジン。バケットの CORS に使う（init のスクリプト）
+      FIGURES_UPLOAD_ORIGIN: http://localhost:${WEB_PORT:-3000}
+    ports:
+      - "${LOCALSTACK_PORT:-4566}:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      # Lambda を LocalStack から起動するために必要
+      - /var/run/docker.sock:/var/run/docker.sock
+      # 起動したあとに流す。解説図のバケットを作る
+      - ./infra/docker/localstack/init:/etc/localstack/init/ready.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  # マイグレーションを流して終了する。本番と同じく、アプリの起動とは分けて実行する。
+  # イメージは quiz-service と同じで、プロファイルだけが違う。
+  # **ビルドはこちらだけが持つ。** 同じタグを 2 つのサービスでビルドすると、書き出しがぶつかって失敗することがある。
+  # quiz-service より必ず先に動くので、こちらに置けばどのサービスから起動してもイメージができる
+  migrate:
+    build:
+      context: .
+      dockerfile: services/quiz-service/Dockerfile
+    image: quiz-app/quiz-service
+    container_name: quiz-app-migrate
+    environment:
+      # dev を付けるとデモ用のシードも流れる。クローン直後でもクイズを解ける状態にするため
+      SPRING_PROFILES_ACTIVE: dev,migrate
+      # コンテナの中では localhost ではなくサービス名で DB に届く
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/quiz
+      # ログインは dev の Cognito を使う（ADR-0016）。無いと起動しない。値は .env に置く（.env.example）
+      AUTH_ISSUER: ${AUTH_ISSUER:?.env に AUTH_ISSUER を設定してください（.env.example）}
+      AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:?.env に AUTH_CLIENT_ID を設定してください（.env.example）}
+    depends_on:
+      # アプリロールの作成（init スクリプト）が済むまで待つ。権限を与えるマイグレーションがロールを前提にする
+      postgres:
+        condition: service_healthy
+
+  quiz-service:
+    # migrate がビルドしたイメージを使う。レジストリには取りに行かない
+    image: quiz-app/quiz-service
+    pull_policy: never
+    container_name: quiz-app-quiz-service
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/quiz
+      AUTH_ISSUER: ${AUTH_ISSUER:?.env に AUTH_ISSUER を設定してください（.env.example）}
+      AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:?.env に AUTH_CLIENT_ID を設定してください（.env.example）}
+      # 解説図は LocalStack の S3 に置く（ADR-0017）。アプリからは localstack、ブラウザからは localhost で届く。
+      # 署名付き URL はブラウザが開くため、localhost の側で作る
+      FIGURES_S3_ENDPOINT: http://localstack:4566
+      FIGURES_S3_PUBLIC_ENDPOINT: http://localhost:${LOCALSTACK_PORT:-4566}
+      # テナントの Slack の Webhook の URL は、LocalStack の SSM に置く（ADR-0022）
+      NOTIFICATIONS_SSM_ENDPOINT: http://localstack:4566
+      # クイズのイベントは、LocalStack の EventBridge のバスへ送る（ADR-0022）
+      EVENTS_ENDPOINT: http://localstack:4566
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      # マイグレーションが成功してから起動する。失敗したらアプリも起動しない
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # DB には問い合わせない（application.yml を参照）。プロセスが応答できるかだけを見る
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    # 名前を決めておく。CI は docker buildx bake でこのファイルからビルドし、`--no-build` で起動する（DEV-87）。
+    # 名前がないと、bake のビルドしたイメージを compose が見つけられない
+    image: quiz-app/web
+    container_name: quiz-app-web
+    environment:
+      # /api の中継先。実行時に読むので、イメージを作り直さずに変えられる
+      API_ORIGIN: http://quiz-service:8080
+      # 画面の CSP（DEV-123）。解説図と、原本のアップロードは LocalStack の S3 に向く
+      CSP_IMG_SRC: http://localhost:${LOCALSTACK_PORT:-4566}
+      CSP_CONNECT_SRC: http://localhost:${LOCALSTACK_PORT:-4566}
+      AUTH_ISSUER: ${AUTH_ISSUER:?.env に AUTH_ISSUER を設定してください（.env.example）}
+      AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:?.env に AUTH_CLIENT_ID を設定してください（.env.example）}
+      AUTH_CLIENT_SECRET: ${AUTH_CLIENT_SECRET:?.env に AUTH_CLIENT_SECRET を設定してください（.env.example）}
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:?.env に AUTH_SESSION_SECRET を設定してください（.env.example）}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      # バックエンドが応答できるようになってから公開する。先に開くと最初の画面がエラーになる
+      quiz-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  localstack-data:

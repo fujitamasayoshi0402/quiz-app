@@ -1,0 +1,6 @@
+# blame で飛ばすコミット。見た目だけを変え、本来の変更を追う妨げになるもの。
+# GitHub は自動で読む。手元では 1 回だけ git config blame.ignoreRevsFile .git-blame-ignore-revs を実行する
+# （開発ガイドライン「初回セットアップ」）
+
+# web を Prettier で全体に整形した（DEV-78）
+9ac8eaa49f68169d196869c8d1390887ca555322

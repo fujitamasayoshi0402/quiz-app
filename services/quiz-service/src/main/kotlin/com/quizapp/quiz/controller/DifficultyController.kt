@@ -1,0 +1,89 @@
+package com.quizapp.quiz.controller
+
+import com.quizapp.quiz.domain.DeletionImpact
+import com.quizapp.quiz.usecase.DifficultyUseCase
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.ResponseStatus
+import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
+
+/**
+ * 難易度の CRUD。
+ *
+ * 難易度はカテゴリ配下のリソースなので、URL もカテゴリの下に置く。
+ * 独立した一覧画面を持たない方針（docs/requirements.md）と対応している。
+ */
+@RestController
+@RequestMapping(
+    "/api/t/{slug}/admin/categories/{categoryId}/difficulties",
+    produces = [MediaType.APPLICATION_JSON_VALUE],
+)
+@Tag(name = "難易度", description = "カテゴリ配下の難易度を CRUD する。体系はカテゴリごとに決める")
+class DifficultyController(private val useCase: DifficultyUseCase) {
+
+    @GetMapping
+    @Operation(operationId = "listDifficulties", summary = "難易度一覧")
+    fun list(@PathVariable categoryId: UUID): List<DifficultyResponse> =
+        useCase.list(categoryId).map(DifficultyResponse::from)
+
+    @GetMapping("/{id}")
+    @Operation(operationId = "getDifficulty", summary = "難易度を 1 件取得")
+    fun get(@PathVariable categoryId: UUID, @PathVariable id: UUID): DifficultyResponse =
+        DifficultyResponse.from(useCase.get(categoryId, id))
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "createDifficulty", summary = "難易度を作成", description = "同じレベルの末尾に置く")
+    fun create(
+        @PathVariable categoryId: UUID,
+        @Valid @RequestBody request: SaveDifficultyRequest,
+    ): DifficultyResponse = DifficultyResponse.from(
+        useCase.create(categoryId, request.name, request.level, request.description),
+    )
+
+    @PutMapping("/{id}")
+    @Operation(
+        operationId = "updateDifficulty",
+        summary = "難易度を更新",
+        description = "並び順は変えない。レベルを変えたときは、新しいレベルの末尾に置く",
+    )
+    fun update(
+        @PathVariable categoryId: UUID,
+        @PathVariable id: UUID,
+        @Valid @RequestBody request: SaveDifficultyRequest,
+    ): DifficultyResponse = DifficultyResponse.from(
+        useCase.update(categoryId, id, request.name, request.level, request.description),
+    )
+
+    @PutMapping("/order")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(
+        operationId = "reorderDifficulties",
+        summary = "難易度を並べ替える",
+        description = "カテゴリの今ある難易度の ID を、並べたい順にすべて送る。表示はレベル順が先で、意味を持つのは同じレベルの中の順だけ。" +
+            "過不足があると 409 を返し、何も変えない",
+    )
+    fun reorder(@PathVariable categoryId: UUID, @RequestBody request: ReorderRequest) =
+        useCase.reorder(categoryId, request.ids)
+
+    @GetMapping("/{id}/deletion-impact")
+    @Operation(operationId = "difficultyDeletionImpact", summary = "削除したときに巻き込む範囲")
+    fun deletionImpact(@PathVariable categoryId: UUID, @PathVariable id: UUID): DeletionImpact =
+        useCase.deletionImpact(categoryId, id)
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "deleteDifficulty", summary = "難易度を削除（その難易度のクイズも削除される）")
+    fun delete(@PathVariable categoryId: UUID, @PathVariable id: UUID) = useCase.delete(categoryId, id)
+}

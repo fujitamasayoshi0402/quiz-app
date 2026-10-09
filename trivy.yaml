@@ -1,0 +1,16 @@
+# Trivy の設定（DEV-113）。CI の backend / notification / frontend ジョブが、作ったイメージと zip を調べる。
+# 手元でも同じ基準で流せる（開発ガイドライン「脆弱性の検出」）。
+#
+# 止めるのは、修正版が出ている HIGH 以上だけ。修正版のないものは、直す手段がなく、止めても待つことしかできない。
+# 無視するものは .trivyignore.yaml に、理由と期限を付けて書く
+severity:
+  - HIGH
+  - CRITICAL
+exit-code: 1
+ignorefile: .trivyignore.yaml
+scan:
+  # 秘密情報は gitleaks（secrets ジョブ）が見る。設定の誤りは対象にしない
+  scanners:
+    - vuln
+vulnerability:
+  ignore-unfixed: true

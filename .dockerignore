@@ -1,0 +1,19 @@
+# ビルドコンテキストはリポジトリのルート。送るファイルを減らし、ホストの生成物を持ち込まない
+.git
+**/node_modules
+**/.next
+**/build
+**/.gradle
+.kotlin
+**/.DS_Store
+.idea
+.vscode
+
+# ビルドに使わない
+docs
+infra/terraform
+**/*.md
+
+# ホストの環境変数をイメージに入れない
+**/.env
+**/.env.*

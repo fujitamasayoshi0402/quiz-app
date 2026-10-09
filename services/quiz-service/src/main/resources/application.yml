@@ -1,0 +1,144 @@
+spring:
+  application:
+    name: quiz-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/quiz
+    # アプリケーションはスーパーユーザーではないロールで接続する。
+    # スーパーユーザーは FORCE ROW LEVEL SECURITY でも RLS をバイパスするため
+    username: quiz_app
+    password: quiz_app
+    hikari:
+      # Aurora Serverless v2 の自動一時停止（min 0 ACU）を妨げないため、
+      # アイドル時に接続を保持しない。dev / 本番ともにこの方針
+      minimum-idle: 0
+      idle-timeout: 30000
+      max-lifetime: 300000
+      maximum-pool-size: 5
+      # 一時停止中の Aurora は、復帰に 15 秒ほどかかる。24 時間を超えて止まっていると 30 秒を超えることがある。
+      # その間に個々の接続の試みが切れても、プールがこの時間内で作り直す。
+      # API Gateway の待ち時間（30 秒）より長い。間に合わなければ API Gateway が 504 を返して画面が再試行し、
+      # その間もプールは接続を作り続けるため、再試行がその接続を使える
+      connection-timeout: 45000
+      # プールは最初の要求で作られる。既定では、作るときに接続を 1 回だけ試し、失敗するとすぐに例外を返す。
+      # デプロイで替わったタスクが、止まっている Aurora に初めてつなぐと、復帰を待たずに 500 になる。
+      # 作るときには接続を試さず、connection-timeout まで待たせる
+      initialization-fail-timeout: -1
+
+  flyway:
+    # アプリの起動時にはマイグレーションしない。**スキーマ所有者（DDL の権限）の認証情報をアプリに持たせない**ため。
+    # マイグレーションは migrate プロファイルで同じイメージを単発で起動して流す（application-migrate.yml）
+    enabled: false
+    locations: classpath:db/migration
+    # サービス境界をスキーマで表現する（ADR-0004）
+    schemas: core,quiz,answer
+    default-schema: core
+    create-schemas: true
+
+  data:
+    jdbc:
+      # 既定では、起動時にアプリ用の接続で DB につなぎ、種類を調べる。これをさせない。
+      # マイグレーションのタスクは quiz_app で接続できない（ADR-0014）うえ、
+      # 起動のたびに一時停止している Aurora（min 0 ACU）を起こしてしまう
+      dialect: postgresql
+
+  jackson:
+    default-property-inclusion: non_null
+
+springdoc:
+  # スナップショットと比較するため、出力の順序を安定させる。
+  # 並びが実行ごとに変わると、差分が本当の変更なのか判断できない
+  writer-with-order-by-keys: true
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    # 表示順を定義の出現順ではなく名前順にする。エンドポイントを足しても並びが動かない
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # 公開するのはヘルスチェックだけ。他のエンドポイントは内部の情報を返す
+        include: health
+  health:
+    # ヘルスチェックで DB に問い合わせない。
+    # ECS のコンテナのヘルスチェックが定期的に叩くと、Aurora Serverless v2 の自動一時停止（min 0 ACU）が発動しなくなる。
+    # DB に届かないときは、各 API がエラーを返すことで分かる
+    db:
+      enabled: false
+  # 分散トレース（ADR-0026）。送り先（同じタスクのコレクタ）は、AWS のタスク定義の環境変数
+  # MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT で渡す。無ければ送らない（ローカルとテスト）
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  opentelemetry:
+    tracing:
+      # 記録するかは、ここで trace ID から決める。呼び出し元（web の proxy、API を直接呼ぶ人）の印には従わない。
+      # 外から「記録する」の印を付けて送り続け、記録の量と費用を増やすことをさせない
+      sampler: trace-id-ratio
+  otlp:
+    metrics:
+      export:
+        # メトリクスは送らない。CloudWatch のメトリクスは、ログのメトリクスフィルタで作っている（modules/quiz-service の alarms.tf）
+        enabled: false
+  logging:
+    export:
+      otlp:
+        # ログも送らない。CloudWatch Logs に出している
+        enabled: false
+
+logging:
+  level:
+    org.flywaydb: INFO
+  structured:
+    json:
+      # trace ID と span ID を、ECS の名前（trace.id、span.id）で出す。Logs Insights で、トレースから同じ要求のログを引ける
+      rename:
+        traceId: trace.id
+        spanId: span.id
+
+# DB への接続と問い合わせを、トレースの区間にする（datasource-micrometer、ADR-0026）。
+# 問い合わせの値は載せない（SQL の文だけ）。結果の読み出しは区間にしない（行ごとに増える）
+jdbc:
+  includes: connection, query
+  datasource-proxy:
+    include-parameter-values: false
+
+app:
+  auth:
+    # アクセストークンの発行者と、トークンを受け取る web のクライアント（ADR-0016）。無ければ起動しない（AuthProperties）。
+    # AWS ではタスク定義の環境変数、ローカルでは .env から渡す
+    issuer: ${AUTH_ISSUER:}
+    client-id: ${AUTH_CLIENT_ID:}
+  figures:
+    # 解説図の置き場所と、配る URL の作り方（ADR-0017、FigureProperties）。
+    # 既定値はローカル（LocalStack）向け。AWS ではアプリのタスク定義の環境変数で、S3 の接続先を空にし、CloudFront の設定を入れる
+    bucket: ${FIGURES_BUCKET:quiz-app-figures}
+    region: ${AWS_REGION:ap-northeast-1}
+    s3:
+      endpoint: ${FIGURES_S3_ENDPOINT:http://localhost:4566}
+      public-endpoint: ${FIGURES_S3_PUBLIC_ENDPOINT:}
+    cloudfront:
+      url: ${FIGURES_CLOUDFRONT_URL:}
+      key-pair-id: ${FIGURES_CLOUDFRONT_KEY_PAIR_ID:}
+      private-key: ${FIGURES_CLOUDFRONT_PRIVATE_KEY:}
+  notifications:
+    # テナントの Slack の Webhook の URL の置き場所（ADR-0022、NotificationProperties）。
+    # 既定値はローカル（LocalStack）向け。AWS ではアプリのタスク定義の環境変数で、SSM の接続先を空にし、名前の頭を環境のものにする
+    region: ${AWS_REGION:ap-northeast-1}
+    parameter-prefix: ${NOTIFICATIONS_PARAMETER_PREFIX:/quiz-app/local}
+    ssm:
+      endpoint: ${NOTIFICATIONS_SSM_ENDPOINT:http://localhost:4566}
+  events:
+    # クイズのイベントを送る EventBridge のカスタムバス（ADR-0022、EventsProperties）。
+    # 既定値はローカル（LocalStack）向け。AWS ではアプリのタスク定義の環境変数で、接続先を空にし、バスの名前を環境のものにする。
+    # 拾い直しの間隔などは EventsProperties の既定値を使う
+    region: ${AWS_REGION:ap-northeast-1}
+    bus-name: ${EVENTS_BUS_NAME:quiz-app-local}
+    endpoint: ${EVENTS_ENDPOINT:http://localhost:4566}

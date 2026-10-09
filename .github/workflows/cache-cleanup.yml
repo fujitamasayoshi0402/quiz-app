@@ -1,0 +1,37 @@
+name: cache-cleanup
+
+# GitHub Actions のキャッシュのうち、もう使われないものを消す（DEV-101）。
+# 閉じた PR のキャッシュと、develop / main で 3 日を超えて使われていないもの。イメージのレイヤーは消さない。
+# 何を消すかと、その理由は .github/scripts/cleanup-caches.py にある。
+#
+# PR を閉じたときではなく、毎日まとめて片付ける。フォークからの PR では、トークンにキャッシュを消す権限がない。
+# 急いで消す理由もない。上限を超えても、GitHub が最後に使われたのが古いものから消すだけ
+on:
+  schedule:
+    # 毎日 4:00（日本時間）。cron は UTC で書く
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 消さずに、消すものだけを出す
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  # キャッシュを消す
+  actions: write
+  # PR が閉じているかを見る
+  pull-requests: read
+
+jobs:
+  cleanup:
+    name: cleanup
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: 使われないキャッシュを消す
+        run: python3 .github/scripts/cleanup-caches.py ${{ inputs.dry-run && '--dry-run' || '' }} | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,2 @@
+# cp terraform.tfvars.example terraform.tfvars で作る。terraform.tfvars は Git の管理外
+notification_email = "you@example.com"

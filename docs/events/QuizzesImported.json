@@ -1,0 +1,14 @@
+{
+  "eventId" : "00000000-0000-4000-8000-000000000005",
+  "occurredAt" : "2026-09-30T09:00:00Z",
+  "tenant" : {
+    "id" : "0d6f1a4e-6b2c-4f5e-9a3d-2c1b0e9f8a70",
+    "slug" : "demo",
+    "name" : "デモ"
+  },
+  "imported" : {
+    "total" : 12,
+    "published" : 10
+  },
+  "version" : 1
+}
