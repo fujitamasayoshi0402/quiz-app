@@ -22,10 +22,10 @@
 管理者ごとに独立したクイズ空間を持つ。これを **テナント** と呼ぶ（[ADR-0006](adr/0006-row-level-multi-tenancy.md)）。
 
 - 管理者は招待制で増える。既存の管理者が招待したメールアドレスのみ管理者になれる
+- ログインした人は、自分のテナントを 1 つ作り、その管理者になれる。作ったテナントは非公開に限り、クイズと図の数に上限がある（[ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)）
 - 一般ユーザーはテナントに所属し、そのテナントのクイズに回答する
 - テナントは URL のパスで識別する（`/t/{slug}/...`）
-- テナントは `private` / `public` の公開設定を持つ。`public` は将来の機能とし、
-  いまは `private` のみを扱う（時期は未定。[ロードマップ](ROADMAP.md#時期を決めていないもの)）
+- テナントは `private` / `public` の公開設定を持つ。`public` のテナントには、ログインした人が一覧から自分で参加できる（[ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)）
 
 ユースケース・画面一覧・URL 構成は [要件定義](requirements.md)、各概念の持ち方は [ドメインモデル](domain-model.md) を参照。
 
