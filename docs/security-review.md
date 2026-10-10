@@ -33,6 +33,7 @@
 | 管理 API と出題 API は URL を分け、出題 API は正解を返さない | 開発ガイドライン「API の URL」 |
 | 招待は、ログインした人の確認済みのメールアドレスが一致しなければ受け入れられない。DB にはトークンのハッシュだけを持つ | `Invitation` |
 | 招待なしで参加できるのは、管理者が公開したテナントだけ。一覧は名前と slug だけを返し、クイズは参加してから読む。非公開のテナントへの参加は、存在しないテナントと同じ 404 | [ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)、`PublicTenantsApiTest` |
+| ログインした人が作るテナントは、作った人が管理者として所属するだけで、ほかのテナントには触れない。非公開に限り、公開への切り替えを API が拒む | [ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)、`TenantCreationApiTest` |
 | 解説図は quiz-service が見せてよいかを決め、期限の短い署名付き URL で配る | [ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md) |
 | 状態を変える要求（POST・PUT・PATCH・DELETE）は、アプリのオリジンから来たものだけを通す。Cookie の `SameSite=Lax` と合わせて 2 枚 | `apps/web/src/proxy.ts`、`isSameOriginRequest` |
 
@@ -99,7 +100,10 @@ web はセキュリティのヘッダを付けている（開発ガイドライ�
 | Slack の Webhook は `https://hooks.slack.com/` の下だけを許し、送る側でも確かめ直す。リダイレクトはたどらない | [ADR-0022](adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md) |
 | アップロードは大きさと画素数に上限を設け、展開する前にヘッダで確かめる | 開発ガイドライン「解説図」 |
 | API Gateway のスロットリングで、叩かれ続けたときの費用に上限を付ける | `modules/quiz-service` |
-| 利用者ごとの流量の上限。1 人が使い切っても、ほかの利用者は使える。重い操作（画像の読み直し、取り込み、招待）はさらに厳しく | `ratelimit/`、`RateLimitApiTest` |
+| 利用者ごとの流量の上限。1 人が使い切っても、ほかの利用者は使える。重い操作（画像の読み直し、取り込み、招待、テナントの作成）はさらに厳しく | `ratelimit/`、`RateLimitApiTest` |
+| 誰でも作れるテナントに、数の上限を付ける。1 人 1 つ（DB の一意索引）、クイズ 100、図 50。パスワードを公開している共有のアカウントは作れない | [ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)、`TenantCapacityApiTest` |
+
+残るリスク（受け入れる）: 利用者が作ったテナントの上限は、数えてから入れるため、同時に来た要求で数件超えうる。使われなくなったテナントも残り続ける。どちらも 1 人 1 つで、増え方はサインアップした人の数までに収まる（ADR-0028）。
 
 残るリスク: アクセストークンのない要求（401）は利用者ごとに数えられず、API 全体の上限で受ける。叩き続けられると、その間はほかの利用者も 429 になる。画面からの要求は web の proxy を通るため、IP で分けられない。受け入れる（利用者は数人で、費用には全体の上限が付いている）。
 

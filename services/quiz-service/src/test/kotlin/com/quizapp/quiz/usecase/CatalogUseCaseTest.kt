@@ -10,6 +10,7 @@ import com.quizapp.support.fake.InMemoryFigureRepository
 import com.quizapp.support.fake.InMemoryQuizRepository
 import com.quizapp.support.fake.RecordingDeletionRepository
 import com.quizapp.support.fake.RecordingQuizEventOutbox
+import com.quizapp.support.fake.UnlimitedTenantCapacity
 import com.quizapp.support.fake.fakeTenantTransaction
 import com.quizapp.tenant.TenantContext
 import org.assertj.core.api.Assertions.assertThat
@@ -45,6 +46,7 @@ class CatalogUseCaseTest {
             deletion,
             InMemoryFigureRepository(),
             RecordingQuizEventOutbox(),
+            UnlimitedTenantCapacity,
             transaction,
         )
 

@@ -97,6 +97,10 @@ class TenantBoundaryApiTest {
                 "公開テナントを、所属する前に探す。読むのは core だけで、公開しているテナントの名前と slug しか返さない（PublicTenantsApiTest）",
             "POST /api/me/public-tenants/{slug}/join" to
                 "所属する前に呼ぶ。公開しているテナントにだけ一般ユーザーとして所属し、ほかは存在しないものと同じ 404（PublicTenantsApiTest）",
+            "GET /api/me/tenant-creation" to
+                "テナントを作る前に呼ぶ。読むのは core の本人の行と、本人が作ったテナントがあるかだけ（TenantCreationApiTest）",
+            "POST /api/me/tenants" to
+                "作る人は、まだそのテナントに所属していない。core に新しいテナントと本人の所属を作るだけで、既存のテナントには触れない（TenantCreationApiTest）",
         )
     }
 

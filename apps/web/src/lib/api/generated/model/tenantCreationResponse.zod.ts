@@ -14,10 +14,10 @@
  */
 import * as zod from 'zod';
 
-export const TenantSettingsResponse = zod.object({
-  "canBePublic": zod.boolean(),
-  "visibility": zod.string()
+export const TenantCreationResponse = zod.object({
+  "allowed": zod.boolean(),
+  "reason": zod.string().nullish()
 })
 
-export type TenantSettingsResponse = zod.input<typeof TenantSettingsResponse>;
-export type TenantSettingsResponseOutput = zod.output<typeof TenantSettingsResponse>;
+export type TenantCreationResponse = zod.input<typeof TenantCreationResponse>;
+export type TenantCreationResponseOutput = zod.output<typeof TenantCreationResponse>;

@@ -14,10 +14,15 @@
  */
 import * as zod from 'zod';
 
-export const TenantSettingsResponse = zod.object({
-  "canBePublic": zod.boolean(),
-  "visibility": zod.string()
+export const createTenantRequestNameMin = 0;
+export const createTenantRequestNameMax = 100;
+
+export const createTenantRequestSlugRegExp = new RegExp('^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$');
+
+export const CreateTenantRequest = zod.object({
+  "name": zod.string().min(createTenantRequestNameMin).max(createTenantRequestNameMax),
+  "slug": zod.string().regex(createTenantRequestSlugRegExp)
 })
 
-export type TenantSettingsResponse = zod.input<typeof TenantSettingsResponse>;
-export type TenantSettingsResponseOutput = zod.output<typeof TenantSettingsResponse>;
+export type CreateTenantRequest = zod.input<typeof CreateTenantRequest>;
+export type CreateTenantRequestOutput = zod.output<typeof CreateTenantRequest>;
