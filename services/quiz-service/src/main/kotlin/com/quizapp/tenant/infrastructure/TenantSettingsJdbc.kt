@@ -17,8 +17,9 @@ import java.util.UUID
 class TenantSettingsJdbc(private val jdbcTemplate: JdbcTemplate) : TenantSettingsStore {
 
     override fun find(tenantId: UUID): TenantSettings = jdbcTemplate.query(
-        "SELECT visibility FROM core.tenants WHERE id = ? AND deleted_at IS NULL",
-        { rs, _ -> TenantSettings(TenantVisibility.from(rs.getString("visibility"))) },
+        // 作った人がいるテナントは、利用者が作ったもの。公開にできない（ADR-0028）
+        "SELECT visibility, created_by IS NULL AS can_be_public FROM core.tenants WHERE id = ? AND deleted_at IS NULL",
+        { rs, _ -> TenantSettings(TenantVisibility.from(rs.getString("visibility")), rs.getBoolean("can_be_public")) },
         tenantId,
     ).single()
 

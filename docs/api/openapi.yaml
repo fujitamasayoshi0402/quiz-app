@@ -39,6 +39,8 @@ tags:
   name: 解説図（出題）
 - description: 管理者がカテゴリを CRUD する
   name: カテゴリ
+- description: 自分のテナントを 1 つ作り、その管理者になる
+  name: テナントの作成
 - description: テナントへの招待を作り、取り消す。招待のトークンは作った直後にだけ返す
   name: 招待
 - description: 公開設定。public にすると、ログインした人が一覧から見つけて参加できる
@@ -120,6 +122,19 @@ paths:
       summary: 公開テナントに一般ユーザーとして参加する。すでに所属していれば何も変えない
       tags:
       - 公開テナント
+  /api/me/tenant-creation:
+    get:
+      operationId: getTenantCreation
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantCreationResponse"
+          description: OK
+      summary: テナントを作れるかどうかと、作れない理由
+      tags:
+      - テナントの作成
   /api/me/tenants:
     get:
       operationId: listMyTenants
@@ -135,6 +150,24 @@ paths:
       summary: 所属しているテナントの一覧
       tags:
       - 利用者
+    post:
+      operationId: createTenant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTenantRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyTenantResponse"
+          description: Created
+      summary: テナントを作り、作った人を管理者として所属させる
+      tags:
+      - テナントの作成
   /api/t/{slug}/admin/categories:
     get:
       description: 並び順に返す。クイズの数を添える
@@ -2646,6 +2679,19 @@ components:
           pattern: admin|member
       required:
       - email
+    CreateTenantRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        slug:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$"
+      required:
+      - name
+      - slug
     CreatedInvitationResponse:
       type: object
       properties:
@@ -3236,12 +3282,26 @@ components:
       required:
       - contentType
       - size
+    TenantCreationResponse:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        reason:
+          type:
+          - string
+          - "null"
+      required:
+      - allowed
     TenantSettingsResponse:
       type: object
       properties:
+        canBePublic:
+          type: boolean
         visibility:
           type: string
       required:
+      - canBePublic
       - visibility
     Trash:
       type: object

@@ -44,6 +44,10 @@ INSERT INTO core.tenant_members (tenant_id, user_id, role) VALUES
     ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', '0b66aaf5-727d-5da9-bf87-6756dff5b046', 'member')
     ON CONFLICT DO NOTHING;
 
+-- パスワードを公開している共有のアカウントなので、テナントは作れない（ADR-0028）。
+-- 作れると、最初の 1 人が数の上限を使い切り、ほかの人が書いたものを全員が見る
+UPDATE core.users SET shared = true WHERE id = '0b66aaf5-727d-5da9-bf87-6756dff5b046' AND NOT shared;
+
 -- テナント配下の行は、テナントを決めてから入れる --------------------------------
 -- quiz 配下のテーブルは FORCE ROW LEVEL SECURITY で、所有者（マイグレーションを流す quiz）にもポリシーが効く。
 -- アプリと同じく app.tenant_id を設定しないと、行を入れられない（TenantSession）。

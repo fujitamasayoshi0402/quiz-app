@@ -12,6 +12,7 @@ import com.quizapp.support.fake.InMemoryQuizRepository
 import com.quizapp.support.fake.RecordingDeletionRepository
 import com.quizapp.support.fake.RecordingQuizEventOutbox
 import com.quizapp.support.fake.RecordingQuizEventOutbox.Recorded
+import com.quizapp.support.fake.UnlimitedTenantCapacity
 import com.quizapp.support.fake.fakeTenantTransaction
 import com.quizapp.tenant.TenantContext
 import org.assertj.core.api.Assertions.assertThat
@@ -37,8 +38,25 @@ class QuizEventUseCaseTest {
     private val transaction = fakeTenantTransaction()
 
     private val quizUseCase =
-        QuizUseCase(quizzes, categories, difficulties, RecordingDeletionRepository(), figures, outbox, transaction)
-    private val importUseCase = QuizImportUseCase(quizzes, categories, difficulties, figures, outbox, transaction)
+        QuizUseCase(
+            quizzes,
+            categories,
+            difficulties,
+            RecordingDeletionRepository(),
+            figures,
+            outbox,
+            UnlimitedTenantCapacity,
+            transaction,
+        )
+    private val importUseCase = QuizImportUseCase(
+        quizzes,
+        categories,
+        difficulties,
+        figures,
+        outbox,
+        UnlimitedTenantCapacity,
+        transaction,
+    )
 
     private lateinit var aws: UUID
     private lateinit var saa: UUID

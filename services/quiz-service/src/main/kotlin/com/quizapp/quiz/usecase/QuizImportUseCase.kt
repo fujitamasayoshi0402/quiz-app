@@ -6,10 +6,12 @@ import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.DifficultyRepository
 import com.quizapp.quiz.domain.FigureRepository
+import com.quizapp.quiz.domain.LimitedResource
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizEventOutbox
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
+import com.quizapp.quiz.domain.TenantCapacity
 import com.quizapp.tenant.TenantTransaction
 import org.springframework.stereotype.Service
 import java.util.UUID
@@ -52,6 +54,7 @@ class QuizImportUseCase(
     private val difficultyRepository: DifficultyRepository,
     private val figureRepository: FigureRepository,
     private val outbox: QuizEventOutbox,
+    private val capacity: TenantCapacity,
     private val tenantTransaction: TenantTransaction,
 ) {
     fun import(rows: List<QuizImportRow>): Int = tenantTransaction.execute {
@@ -63,6 +66,8 @@ class QuizImportUseCase(
             quiz
         }
         if (errors.isNotEmpty()) throw QuizImportRejectedException(errors)
+        // 一部だけを取り込まない。全部入らなければ、1 件も入れない
+        capacity.requireRoomFor(LimitedResource.QUIZZES, quizzes.size)
 
         quizzes.forEach(quizRepository::save)
         outbox.quizzesImported(total = quizzes.size, published = quizzes.count { it.status == QuizStatus.PUBLISHED })
