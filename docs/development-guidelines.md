@@ -916,8 +916,9 @@ aws rds-data execute-statement \
 
 #### ドメイン
 
-Route 53 に登録済みのドメインを使う。**ドメイン名はリポジトリに書かず、`terraform.tfvars` の `domain_name` に置く**
+Route 53 に登録済みのドメインを使う。**ドメイン名は Terraform のコードに書かず、`terraform.tfvars` の `domain_name` に置く**
 （Git の管理外。書き方は `terraform.tfvars.example`）。
+README のデモの URL（dev の web）だけは、見に来た人が開くために書いている。ドメインを替えたら、README も直す。
 
 | 環境 | web | API | 解説図 |
 | --- | --- | --- | --- |
@@ -940,6 +941,7 @@ Route 53 に登録済みのドメインを使う。**ドメイン名はリポジ
   このスコープのトークンは自分の属性を書き換えられるが、トークンはブラウザに渡らない
 - スモークテストの利用者（`smoke@example.com`）も Terraform が作る。パスワードは `terraform output -raw smoke_user_password`
 - 見に来た人が試すための、共有のデモのアカウント（`demo@example.com`）も同じ。**パスワードは公開する前提**で、`terraform output -raw demo_user_password`。
+  README に載せている。パスワードを作り直したら、README も直す。
   `example.com` は誰も受け取れないので、パスワードを忘れた人の手続き（確認コード）で乗っ取られることはない
 - E2E テストの利用者（`e2e-*@example.com` の 4 人）も同じ。パスワードは全員で共通で、`terraform output -raw e2e_user_password`（[E2E テスト](#e2e-テスト)）
 
