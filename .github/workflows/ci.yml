@@ -479,7 +479,11 @@ jobs:
   release:
     name: release
     needs: [deploy-prod]
-    if: needs.deploy-prod.outputs.deployed == 'true'
+    # deploy-dev と同じく、状態の関数を書く。書かないと success() が付き、間接的な依存（backend など）が
+    # パスの出し分けでスキップされただけで、このジョブもスキップされる（最初のリリースで起きた）
+    if: >-
+      !cancelled() && needs.deploy-prod.result == 'success'
+      && needs.deploy-prod.outputs.deployed == 'true'
     runs-on: ubuntu-26.04
     permissions:
       contents: write
