@@ -18,7 +18,7 @@ import { roleLabel } from "@/lib/auth/roles";
  *
  * | 所属 | 表示 |
  * | --- | --- |
- * | 0 | 招待を受けていない旨と、公開テナントの一覧への案内 |
+ * | 0 | 招待を受けていない旨と、公開テナントの一覧、テナントの作成への案内 |
  * | 1 | そのテナントへ移る。選択肢が 1 つしかない画面は挟まない |
  * | 2 以上 | 選択画面 |
  *
@@ -43,13 +43,18 @@ export function TenantPicker() {
           <CardTitle>所属しているテナントがありません</CardTitle>
           <CardDescription>
             管理者から招待のリンクを受け取ったら、そのリンクを開いてください。参加すると、ここから入れるようになります。
-            公開されているテナントには、招待なしで参加できます。
+            公開されているテナントには、招待なしで参加できます。自分のテナントを作って、クイズを作ることもできます。
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
-          <Button asChild>
-            <Link href="/tenants">公開されているテナントを探す</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href="/tenants">公開されているテナントを探す</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/tenants/new">自分のテナントを作る</Link>
+            </Button>
+          </div>
           <SignOutButton />
         </CardContent>
       </Card>
@@ -82,9 +87,14 @@ export function TenantPicker() {
           </li>
         ))}
       </ul>
-      <Link href="/tenants" className="text-center text-sm text-muted-foreground underline underline-offset-4">
-        公開されているテナントを探す
-      </Link>
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm">
+        <Link href="/tenants" className="text-muted-foreground underline underline-offset-4">
+          公開されているテナントを探す
+        </Link>
+        <Link href="/tenants/new" className="text-muted-foreground underline underline-offset-4">
+          自分のテナントを作る
+        </Link>
+      </div>
       <SignOutButton className="text-center" />
     </>
   );

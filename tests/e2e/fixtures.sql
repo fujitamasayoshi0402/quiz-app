@@ -27,6 +27,12 @@ FROM core.users u, core.tenants t
 WHERE m.user_id = u.id AND m.tenant_id = t.id AND t.slug = 'e2e' AND m.deleted_at IS NULL
   AND lower(u.email) IN ('e2e-outsider@example.com', 'e2e-invitee@example.com');
 
+-- 未所属の人が作ったテナントを消す（DEV-139）。テナントの作成のテストは、決まった slug で作り、終わったら消す。
+-- 途中で止まって残っても、未所属のまま、同じ slug で作り直せる状態から始める（作った人と slug の一意は、削除されていないものだけ）
+UPDATE core.tenants t SET deleted_at = now()
+FROM core.users u
+WHERE t.created_by = u.id AND t.deleted_at IS NULL AND lower(u.email) = 'e2e-outsider@example.com';
+
 -- 前の実行が途中で止まって残った招待を取り消す。招待の一覧が空の状態から始める
 UPDATE core.invitations i SET revoked_at = now()
 FROM core.tenants t
