@@ -12,6 +12,8 @@ class DifficultyRepositoryImpl(private val jdbcRepository: DifficultyJdbcReposit
     override fun findByCategoryId(categoryId: UUID): List<Difficulty> =
         jdbcRepository.findActiveByCategoryId(categoryId).map { it.toDomain() }
 
+    override fun findAll(): List<Difficulty> = jdbcRepository.findAllActive().map { it.toDomain() }
+
     override fun findById(id: UUID): Difficulty? = jdbcRepository.findActiveById(id)?.toDomain()
 
     override fun reorder(ids: List<UUID>) {

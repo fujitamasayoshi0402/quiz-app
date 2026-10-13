@@ -2129,6 +2129,109 @@ export function useCategoryDeletionImpact<TData = Awaited<ReturnType<typeof cate
 
 
 
+export const getListAllDifficultiesUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/difficulties`
+}
+
+/**
+ * カテゴリの並び順、レベル、並び順で返す。削除したカテゴリの下にあるものは含まない
+ * @summary すべてのカテゴリの難易度の一覧
+ */
+export const listAllDifficulties = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<DifficultyResponse[]> => {
+
+  return apiFetch<DifficultyResponse[]>(getListAllDifficultiesUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: zod.array(DifficultyResponse)
+  }
+);}
+
+
+
+
+
+export const getListAllDifficultiesQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/admin/difficulties`
+    ] as const;
+    }
+
+
+export const getListAllDifficultiesQueryOptions = <TData = Awaited<ReturnType<typeof listAllDifficulties>>, TError = ProblemDetail>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAllDifficulties>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAllDifficultiesQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAllDifficulties>>> = ({ signal }) => listAllDifficulties(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAllDifficulties>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAllDifficultiesQueryResult = NonNullable<Awaited<ReturnType<typeof listAllDifficulties>>>
+export type ListAllDifficultiesQueryError = ProblemDetail
+
+
+export function useListAllDifficulties<TData = Awaited<ReturnType<typeof listAllDifficulties>>, TError = ProblemDetail>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAllDifficulties>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAllDifficulties>>,
+          TError,
+          Awaited<ReturnType<typeof listAllDifficulties>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAllDifficulties<TData = Awaited<ReturnType<typeof listAllDifficulties>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAllDifficulties>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAllDifficulties>>,
+          TError,
+          Awaited<ReturnType<typeof listAllDifficulties>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAllDifficulties<TData = Awaited<ReturnType<typeof listAllDifficulties>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAllDifficulties>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary すべてのカテゴリの難易度の一覧
+ */
+
+export function useListAllDifficulties<TData = Awaited<ReturnType<typeof listAllDifficulties>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAllDifficulties>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAllDifficultiesQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getCreateFigureUrl = (slug: string,) => {
 
 

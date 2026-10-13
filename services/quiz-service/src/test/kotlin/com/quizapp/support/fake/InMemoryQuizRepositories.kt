@@ -52,6 +52,8 @@ class InMemoryDifficultyRepository : DifficultyRepository {
         it.categoryId == categoryId
     }
 
+    override fun findAll(): List<Difficulty> = rows.values.toList()
+
     override fun findById(id: UUID): Difficulty? = rows[id]
 
     override fun save(difficulty: Difficulty): Difficulty {

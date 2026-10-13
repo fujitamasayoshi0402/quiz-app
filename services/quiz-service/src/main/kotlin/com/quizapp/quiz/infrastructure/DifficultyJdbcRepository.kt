@@ -19,6 +19,17 @@ interface DifficultyJdbcRepository : CrudRepository<DifficultyEntity, UUID> {
     )
     fun findActiveByCategoryId(categoryId: UUID): List<DifficultyEntity>
 
+    /** カテゴリの並び順が先。画面はカテゴリごとに分けて使う */
+    @Query(
+        """
+        SELECT d.* FROM quiz.difficulties d
+        JOIN quiz.categories c ON c.id = d.category_id AND c.deleted_at IS NULL
+        WHERE d.deleted_at IS NULL
+        ORDER BY c.sort_order, c.name, d.level, d.sort_order, d.name
+        """,
+    )
+    fun findAllActive(): List<DifficultyEntity>
+
     @Query("SELECT * FROM quiz.difficulties WHERE id = :id AND deleted_at IS NULL")
     fun findActiveById(id: UUID): DifficultyEntity?
 
