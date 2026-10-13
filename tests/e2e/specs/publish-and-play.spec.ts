@@ -77,7 +77,7 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await member.getByRole("button", { name: "結果を見る" }).click();
     await expect(member).toHaveURL(new RegExp(`/t/${tenant.slug}/play/result\\?`));
     await expect(member.getByText("0%")).toBeVisible();
-    await expect(member.getByText("1 問中 0 問正解")).toBeVisible();
+    await expect(member.getByText("0 / 1 問")).toBeVisible();
     await expect(member.getByRole("heading", { name: "間違えた問題" })).toBeVisible();
     await expect(member.getByText(question)).toBeVisible();
   });

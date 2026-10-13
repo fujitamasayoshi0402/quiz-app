@@ -7,8 +7,8 @@ export default async function ResultPage({ params, searchParams }: PageProps<"/t
   const { attempt, mode } = await searchParams;
   if (typeof attempt !== "string") redirect(`/t/${slug}/play`);
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold">結果</h1>
+    <div className="space-y-8">
+      <h1 className="text-2xl font-semibold tracking-tight">結果</h1>
       <PlayResult slug={slug} attemptId={attempt} mode={parseMode(mode)} />
     </div>
   );

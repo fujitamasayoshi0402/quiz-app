@@ -5,15 +5,20 @@ import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.DeletionRepository
 import com.quizapp.quiz.domain.DifficultyRepository
 import com.quizapp.quiz.domain.FigureRepository
+import com.quizapp.quiz.domain.LimitedResource
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizChange
 import com.quizapp.quiz.domain.QuizEventOutbox
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
+import com.quizapp.quiz.domain.TenantCapacity
 import com.quizapp.tenant.TenantTransaction
 import org.springframework.stereotype.Service
 import java.util.UUID
 
+// 8 つ目は、テナントの上限（ADR-0028）。作成の前に確かめる番人で、ほかの型に混ぜると、確かめていることが見えなくなる。
+// 削除も各ユースケースが持つ形で揃えているため、ずらして減らすことはしない
+@Suppress("LongParameterList")
 @Service
 class QuizUseCase(
     private val quizRepository: QuizRepository,
@@ -22,6 +27,7 @@ class QuizUseCase(
     private val deletion: DeletionRepository,
     private val figureRepository: FigureRepository,
     private val outbox: QuizEventOutbox,
+    private val capacity: TenantCapacity,
     private val tenantTransaction: TenantTransaction,
 ) {
     fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> =
@@ -39,6 +45,7 @@ class QuizUseCase(
         choices: List<Choice>,
         status: QuizStatus,
     ): Quiz = tenantTransaction.execute {
+        capacity.requireRoomFor(LimitedResource.QUIZZES)
         verifyCategoryAndDifficulty(categoryId, difficultyId)
         val quiz = Quiz(
             categoryId = categoryId,

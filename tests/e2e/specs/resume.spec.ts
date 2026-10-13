@@ -49,8 +49,8 @@ test("模試モードを 1 問でやめ、出題の画面から再開して最�
 
   await test.step("最後に答えると結果へ移り、2 問とも答え合わせが出る", async () => {
     await expect(page.getByRole("heading", { name: "答え合わせ" })).toBeVisible();
-    await expect(page.getByText("Q1")).toBeVisible();
-    await expect(page.getByText("Q2")).toBeVisible();
+    await expect(page.getByText("QUESTION 1")).toBeVisible();
+    await expect(page.getByText("QUESTION 2")).toBeVisible();
     await expectNoHorizontalScroll(page);
 
     // 終えたので、出題の画面にはもう出ない
@@ -61,7 +61,7 @@ test("模試モードを 1 問でやめ、出題の画面から再開して最�
 });
 
 async function questionOf(page: Page): Promise<string> {
-  return (await page.locator("[data-slot=card-title]").first().textContent()) ?? "";
+  return (await page.locator("[data-slot=question]").first().textContent()) ?? "";
 }
 
 /** 開発ガイドライン「画面の幅」。360px で横スクロールを出さない */

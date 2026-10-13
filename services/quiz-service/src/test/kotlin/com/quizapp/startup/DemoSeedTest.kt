@@ -219,6 +219,28 @@ class DemoSeedTest {
     }
 
     @Test
+    @DisplayName("デモのアカウントは共有のアカウントで、テナントを作れない。ほかのシードの利用者は作れる")
+    fun onlyDemoAccountIsShared() {
+        applySeed()
+
+        // パスワードを公開しているので、作れると最初の 1 人が上限を使い切る（ADR-0028）。
+        // DB はほかのテストと共有で、ほかのテストが印を付けた利用者もいる。シードの利用者だけを見る
+        val shared = TestPostgres.adminJdbcTemplate.query(
+            """
+            SELECT coalesce(external_id, email) AS who, shared FROM core.users
+            WHERE external_id IN ('demo-admin', 'demo-member', 'demo-outsider') OR lower(email) = 'demo@example.com'
+            """,
+        ) { rs, _ -> rs.getString("who") to rs.getBoolean("shared") }
+
+        assertThat(shared).containsExactlyInAnyOrder(
+            "demo-admin" to false,
+            "demo-member" to false,
+            "demo-outsider" to false,
+            "demo@example.com" to true,
+        )
+    }
+
+    @Test
     @DisplayName("所属の数が 0 / 1 / 2 以上の利用者がそろっている")
     fun membershipCountsCoverTenantSelection() {
         applySeed()

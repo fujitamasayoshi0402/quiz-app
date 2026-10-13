@@ -9,6 +9,8 @@ import com.quizapp.quiz.domain.FigureStore
 import com.quizapp.quiz.domain.FigureUploadStore
 import com.quizapp.quiz.domain.FigureUploads
 import com.quizapp.quiz.domain.ImageFormat
+import com.quizapp.quiz.domain.LimitedResource
+import com.quizapp.quiz.domain.TenantCapacity
 import com.quizapp.tenant.TenantTransaction
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -32,12 +34,14 @@ class FigureUseCase(
     private val repository: FigureRepository,
     private val store: FigureStore,
     private val uploads: FigureUploadStore,
+    private val capacity: TenantCapacity,
     private val tenantTransaction: TenantTransaction,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     /** 本体を置いてから、行を入れる。ID は推測できない乱数にする。出題の時点で図を見せないことは、ID を渡さないことで守る */
     fun create(source: String, svg: String): UUID {
+        requireRoomForFigure()
         val content = FigureContent(source, svg)
         val id = UUID.randomUUID()
         store.save(id, content)
@@ -49,6 +53,8 @@ class FigureUseCase(
     fun startUpload(contentType: String, size: Long): FigureUpload {
         val (maxBytes, tooLarge) = requireNotNull(FigureUploads.limitFor(contentType)) { FigureUploads.UNSUPPORTED }
         require(size in 1..maxBytes) { tooLarge }
+        // 上げてから断ると、ブラウザが送った本体が無駄になる。完了のときにも確かめる
+        requireRoomForFigure()
         val id = UUID.randomUUID()
         return FigureUpload(id, uploads.uploadUrl(id, contentType, size), contentType)
     }
@@ -60,6 +66,7 @@ class FigureUseCase(
     fun completeUpload(id: UUID): FigureKind {
         val size = uploads.uploadSize(id) ?: throw FigureUploadNotFoundException(id)
         try {
+            requireRoomForFigure()
             val kind = place(id, size, head(id))
             tenantTransaction.executeWithoutResult { repository.add(id, kind) }
             return kind
@@ -89,6 +96,10 @@ class FigureUseCase(
 
         else -> throw IllegalArgumentException(FigureUploads.UNSUPPORTED)
     }
+
+    /** 本体を置く前に確かめる。上限を超えて断ったときに、置いた本体が残らない（ADR-0028） */
+    private fun requireRoomForFigure() =
+        tenantTransaction.executeWithoutResult { capacity.requireRoomFor(LimitedResource.FIGURES) }
 
     private fun head(id: UUID): ByteArray =
         uploads.readUploadHead(id, FigureUploads.HEAD_BYTES) ?: throw FigureUploadNotFoundException(id)

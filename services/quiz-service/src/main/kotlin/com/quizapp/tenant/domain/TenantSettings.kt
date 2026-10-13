@@ -22,8 +22,15 @@ enum class TenantVisibility {
     }
 }
 
-/** テナントの設定。いまは公開設定だけを持つ */
-data class TenantSettings(val visibility: TenantVisibility)
+/**
+ * テナントの設定。いまは公開設定だけを持つ。
+ *
+ * [canBePublic] は、公開にできるか。利用者が作ったテナントは非公開に限る（ADR-0028）。読むときにだけ意味を持つ
+ */
+data class TenantSettings(val visibility: TenantVisibility, val canBePublic: Boolean = true)
+
+/** 利用者が作ったテナントを公開にしようとした（ADR-0028） */
+class TenantCannotBePublicException : RuntimeException("利用者が作ったテナントは公開できません")
 
 interface TenantSettingsStore {
     fun find(tenantId: UUID): TenantSettings

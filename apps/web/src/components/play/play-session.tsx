@@ -6,12 +6,11 @@ import { useState } from "react";
 import { Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
 import { ChoiceList } from "@/components/play/choice-list";
+import { Eyebrow, Panel, ProgressLine, Verdict } from "@/components/play/parts";
 import { SwipeSession } from "@/components/play/swipe-session";
 import { ApiError } from "@/lib/api/fetcher";
 import { useAnswerQuiz, useResumeAttempt } from "@/lib/api/generated/endpoints";
@@ -27,7 +26,7 @@ export function PlaySession({ slug, attemptId, mode }: { slug: string; attemptId
   // 最初に開いたときの回答済みの一覧から始まり、答えた問題がまた出る
   const attempt = useResumeAttempt(slug, attemptId, { query: { staleTime: Infinity, gcTime: 0 } });
 
-  if (attempt.isPending) return <Skeleton className="h-80 w-full" />;
+  if (attempt.isPending) return <Skeleton className="h-80 w-full rounded-2xl" />;
   if (attempt.isError) return <ApiErrorAlert error={attempt.error} />;
   if (mode === "swipe" && attempt.data.status === "in_progress")
     return <SwipeSession slug={slug} attempt={attempt.data} />;
@@ -70,16 +69,12 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
 
   if (attempt.status !== "in_progress" || !current) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>このクイズは終了しています</CardTitle>
-        </CardHeader>
-        <CardFooter>
-          <Button asChild>
-            <Link href={resultUrl}>結果を見る</Link>
-          </Button>
-        </CardFooter>
-      </Card>
+      <Panel className="space-y-4">
+        <p className="font-semibold">このクイズは終了しています</p>
+        <Button asChild className="rounded-full">
+          <Link href={resultUrl}>結果を見る</Link>
+        </Button>
+      </Panel>
     );
   }
 
@@ -87,59 +82,59 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
   const unanswerable = answer.error instanceof ApiError && answer.error.status === 409;
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm text-muted-foreground">
-          <span>
-            {position} / {total} 問
-          </span>
-          <span>{mode === "learn" ? "学習モード" : "模試モード"}</span>
-        </div>
-        <Progress value={(done.size / total) * 100} />
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <ProgressLine value={done.size} max={total} label="回答した問題" />
+        <span className="text-xs font-medium text-muted-foreground tabular-nums">
+          {position} / {total} 問
+        </span>
       </div>
 
       {attempt.excludedCount > 0 && (
-        <Alert>
+        <Alert className="rounded-2xl">
           <Info />
           <AlertDescription>出題後に削除・非公開になった {attempt.excludedCount} 問を除いています。</AlertDescription>
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg leading-relaxed font-medium whitespace-pre-wrap">{current.question}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <ChoiceList
-            choices={current.choices}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            reveal={feedback ? { correctChoiceId: feedback.correctChoiceId } : undefined}
-          />
-          {feedback && <Explanation slug={slug} result={feedback} />}
-          {answer.isError && <ApiErrorAlert error={answer.error} />}
-        </CardContent>
-        <CardFooter className="justify-end">
-          {feedback || unanswerable ? (
-            <Button onClick={() => advance(current.id)}>{done.size + 1 >= total ? "結果を見る" : "次の問題へ"}</Button>
-          ) : (
-            <Button onClick={submit} disabled={!selectedId || answer.isPending}>
-              回答する
-            </Button>
-          )}
-        </CardFooter>
-      </Card>
+      <div className="space-y-3">
+        <Eyebrow>
+          QUESTION {position}・{mode === "learn" ? "学習モード" : "模試モード"}
+        </Eyebrow>
+        <p data-slot="question" className="text-xl leading-snug font-semibold tracking-tight whitespace-pre-wrap">
+          {current.question}
+        </p>
+      </div>
+
+      <ChoiceList
+        choices={current.choices}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        reveal={feedback ? { correctChoiceId: feedback.correctChoiceId } : undefined}
+      />
+      {feedback && <Explanation slug={slug} result={feedback} />}
+      {answer.isError && <ApiErrorAlert error={answer.error} />}
+
+      <div className="flex justify-end">
+        {feedback || unanswerable ? (
+          <Button size="lg" className="rounded-full px-8" onClick={() => advance(current.id)}>
+            {done.size + 1 >= total ? "結果を見る" : "次の問題へ"}
+          </Button>
+        ) : (
+          <Button size="lg" className="rounded-full px-8" onClick={submit} disabled={!selectedId || answer.isPending}>
+            回答する
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
 
 function Explanation({ slug, result }: { slug: string; result: AnswerResult }) {
   return (
-    <div className="space-y-2 rounded-lg border p-4">
-      <p className={result.isCorrect ? "font-semibold text-emerald-700" : "font-semibold text-red-700"}>
-        {result.isCorrect ? "正解" : "不正解"}
-      </p>
+    <Panel className="animate-in space-y-2 duration-300 fade-in slide-in-from-bottom-2">
+      <Verdict correct={result.isCorrect} />
       <Markdown tenant={slug}>{result.explanation}</Markdown>
-    </div>
+    </Panel>
   );
 }

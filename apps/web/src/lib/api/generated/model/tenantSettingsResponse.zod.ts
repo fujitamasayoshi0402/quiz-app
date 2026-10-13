@@ -15,6 +15,7 @@
 import * as zod from 'zod';
 
 export const TenantSettingsResponse = zod.object({
+  "canBePublic": zod.boolean(),
   "visibility": zod.string()
 })
 

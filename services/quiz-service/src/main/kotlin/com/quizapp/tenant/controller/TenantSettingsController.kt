@@ -43,8 +43,10 @@ data class UpdateTenantSettingsRequest(
 data class TenantSettingsResponse(
     /** `private`（招待した人だけ）か `public`（ログインした人が自分で参加できる） */
     val visibility: String,
+    /** 公開にできるか。利用者が作ったテナントは、非公開に限る（ADR-0028） */
+    val canBePublic: Boolean,
 ) {
     companion object {
-        fun from(settings: TenantSettings) = TenantSettingsResponse(settings.visibility.value)
+        fun from(settings: TenantSettings) = TenantSettingsResponse(settings.visibility.value, settings.canBePublic)
     }
 }

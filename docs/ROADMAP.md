@@ -166,11 +166,11 @@
 
 **ゴール: 「どう運用するか」を説明できる状態**
 
-- [ ] 監視: CloudWatch ダッシュボード、アラーム、構造化ログ、OpenTelemetry
+- [x] 監視: CloudWatch ダッシュボード、アラーム、構造化ログ、OpenTelemetry（分散トレース。[ADR-0026](adr/0026-trace-requests-with-micrometer-and-x-ray.md)）
 - [x] E2E テスト（Playwright）を、権限まわり（Phase 3 で CI に組み込み済み）から出題・回答や管理の操作に広げる
 - [x] 負荷試験（k6）と、チューニング前後の計測結果の記録（[負荷試験](load-test.md)）
-- [ ] セキュリティ: 依存脆弱性スキャン、OWASP 観点のレビュー
-- [ ] データ整合性チェックのバッチ（選択肢が 4 つ揃っているか、正解が 1 つかなど）
+- [x] セキュリティ: 依存脆弱性スキャン（Trivy、Dependabot）、OWASP 観点のレビュー（[セキュリティレビュー](security-review.md)）
+- [x] データ整合性チェック（選択肢が 4 つ揃っているか、正解が 1 つかなど）。決まった時刻のバッチではなく、利用があった日に 1 回流す（Aurora を起こさないため）
 - [x] Runbook / 障害対応手順、バックアップとリストアの実地確認
 - [ ] prod 環境構築とリリース手順の確立
 
@@ -183,11 +183,12 @@
 **ゴール: 初見の第三者が 3 分でアーキテクチャと設計意図を把握できる状態**
 
 - [x] README: 概要 / 画面 / アーキテクチャ図（Mermaid）/ 技術選定の記録 / 設計上の工夫
-- [ ] README: デモ URL（誰でも入れるテナントか、デモ用アカウントができてから）
+- [x] README: デモ URL（dev の URL と、デモ用アカウント。prod を公開したら差し替える）
 - [x] アーキテクチャ図（C4 の Context / Container）を draw.io で作成（`docs/architecture/`）
 - [x] デモ用アカウントの用意（`demo@example.com`。デモのテナントの一般ユーザー）
 - [x] テナントの公開設定（`public`）と、公開テナントを見つけて招待なしで参加する導線（[ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)。時期を決めていなかったものから移した）
 - [x] ADR インデックスの整備（テーマ別の索引と、置き換えの関係）
+- [x] ログインした人が、自分のテナントを作って管理の画面を試せる（[ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)）
 - [ ] コストの最終調整
 
 ---
