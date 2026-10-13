@@ -9,6 +9,9 @@ interface DifficultyRepository {
     /** 指定カテゴリの難易度を、レベルと並び順で返す。 */
     fun findByCategoryId(categoryId: UUID): List<Difficulty>
 
+    /** テナントのすべての難易度を、カテゴリの並び順、レベル、並び順で返す。削除済みのカテゴリの下にあるものは含まない */
+    fun findAll(): List<Difficulty>
+
     fun findById(id: UUID): Difficulty?
 
     fun save(difficulty: Difficulty): Difficulty

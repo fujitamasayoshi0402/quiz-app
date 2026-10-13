@@ -138,6 +138,28 @@ class DifficultyApiTest {
     }
 
     @Test
+    @DisplayName("すべてのカテゴリの難易度を 1 回で取れる。カテゴリの並び順が先で、削除したカテゴリの下のものと、別テナントのものは含まない")
+    fun listsDifficultiesOfAllCategories() {
+        val aws = createCategory(tenantA.slug, "AWS")
+        val auth = createCategory(tenantA.slug, "認証認可")
+        val removed = createCategory(tenantA.slug, "消すカテゴリ")
+        createDifficulty(tenantA.slug, auth, "初級", 1)
+        createDifficulty(tenantA.slug, aws, "SAA", 2)
+        createDifficulty(tenantA.slug, aws, "CLF", 1)
+        createDifficulty(tenantA.slug, removed, "消える", 1)
+        createDifficulty(tenantB.slug, createCategory(tenantB.slug, "デルタのカテゴリ"), "デルタの難易度", 1)
+        mockMvc.delete("/api/t/${tenantA.slug}/admin/categories/$removed") { auth() }
+            .andExpect { status { isNoContent() } }
+
+        val listed = mockMvc.get("/api/t/${tenantA.slug}/admin/difficulties") { auth() }
+            .andExpect { status { isOk() } }.andReturn()
+            .response.contentAsString.let { objectMapper.readValue(it, Array<DifficultyResponse>::class.java) }
+
+        assertThat(listed.map { it.categoryId to it.name })
+            .containsExactly(aws to "CLF", aws to "SAA", auth to "初級")
+    }
+
+    @Test
     @DisplayName("別カテゴリの難易度は、URL のカテゴリを変えても取得できない")
     fun cannotAccessDifficultyThroughWrongCategory() {
         val aws = createCategory(tenantA.slug, "AWS")

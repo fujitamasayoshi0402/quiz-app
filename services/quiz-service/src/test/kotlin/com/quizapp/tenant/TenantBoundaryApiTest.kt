@@ -242,6 +242,7 @@ class TenantBoundaryApiTest {
         val mixed = mapOf("categoryId" to ids.ownCategory, "id" to ids.victimDifficulty)
         val victimParent = mapOf("categoryId" to ids.victimCategory)
         return listOf(
+            Probe(HttpMethod.GET, "/api/t/{slug}/admin/difficulties", "一覧に出ない", status = 200),
             Probe(HttpMethod.GET, base, "", victimParent, status = 404, detail = CATEGORY_NOT_FOUND),
             Probe(HttpMethod.POST, base, "", victimParent, body = body, status = 404, detail = CATEGORY_NOT_FOUND),
             Probe(

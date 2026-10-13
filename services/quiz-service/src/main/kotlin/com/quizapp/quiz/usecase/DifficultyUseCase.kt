@@ -29,6 +29,9 @@ class DifficultyUseCase(
         difficultyRepository.findByCategoryId(categoryId)
     }
 
+    /** カテゴリをまたいで、テナントのすべての難易度を返す。画面がカテゴリの数だけ問い合わせずに済むようにする（DEV-144） */
+    fun listAll(): List<Difficulty> = tenantTransaction.execute { difficultyRepository.findAll() }
+
     fun get(categoryId: UUID, id: UUID): Difficulty = tenantTransaction.execute {
         requireCategory(categoryId)
         findInCategory(categoryId, id)
