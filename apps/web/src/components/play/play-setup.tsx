@@ -4,10 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { OptionGroup } from "@/components/play/option-group";
+import { Panel } from "@/components/play/parts";
 import { ResumeCard } from "@/components/play/resume-card";
 import { ApiError } from "@/lib/api/fetcher";
 import {
@@ -61,17 +61,15 @@ export function PlaySetup({ slug }: { slug: string }) {
     },
   });
 
-  if (categories.isPending) return <Skeleton className="h-64 w-full" />;
+  if (categories.isPending) return <Skeleton className="h-64 w-full rounded-2xl" />;
   if (categories.isError) return <ApiErrorAlert error={categories.error} />;
 
   if (categories.data.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>出題できるクイズがありません</CardTitle>
-          <CardDescription>管理者がクイズを公開すると、ここから解けるようになります。</CardDescription>
-        </CardHeader>
-      </Card>
+      <Panel className="space-y-1">
+        <p className="font-semibold">出題できるクイズがありません</p>
+        <p className="text-sm text-muted-foreground">管理者がクイズを公開すると、ここから解けるようになります。</p>
+      </Panel>
     );
   }
 
@@ -97,7 +95,7 @@ export function PlaySetup({ slug }: { slug: string }) {
   const conflict = start.error instanceof ApiError && start.error.status === 409;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <ResumeCard slug={slug} />
 
       <Section title="カテゴリ">
@@ -142,24 +140,24 @@ export function PlaySetup({ slug }: { slug: string }) {
           </Section>
 
           {conflict ? (
-            <Card className="border-amber-500">
-              <CardHeader>
-                <CardTitle>中断中のクイズがあります</CardTitle>
-                <CardDescription>新しく始めると、中断中のクイズは破棄されます。</CardDescription>
-              </CardHeader>
-              <CardContent className="flex gap-2">
-                <Button onClick={() => submit(true)} disabled={start.isPending}>
+            <Panel className="space-y-4 border-amber-500/50 bg-amber-50 dark:bg-amber-950/30">
+              <div className="space-y-1">
+                <p className="font-semibold">中断中のクイズがあります</p>
+                <p className="text-sm text-muted-foreground">新しく始めると、中断中のクイズは破棄されます。</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button className="rounded-full" onClick={() => submit(true)} disabled={start.isPending}>
                   破棄して新しく始める
                 </Button>
-                <Button variant="outline" onClick={() => start.reset()}>
+                <Button variant="outline" className="rounded-full" onClick={() => start.reset()}>
                   やめる
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </Panel>
           ) : (
             <>
               {start.isError && <ApiErrorAlert error={start.error} />}
-              <Button size="lg" className="w-full" onClick={() => submit()} disabled={start.isPending}>
+              <Button size="lg" className="w-full rounded-full" onClick={() => submit()} disabled={start.isPending}>
                 {start.isPending ? "準備しています…" : "始める"}
               </Button>
             </>
@@ -172,8 +170,8 @@ export function PlaySetup({ slug }: { slug: string }) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
       {children}
     </section>
   );

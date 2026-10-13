@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Panel, ProgressLine } from "@/components/play/parts";
 import { useAbandonAttempt, useGetCurrentAttempt } from "@/lib/api/generated/endpoints";
 import { recallMode } from "@/lib/play/mode";
 
@@ -22,27 +22,32 @@ export function ResumeCard({ slug }: { slug: string }) {
   const total = attempt.quizzes.length;
 
   return (
-    <Card className="border-primary/40">
-      <CardHeader>
-        <CardTitle>中断中のクイズがあります</CardTitle>
-        <CardDescription>
-          {total} 問中 {answered} 問回答済み
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex gap-2">
+    <Panel className="flex flex-wrap items-center gap-4">
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="font-semibold">中断中のクイズがあります</p>
+        <div className="flex items-center gap-3">
+          <ProgressLine value={answered} max={total} label="回答した問題" />
+          <span className="text-xs font-medium text-muted-foreground tabular-nums">
+            {total} 問中 {answered} 問回答済み
+          </span>
+        </div>
+      </div>
+      <div className="flex gap-2">
         <Button
+          className="rounded-full"
           onClick={() => router.push(`/t/${slug}/play/session?attempt=${attempt.id}&mode=${recallMode(attempt.id)}`)}
         >
           再開する
         </Button>
         <Button
           variant="outline"
+          className="rounded-full"
           disabled={abandon.isPending}
           onClick={() => abandon.mutate({ slug, attemptId: attempt.id })}
         >
           破棄する
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </Panel>
   );
 }
