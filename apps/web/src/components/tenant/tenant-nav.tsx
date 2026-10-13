@@ -14,7 +14,9 @@ import { useListMyTenants } from "@/lib/api/generated/endpoints";
 import { roleLabel } from "@/lib/auth/roles";
 
 /**
- * ヘッダのテナント名とナビゲーション。所属が 2 つ以上なら、テナント名から切り替えられる。
+ * ヘッダのテナント名とナビゲーション。テナント名のメニューから、ほかのテナントへ移る。
+ * 所属が 2 つ以上なら切り替え、いつでも公開テナントの一覧とテナントの作成（ADR-0028）。
+ * 所属が 1 つの人は `/` からそのテナントへ送られるため、ここに置かないと一覧や作成への道がない。
  *
  * 「管理」は管理者として所属しているテナントでだけ出す。**表示の都合であって、権限の判定ではない。**
  * 判定はバックエンドが行い、一般ユーザーが管理画面の URL を直接開いても API が 403 を返す。
@@ -27,31 +29,36 @@ export function TenantNav({ slug }: { slug: string }) {
 
   return (
     <div className="flex min-w-0 items-center gap-4">
-      {tenants.data && tenants.data.length > 1 ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger className="-mx-2 flex min-w-0 items-center gap-1 rounded-md px-2 py-1 font-semibold hover:bg-accent">
-            <span className="truncate">{name}</span>
-            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-56">
-            <DropdownMenuLabel>テナントを切り替える</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {tenants.data.map((tenant) => (
-              <DropdownMenuItem key={tenant.slug} asChild>
-                <Link href={`/t/${tenant.slug}`}>
-                  <span className="flex-1">{tenant.name}</span>
-                  <span className="text-xs text-muted-foreground">{roleLabel(tenant.role)}</span>
-                  <Check className={tenant.slug === slug ? "size-4" : "invisible size-4"} />
-                </Link>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : (
-        <Link href={`/t/${slug}/play`} className="truncate font-semibold">
-          {name}
-        </Link>
-      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger className="-mx-2 flex min-w-0 items-center gap-1 rounded-md px-2 py-1 font-semibold hover:bg-accent">
+          <span className="truncate">{name}</span>
+          <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="min-w-56">
+          {tenants.data && tenants.data.length > 1 && (
+            <>
+              <DropdownMenuLabel>テナントを切り替える</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {tenants.data.map((tenant) => (
+                <DropdownMenuItem key={tenant.slug} asChild>
+                  <Link href={`/t/${tenant.slug}`}>
+                    <span className="flex-1">{tenant.name}</span>
+                    <span className="text-xs text-muted-foreground">{roleLabel(tenant.role)}</span>
+                    <Check className={tenant.slug === slug ? "size-4" : "invisible size-4"} />
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+            </>
+          )}
+          <DropdownMenuItem asChild>
+            <Link href="/tenants">公開されているテナントを探す</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/tenants/new">自分のテナントを作る</Link>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       {/* py-2 はタップできる範囲を広げるため。ヘッダの高さに収まるので見た目は変わらない */}
       <nav className="flex shrink-0 gap-3 text-sm">
         <Link href={`/t/${slug}/play`} className="py-2 text-muted-foreground hover:text-foreground">

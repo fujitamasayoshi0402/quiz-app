@@ -36,7 +36,10 @@ const SWITCH = {
   },
 } as const;
 
-/** テナントの公開設定（ADR-0025）。いまの状態と、切り替えのボタンを出す */
+/**
+ * テナントの公開設定（ADR-0025）。いまの状態と、切り替えのボタンを出す。
+ * 利用者が作ったテナントは公開できない（ADR-0028）。ボタンの代わりに理由を出す。公開中なら、非公開に戻すことはできる
+ */
 export function TenantSettings({ slug }: { slug: string }) {
   const settings = useGetTenantSettings(slug);
 
@@ -56,7 +59,13 @@ export function TenantSettings({ slug }: { slug: string }) {
         <div className="flex items-center gap-2 text-sm">
           いまの状態 {isPublic ? <Badge>公開</Badge> : <Badge variant="outline">非公開</Badge>}
         </div>
-        <SwitchVisibility slug={slug} to={isPublic ? "private" : "public"} />
+        {settings.data.canBePublic || isPublic ? (
+          <SwitchVisibility slug={slug} to={isPublic ? "private" : "public"} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            このテナントは、利用者が作ったテナントのため公開できません。参加してほしい人は、招待してください。
+          </p>
+        )}
       </CardContent>
     </Card>
   );

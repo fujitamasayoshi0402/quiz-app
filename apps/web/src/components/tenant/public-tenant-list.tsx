@@ -40,9 +40,14 @@ export function PublicTenantList() {
           ))}
         </ul>
       )}
-      <Link href="/" className="text-center text-sm text-muted-foreground underline underline-offset-4">
-        所属しているテナントへ戻る
-      </Link>
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm">
+        <Link href="/tenants/new" className="text-muted-foreground underline underline-offset-4">
+          自分のテナントを作る
+        </Link>
+        <Link href="/" className="text-muted-foreground underline underline-offset-4">
+          所属しているテナントへ戻る
+        </Link>
+      </div>
     </>
   );
 }
