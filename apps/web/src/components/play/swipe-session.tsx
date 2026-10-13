@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
+import { ChoiceList } from "@/components/play/choice-list";
+import { Eyebrow, ProgressLine, Stat, Verdict } from "@/components/play/parts";
 import { useAnswerQuiz } from "@/lib/api/generated/endpoints";
 import type { AnswerResult, AttemptView, DeliveredQuiz } from "@/lib/api/generated/model";
 import { cn } from "@/lib/utils";
@@ -113,19 +115,7 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
               <X />
             </Link>
           </Button>
-          <div
-            role="progressbar"
-            aria-label="回答した問題"
-            aria-valuemin={0}
-            aria-valuemax={total}
-            aria-valuenow={answeredCount}
-            className="h-1 flex-1 overflow-hidden rounded-full bg-foreground/10"
-          >
-            <div
-              className="h-full rounded-full bg-foreground/70 transition-[width] duration-500 ease-out"
-              style={{ width: `${(answeredCount / total) * 100}%` }}
-            />
-          </div>
+          <ProgressLine value={answeredCount} max={total} label="回答した問題" />
           <span className="w-12 text-right text-xs font-medium text-muted-foreground tabular-nums">
             {Math.min(alreadyAnswered + current + 1, total)} / {total}
           </span>
@@ -161,7 +151,7 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
           className="flex h-dvh snap-start snap-always flex-col items-center justify-center gap-6 px-5 text-center"
         >
           <div className="space-y-2">
-            <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground">FINISHED</p>
+            <Eyebrow>FINISHED</Eyebrow>
             <p className="text-3xl font-semibold tracking-tight">おつかれさまでした</p>
           </div>
           <dl className="grid w-full max-w-xs grid-cols-2 gap-3">
@@ -181,17 +171,6 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
     </div>
   );
 }
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-foreground/10 bg-card px-4 py-3 shadow-sm">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-2xl font-semibold tracking-tight tabular-nums">{value}</dd>
-    </div>
-  );
-}
-
-const LETTERS = ["A", "B", "C", "D"];
 
 function QuizCard({
   slug,
@@ -218,54 +197,19 @@ function QuizCard({
     <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col">
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pt-[4dvh]">
         <div className="space-y-3">
-          <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground">QUESTION {number}</p>
-          <p className="text-xl leading-snug font-semibold tracking-tight whitespace-pre-wrap">{quiz.question}</p>
+          <Eyebrow>QUESTION {number}</Eyebrow>
+          <p data-slot="question" className="text-xl leading-snug font-semibold tracking-tight whitespace-pre-wrap">
+            {quiz.question}
+          </p>
         </div>
 
-        <ol className="grid gap-3">
-          {quiz.choices.map((choice, index) => {
-            const selected = answered?.choiceId === choice.id;
-            const correct = result?.correctChoiceId === choice.id;
-            const wrongPick = result !== undefined && selected && !correct;
-            return (
-              <li key={choice.id}>
-                <button
-                  type="button"
-                  disabled={locked}
-                  onClick={() => onChoose(choice.id)}
-                  aria-pressed={selected}
-                  aria-keyshortcuts={String(index + 1)}
-                  className={cn(
-                    "flex w-full items-center gap-4 rounded-2xl border border-foreground/10 bg-card px-4 py-3.5 text-left shadow-sm transition-all duration-200",
-                    !locked && "hover:border-foreground/25 hover:shadow-md active:scale-[0.98] enabled:cursor-pointer",
-                    selected && !result && "border-foreground/40 shadow-md",
-                    correct && "border-emerald-500/50 bg-emerald-50 ring-4 ring-emerald-500/10 dark:bg-emerald-950/40",
-                    wrongPick && "border-red-500/50 bg-red-50 ring-4 ring-red-500/10 dark:bg-red-950/40",
-                    result && !correct && !wrongPick && "opacity-45",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground transition-colors",
-                      selected && !result && "bg-foreground text-background",
-                      correct && "bg-emerald-600 text-white",
-                      wrongPick && "bg-red-600 text-white",
-                    )}
-                  >
-                    {correct ? (
-                      <Check className="size-4" aria-label="正解" />
-                    ) : wrongPick ? (
-                      <X className="size-4" aria-label="選んだ選択肢" />
-                    ) : (
-                      LETTERS[index]
-                    )}
-                  </span>
-                  <span className="flex-1 leading-relaxed whitespace-pre-wrap">{choice.body}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+        <ChoiceList
+          choices={quiz.choices}
+          selectedId={answered?.choiceId}
+          onSelect={locked ? undefined : onChoose}
+          reveal={result ? { correctChoiceId: result.correctChoiceId } : undefined}
+          shortcuts
+        />
 
         {answered?.error !== undefined && <ApiErrorAlert error={answered.error} />}
         {result && (
@@ -275,14 +219,7 @@ function QuizCard({
             className="animate-in cursor-pointer space-y-2 rounded-2xl border border-foreground/10 bg-card p-4 shadow-sm duration-300 fade-in slide-in-from-bottom-2 hover:shadow-md"
           >
             <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "text-sm font-semibold",
-                  result.isCorrect ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400",
-                )}
-              >
-                {result.isCorrect ? "正解" : "不正解"}
-              </span>
+              <Verdict correct={result.isCorrect} />
               <Button
                 variant="ghost"
                 size="sm"
