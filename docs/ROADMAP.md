@@ -183,7 +183,7 @@
 **ゴール: 初見の第三者が 3 分でアーキテクチャと設計意図を把握できる状態**
 
 - [x] README: 概要 / 画面 / アーキテクチャ図（Mermaid）/ 技術選定の記録 / 設計上の工夫
-- [ ] README: デモ URL（誰でも入れるテナントか、デモ用アカウントができてから）
+- [x] README: デモ URL（dev の URL と、デモ用アカウント。prod を公開したら差し替える）
 - [x] アーキテクチャ図（C4 の Context / Container）を draw.io で作成（`docs/architecture/`）
 - [x] デモ用アカウントの用意（`demo@example.com`。デモのテナントの一般ユーザー）
 - [x] テナントの公開設定（`public`）と、公開テナントを見つけて招待なしで参加する導線（[ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)。時期を決めていなかったものから移した）
