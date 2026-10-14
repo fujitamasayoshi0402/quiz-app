@@ -4,6 +4,10 @@ import { storageStateOf, tenant } from "../support/users";
 /**
  * テナントの公開設定（DEV-129、ADR-0025）。切り替える前に、何が起きるかを確かめるダイアログが出る。
  * テナントは `fixtures.sql` がテストの前に非公開へ戻す
+ *
+ * **ダイアログを閉じたら、消えきるのを待ってから次を押す**（DEV-143）。閉じる動きの間は、ダイアログの外が
+ * 支援技術から隠れたまま（`aria-hidden`）で、`getByRole("button", { name: "公開する" })` が閉じかけのダイアログの
+ * 「公開する」を指す。それを押すと公開が済み、次に開くはずのダイアログを待って時間切れになる
  */
 test.use({ storageState: storageStateOf("admin") });
 
@@ -18,12 +22,15 @@ test("管理者が、確かめてから公開し、非公開に戻す", async ({
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toContainText("一般ユーザーとして参加できるようになります");
     await dialog.getByRole("button", { name: "やめる" }).click();
+    await expect(dialog).toBeHidden();
     await expect(page.getByText("非公開", { exact: true })).toBeVisible();
   });
 
   await test.step("公開する", async () => {
     await page.getByRole("button", { name: "公開する" }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "公開する" }).click();
+    const dialog = page.getByRole("alertdialog");
+    await dialog.getByRole("button", { name: "公開する" }).click();
+    await expect(dialog).toBeHidden();
     await expect(page.getByText("公開", { exact: true })).toBeVisible();
   });
 
@@ -32,6 +39,7 @@ test("管理者が、確かめてから公開し、非公開に戻す", async ({
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toContainText("所属したまま残ります");
     await dialog.getByRole("button", { name: "非公開に戻す" }).click();
+    await expect(dialog).toBeHidden();
     await expect(page.getByText("非公開", { exact: true })).toBeVisible();
   });
 });
