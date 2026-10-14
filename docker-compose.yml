@@ -138,6 +138,9 @@ services:
       AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:?.env に AUTH_CLIENT_ID を設定してください（.env.example）}
       AUTH_CLIENT_SECRET: ${AUTH_CLIENT_SECRET:?.env に AUTH_CLIENT_SECRET を設定してください（.env.example）}
       AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:?.env に AUTH_SESSION_SECRET を設定してください（.env.example）}
+      # 「デモとして入る」（ADR-0029）。空なら入口を出さない
+      AUTH_DEMO_USER_EMAIL: ${AUTH_DEMO_USER_EMAIL:-}
+      AUTH_DEMO_USER_PASSWORD: ${AUTH_DEMO_USER_PASSWORD:-}
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:

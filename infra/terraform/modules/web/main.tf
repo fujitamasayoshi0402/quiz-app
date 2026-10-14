@@ -21,16 +21,23 @@ resource "aws_amplify_app" "this" {
   enable_branch_auto_deletion = false
 
   # SSR の実行時には渡らない。amplify.yml がビルドの中で .env.production に書き出す
-  environment_variables = {
-    AMPLIFY_MONOREPO_APP_ROOT = "apps/web"
-    API_ORIGIN                = var.api_origin
-    CSP_IMG_SRC               = join(" ", var.content_security_policy_origins.images)
-    CSP_CONNECT_SRC           = join(" ", var.content_security_policy_origins.connect)
-    AUTH_ISSUER               = var.auth.issuer
-    AUTH_CLIENT_ID            = var.auth.client_id
-    AUTH_CLIENT_SECRET        = var.auth.client_secret
-    AUTH_SESSION_SECRET       = random_password.session.result
-  }
+  environment_variables = merge(
+    {
+      AMPLIFY_MONOREPO_APP_ROOT = "apps/web"
+      API_ORIGIN                = var.api_origin
+      CSP_IMG_SRC               = join(" ", var.content_security_policy_origins.images)
+      CSP_CONNECT_SRC           = join(" ", var.content_security_policy_origins.connect)
+      AUTH_ISSUER               = var.auth.issuer
+      AUTH_CLIENT_ID            = var.auth.client_id
+      AUTH_CLIENT_SECRET        = var.auth.client_secret
+      AUTH_SESSION_SECRET       = random_password.session.result
+    },
+    # 「デモとして入る」（ADR-0029）。無ければ、web は入口を出さない
+    var.demo_user == null ? {} : {
+      AUTH_DEMO_USER_EMAIL    = var.demo_user.email
+      AUTH_DEMO_USER_PASSWORD = var.demo_user.password
+    },
+  )
 
   lifecycle {
     ignore_changes = [access_token]

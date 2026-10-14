@@ -44,6 +44,16 @@ variable "auth" {
   sensitive = true
 }
 
+variable "demo_user" {
+  description = "共有のデモのアカウント（ADR-0029）。web のサーバーが「デモとして入る」でログインする。null なら入口を出さない"
+  type = object({
+    email    = string
+    password = string
+  })
+  default   = null
+  sensitive = true
+}
+
 variable "github_access_token" {
   description = "Amplify を GitHub につなぐトークン（admin:repo_hook）。アプリを作るときにだけ渡し、作ったら失効させる"
   type        = string
