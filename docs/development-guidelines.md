@@ -1050,7 +1050,7 @@ TF_VAR_github_access_token=<トークン> terraform apply
   タスクの数は Terraform では無視している。apply しても起動しない
 - 使われていないアラームは、通知につないでいない。ALARM がふつうの状態で、異常ではない。止めたかどうかと理由は、Step Functions のログ（`/aws/vendedlogs/states/quiz-app-dev-quiz-service-idle-stop`）に出る
 
-止まっている間に使うときは、手で起動する。使い終わって 30 分たつと、また止まる。
+止まっている間に使うときは、手で起動する。API が使えるまで約 2.5 分かかる（DEV-153 で測った）。使い終わって 30 分たつと、また止まる。
 
 ```bash
 aws ecs update-service --cluster quiz-app-dev --service quiz-service --desired-count 1
