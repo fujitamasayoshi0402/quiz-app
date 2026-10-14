@@ -177,6 +177,9 @@ class AttemptUseCase(
         return AttemptResult(
             id = attemptId,
             status = attempt.status.label(),
+            categoryId = attempt.categoryId,
+            difficultyId = attempt.difficultyId,
+            level = attempt.level,
             totalCount = attempt.quizIds.size,
             answeredCount = answers.size,
             correctCount = answers.values.count { it.isCorrect },
@@ -222,10 +225,17 @@ data class AnswerResult(
     val totalCount: Int,
 )
 
-/** 結果画面。模試モードではここで全問の解説を見せる。 */
+/**
+ * 結果画面。模試モードではここで全問の解説を見せる。
+ *
+ * 出題の範囲（[categoryId]・[difficultyId]・[level]）は、結果画面から同じ範囲で解き直すために返す。
+ */
 data class AttemptResult(
     val id: UUID,
     val status: String,
+    val categoryId: UUID?,
+    val difficultyId: UUID?,
+    val level: Int?,
     val totalCount: Int,
     val answeredCount: Int,
     val correctCount: Int,

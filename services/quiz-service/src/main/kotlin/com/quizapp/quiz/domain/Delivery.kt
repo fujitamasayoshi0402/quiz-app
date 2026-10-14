@@ -22,12 +22,20 @@ enum class DeliveryScope {
      * 回答済みを混ぜると用をなさない。
      */
     UNANSWERED_ONLY,
+
+    /**
+     * 間違えた問題だけを出す。**直近の回答が不正解**のものを対象にし、尽きたらそこで終了する。
+     *
+     * 一度でも間違えたものを数えると、解き直して正解しても外れず、いつまでも減らない。
+     * 解き直しの目的は「間違えたまま残っている問題をなくす」ことのため、最後の回答で決める。
+     */
+    INCORRECT,
     ;
 
     companion object {
         fun from(value: String): DeliveryScope = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
             ?: throw IllegalArgumentException(
-                "出題対象は all / unanswered / unanswered_only を指定してください: $value",
+                "出題対象は all / unanswered / unanswered_only / incorrect を指定してください: $value",
             )
     }
 }

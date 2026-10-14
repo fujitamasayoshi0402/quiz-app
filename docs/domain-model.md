@@ -405,7 +405,7 @@ erDiagram
         uuid category_id "FK を貼らない"
         uuid difficulty_id "FK を貼らない"
         int level
-        string scope "all / unanswered / unanswered_only"
+        string scope "all / unanswered / unanswered_only / incorrect"
         string status "in_progress / completed / abandoned"
         timestamp started_at
         timestamp finished_at

@@ -37,6 +37,7 @@ class DeliveryCriteriaTest {
     fun parsesCaseInsensitively() {
         assertThat(DeliveryScope.from("unanswered_only")).isEqualTo(DeliveryScope.UNANSWERED_ONLY)
         assertThat(DeliveryScope.from("UNANSWERED")).isEqualTo(DeliveryScope.UNANSWERED)
+        assertThat(DeliveryScope.from("incorrect")).isEqualTo(DeliveryScope.INCORRECT)
         assertThat(DeliveryOrder.from("Registered")).isEqualTo(DeliveryOrder.REGISTERED)
     }
 
@@ -45,7 +46,7 @@ class DeliveryCriteriaTest {
     fun rejectsUnknownValues() {
         assertThatIllegalArgumentException()
             .isThrownBy { DeliveryScope.from("unanswered-only") }
-            .withMessageContaining("all / unanswered / unanswered_only")
+            .withMessageContaining("all / unanswered / unanswered_only / incorrect")
         assertThatIllegalArgumentException()
             .isThrownBy { DeliveryOrder.from("shuffle") }
             .withMessageContaining("random / registered")

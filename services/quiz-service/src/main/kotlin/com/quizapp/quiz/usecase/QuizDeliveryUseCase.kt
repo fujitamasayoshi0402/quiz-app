@@ -42,14 +42,24 @@ class QuizDeliveryUseCase(private val quizRepository: QuizRepository, private va
      * 全体を並べ替えてしまうと、未回答を先に出すという指定が効かなくなる。
      */
     private fun narrow(candidates: List<Quiz>, criteria: DeliveryCriteria, userId: UUID): List<Quiz> {
-        if (criteria.scope == DeliveryScope.ALL) return order(candidates, criteria.order)
-
-        val answered = answeredQuizzes.filterAnswered(userId, candidates.mapNotNull { it.id })
-        val (done, notYet) = candidates.partition { it.id in answered }
-
+        val ids = candidates.mapNotNull { it.id }
         return when (criteria.scope) {
-            DeliveryScope.UNANSWERED_ONLY -> order(notYet, criteria.order)
-            else -> order(notYet, criteria.order) + order(done, criteria.order)
+            DeliveryScope.ALL -> order(candidates, criteria.order)
+
+            DeliveryScope.INCORRECT -> {
+                val missed = answeredQuizzes.filterMissed(userId, ids)
+                order(candidates.filter { it.id in missed }, criteria.order)
+            }
+
+            DeliveryScope.UNANSWERED, DeliveryScope.UNANSWERED_ONLY -> {
+                val answered = answeredQuizzes.filterAnswered(userId, ids)
+                val (done, notYet) = candidates.partition { it.id in answered }
+                if (criteria.scope == DeliveryScope.UNANSWERED_ONLY) {
+                    order(notYet, criteria.order)
+                } else {
+                    order(notYet, criteria.order) + order(done, criteria.order)
+                }
+            }
         }
     }
 

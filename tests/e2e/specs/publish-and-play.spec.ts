@@ -12,7 +12,7 @@ const question = "日本の首都はどこですか。";
  *
  * カテゴリやクイズは `fixtures.sql` がテストの前に消すので、決まった名前で作れる
  */
-test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、結果と履歴で振り返る", async ({ browser }) => {
+test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、間違えた問題を解き直し、結果と履歴で振り返る", async ({ browser }) => {
   const admin = await (await browser.newContext({ storageState: storageStateOf("admin") })).newPage();
   const member = await (await browser.newContext({ storageState: storageStateOf("member") })).newPage();
 
@@ -82,9 +82,27 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await expect(member.getByText(question)).toBeVisible();
   });
 
+  await test.step("結果から、間違えた問題を同じ範囲ですぐ解き直せる", async () => {
+    await member.getByRole("button", { name: "間違えた問題を解き直す" }).click();
+
+    await expect(member.getByText("1 / 1 問")).toBeVisible();
+    await expect(member.getByText(question)).toBeVisible();
+    await member.getByRole("button", { name: "東京" }).click();
+    await member.getByRole("button", { name: "回答する" }).click();
+    await expect(member.getByText("正解", { exact: true })).toBeVisible();
+
+    // 正解したので、間違えた問題は残っていない
+    await member.getByRole("button", { name: "結果を見る" }).click();
+    await expect(member.getByText("100%")).toBeVisible();
+    await expect(member.getByRole("button", { name: "間違えた問題を解き直す" })).toHaveCount(0);
+  });
+
   await test.step("履歴に残り、そこから結果を開き直せる", async () => {
     await member.getByRole("banner").getByRole("link", { name: "履歴" }).click();
-    const row = member.getByRole("link", { name: new RegExp(`${category}・すべての難易度`) });
+    // 解き直した回も並ぶ。最初の回を開く
+    const row = member
+      .getByRole("link", { name: new RegExp(`${category}・すべての難易度`) })
+      .filter({ hasNotText: "間違えた問題" });
     await expect(row).toContainText("0 / 1");
 
     await row.click();

@@ -16,8 +16,11 @@ import * as zod from 'zod';
 
 export const AttemptResult = zod.object({
   "answeredCount": zod.int(),
+  "categoryId": zod.uuid().nullish(),
   "correctCount": zod.int(),
+  "difficultyId": zod.uuid().nullish(),
   "id": zod.uuid(),
+  "level": zod.int().nullish(),
   "results": zod.array(zod.object({
   "choices": zod.array(zod.object({
   "body": zod.string(),
