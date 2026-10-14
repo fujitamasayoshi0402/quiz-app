@@ -152,7 +152,8 @@ ECS は、止まったタスクの代わりを自動で起動する。**同じ�
 
 ### 画面に「サーバーが止まっているか、起動の途中です」と出る
 
-API Gateway が 503 を返している。送り先のタスクがない。
+API Gateway が 500 か 503 を返している（ProblemDetail ではない `{"message": ...}` の形）。送り先のタスクがない。
+アクセスログ（`/aws/apigateway/quiz-app-dev`）では、500 の行の `integrationError` に `No target endpoints found` が入る。
 
 - 2:00〜8:00 は、夜間の停止で止まっている（[ECS](development-guidelines.md#ecsquiz-service)）。使うなら手で起動する。次の停止の時刻にまた止まる
 
