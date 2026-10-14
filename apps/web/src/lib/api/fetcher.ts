@@ -42,10 +42,21 @@ export class ApiError extends Error {
     super(problem?.detail ?? `API エラー (${status})`);
     this.name = "ApiError";
   }
+
+  /**
+   * バックエンドに届かず、手前で返った 500 / 503 か。タスクが止まっているか、起動の途中にある（DEV-148）。
+   *
+   * 送り先のタスクがないとき、API Gateway は 500（`No target endpoints found`）か 503 を返す。どちらになるかは選べない。
+   * ローカルでバックエンドを止めているときは、web の proxy が中継に失敗して 500 を返す。
+   * バックエンドのエラーは、想定していない例外も含めて ProblemDetail で返るので、取り違えない
+   */
+  get serverMayBeStopped(): boolean {
+    return this.problem === null && (this.status === 500 || this.status === 503);
+  }
 }
 
 /**
- * バックエンドのエラーだけを読む。手前の API Gateway が返す応答（送り先がない 503、時間切れの 504 など）は、
+ * バックエンドのエラーだけを読む。手前の API Gateway が返す応答（送り先がない 500 / 503、時間切れの 504 など）は、
  * JSON でも `{"message": ...}` という別の形で、ProblemDetail ではない。読むと、画面が理由のあるエラーとして扱い、
  * 「サーバーが止まっているか、起動の途中です」の案内を出さなくなる
  */
