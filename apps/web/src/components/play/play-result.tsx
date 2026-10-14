@@ -70,7 +70,7 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
       <div className="space-y-3">
         {missedCount > 0 && <RetryIncorrect slug={slug} range={result.data} mode={mode} />}
         <Button asChild size="lg" variant={missedCount > 0 ? "outline" : "default"} className="w-full rounded-full">
-          <Link href={`/t/${slug}/play`}>もう一度</Link>
+          <Link href={`/t/${slug}/play`}>クイズを選ぶ画面に戻る</Link>
         </Button>
       </div>
     </div>
@@ -111,7 +111,7 @@ function RetryIncorrect({
     <>
       {conflict ? (
         <p className="text-sm text-muted-foreground">
-          中断中のクイズがあります。「もう一度」から、再開するか破棄するかを選んでください。
+          中断中のクイズがあります。「クイズを選ぶ画面に戻る」から、再開するか破棄するかを選んでください。
         </p>
       ) : (
         start.isError && <ApiErrorAlert error={start.error} />
