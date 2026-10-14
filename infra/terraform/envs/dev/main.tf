@@ -270,6 +270,12 @@ module "web" {
     client_secret = module.auth.client_secret
   }
 
+  # パスワードは公開している（README）。web のサーバーだけが持ち、ブラウザには渡さない
+  demo_user = {
+    email    = module.auth.demo_user_email
+    password = module.auth.demo_user_password
+  }
+
   github_access_token = var.github_access_token
 
   log_retention_days = 14

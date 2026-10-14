@@ -825,6 +825,10 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
   proxy が `Origin` を、利用者から見たオリジン（`appOrigin`）と比べ、違えば 403 を返す。`Origin` が無ければ `Sec-Fetch-Site` で決める。
   Cookie の `SameSite=Lax` だけでは、同じドメインの別のサブドメインからの要求に Cookie が付く。どちらも無い要求はブラウザからではないとして通す（スモークテスト）
 - ログインのセッションが無い要求は、`Authorization` をそのまま渡す。スモークテストのように、トークンを自分で取る呼び出し元のため
+- **「デモとして入る」（`POST /auth/demo`）は、web のサーバーが共有のデモのアカウントのパスワードで Cognito にログインする**（[ADR-0029](adr/0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md)。`lib/auth/demo.ts`）
+  - 取ったトークンはサーバーのメモリに持ち、押した人みんなに配る。残りが 15 分を切ったら取り直す。連打されても Cognito のログインの回数の上限（120 件/秒、アカウントで共有）を使わない
+  - セッションには共有の印を付け、ログアウトでリフレッシュトークンを失効させない。失効させると、同じトークンを持つほかの人のセッションも延ばせなくなる
+  - パスワードは環境変数 `AUTH_DEMO_USER_EMAIL` と `AUTH_DEMO_USER_PASSWORD` で渡す。dev は Terraform（`modules/web`）、ローカルは `.env`。無ければ `/auth/demo` は 404 で、入口も出さない
 - ログインが要る画面（`/t/...`、`/invitations/...`）を未ログインで開くと、proxy が**開こうとしたパスとクエリ**を戻り先にしてログインへ移す。
   レイアウトは開いているパスを知らないため、そこで戻り先を決めると、テナントのトップにしか戻せない
 
@@ -942,7 +946,7 @@ README のデモの URL（dev の web）だけは、見に来た人が開くた�
 - web のクライアントのスコープは `openid email aws.cognito.signin.user.admin`。最後のものは、バックエンドが確認済みのメールアドレスを取る（`GetUser`）ために要る。
   このスコープのトークンは自分の属性を書き換えられるが、トークンはブラウザに渡らない
 - スモークテストの利用者（`smoke@example.com`）も Terraform が作る。パスワードは `terraform output -raw smoke_user_password`
-- 見に来た人が試すための、共有のデモのアカウント（`demo@example.com`）も同じ。**パスワードは公開する前提**で、`terraform output -raw demo_user_password`。
+- 見に来た人が試すための、共有のデモのアカウント（`demo@example.com`）も同じ。**パスワードは公開する前提**で、`terraform output -raw demo_user_password`。web にも渡し、「デモとして入る」で使う（[フロントエンド](#フロントエンド)）。
   README に載せている。パスワードを作り直したら、README も直す。
   `example.com` は誰も受け取れないので、パスワードを忘れた人の手続き（確認コード）で乗っ取られることはない
 - E2E テストの利用者（`e2e-*@example.com` の 4 人）も同じ。パスワードは全員で共通で、`terraform output -raw e2e_user_password`（[E2E テスト](#e2e-テスト)）
