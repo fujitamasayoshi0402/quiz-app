@@ -438,6 +438,7 @@ dev では、デプロイの最後に自動で流れる（[デプロイ](#デプ
 ログインのあとに元の画面へ戻るか、ロールによって管理画面に入れるか、招待のリンクで招待された人だけが参加できるか。
 管理者が作って公開したクイズ（解説の画像を含む）を一般ユーザーが解き、結果と履歴で振り返れるか。途中でやめたクイズを続きから解けるか（DEV-111）。
 管理者が、影響を確かめてからテナントを公開し、非公開に戻せるか（DEV-129）。公開したテナントに、未所属の人が一覧から参加できるか（DEV-130）。未所属の人が自分のテナントを作り、クイズを作って解けるか（DEV-139）。
+見に来た人が「デモとして入る」で、ログインせずにデモのテナントのクイズを解けるか（DEV-151）。
 API の細かい仕様は JUnit、デプロイした環境のつながりはスモークテストが見る。ここは画面をまたいだ流れだけを見る。
 
 ```bash
@@ -462,6 +463,7 @@ pnpm test:e2e
 - 中断と再開は、スマホの幅（360px）で流し、各画面が横にはみ出さないことも見る（[コード](#コード)の「画面の幅」）
 - 流していないもの: draw.io で図を描く（`embed.diagrams.net` の画面に依存する）、まとめて取り込む（読み取りの規則は JUnit が見る。画面はファイルを選ぶだけ）
 - 招待される人の所属は、テストの前に外す。何度流しても、同じ状態から始まる
+- 「デモとして入る」のテストは、共有のデモのアカウント（シードの利用者）で解く。解きかけたクイズは、テストの前に消す（`fixtures.sql`）。ローカルで流すときは、`.env` に `AUTH_DEMO_USER_*` を入れる
 - 公開テナントに参加するテストは、終わったら未所属の人の所属を外し、テナントを非公開に戻す（`afterAll`）。ほかのテストが、未所属のまま・非公開のままであることを前提にしている
 - テナントを作るテストは、終わったら未所属の人が作ったテナントを消す（`afterAll`。論理削除）。途中で止まって残っても、`fixtures.sql` がテストの前に消す
 - テスト同士が状態を共有する（招待を受け入れると所属が増える）ため、並列にせず、やり直しもしない
@@ -479,14 +481,16 @@ CI では `e2e` ジョブが、バックエンドか画面か E2E に関わる�
 | `AUTH_CLIENT_ID` | variable | `terraform output -raw auth_client_id` |
 | `AUTH_CLIENT_SECRET` | secret | `terraform output -raw auth_client_secret` |
 | `E2E_USER_PASSWORD` | secret | `terraform output -raw e2e_user_password` |
+| `DEMO_USER_PASSWORD` | secret | `terraform output -raw demo_user_password`。「デモとして入る」（ADR-0029）のため、docker compose の web に渡す |
 
-**Dependabot の PR には、リポジトリの secret が渡らない**（変数は渡る）。上の 2 つの secret は、Dependabot の secret にも同じ値を置く。
+**Dependabot の PR には、リポジトリの secret が渡らない**（変数は渡る）。上の 3 つの secret は、Dependabot の secret にも同じ値を置く。
 無いと、Dependabot の PR で `e2e` が落ち、マージできない。
 
 ```bash
 cd infra/terraform/envs/dev
 terraform output -raw auth_client_secret | gh secret set AUTH_CLIENT_SECRET --app dependabot
 terraform output -raw e2e_user_password | gh secret set E2E_USER_PASSWORD --app dependabot
+terraform output -raw demo_user_password | gh secret set DEMO_USER_PASSWORD --app dependabot
 ```
 
 #### 負荷試験

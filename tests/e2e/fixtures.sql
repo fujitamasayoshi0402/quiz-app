@@ -33,6 +33,12 @@ UPDATE core.tenants t SET deleted_at = now()
 FROM core.users u
 WHERE t.created_by = u.id AND t.deleted_at IS NULL AND lower(u.email) = 'e2e-outsider@example.com';
 
+-- デモとして入るテスト（DEV-151）が、共有のデモのアカウントで解きかけたクイズを消す。
+-- 前の実行の残りがあると、出題の画面に「中断中のクイズ」が出て、同じ手順で始められない
+DELETE FROM answer.attempts a
+USING core.users u
+WHERE a.user_id = u.id AND lower(u.email) = 'demo@example.com';
+
 -- 前の実行が途中で止まって残った招待を取り消す。招待の一覧が空の状態から始める
 UPDATE core.invitations i SET revoked_at = now()
 FROM core.tenants t

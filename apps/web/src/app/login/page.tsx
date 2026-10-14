@@ -2,19 +2,25 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { demoCredentials } from "@/lib/auth/demo";
 import { safeReturnTo } from "@/lib/auth/request";
 
 /**
  * ログインの入口。サインアップとログインは、認証基盤の画面（Cognito の Managed Login）で行う（ADR-0016）。
  *
  * この画面を挟むのは、認証基盤の画面へ移ることを先に伝えるため。いきなり別のドメインへ移ると、偽の画面と見分けにくい。
+ *
+ * 見に来た人が試せるよう、共有のデモのアカウントで入る「デモとして入る」も置く（ADR-0029）。
+ * 招待のリンクから来た人には出さない。招待されたアドレスでログインしてもらう
  */
 export default async function Login({ searchParams }: PageProps<"/login">) {
   const params = await searchParams;
   const returnTo = safeReturnTo(typeof params.returnTo === "string" ? params.returnTo : undefined);
   const failed = params.error !== undefined;
+  const demoFailed = params.error === "demo";
   // 招待のリンクから来た。別のアドレスでログインすると、招待を受け入れられない
   const invited = returnTo.startsWith("/invitations/");
+  const demo = !invited && demoCredentials() !== undefined;
 
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col justify-center gap-6 px-4 py-8">
@@ -25,9 +31,29 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
       {failed && (
         <Alert variant="destructive">
           <AlertCircle />
-          <AlertTitle>ログインできませんでした</AlertTitle>
-          <AlertDescription>もう一度お試しください</AlertDescription>
+          <AlertTitle>{demoFailed ? "デモに入れませんでした" : "ログインできませんでした"}</AlertTitle>
+          <AlertDescription>
+            {demoFailed ? "しばらくしてから、もう一度お試しください" : "もう一度お試しください"}
+          </AlertDescription>
         </Alert>
+      )}
+      {demo && (
+        <Card>
+          <CardHeader>
+            <CardTitle>デモを試す</CardTitle>
+            <CardDescription>
+              アカウントを作らずに、デモのテナントのクイズを解けます。共有のアカウントのため、回答の履歴とランキングは、見た人どうしで共有されます。
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* ルートハンドラへ POST する。セッションの Cookie を作って、トップへ移す */}
+            <form action="/auth/demo" method="post">
+              <Button type="submit" className="w-full">
+                デモとして入る
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
       <Card>
         <CardHeader>
@@ -43,7 +69,7 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button asChild className="w-full">
+          <Button asChild className="w-full" variant={demo ? "outline" : "default"}>
             {/* ルートハンドラへの遷移なので、クライアント側の遷移（next/link）は使わない */}
             <a href={`/auth/login?returnTo=${encodeURIComponent(returnTo)}`}>ログイン / アカウントを作る</a>
           </Button>

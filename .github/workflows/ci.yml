@@ -247,6 +247,9 @@ jobs:
       AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
       AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
       E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+      # 「デモとして入る」（ADR-0029）。docker compose の web に渡す。パスワードは公開しているが、ほかの値と同じく secret に置く
+      AUTH_DEMO_USER_EMAIL: demo@example.com
+      AUTH_DEMO_USER_PASSWORD: ${{ secrets.DEMO_USER_PASSWORD }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
