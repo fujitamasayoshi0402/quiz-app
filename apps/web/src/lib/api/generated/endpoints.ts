@@ -5509,6 +5509,80 @@ export function useListCategoryScores<TData = Awaited<ReturnType<typeof listCate
 
 
 
+export const getLeaveTenantUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/membership`
+}
+
+/**
+ * @summary テナントから退会する。そのテナントでの回答の履歴とランキングへの参加も消す。最後の管理者と共有のアカウントは退会できない
+ */
+export const leaveTenant = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getLeaveTenantUrl(slug),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getLeaveTenantMutationKey = () => ['leaveTenant'] as const;
+
+export const getLeaveTenantMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveTenant>>, TError,LeaveTenantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof leaveTenant>>, TError,LeaveTenantMutationVariables, TContext> => {
+
+const mutationKey = getLeaveTenantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof leaveTenant>>, LeaveTenantMutationVariables> = (props) => {
+          const {slug} = props ?? {};
+
+          return  leaveTenant(slug,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LeaveTenantMutationResult = NonNullable<Awaited<ReturnType<typeof leaveTenant>>>
+
+    export type LeaveTenantMutationError = ProblemDetail
+    export type LeaveTenantMutationVariables = {slug: string}
+
+    /**
+ * @summary テナントから退会する。そのテナントでの回答の履歴とランキングへの参加も消す。最後の管理者と共有のアカウントは退会できない
+ */
+export const useLeaveTenant = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveTenant>>, TError,LeaveTenantMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof leaveTenant>>,
+        TError,
+        LeaveTenantMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLeaveTenantMutationOptions(options), queryClient);
+    }
+
 export const getGetRankingUrl = (slug: string,
     params?: GetRankingParams,) => {
   const normalizedParams = new URLSearchParams();
