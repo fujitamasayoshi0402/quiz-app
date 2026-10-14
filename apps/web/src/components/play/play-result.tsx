@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,10 @@ import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
 import { ChoiceList } from "@/components/play/choice-list";
 import { Eyebrow, Panel, Stat, Verdict } from "@/components/play/parts";
-import { completeAttempt, getGetCurrentAttemptQueryKey } from "@/lib/api/generated/endpoints";
-import type { QuizResult } from "@/lib/api/generated/model";
-import type { FeedbackMode } from "@/lib/play/mode";
+import { ApiError } from "@/lib/api/fetcher";
+import { completeAttempt, getGetCurrentAttemptQueryKey, useStartAttempt } from "@/lib/api/generated/endpoints";
+import type { AttemptResult, QuizResult } from "@/lib/api/generated/model";
+import { type FeedbackMode, rememberMode } from "@/lib/play/mode";
 
 /**
  * 結果画面。
@@ -37,6 +39,8 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
   if (result.isError) return <ApiErrorAlert error={result.error} />;
 
   const { totalCount, answeredCount, correctCount, results } = result.data;
+  // 未回答は間違えた問題に数えない。サーバーも、答えて不正解だったものだけを出す
+  const missedCount = results.filter((quiz) => quiz.selectedChoiceId != null && !quiz.isCorrect).length;
   const rate = totalCount === 0 ? 0 : Math.round((correctCount / totalCount) * 100);
   // 番号は出題順のまま出す。絞り込んだ一覧の中で振り直すと、何問目だったかが分からなくなる
   const numbered = results.map((quiz, index) => ({ quiz, number: index + 1 }));
@@ -63,10 +67,75 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
         )}
       </section>
 
-      <Button asChild size="lg" className="w-full rounded-full">
-        <Link href={`/t/${slug}/play`}>もう一度</Link>
-      </Button>
+      <div className="space-y-3">
+        {missedCount > 0 && <RetryIncorrect slug={slug} range={result.data} mode={mode} />}
+        <Button asChild size="lg" variant={missedCount > 0 ? "outline" : "default"} className="w-full rounded-full">
+          <Link href={`/t/${slug}/play`}>もう一度</Link>
+        </Button>
+      </div>
     </div>
+  );
+}
+
+/**
+ * 同じ範囲の「間違えた問題」で、すぐに次の挑戦を始める（DEV-147）。方式も同じにする。
+ *
+ * 出すのは、この回に限らず、範囲の中で最後に答えたとき不正解だった問題すべて。
+ * 前の回に間違えたままの問題も、まとめて解き直せる
+ */
+function RetryIncorrect({
+  slug,
+  range,
+  mode,
+}: {
+  slug: string;
+  range: Pick<AttemptResult, "categoryId" | "difficultyId" | "level">;
+  mode: FeedbackMode;
+}) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const start = useStartAttempt({
+    mutation: {
+      onSuccess: (attempt) => {
+        rememberMode(attempt.id, mode);
+        queryClient.removeQueries({ queryKey: getGetCurrentAttemptQueryKey(slug) });
+        router.push(`/t/${slug}/play/session?attempt=${attempt.id}&mode=${mode}`);
+      },
+    },
+  });
+
+  // 別のタブで始めた挑戦が中断中だと 409 が返る。黙って破棄せず、選ぶ画面で決めてもらう
+  const conflict = start.error instanceof ApiError && start.error.status === 409;
+
+  return (
+    <>
+      {conflict ? (
+        <p className="text-sm text-muted-foreground">
+          中断中のクイズがあります。「もう一度」から、再開するか破棄するかを選んでください。
+        </p>
+      ) : (
+        start.isError && <ApiErrorAlert error={start.error} />
+      )}
+      <Button
+        size="lg"
+        className="w-full rounded-full"
+        disabled={start.isPending}
+        onClick={() =>
+          start.mutate({
+            slug,
+            data: {
+              categoryId: range.categoryId ?? undefined,
+              difficultyId: range.difficultyId ?? undefined,
+              level: range.level ?? undefined,
+              scope: "incorrect",
+              order: "random",
+            },
+          })
+        }
+      >
+        {start.isPending ? "準備しています…" : "間違えた問題を解き直す"}
+      </Button>
+    </>
   );
 }
 

@@ -3,6 +3,7 @@ export const SCOPES = [
   { value: "all", label: "すべて", hint: "回答済みの問題も含める" },
   { value: "unanswered", label: "未回答を優先", hint: "足りない分は回答済みで埋める" },
   { value: "unanswered_only", label: "未回答のみ", hint: "一周したいときに" },
+  { value: "incorrect", label: "間違えた問題", hint: "最後に答えたとき不正解だった問題だけ" },
 ];
 
 export function scopeLabel(value: string): string {

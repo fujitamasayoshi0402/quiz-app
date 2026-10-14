@@ -20,4 +20,10 @@ interface AnsweredQuizzes {
      * 回答数が増えても、返る件数は候補の数を超えない。
      */
     fun filterAnswered(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID>
+
+    /**
+     * 指定ユーザーの**直近の回答が不正解**だったクイズ ID を返す。後で正解したものは含めない。
+     * 絞り込みの形は [filterAnswered] と同じ。
+     */
+    fun filterMissed(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID>
 }

@@ -115,15 +115,19 @@ class InMemoryFigureRepository : FigureRepository {
     override fun delete(id: UUID): Boolean = kinds.remove(id) != null
 }
 
+/** 利用者とクイズごとに、最後の回答が正解だったかを覚える */
 class FakeAnsweredQuizzes : AnsweredQuizzes {
-    private val answered = mutableSetOf<Pair<UUID, UUID>>()
+    private val lastCorrect = mutableMapOf<Pair<UUID, UUID>, Boolean>()
 
-    fun answer(userId: UUID, quizId: UUID) {
-        answered += userId to quizId
+    fun answer(userId: UUID, quizId: UUID, correct: Boolean = true) {
+        lastCorrect[userId to quizId] = correct
     }
 
     override fun filterAnswered(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
-        candidateQuizIds.filter { (userId to it) in answered }.toSet()
+        candidateQuizIds.filter { (userId to it) in lastCorrect }.toSet()
+
+    override fun filterMissed(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
+        candidateQuizIds.filter { lastCorrect[userId to it] == false }.toSet()
 }
 
 /**

@@ -2523,12 +2523,27 @@ components:
         answeredCount:
           type: integer
           format: int32
+        categoryId:
+          type:
+          - string
+          - "null"
+          format: uuid
         correctCount:
           type: integer
           format: int32
+        difficultyId:
+          type:
+          - string
+          - "null"
+          format: uuid
         id:
           type: string
           format: uuid
+        level:
+          type:
+          - integer
+          - "null"
+          format: int32
         results:
           type: array
           items:
