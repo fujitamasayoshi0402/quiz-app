@@ -5,12 +5,15 @@
 #
 # 止まっている間にデプロイすると、デプロイが 1 つ起動してから載せる（.github/scripts/deploy-quiz-service.sh）。
 # その場合も、次の停止の時刻にまた止まる。
+#
+# 戻す時刻（start）を省くと、止めるだけになる。dev は使われなくなったら止まる（idle_stop.tf）ため、朝に戻さない。
+# 夜の停止は、起こしたまま一度も使わなかったとき（使われていないアラームが動かない）の拾い直しとして残す。
 
 locals {
-  schedules = var.nightly_stop == null ? {} : {
-    stop  = { expression = var.nightly_stop.stop, desired_count = 0 }
-    start = { expression = var.nightly_stop.start, desired_count = var.desired_count }
-  }
+  schedules = var.nightly_stop == null ? {} : merge(
+    { stop = { expression = var.nightly_stop.stop, desired_count = 0 } },
+    var.nightly_stop.start == null ? {} : { start = { expression = var.nightly_stop.start, desired_count = var.desired_count } },
+  )
 }
 
 resource "aws_scheduler_schedule" "service" {
