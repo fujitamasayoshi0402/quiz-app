@@ -166,10 +166,13 @@ module "quiz_service" {
   # ふだんは既定（20 件/秒）。負荷試験の間だけ -var で上げる
   throttling = var.api_throttling
 
-  # 使わない深夜は止める。Aurora のストレージなどは、止めている間も課金が続く
+  # 使われなくなったら止め、使うときに起こす（DEV-153）。Aurora のストレージなどは、止めている間も課金が続く。
+  # 30 分は、画面を読んだり解説を書いたりしている間に止まらない長さ（Aurora の一時停止と同じ）
+  idle_stop_minutes = 30
+
+  # 深夜は、使われていなくても止める。起こしたまま一度も使わなかったときの拾い直し。朝には戻さない
   nightly_stop = {
     stop     = "cron(0 2 * * ? *)"
-    start    = "cron(0 8 * * ? *)"
     timezone = "Asia/Tokyo"
   }
 

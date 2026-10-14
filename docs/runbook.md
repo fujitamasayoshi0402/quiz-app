@@ -155,7 +155,7 @@ ECS は、止まったタスクの代わりを自動で起動する。**同じ�
 API Gateway が 500 か 503 を返している（ProblemDetail ではない `{"message": ...}` の形）。送り先のタスクがない。
 アクセスログ（`/aws/apigateway/quiz-app-dev`）では、500 の行の `integrationError` に `No target endpoints found` が入る。
 
-- 2:00〜8:00 は、夜間の停止で止まっている（[ECS](development-guidelines.md#ecsquiz-service)）。使うなら手で起動する。次の停止の時刻にまた止まる
+- 使われていない（API への要求が 30 分ない）か、深夜 2:00 を過ぎて止まっている（[ECS](development-guidelines.md#ecsquiz-service)）。使うなら手で起動する。使い終わって 30 分たつと、また止まる
 
   ```bash
   aws ecs update-service --cluster quiz-app-dev --service quiz-service --desired-count 1
@@ -359,7 +359,8 @@ dev で測った時間（DEV-117。戻せる最も新しい時刻を指定）。
 1. Cost Explorer で、タグ `Env` ごと、サービスごとに見る
 2. よくある原因
    - **Aurora が一時停止しない**: ダッシュボードの ACU が 0 に戻らない。接続の数を見て、`pg_stat_activity` で誰がつないでいるかを確かめる（[Aurora](development-guidelines.md#aurora)、[コスト方針](development-guidelines.md#8-コスト方針)）
-   - **タスクが夜も動いている**: 夜間の停止のスケジュールが失敗していないか。手で起動したまま、なら次の停止の時刻に止まる
+   - **使われていないのにタスクが動いている**: 使われていないアラーム（`quiz-app-dev-quiz-service-idle`）の状態と、Step Functions のログ（`/aws/vendedlogs/states/quiz-app-dev-quiz-service-idle-stop`）を見る。
+     起こしたまま一度も使っていなければ、アラームの状態が変わらないため止まらない。深夜 2:00 の停止が止める
    - **API が叩かれ続けている**: ダッシュボードの要求の数。API 全体（20 件/秒）と利用者ごと（5 件/秒）の上限は付いている。利用者ごとに超えたものは、アプリのログの「流量の上限を超えました」に `user.id` 付きで出る
 3. すぐに止めるなら、タスクを止める。Aurora は接続がなくなれば止まる
 
