@@ -247,7 +247,12 @@ aws ecs update-service --cluster quiz-app-dev --service quiz-service \
 4. notification-service は、前のリリースのコミットを手元に取り出し、zip を作って載せる（「[デプロイ](development-guidelines.md#デプロイ)」の手元から流す手順）
 
 - **マイグレーションは戻さない。** 1 つ前のアプリと両立させる規約のため、前のアプリはそのまま動く
-- 戻したあと、スモークテストを手元から流して確かめる（開発ガイドラインの「[スモークテスト](development-guidelines.md#スモークテスト)」。`baseUrl` を prod にする）
+- 戻したあと、スモークテストを手元から流して確かめる（開発ガイドラインの「[スモークテスト](development-guidelines.md#スモークテスト)」。`baseUrl` を prod にする）。
+  **コレクションも、戻した先のコミットのものを使う**（`git worktree add <場所> <前のリリースのタグ>`）。新しいコレクションは、戻したアプリにない API を呼ぶことがある
+- 直したものをリリースせずに最新の main へ戻すときは、`gh workflow run deploy.yml --ref main -f environment=prod`（承認が要る）
+
+DEV-135 で試した時間。web のビルドと quiz-service の入れ替えを同時に始めると、web は約 2 分、quiz-service は約 4 分で終わり、スモークテスト（約 25 秒）まで約 5 分で済んだ。
+最新の main へ戻すデプロイは、承認から約 9 分。
 
 ### 通知をアーカイブから流し直す
 

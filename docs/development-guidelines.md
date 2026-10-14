@@ -1545,6 +1545,8 @@ develop → main の PR（タイトルは「release: <内容>」）→ CI → �
 3. マージすると、main の CI が通ったあと、`deploy-prod` が Environment `prod` の承認を待つ。Actions の画面で、載せるコミットを確かめて承認する
 4. 載せ終わると、リリース（`release-<日時>` のタグと、前のリリースからの PR の一覧）ができる。何も載せなかった（ドキュメントだけ）ときは作らない
 
+承認から載せ終わるまで 11〜13 分（DEV-135 で測った）。最初のリリースの内訳は、notification-service 1.5 分、イメージ 2 分、マイグレーションと quiz-service 6 分、web 3 分、スモークテスト 30 秒。
+
 - **Environment `prod` は main からだけ使える。** develop や PR のジョブは、prod のロールを引き受けられない（`modules/deploy-role` の信頼の条件が Environment で絞る）
 - prod を手で流すときは `gh workflow run deploy.yml --ref main -f environment=prod`。これも承認を待つ。手で流したときは、リリースを作らない
 - **Terraform の変更を含むリリースは、main にマージしたあと、承認する前に apply する。** prod の apply は main から行う（[prod](#prod)）
@@ -1580,7 +1582,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | web / API / 図 | `dev.<ドメイン>` / `api.dev.<ドメイン>` / `figures.dev.<ドメイン>` | `quiz.<ドメイン>` / `api.quiz.<ドメイン>` / `figures.quiz.<ドメイン>` |
 | VPC | `10.0.0.0/16` | `10.1.0.0/16` |
 | Aurora | 止まるまで 30 分、バックアップ 1 日、削除保護なし | 止まるまで 60 分、バックアップ 7 日、削除保護と最終スナップショット |
-| ECS | 夜間（2:00〜8:00）に止める | 止めない |
+| ECS | 夜間（2:00〜8:00）に止める | 夜間も止めない。公開までは止めてある |
 | ログ | 14 日 | 30 日 |
 | 消した図を残す日数 | 7 日 | 14 日 |
 | Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテストだけ |
@@ -1589,7 +1591,16 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 
 - **apply は main から行う。** prod には、リリースしたものと同じ形だけを流す
 - `terraform.tfvars` は dev と同じ項目（`domain_name`、`quiz_service_image_tag`、`alarm_email`）。書き方は `envs/prod/terraform.tfvars.example`
-- 公開までは動かさない（ADR-0024 の B-1）
+- **公開までは、quiz-service のタスクの数を 0 にしてある**（ADR-0024 の B-1、DEV-135）。タスクの数は Terraform が無視するため、CLI で変える
+
+  ```bash
+  aws ecs update-service --cluster quiz-app-prod --service quiz-service --desired-count 0   # 止める
+  aws ecs update-service --cluster quiz-app-prod --service quiz-service --desired-count 1   # 動かす
+  ```
+
+- **リリースすると、止めていても 1 つ起動する。** スモークテストで確かめるため、デプロイが起動してから載せる（[デプロイ](#デプロイ)）。公開までは、リリースのあとに 0 に戻す
+- 止めている間、API は API Gateway が 500 を返す（送り先のタスクがない）。web は Amplify にあるので開ける
+- 止めている間も続く費用は、月に 1〜2 ドル（Cloud Map のホストゾーン、Secrets Manager、Aurora のストレージ、ECR のイメージ）。Aurora は使われなければ 60 分で一時停止する
 
 #### state のバケットを作り直すとき
 
