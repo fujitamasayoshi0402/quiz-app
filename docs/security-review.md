@@ -89,8 +89,9 @@ web はセキュリティのヘッダを付けている（開発ガイドライ�
 | SVG はアプリのオリジンから返さない。CloudFront が CSP の `sandbox` と `nosniff` を付けて返す | [ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md) |
 | 画像は読み直してから置く（メタデータも落ちる）。種類は申告ではなく中身で決める | `FigureImage` |
 | Slack の通知は、管理者が書いた文字の `<` `>` `&` を書式として読ませない | `SlackMessages` |
+| AI が技術ニュースから作ったクイズは、下書きにしかならない。読むのは AWS の公式の発表だけで、解説は Markdown として表示する | [ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md) |
 
-残るリスク: なし。
+残るリスク（受け入れる）: AI が読む RSS の説明に、AI への指示のような文が紛れ込みうる（プロンプトインジェクション）。出力は下書きにしかならず、管理者が確かめてから公開する（ADR-0031）。
 
 ### A06 安全でない設計
 
@@ -134,8 +135,9 @@ web はセキュリティのヘッダを付けている（開発ガイドライ�
 | main と develop への直接の push と force push を禁止し、CI が通らないとマージできない | 開発ガイドライン「Git」 |
 | イベントは共有の型で読み、知らない版は捨てずに DLQ に残す | `libs/quiz-events`、`QuizEventReader` |
 | 図は書き換えない。描き直すと新しい ID になる | 開発ガイドライン「解説図」 |
+| AI が作ったクイズは、取り込みと同じ決まり（選択肢 4 つ、正解 1 つ）で確かめ、元の発表と食い違わないかを AI にも確かめさせてから、下書きとして入れる。元の発表の URL を持つ | [ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md) |
 
-残るリスク: なし。
+残るリスク（受け入れる）: AI の誤りを、確かめる管理者が見落とすと公開される。解く人に、AI が作ったものであることと出典を示す（ADR-0031）。
 
 ### A09 ログとアラートの不備
 

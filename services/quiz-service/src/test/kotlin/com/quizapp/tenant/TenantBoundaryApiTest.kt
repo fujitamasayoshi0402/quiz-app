@@ -202,7 +202,7 @@ class TenantBoundaryApiTest {
     private fun probes(ids: Ids): List<Probe> =
         categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
             figureProbes(ids) + playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids) + historyProbes() +
-            rankingProbes() + bookmarkProbes(ids) + notificationProbes() + settingsProbes()
+            rankingProbes() + bookmarkProbes(ids) + notificationProbes() + settingsProbes() + membershipProbes()
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -549,6 +549,14 @@ class TenantBoundaryApiTest {
             Probe(HttpMethod.DELETE, base, "消しても victim の設定は残る", status = 204),
         )
     }
+
+    /**
+     * 退会しようとしても、victim の所属と履歴は変わらない（ADR-0030）。
+     * 試す人は own の最後の管理者のため、退会は拒まれる。消す範囲は `TenantLeavingApiTest` が確かめる
+     */
+    private fun membershipProbes(): List<Probe> = listOf(
+        Probe(HttpMethod.DELETE, "/api/t/{slug}/play/membership", "victim の所属と履歴は変わらない", status = 409),
+    )
 
     /** own を公開にしても非公開に戻しても、victim の公開設定は変わらない（ADR-0025） */
     private fun settingsProbes(): List<Probe> {

@@ -29,6 +29,8 @@ tags:
   name: 公開テナント
 - description: カテゴリ配下の難易度を CRUD する。体系はカテゴリごとに決める
   name: 難易度
+- description: テナントからの退会
+  name: 所属
 - description: ログインしている利用者自身の情報
   name: 利用者
 - description: 問題に付ける印。印の付いた問題だけを出題できる（出題対象 `bookmarked`）
@@ -2402,6 +2404,40 @@ paths:
       summary: カテゴリ別の正答率
       tags:
       - 履歴
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+  /api/t/{slug}/play/membership:
+    delete:
+      operationId: leaveTenant
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: テナントから退会する。そのテナントでの回答の履歴とランキングへの参加も消す。最後の管理者と共有のアカウントは退会できない
+      tags:
+      - 所属
     parameters:
     - description: テナントの識別子（URL 用の短い名前）
       in: path

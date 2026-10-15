@@ -3,6 +3,8 @@ package com.quizapp.tenant.controller
 import com.quizapp.tenant.domain.TenantCannotBePublicException
 import com.quizapp.tenant.domain.TenantCreationBlock
 import com.quizapp.tenant.domain.TenantCreationNotAllowedException
+import com.quizapp.tenant.domain.TenantLeaveBlock
+import com.quizapp.tenant.domain.TenantLeaveNotAllowedException
 import com.quizapp.tenant.domain.TenantSlugTakenException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
@@ -10,7 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
 /**
- * テナントの作成と設定のエラーを RFC 9457 の Problem Details で返す（ADR-0028）。
+ * テナントの作成と設定、退会のエラーを RFC 9457 の Problem Details で返す（ADR-0028、ADR-0030）。
  * 共通のもの（入力の誤り、認証、テナント）は [com.quizapp.controller.ApiExceptionHandler] が返す
  */
 @RestControllerAdvice
@@ -35,6 +37,19 @@ class TenantExceptionHandler {
         ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "この URL に使う名前は、ほかのテナントが使っています").apply {
             title = "URL に使う名前が重なっています"
         }
+
+    /** **理由を `reason` で返す。** 画面が、最後の管理者と共有のアカウントとで案内を変える（ADR-0030） */
+    @ExceptionHandler(TenantLeaveNotAllowedException::class)
+    fun handleLeaveNotAllowed(e: TenantLeaveNotAllowedException): ProblemDetail {
+        val detail = when (e.reason) {
+            TenantLeaveBlock.LAST_ADMIN -> "最後の管理者は退会できません。ほかの人を管理者として招待してから退会してください"
+            TenantLeaveBlock.SHARED_ACCOUNT -> "共有のアカウントは退会できません"
+        }
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detail).apply {
+            title = "退会できません"
+            setProperty("reason", e.reason.value)
+        }
+    }
 
     @ExceptionHandler(TenantCannotBePublicException::class)
     fun handleCannotBePublic(): ProblemDetail = ProblemDetail.forStatusAndDetail(
