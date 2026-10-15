@@ -6,6 +6,7 @@
 そのテナントの中だけに存在し、他のテナントからは見えません。
 一般ユーザーは所属するテナントのクイズに回答し、正誤判定と解説を確認できます。
 ログインした人は自分のテナントを 1 つ作り、管理者としてクイズを作れます（[ADR-0028](docs/adr/0028-let-signed-in-users-create-their-own-tenant.md)）。
+所属したテナントからは、自分で退会できます。退会すると、そのテナントでの回答の履歴も消えます（[ADR-0030](docs/adr/0030-let-members-leave-tenant-and-erase-their-history.md)）。
 解説は Markdown で書き、draw.io の図・画像・PDF を入れられます。
 ログインにはパスキー（WebAuthn）とパスワードを使えます。
 
@@ -236,7 +237,7 @@ Phase 1（ローカルで動く MVP）から Phase 5（イベント駆動と Sla
 - 管理者は、一般ユーザーと管理者を招待できます。招待のリンクを画面に出して渡し、受け入れるときにメールアドレスが招待と一致するかを確かめます
 - 管理者がテナントを公開すると、ログインした人が一覧から見つけて、招待なしで参加できます（[ADR-0025](docs/adr/0025-let-signed-in-users-join-public-tenants.md)）
 - クイズの追加・更新は、テナントの管理者が設定した Slack に知らせます（Outbox → EventBridge → Lambda。[ADR-0022](docs/adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)）
-- 権限まわり（ログイン・招待・ロールによる出し分け・公開テナントへの参加）と、出題・管理の主な流れは、Playwright の E2E テストで PR ごとに確かめています
+- 権限まわり（ログイン・招待・ロールによる出し分け・公開テナントへの参加と退会）と、出題・管理の主な流れは、Playwright の E2E テストで PR ごとに確かめています
 - ログは JSON で出し、アラームと CloudWatch のダッシュボードで見ています。鳴ったときの手順は [Runbook](docs/runbook.md) にあります
 
 進捗は [ロードマップ](docs/ROADMAP.md) を参照してください。
