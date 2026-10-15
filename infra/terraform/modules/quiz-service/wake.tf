@@ -144,7 +144,9 @@ resource "aws_iam_role_policy" "wake" {
   policy = data.aws_iam_policy_document.wake.json
 }
 
-# API Gateway: この手順を始めることだけを許す
+# API Gateway: この手順を始めることだけを許す。
+# 信頼に aws:SourceAccount の条件を付けると、HTTP API の統合はロールを引き受けられない（DEV-154 で確かめた）。
+# 引き受けられても、できるのはこのステートマシンを始めることだけ
 data "aws_iam_policy_document" "wake_api_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -152,12 +154,6 @@ data "aws_iam_policy_document" "wake_api_assume" {
     principals {
       type        = "Service"
       identifiers = ["apigateway.amazonaws.com"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceAccount"
-      values   = [data.aws_caller_identity.current.account_id]
     }
   }
 }
