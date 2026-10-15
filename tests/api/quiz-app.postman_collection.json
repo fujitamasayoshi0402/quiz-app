@@ -1471,6 +1471,94 @@
       ]
     },
     {
+      "name": "起こす口",
+      "description": "止まっているサーバーを起こす口（DEV-154）。API Gateway が JWT を確かめ、Step Functions を起動する。quiz-service は通らない。\n\nスモークテストの時点ではサーバーは動いているので、起こしても何も起きない",
+      "item": [
+        {
+          "name": "ログインしていなければ起こせない",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wake",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wake"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 起こす口は、使われなくなったら止める環境（dev）にだけある。デプロイのワークフローが wakeEnabled を渡す",
+                  "if (pm.variables.get(\"wakeEnabled\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "pm.request.headers.remove(\"Authorization\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 を返す\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ログインしていれば起こせる",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wake",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wake"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 起こす口は、使われなくなったら止める環境（dev）にだけある。デプロイのワークフローが wakeEnabled を渡す",
+                  "if (pm.variables.get(\"wakeEnabled\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 を返す\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"起こす手順が始まった\", () => pm.expect(pm.response.json().executionArn).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "片付け",
       "description": "作ったものを消す。途中で失敗しても、この段は実行される",
       "item": [

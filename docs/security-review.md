@@ -35,6 +35,7 @@
 | 招待なしで参加できるのは、管理者が公開したテナントだけ。一覧は名前と slug だけを返し、クイズは参加してから読む。非公開のテナントへの参加は、存在しないテナントと同じ 404 | [ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)、`PublicTenantsApiTest` |
 | ログインした人が作るテナントは、作った人が管理者として所属するだけで、ほかのテナントには触れない。非公開に限り、公開への切り替えを API が拒む | [ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)、`TenantCreationApiTest` |
 | 解説図は quiz-service が見せてよいかを決め、期限の短い署名付き URL で配る | [ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md) |
+| dev のサーバーを起こす口（`POST /api/wake`）は quiz-service を通らない。API Gateway が JWT（発行者と web のクライアント）を確かめ、タスクを 1 つ起動するだけで、データに触れない。流量の上限は 1 件/秒 | `modules/quiz-service/wake.tf`、スモークテストの「起こす口」 |
 | 状態を変える要求（POST・PUT・PATCH・DELETE）は、アプリのオリジンから来たものだけを通す。Cookie の `SameSite=Lax` と合わせて 2 枚 | `apps/web/src/proxy.ts`、`isSameOriginRequest` |
 
 残るリスク（受け入れる）: `Origin` も `Sec-Fetch-Site` も付けない要求は通す。ブラウザはどちらかを必ず付けるため、利用者の Cookie を付けて送らせることはできない。スモークテストのような、ブラウザではない呼び出し元のために残している。
