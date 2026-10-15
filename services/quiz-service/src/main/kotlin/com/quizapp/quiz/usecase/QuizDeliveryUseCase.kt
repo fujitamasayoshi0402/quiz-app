@@ -51,6 +51,11 @@ class QuizDeliveryUseCase(private val quizRepository: QuizRepository, private va
                 order(candidates.filter { it.id in missed }, criteria.order)
             }
 
+            DeliveryScope.BOOKMARKED -> {
+                val bookmarked = answeredQuizzes.filterBookmarked(userId, ids)
+                order(candidates.filter { it.id in bookmarked }, criteria.order)
+            }
+
             DeliveryScope.UNANSWERED, DeliveryScope.UNANSWERED_ONLY -> {
                 val answered = answeredQuizzes.filterAnswered(userId, ids)
                 val (done, notYet) = candidates.partition { it.id in answered }

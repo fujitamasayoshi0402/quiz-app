@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
+import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
 import { Eyebrow, Panel, ProgressLine, Verdict } from "@/components/play/parts";
 import { SwipeSession } from "@/components/play/swipe-session";
@@ -112,7 +113,7 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
         onSelect={setSelectedId}
         reveal={feedback ? { correctChoiceId: feedback.correctChoiceId } : undefined}
       />
-      {feedback && <Explanation slug={slug} result={feedback} />}
+      {feedback && <Explanation slug={slug} quizId={current.id} result={feedback} />}
       {answer.isError && <ApiErrorAlert error={answer.error} />}
 
       <div className="flex justify-end">
@@ -130,10 +131,13 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
   );
 }
 
-function Explanation({ slug, result }: { slug: string; result: AnswerResult }) {
+function Explanation({ slug, quizId, result }: { slug: string; quizId: string; result: AnswerResult }) {
   return (
     <Panel className="animate-in space-y-2 duration-300 fade-in slide-in-from-bottom-2">
-      <Verdict correct={result.isCorrect} />
+      <div className="flex items-center gap-2">
+        <Verdict correct={result.isCorrect} />
+        <BookmarkToggle slug={slug} quizId={quizId} className="ml-auto" />
+      </div>
       <Markdown tenant={slug}>{result.explanation}</Markdown>
     </Panel>
   );

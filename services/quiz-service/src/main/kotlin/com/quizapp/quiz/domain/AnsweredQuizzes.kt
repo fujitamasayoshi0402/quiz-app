@@ -26,4 +26,11 @@ interface AnsweredQuizzes {
      * 絞り込みの形は [filterAnswered] と同じ。
      */
     fun filterMissed(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID>
+
+    /**
+     * 指定ユーザーが「あとで見直す」印を付けたクイズ ID を返す。絞り込みの形は [filterAnswered] と同じ。
+     *
+     * 印も回答と同じく、利用者がクイズに残した記録として answer モジュールが持つ。
+     */
+    fun filterBookmarked(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID>
 }

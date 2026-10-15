@@ -118,9 +118,14 @@ class InMemoryFigureRepository : FigureRepository {
 /** 利用者とクイズごとに、最後の回答が正解だったかを覚える */
 class FakeAnsweredQuizzes : AnsweredQuizzes {
     private val lastCorrect = mutableMapOf<Pair<UUID, UUID>, Boolean>()
+    private val bookmarks = mutableSetOf<Pair<UUID, UUID>>()
 
     fun answer(userId: UUID, quizId: UUID, correct: Boolean = true) {
         lastCorrect[userId to quizId] = correct
+    }
+
+    fun bookmark(userId: UUID, quizId: UUID) {
+        bookmarks += userId to quizId
     }
 
     override fun filterAnswered(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
@@ -128,6 +133,9 @@ class FakeAnsweredQuizzes : AnsweredQuizzes {
 
     override fun filterMissed(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
         candidateQuizIds.filter { lastCorrect[userId to it] == false }.toSet()
+
+    override fun filterBookmarked(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
+        candidateQuizIds.filter { (userId to it) in bookmarks }.toSet()
 }
 
 /**

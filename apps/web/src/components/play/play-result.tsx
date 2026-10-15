@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
+import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
 import { Eyebrow, Panel, Stat, Verdict } from "@/components/play/parts";
 import { ApiError } from "@/lib/api/fetcher";
@@ -147,6 +148,7 @@ function Review({ slug, quiz, number }: { slug: string; quiz: QuizResult; number
         <div className="flex items-center gap-3">
           <Eyebrow>QUESTION {number}</Eyebrow>
           <Verdict correct={quiz.isCorrect} answered={answered} />
+          <BookmarkToggle slug={slug} quizId={quiz.quizId} className="ml-auto" />
         </div>
         <p className="leading-snug font-semibold tracking-tight whitespace-pre-wrap">{quiz.question}</p>
       </div>

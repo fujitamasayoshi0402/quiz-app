@@ -43,4 +43,14 @@ class AnsweredQuizzesJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) 
         ) { rs, _ -> rs.getObject("quiz_id", UUID::class.java) }
             .toSet()
     }
+
+    override fun filterBookmarked(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> {
+        if (candidateQuizIds.isEmpty()) return emptySet()
+
+        return jdbcTemplate.query(
+            "SELECT quiz_id FROM answer.bookmarks WHERE user_id = :userId AND quiz_id IN (:quizIds)",
+            mapOf("userId" to userId, "quizIds" to candidateQuizIds),
+        ) { rs, _ -> rs.getObject("quiz_id", UUID::class.java) }
+            .toSet()
+    }
 }

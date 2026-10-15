@@ -277,6 +277,18 @@ AWS の資格のように、**同じ難度帯に複数の種類が並ぶ**体系
 クイズを別のカテゴリへ移すと、集計もそれに従います。
 見られるのは本人の記録だけです。管理者が利用者ごとの成績を見る機能は持ちません。
 
+### あとで見直す印
+
+利用者が問題に付ける印です（DEV-159）。印の付いた問題だけを出題できます（出題対象 `bookmarked`）。
+回答と同じく、利用者がクイズに残した記録として answer モジュールが持ちます（`answer.bookmarks`）。
+
+| 決めたこと | 理由 |
+| --- | --- |
+| 正解しても外さない。外すのは本人だけ | 正解したが自信がない問題にも付けるため。正誤で決まる絞り込みは、出題対象 `incorrect` が受け持つ |
+| 外したら行を消す（論理削除にしない） | 回答の履歴ではなく本人の設定のため。ランキングへの参加と同じ |
+| quiz スキーマへ外部キーを貼らない | 回答と同じ理由（[ADR-0004](adr/0004-split-services-incrementally.md)）。消えたクイズへの印は残り、出題と一覧で、いま出題できるクイズに絞る |
+| 付けられるのは、いま出題できるクイズだけ | 下書きや別のテナントのクイズに付けられると、印の有無から見えないはずのクイズがあると分かる |
+
 ---
 
 ## 削除
@@ -405,7 +417,7 @@ erDiagram
         uuid category_id "FK を貼らない"
         uuid difficulty_id "FK を貼らない"
         int level
-        string scope "all / unanswered / unanswered_only / incorrect"
+        string scope "all / unanswered / unanswered_only / incorrect / bookmarked"
         string status "in_progress / completed / abandoned"
         timestamp started_at
         timestamp finished_at

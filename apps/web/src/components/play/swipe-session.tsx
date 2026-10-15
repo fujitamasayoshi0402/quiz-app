@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
+import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
 import { Eyebrow, ProgressLine, Stat, Verdict } from "@/components/play/parts";
 import { useAnswerQuiz } from "@/lib/api/generated/endpoints";
@@ -220,11 +221,8 @@ function QuizCard({
           >
             <div className="flex items-center gap-2">
               <Verdict correct={result.isCorrect} />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-auto h-auto gap-0 px-2 py-1 text-xs text-muted-foreground"
-              >
+              <BookmarkToggle slug={slug} quizId={quiz.id} className="ml-auto" />
+              <Button variant="ghost" size="sm" className="h-auto gap-0 px-2 py-1 text-xs text-muted-foreground">
                 解説を読む
                 <ChevronRight className="size-4" />
               </Button>

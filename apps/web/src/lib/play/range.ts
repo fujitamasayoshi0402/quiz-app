@@ -1,4 +1,4 @@
-import type { PlayableCategoryResponse } from "@/lib/api/generated/model";
+import type { BookmarkedQuiz, PlayableCategoryResponse } from "@/lib/api/generated/model";
 
 /**
  * 出題範囲。カテゴリの中で「難易度 1 つ」か「同じレベルの難易度すべて」か「すべて」を選ぶ。
@@ -52,4 +52,18 @@ export function toCriteria(categoryId: string, range: Range) {
     difficultyId: range.kind === "difficulty" ? range.id : undefined,
     level: range.kind === "level" ? range.level : undefined,
   };
+}
+
+/**
+ * 印を付けたクイズのうち、範囲に入るものの数（DEV-159）。出題の設定画面で、「あとで見直す問題」に何問あるかを出す。
+ * レベルの範囲は、難易度のレベルで決める。難易度のレベルはカテゴリの一覧が持つ
+ */
+export function countInRange(bookmarks: BookmarkedQuiz[], category: PlayableCategoryResponse, range: Range): number {
+  const levelOf = new Map(category.difficulties.map((difficulty) => [difficulty.id, difficulty.level]));
+  return bookmarks.filter((bookmark) => {
+    if (bookmark.categoryId !== category.id) return false;
+    if (range.kind === "difficulty") return bookmark.difficultyId === range.id;
+    if (range.kind === "level") return levelOf.get(bookmark.difficultyId) === range.level;
+    return true;
+  }).length;
 }
