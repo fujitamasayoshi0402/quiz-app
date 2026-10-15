@@ -108,6 +108,35 @@ class DemoSeedTest {
     }
 
     @Test
+    @DisplayName("見本に絞ったときに外したクイズは、すでに入っている DB ではゴミ箱へ移る")
+    fun trimmedQuizzesAreTrashed() {
+        applySeed()
+        // 外したクイズの 1 つ（DEV-164 より前のシードにあったもの）が、dev のように残っている状態を作る
+        val trimmed = "e9d199ac-f69c-57da-841a-aadbdd7ced12"
+        TestPostgres.adminJdbcTemplate.update(
+            """
+            INSERT INTO quiz.quizzes (id, tenant_id, category_id, difficulty_id, question, explanation, status)
+            SELECT ?::uuid, q.tenant_id, q.category_id, q.difficulty_id, '外したクイズ', '解説', 'draft'
+            FROM quiz.quizzes q WHERE q.id = '808eab59-8191-526d-8019-0ffb31f67840'
+            """,
+            trimmed,
+        )
+
+        applySeed()
+        applySeed()
+
+        assertThat(
+            count("SELECT count(*) FROM quiz.quizzes WHERE id = '$trimmed' AND deleted_at IS NOT NULL"),
+        ).isEqualTo(1)
+        assertThat(
+            count(
+                "SELECT count(*) FROM quiz.quizzes WHERE id = '808eab59-8191-526d-8019-0ffb31f67840' AND deleted_at IS NULL",
+            ),
+        )
+            .isEqualTo(1)
+    }
+
+    @Test
     @DisplayName("行レベルセキュリティが効くロールでも流せる")
     fun seedPassesRowLevelSecurity() {
         // Aurora でマイグレーションを流す quiz はスーパーユーザーではなく、FORCE ROW LEVEL SECURITY で
