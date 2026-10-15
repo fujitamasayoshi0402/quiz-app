@@ -25,5 +25,10 @@ class MemberAnswerHistoryJdbc(private val jdbcTemplate: NamedParameterJdbcTempla
             "DELETE FROM answer.ranking_entries WHERE tenant_id = :tenantId AND user_id = :userId",
             params,
         )
+        // 「あとで見直す」印も、そのテナントでの本人の記録として消す（DEV-159）
+        jdbcTemplate.update(
+            "DELETE FROM answer.bookmarks WHERE tenant_id = :tenantId AND user_id = :userId",
+            params,
+        )
     }
 }
