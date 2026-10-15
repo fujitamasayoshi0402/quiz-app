@@ -30,12 +30,19 @@ enum class DeliveryScope {
      * 解き直しの目的は「間違えたまま残っている問題をなくす」ことのため、最後の回答で決める。
      */
     INCORRECT,
+
+    /**
+     * 「あとで見直す」印を付けた問題だけを出す（DEV-159）。尽きたらそこで終了する。
+     *
+     * 印は本人が外すまで残る。正解しても外さない。正解したが自信がない問題にも付けるため。
+     */
+    BOOKMARKED,
     ;
 
     companion object {
         fun from(value: String): DeliveryScope = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
             ?: throw IllegalArgumentException(
-                "出題対象は all / unanswered / unanswered_only / incorrect を指定してください: $value",
+                "出題対象は all / unanswered / unanswered_only / incorrect / bookmarked を指定してください: $value",
             )
     }
 }

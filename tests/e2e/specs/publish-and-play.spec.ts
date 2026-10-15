@@ -12,7 +12,7 @@ const question = "日本の首都はどこですか。";
  *
  * カテゴリやクイズは `fixtures.sql` がテストの前に消すので、決まった名前で作れる
  */
-test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、間違えた問題を解き直し、結果と履歴で振り返る", async ({ browser }) => {
+test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、間違えた問題を解き直し、結果と履歴で振り返り、あとで見直す", async ({ browser }) => {
   const admin = await (await browser.newContext({ storageState: storageStateOf("admin") })).newPage();
   const member = await (await browser.newContext({ storageState: storageStateOf("member") })).newPage();
 
@@ -91,6 +91,11 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await member.getByRole("button", { name: "回答する" }).click();
     await expect(member.getByText("正解", { exact: true })).toBeVisible();
 
+    // 正解したが、あとで見直したい
+    const bookmark = member.getByRole("button", { name: "あとで見直す" });
+    await bookmark.click();
+    await expect(bookmark).toHaveAttribute("aria-pressed", "true");
+
     // 正解したので、間違えた問題は残っていない
     await member.getByRole("button", { name: "結果を見る" }).click();
     await expect(member.getByText("100%")).toBeVisible();
@@ -108,6 +113,28 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await row.click();
     await expect(member.getByRole("heading", { name: "答え合わせ" })).toBeVisible();
     await expect(member.getByText(question)).toBeVisible();
+  });
+
+  await test.step("「あとで見直す」を押した問題だけを解き直し、外せる", async () => {
+    await member.goto(`/t/${tenant.slug}/play`);
+    await member.getByText(category).click();
+    // 選んだ範囲に、印を付けた問題が何問あるかが出る
+    await expect(member.getByText("この範囲に 1 問", { exact: false })).toBeVisible();
+    await member.getByText("あとで見直す問題", { exact: true }).click();
+    await member.getByRole("button", { name: "始める" }).click();
+
+    await expect(member.getByText("1 / 1 問")).toBeVisible();
+    await expect(member.getByText(question)).toBeVisible();
+    await member.getByRole("button", { name: "東京" }).click();
+    await member.getByRole("button", { name: "回答する" }).click();
+
+    // 正解しても印は残る。押すと外れる
+    const bookmark = member.getByRole("button", { name: "あとで見直す" });
+    await expect(bookmark).toHaveAttribute("aria-pressed", "true");
+    await bookmark.click();
+    await expect(bookmark).toHaveAttribute("aria-pressed", "false");
+    await member.getByRole("button", { name: "結果を見る" }).click();
+    await expect(member.getByText("100%")).toBeVisible();
   });
 });
 

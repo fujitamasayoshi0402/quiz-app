@@ -4,6 +4,7 @@ import com.quizapp.answer.domain.DuplicateAnswerException
 import com.quizapp.answer.usecase.AttemptAlreadyFinishedException
 import com.quizapp.answer.usecase.AttemptInProgressException
 import com.quizapp.answer.usecase.AttemptNotFoundException
+import com.quizapp.answer.usecase.BookmarkTargetNotFoundException
 import com.quizapp.answer.usecase.InvalidChoiceException
 import com.quizapp.answer.usecase.NoQuizAvailableException
 import com.quizapp.answer.usecase.QuizNoLongerAvailableException
@@ -42,7 +43,8 @@ class ApiExceptionHandler {
             title = "リソースが見つかりません"
         }
 
-    @ExceptionHandler(QuizNotFoundException::class)
+    /** 印を付けるクイズが、いま出題できない（無い、下書き、削除済み、別のテナント）。管理側の 404 と同じ文にする */
+    @ExceptionHandler(QuizNotFoundException::class, BookmarkTargetNotFoundException::class)
     fun handleQuizNotFound(): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "指定されたクイズは存在しません").apply {
             title = "リソースが見つかりません"

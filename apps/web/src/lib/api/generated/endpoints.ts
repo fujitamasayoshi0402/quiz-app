@@ -36,6 +36,7 @@ import {
   AttemptHistoryPage,
   AttemptResult,
   AttemptView,
+  BookmarkList,
   CategoryResponse,
   CategoryScore,
   CategorySummaryResponse,
@@ -4965,6 +4966,263 @@ export const useCompleteAttempt = <TError = ProblemDetail,
         TContext
       > => {
       return useMutation(getCompleteAttemptMutationOptions(options), queryClient);
+    }
+
+export const getListBookmarksUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/bookmarks`
+}
+
+/**
+ * いま出題できるクイズだけを、カテゴリと難易度とともに返す。削除・非公開になったクイズへの印は出さない
+ * @summary 印を付けたクイズ
+ */
+export const listBookmarks = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<BookmarkList> => {
+
+  return apiFetch<BookmarkList>(getListBookmarksUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: BookmarkList
+  }
+);}
+
+
+
+
+
+export const getListBookmarksQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/play/bookmarks`
+    ] as const;
+    }
+
+
+export const getListBookmarksQueryOptions = <TData = Awaited<ReturnType<typeof listBookmarks>>, TError = ProblemDetail>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBookmarks>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBookmarksQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBookmarks>>> = ({ signal }) => listBookmarks(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBookmarks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListBookmarksQueryResult = NonNullable<Awaited<ReturnType<typeof listBookmarks>>>
+export type ListBookmarksQueryError = ProblemDetail
+
+
+export function useListBookmarks<TData = Awaited<ReturnType<typeof listBookmarks>>, TError = ProblemDetail>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBookmarks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBookmarks>>,
+          TError,
+          Awaited<ReturnType<typeof listBookmarks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBookmarks<TData = Awaited<ReturnType<typeof listBookmarks>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBookmarks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBookmarks>>,
+          TError,
+          Awaited<ReturnType<typeof listBookmarks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListBookmarks<TData = Awaited<ReturnType<typeof listBookmarks>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBookmarks>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 印を付けたクイズ
+ */
+
+export function useListBookmarks<TData = Awaited<ReturnType<typeof listBookmarks>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBookmarks>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListBookmarksQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRemoveBookmarkUrl = (slug: string,
+    quizId: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/bookmarks/${quizId}`
+}
+
+/**
+ * 付いていなければ何もしない
+ * @summary 印を外す
+ */
+export const removeBookmark = async (slug: string,
+    quizId: string, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getRemoveBookmarkUrl(slug,quizId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveBookmarkMutationKey = () => ['removeBookmark'] as const;
+
+export const getRemoveBookmarkMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeBookmark>>, TError,RemoveBookmarkMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeBookmark>>, TError,RemoveBookmarkMutationVariables, TContext> => {
+
+const mutationKey = getRemoveBookmarkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeBookmark>>, RemoveBookmarkMutationVariables> = (props) => {
+          const {slug,quizId} = props ?? {};
+
+          return  removeBookmark(slug,quizId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveBookmarkMutationResult = NonNullable<Awaited<ReturnType<typeof removeBookmark>>>
+
+    export type RemoveBookmarkMutationError = ProblemDetail
+    export type RemoveBookmarkMutationVariables = {slug: string;quizId: string}
+
+    /**
+ * @summary 印を外す
+ */
+export const useRemoveBookmark = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeBookmark>>, TError,RemoveBookmarkMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeBookmark>>,
+        TError,
+        RemoveBookmarkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveBookmarkMutationOptions(options), queryClient);
+    }
+
+export const getAddBookmarkUrl = (slug: string,
+    quizId: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/bookmarks/${quizId}`
+}
+
+/**
+ * 付いていれば何もしない。いま出題できないクイズは 404
+ * @summary 印を付ける
+ */
+export const addBookmark = async (slug: string,
+    quizId: string, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getAddBookmarkUrl(slug,quizId),
+  {
+    ...options,
+    method: 'PUT'
+
+
+  }
+);}
+
+
+
+
+
+export const getAddBookmarkMutationKey = () => ['addBookmark'] as const;
+
+export const getAddBookmarkMutationOptions = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addBookmark>>, TError,AddBookmarkMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addBookmark>>, TError,AddBookmarkMutationVariables, TContext> => {
+
+const mutationKey = getAddBookmarkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addBookmark>>, AddBookmarkMutationVariables> = (props) => {
+          const {slug,quizId} = props ?? {};
+
+          return  addBookmark(slug,quizId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddBookmarkMutationResult = NonNullable<Awaited<ReturnType<typeof addBookmark>>>
+
+    export type AddBookmarkMutationError = ProblemDetail
+    export type AddBookmarkMutationVariables = {slug: string;quizId: string}
+
+    /**
+ * @summary 印を付ける
+ */
+export const useAddBookmark = <TError = ProblemDetail,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addBookmark>>, TError,AddBookmarkMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addBookmark>>,
+        TError,
+        AddBookmarkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddBookmarkMutationOptions(options), queryClient);
     }
 
 export const getListPlayableCategoriesUrl = (slug: string,) => {

@@ -50,6 +50,9 @@ class TenantLeavingApiTest {
     private lateinit var user: UUID
     private lateinit var neighbor: UUID
 
+    /** テナントごとの、ただ 1 つのクイズ */
+    private val quizOf = mutableMapOf<UUID, UUID>()
+
     @BeforeEach
     fun setUp() {
         tenant = TestTenant.create("退会するテナント").withAdmin()
@@ -58,7 +61,7 @@ class TenantLeavingApiTest {
         listOf(tenant, other).forEach { t ->
             val fixture = PlayFixture(mockMvc, objectMapper, t.slug)
             val category = fixture.category("AWS")
-            fixture.quiz(category, fixture.difficulty(category, "SAA", 2), "問題")
+            quizOf[t.id] = fixture.quiz(category, fixture.difficulty(category, "SAA", 2), "問題")
         }
         user = TestAuth.createUser("退会する人")
         neighbor = TestAuth.createUser("残る人")
@@ -67,14 +70,17 @@ class TenantLeavingApiTest {
     }
 
     @Test
-    @DisplayName("退会すると所属が外れ、そのテナントでの履歴とランキングへの参加が消える。ほかの人と、ほかのテナントの履歴は残る")
+    @DisplayName("退会すると所属が外れ、そのテナントでの履歴とランキングへの参加と印が消える。ほかの人と、ほかのテナントの履歴は残る")
     fun leaves() {
         solve(tenant, user)
         participate(tenant, user, "退会する人")
+        bookmark(tenant, user)
         solve(tenant, neighbor)
         participate(tenant, neighbor, "残る人")
+        bookmark(tenant, neighbor)
         solve(other, user)
         participate(other, user, "退会する人")
+        bookmark(other, user)
 
         leave(tenant, user).andExpect { status { isNoContent() } }
 
@@ -86,10 +92,13 @@ class TenantLeavingApiTest {
         assertThat(rows("answer.attempts", tenant, user)).isZero()
         assertThat(rows("answer.answers", tenant, user)).isZero()
         assertThat(rows("answer.ranking_entries", tenant, user)).isZero()
+        assertThat(rows("answer.bookmarks", tenant, user)).isZero()
         assertThat(rows("answer.attempts", tenant, neighbor)).isEqualTo(1)
         assertThat(rows("answer.ranking_entries", tenant, neighbor)).isEqualTo(1)
+        assertThat(rows("answer.bookmarks", tenant, neighbor)).isEqualTo(1)
         assertThat(rows("answer.attempts", other, user)).isEqualTo(1)
         assertThat(rows("answer.ranking_entries", other, user)).isEqualTo(1)
+        assertThat(rows("answer.bookmarks", other, user)).isEqualTo(1)
     }
 
     @Test
@@ -187,6 +196,13 @@ class TenantLeavingApiTest {
             content = objectMapper.writeValueAsString(mapOf("name" to name))
             header("Authorization", TestAuth.bearer(userId))
         }.andExpect { status { isOk() } }
+    }
+
+    /** テナントのクイズに「あとで見直す」印を付ける */
+    private fun bookmark(t: TestTenant, userId: UUID) {
+        mockMvc.put("/api/t/${t.slug}/play/bookmarks/${quizOf.getValue(t.id)}") {
+            header("Authorization", TestAuth.bearer(userId))
+        }.andExpect { status { isNoContent() } }
     }
 
     /** 行レベルセキュリティを通さない所有者の接続で数える */

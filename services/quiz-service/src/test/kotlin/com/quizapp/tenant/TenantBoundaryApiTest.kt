@@ -202,7 +202,7 @@ class TenantBoundaryApiTest {
     private fun probes(ids: Ids): List<Probe> =
         categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
             figureProbes(ids) + playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids) + historyProbes() +
-            rankingProbes() + notificationProbes() + settingsProbes() + membershipProbes()
+            rankingProbes() + bookmarkProbes(ids) + notificationProbes() + settingsProbes() + membershipProbes()
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -491,6 +491,17 @@ class TenantBoundaryApiTest {
         )
     }
 
+    /** 攻撃者は victim のクイズに印を付けている。それが own に現れず、own から付け外しもできないこと */
+    private fun bookmarkProbes(ids: Ids): List<Probe> {
+        val base = "/api/t/{slug}/play/bookmarks"
+        val victim = mapOf("quizId" to ids.victimQuiz)
+        return listOf(
+            Probe(HttpMethod.GET, base, "victim の印が出ない", status = 200),
+            Probe(HttpMethod.PUT, "$base/{quizId}", "", victim, status = 404, detail = QUIZ_NOT_FOUND),
+            Probe(HttpMethod.DELETE, "$base/{quizId}", "外しても victim の印は残る", victim, status = 204),
+        )
+    }
+
     /** 攻撃者は victim で挑戦を終え、回答も残している。それが own の履歴と正答率に現れないこと */
     private fun historyProbes(): List<Probe> {
         val base = "/api/t/{slug}/play/history"
@@ -660,8 +671,8 @@ class TenantBoundaryApiTest {
     }
 
     /**
-     * 攻撃者自身が victim で挑戦を終え、ランキングにも参加している。
-     * 履歴とランキングが own にそれを出さないことの検証に使う
+     * 攻撃者自身が victim で挑戦を終え、ランキングに参加し、解いた問題に印も付けている。
+     * 履歴とランキングと印が own にそれを出さないことの検証に使う
      */
     private fun recordVictimActivity() {
         val finished = startVictimAttempt()
@@ -676,6 +687,10 @@ class TenantBoundaryApiTest {
         mockMvc.post("/api/t/${victimTenant.slug}/play/attempts/$finishedId/complete") {
             header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isOk() } }
+
+        mockMvc.put("/api/t/${victimTenant.slug}/play/bookmarks/$quizId") {
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isNoContent() } }
 
         // 上で解いた 1 問で順位が付く
         mockMvc.put("/api/t/${victimTenant.slug}/play/ranking/participation") {

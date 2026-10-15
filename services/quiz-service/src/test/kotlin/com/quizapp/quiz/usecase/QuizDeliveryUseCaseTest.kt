@@ -147,6 +147,18 @@ class QuizDeliveryUseCaseTest {
     }
 
     @Test
+    @DisplayName("あとで見直す問題: 自分が印を付けたものだけを出す。正解していても出す")
+    fun bookmarkedOnly() {
+        val (marked, solvedAndMarked, others) = (1..3).map { save("q$it") }
+        answered.bookmark(user, marked)
+        answered.bookmark(user, solvedAndMarked)
+        answered.answer(user, solvedAndMarked)
+        answered.bookmark(UUID.randomUUID(), others)
+
+        assertThat(select(DeliveryScope.BOOKMARKED, limit = 10)).containsExactlyInAnyOrder(marked, solvedAndMarked)
+    }
+
+    @Test
     @DisplayName("再開用の引き直しでは、非公開に戻したクイズを落とす")
     fun findDeliverableExcludesUnpublished() {
         val kept = save("公開のまま")

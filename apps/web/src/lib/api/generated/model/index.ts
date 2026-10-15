@@ -20,6 +20,8 @@ export * from './attemptHistoryItem.zod';
 export * from './attemptHistoryPage.zod';
 export * from './attemptResult.zod';
 export * from './attemptView.zod';
+export * from './bookmarkList.zod';
+export * from './bookmarkedQuiz.zod';
 export * from './categoryResponse.zod';
 export * from './categoryScore.zod';
 export * from './categorySummaryResponse.zod';
