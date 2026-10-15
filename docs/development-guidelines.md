@@ -100,7 +100,8 @@
 │   └── web/                 # Next.js フロントエンド
 ├── services/
 │   ├── quiz-service/        # Kotlin + Spring Boot
-│   └── notification-service/
+│   ├── notification-service/
+│   └── news-quiz-drafter/   # 技術ニュースから下書きを作る Lambda（ADR-0031）
 ├── libs/
 │   └── quiz-events/         # サービスの間で共有するイベントの型（ADR-0022）
 ├── infra/
@@ -116,7 +117,8 @@
 │   ├── adr/                 # ADR（MADR 形式）
 │   ├── architecture/        # C4 図・drawio
 │   ├── api/                 # OpenAPI
-│   └── events/              # イベントの JSON の見本
+│   ├── events/              # イベントの JSON の見本
+│   └── news-quizzes/        # 技術ニュースの下書きの JSON の見本（ADR-0031）
 └── .github/workflows/
 ```
 
@@ -212,6 +214,7 @@ pnpm --filter web lint
 | `changes` | 変更パスを見て後続を出し分ける |
 | `backend` | quiz-service。ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド → 脆弱性の検査（Trivy） |
 | `notification` | notification-service（Lambda）。ktlint / detekt → test（Testcontainers の LocalStack）→ zip のビルド → 脆弱性の検査（Trivy） |
+| `news-quiz-drafter` | 技術ニュースから下書きを作る Lambda。ktlint / detekt → test（Bedrock と RSS と S3 は差し替える）→ zip のビルド → 脆弱性の検査（Trivy） |
 | `frontend` | API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → build → イメージのビルド → 脆弱性の検査（Trivy） |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりと出題・管理の流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
@@ -1218,6 +1221,7 @@ fields @timestamp, message, news_quizzes.imported, news_quizzes.discarded
 | `quiz-app-dev-quiz-service-outbox-stuck` | Outbox に 3 分以上送れていないイベントがある | アプリのログの「イベントを送れませんでした」で理由を見る。送れるようになれば、拾い直しが送る |
 | `quiz-app-dev-quiz-service-integrity-violations` | データの整合性が崩れている（1 件でも。[データの整合性](#データの整合性)） | アプリのログの「データの整合性が崩れています」で、決まり（`integrity.rule`）、`tenant.id`、対象の ID（`integrity.subject_id`）を見る |
 | `quiz-app-dev-notification-dlq-not-empty` | 通知が DLQ に入った（[通知](#通知notification-service)） | DLQ の中身と、Lambda のログ |
+| `quiz-app-dev-news-quiz-drafter-errors` | 技術ニュースから下書きを作る Lambda が失敗した（[技術ニュースの下書き](#技術ニュースの下書きnews-quiz-drafter)） | Lambda のログ。その日は作られない |
 | タスクの停止（EventBridge のルール） | quiz-service のタスクが落ちた、起動に失敗した、ヘルスチェックに落ちた | メールの理由と、`/ecs/quiz-app-dev/quiz-service` の止まる前のログ |
 
 数えるものの多くは、アプリが JSON で出すログ（[ログ](#ログquiz-service)）から、メトリクスフィルタで作る（`modules/quiz-service` の `alarms.tf`）。
@@ -1463,6 +1467,47 @@ aws --endpoint-url http://localhost:4566 logs tail /aws/lambda/quiz-app-local-no
 - 本当に Slack へ送るときは、`SLACK_DELIVERY=send` を付けてスクリプトを流す
 - LocalStack は、Lambda に自分を指す `AWS_ENDPOINT_URL` を渡す。関数のコードは接続先を持たず、SDK がこれを読む
 
+#### 技術ニュースの下書き（news-quiz-drafter）
+
+`modules/news-quiz-drafter` で作る（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)、DEV-161）。コードは `services/news-quiz-drafter`（Kotlin、Spring は使わない）。
+
+```
+EventBridge Scheduler（毎日 7:00、日本時間）→ Lambda（Java 21 / arm64 / 512 MB、同時に 1 つ）
+  ├ AWS の What's New の RSS を読む（見出しと説明だけ。DTD は読まない）
+  ├ Bedrock（Haiku 4.5、グローバルの推論プロファイル）: 選ぶ → 書く → 確かめる。答えは道具（tool）の入力として JSON で受け取る
+  └ S3（quiz-app-dev-news-quizzes）の inbox/ に置く。読んだ発表は state/seen.json に 30 日残す
+quiz-service が、使われたときに inbox/ を読んで取り込む（[技術ニュースからの下書き](#技術ニュースからの下書き)）
+```
+
+- **Bedrock を呼べるのは、この関数のロールだけ。** モデルは Haiku 4.5 の推論プロファイルに限る
+- 1 回に最大 3 件。受け箱に 30 件たまっていれば、Bedrock を呼ばずに終わる
+- 失敗しても、やり直さない（Scheduler も Lambda の非同期呼び出しも 0 回）。アラームが鳴り、次の日に前の回より新しい発表から作る
+- 解説の最後の出典のリンクは、AI に書かせずにコードで足す
+- 1 回の費用は、ログの「Bedrock n 回（入力 n、出力 n トークン）」で確かめる。Haiku 4.5 は 100 万トークンあたり入力 1 ドル、出力 5 ドル
+- Anthropic のモデルは、アカウントで一度、利用目的（use case）の届け出が要る。無いと `Model use case details have not been submitted` で失敗する
+- **コードは Terraform では載せ替えない。** 関数を作るときにだけ zip を読む（`./gradlew :services:news-quiz-drafter:buildZip` を先に流す）。
+  develop へのマージで載せる仕組みはまだない（DEV-163）。それまでは手で載せる
+
+```bash
+cd infra/terraform/envs/dev
+FUNCTION=$(terraform output -raw news_quiz_drafter_function_name)
+
+# 手で 1 回動かす（Bedrock を呼ぶ）。結果はログに出る
+aws lambda invoke --function-name "$FUNCTION" --payload '{}' --cli-binary-format raw-in-base64-out /dev/stdout
+aws logs tail "/aws/lambda/$FUNCTION" --since 10m
+
+# 初期化できるかだけを確かめる（Bedrock は呼ばない）
+aws lambda invoke --function-name "$FUNCTION" --payload '{"check":true}' --cli-binary-format raw-in-base64-out /dev/stdout
+
+# コードを手で載せる（DEV-163 まで）
+(cd ../../../.. && ./gradlew :services:news-quiz-drafter:buildZip)
+aws lambda update-function-code --function-name "$FUNCTION" \
+  --zip-file fileb://../../../../services/news-quiz-drafter/build/distributions/news-quiz-drafter.zip
+
+# 受け箱の中身
+aws s3 ls "s3://$(terraform output -raw news_quizzes_bucket_name)/inbox/"
+```
+
 #### デプロイ
 
 develop にマージすると、CI（`ci.yml`）のチェックが通ったあとに、`deploy.yml` が dev に載せる
@@ -1694,7 +1739,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | 通知（Lambda、DynamoDB、SQS） | イベントの数だけで、dev の量ではほぼ 0 | — |
 | 技術ニュースからの下書き（Bedrock の Haiku 4.5、Lambda、S3） | 1 日最大 3 件で、月 約 1 ドル（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）。確かめていない下書きがたまると止まる | — |
 | 分散トレース（X-Ray、コレクタ） | 月 10 万件の記録まで無料。コレクタは quiz-service のタスクの中で、タスクの費用は増えない | — |
-| アラームとダッシュボード（CloudWatch のアラーム 6 つ、メトリクスフィルタのメトリクス 4 つ、ダッシュボード 1 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
+| アラームとダッシュボード（CloudWatch のアラーム 7 つ、メトリクスフィルタのメトリクス 4 つ、ダッシュボード 1 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
 | ECS のタスク（0.5 vCPU / 1 GB、arm64） | 動いている時間だけ。1 時間約 0.02 ドル（常時なら月に約 14 ドル） | 止まる |

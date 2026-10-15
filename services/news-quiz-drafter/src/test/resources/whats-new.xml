@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Recent Announcements</title>
+    <item>
+      <guid isPermaLink="false">a1</guid>
+      <title>Amazon ECS adds LiveTaskCount</title>
+      <link>https://aws.amazon.com/about-aws/whats-new/2026/10/amazon-ecs-livetaskcount/</link>
+      <description>&lt;p&gt;Today, Amazon ECS announces &lt;b&gt;LiveTaskCount&lt;/b&gt;, a new metric &amp;amp; more.&lt;/p&gt;</description>
+      <pubDate>Tue, 13 Oct 2026 22:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <guid isPermaLink="false">b2</guid>
+      <title>Not from AWS</title>
+      <link>https://example.com/news</link>
+      <description>ignored</description>
+    </item>
+  </channel>
+</rss>

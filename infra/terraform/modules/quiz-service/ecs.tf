@@ -89,6 +89,12 @@ locals {
     { name = "EVENTS_BUS_NAME", value = var.event_bus.name },
     { name = "EVENTS_ENDPOINT", value = "" },
   ]
+
+  # 技術ニュースの下書きの取り込み（ADR-0031）。アプリのタスクにだけ渡す。無ければ止めたまま
+  news_quizzes_environment = var.news_quizzes == null ? [] : [
+    { name = "NEWS_QUIZZES_ENABLED", value = "true" },
+    { name = "NEWS_QUIZZES_BUCKET", value = var.news_quizzes.bucket_name },
+  ]
 }
 
 resource "aws_ecs_cluster" "this" {
@@ -151,7 +157,7 @@ resource "aws_ecs_task_definition" "app" {
       startPeriod = 180
     }
 
-    environment = concat(local.auth_environment, local.datasource_environment, local.logging_environment, local.figures_environment, local.notifications_environment, local.events_environment, local.tracing_environment, [
+    environment = concat(local.auth_environment, local.datasource_environment, local.logging_environment, local.figures_environment, local.notifications_environment, local.events_environment, local.tracing_environment, local.news_quizzes_environment, [
       { name = "SPRING_PROFILES_ACTIVE", value = join(",", var.spring_profiles) },
     ])
 

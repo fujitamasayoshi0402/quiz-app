@@ -117,6 +117,21 @@ module "notification_service" {
   log_retention_days = 14
 }
 
+# 公式の技術ニュースから、Bedrock でクイズの下書きを作る（ADR-0031）。quiz-service がデモのテナントに取り込む
+module "news_quiz_drafter" {
+  source = "../../modules/news-quiz-drafter"
+
+  name = "quiz-app-dev"
+
+  # 関数を作るときにだけ読む。先に ./gradlew :services:news-quiz-drafter:buildZip で作っておく
+  package_path = "${path.root}/../../../../services/news-quiz-drafter/build/distributions/news-quiz-drafter.zip"
+
+  alarm_topic_arn = module.alarms.topic_arn
+  runbook_url     = "${local.runbook_url}#${urlencode("技術ニュースの下書きを作れなかった")}"
+
+  log_retention_days = 14
+}
+
 module "quiz_service" {
   source = "../../modules/quiz-service"
 
@@ -149,6 +164,11 @@ module "quiz_service" {
   event_bus = {
     name = module.events.bus_name
     arn  = module.events.bus_arn
+  }
+
+  news_quizzes = {
+    bucket_name = module.news_quiz_drafter.bucket_name
+    bucket_arn  = module.news_quiz_drafter.bucket_arn
   }
 
   db_endpoint      = local.app_database.cluster_endpoint

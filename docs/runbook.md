@@ -136,6 +136,17 @@ DB の制約で表しきれない決まりが崩れた（[データの整合性]
    aws sqs purge-queue --queue-url "$(terraform output -raw notification_dlq_url)"
    ```
 
+### 技術ニュースの下書きを作れなかった
+
+アラーム `quiz-app-dev-news-quiz-drafter-errors`。その日の下書きは作られていない。急がない。やり直しはせず、次の日（7:00）にまた動く。
+
+1. Lambda のログ（`/aws/lambda/quiz-app-dev-news-quiz-drafter`）で、例外を見る
+   - `Model use case details have not been submitted`: Anthropic の利用目的の届け出がない。Bedrock のコンソールのモデルカタログから届け出る
+   - `ThrottlingException` / `ServiceUnavailableException`: Bedrock の一時的な失敗。次の日を待つ
+   - `RSS を読めません`: What's New の RSS が変わったか、止まっている。`curl` で RSS を開いて確かめる
+   - `AccessDenied`: 権限（`modules/news-quiz-drafter/iam.tf`）。モデルや推論プロファイルを替えたときに起きる
+2. 直したら、急ぐときは手で 1 回動かす（開発ガイドライン「技術ニュースの下書き（news-quiz-drafter）」）。Bedrock の費用がかかる
+
 ### タスクの停止のメール
 
 「quiz-service のタスクが止まりました」というメールに、止まった理由（`stoppedReason`）と止まり方（`stopCode`）が入っている。

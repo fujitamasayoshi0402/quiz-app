@@ -192,3 +192,27 @@ resource "aws_iam_role_policy" "migrate" {
 }
 
 data "aws_caller_identity" "current" {}
+
+# 技術ニュースの下書きの受け箱（ADR-0031）。**inbox/ を一覧して、読んで、消すだけ。** 置くのは Lambda（news-quiz-drafter）
+resource "aws_iam_role_policy" "app_news_quizzes" {
+  count = var.news_quizzes == null ? 0 : 1
+
+  name = "read-news-quiz-inbox"
+  role = aws_iam_role.app.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:DeleteObject"]
+        Resource = "${var.news_quizzes.bucket_arn}/inbox/*"
+      },
+      {
+        Effect    = "Allow"
+        Action    = "s3:ListBucket"
+        Resource  = var.news_quizzes.bucket_arn
+        Condition = { StringLike = { "s3:prefix" = ["inbox/*"] } }
+      },
+    ]
+  })
+}
