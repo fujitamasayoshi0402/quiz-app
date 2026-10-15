@@ -18,6 +18,7 @@
 | インフラ | [0011](0011-terraform-state-and-environments.md) tfstate と環境の分け方 / [0012](0012-serve-frontend-on-amplify-hosting.md) フロントは Amplify Hosting / [0013](0013-run-ecs-tasks-in-public-subnets.md) タスクはパブリックサブネット（NAT なし） / [0014](0014-connect-to-aurora-with-iam-auth.md) Aurora へ IAM 認証 |
 | デプロイとリリース | [0015](0015-deploy-by-registering-task-definitions-from-ci.md) CI がタスク定義を登録する / [0024](0024-run-prod-in-same-account-and-launch-at-release.md) prod は同じアカウント、公開のときから動かす |
 | 運用 | [0026](0026-trace-requests-with-micrometer-and-x-ray.md) 分散トレース（Micrometer、X-Ray） |
+| AI | [0031](0031-draft-quizzes-from-official-tech-news-with-bedrock.md) 公式の技術ニュースから、Bedrock がクイズの下書きを毎日作る |
 
 ## 置き換えと見直し
 
@@ -65,6 +66,7 @@
 | [0028](0028-let-signed-in-users-create-their-own-tenant.md) | ログインした人が、自分のテナントを 1 つ作れるようにする。作ったテナントは非公開に限り、量に上限を掛ける | Accepted |
 | [0029](0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md) | 見に来た人は、ログインの画面を通さずに共有のデモのアカウントで入れる。web のサーバーがトークンを取って使い回す | Accepted |
 | [0030](0030-let-members-leave-tenant-and-erase-their-history.md) | 所属している人が、自分でテナントから退会できるようにする。退会すると、そのテナントでの回答の履歴を消す | Accepted |
+| [0031](0031-draft-quizzes-from-official-tech-news-with-bedrock.md) | 公式の技術ニュースから、AI（Bedrock）が毎日クイズの下書きを作る。Lambda が S3 に置き、quiz-service が使われたときに取り込む | Accepted |
 
 ## 運用ルール
 

@@ -189,6 +189,7 @@ AWS の資格のように、**同じ難度帯に複数の種類が並ぶ**体系
 - カテゴリと難易度をそれぞれ 1 つ持つ
 - 解説は Markdown の文章。原文のまま持ち、表示する側で整形する（[ADR-0018](adr/0018-write-explanations-in-markdown-and-render-on-screen.md)）。図は本文から ID で指す（[解説図](#解説図)）
 - **下書き / 公開の状態を持つ。** 出題されるのは公開されたものだけ
+- AI が技術ニュースから作ったものは、元にした発表の URL（`source_url`）を持つ。人が作ったものは空（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）
 
 作りかけのクイズが利用者に出題されないよう、状態を持たせます。
 既定は下書きで、管理者が明示的に公開します。
@@ -388,6 +389,7 @@ erDiagram
         text question
         text explanation
         string explanation_image_key "Phase 4"
+        text source_url "AI が作ったものだけ（ADR-0031）"
         timestamp deleted_at "NULL が生存"
     }
     choices {
