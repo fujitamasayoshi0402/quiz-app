@@ -2,10 +2,13 @@
 #
 # API Gateway への要求が var.idle_stop_minutes の間ないと、アラームが ALARM になる。
 # EventBridge がその変化を受け、Step Functions が ECS の UpdateService でタスク数を 0 にする。
-# 判断は「デプロイの途中なら止めない」だけなので、コードは書かず、SDK の連携で ECS を直接呼ぶ（深夜の停止と同じ考え方。schedule.tf）。
+# 判断は少ないので、コードは書かず、SDK の連携で ECS を直接呼ぶ（深夜の停止と同じ考え方。schedule.tf）。
 #
+# - デプロイの途中なら止めない
+# - 起動してから var.idle_stop_minutes たっていないタスクは、すぐには止めない。残りの時間だけ待ち、アラームがまだ ALARM なら止める。
+#   アラームは最後の要求から数えるため、最後の要求から間もないうちに起こすと（深夜の停止の直後など）、起こしてすぐに止まる
 # - 要求の数は、認証していない要求（401）も含む。dev では、使わない日のボットからの要求は 1 日数件で、止まるのを妨げない
-# - アラームは状態が変わったときにしか動かない。起こしたあと、一度も要求がないまま置くと止まらない。深夜の停止（schedule.tf）が拾う
+# - アラームは状態が変わったときにしか動かない。止まったあと（ALARM のまま）に起こし、一度も要求がないまま置くと止まらない。深夜の停止（schedule.tf）が拾う
 # - 止まっている間、API への要求はタスクに届かない（API Gateway が返す）。要求は数えられるが、起こしはしない
 # - アラームとしては通知しない（SNS につながない）。ALARM はふつうの状態で、異常ではない
 
@@ -63,12 +66,13 @@ resource "aws_cloudwatch_event_target" "idle" {
 resource "aws_sfn_state_machine" "idle_stop" {
   count = local.idle_stop ? 1 : 0
 
-  name     = "${var.name}-quiz-service-idle-stop"
-  type     = "EXPRESS"
+  name = "${var.name}-quiz-service-idle-stop"
+  # 起動したばかりのタスクを待つため、Standard にする。Express は 5 分までしか動けない
+  type     = "STANDARD"
   role_arn = aws_iam_role.idle_stop[0].arn
 
   definition = jsonencode({
-    Comment       = "使われていない quiz-service のタスク数を 0 にする。デプロイの途中なら止めない"
+    Comment       = "使われていない quiz-service のタスク数を 0 にする。デプロイの途中なら止めない。起動したばかりなら待ってから確かめ直す"
     QueryLanguage = "JSONata"
     StartAt       = "DescribeService"
     States = {
@@ -89,7 +93,52 @@ resource "aws_sfn_state_machine" "idle_stop" {
           { Condition = "{% $states.input.deploying %}", Next = "Deploying" },
           { Condition = "{% $states.input.desiredCount = 0 %}", Next = "AlreadyStopped" },
         ]
+        Default = "ListTasks"
+      }
+      ListTasks = {
+        Type      = "Task"
+        Resource  = "arn:aws:states:::aws-sdk:ecs:listTasks"
+        Arguments = { Cluster = aws_ecs_cluster.this.name, ServiceName = aws_ecs_service.app.name, DesiredStatus = "RUNNING" }
+        Output    = { taskArns = "{% $states.result.TaskArns %}" }
+        Next      = "HasTasks"
+      }
+      HasTasks = {
+        Type    = "Choice"
+        Choices = [{ Condition = "{% $count($states.input.taskArns) > 0 %}", Next = "TaskAge" }]
         Default = "Stop"
+      }
+      # 最も新しいタスクが起動してから、まだ足りない秒数。起動の途中（StartedAt がない）なら、いま起動したとみなす
+      TaskAge = {
+        Type      = "Task"
+        Resource  = "arn:aws:states:::aws-sdk:ecs:describeTasks"
+        Arguments = { Cluster = aws_ecs_cluster.this.name, Tasks = "{% $states.input.taskArns %}" }
+        Output = {
+          waitSeconds = "{% ( $now := $toMillis($now()); $started := [$states.result.Tasks.($exists(StartedAt) ? $toMillis(StartedAt) : $now)]; $max([0, $round((${var.idle_stop_minutes * 60000} - ($now - $max($started))) / 1000)]) ) %}"
+        }
+        Next = "OldEnough"
+      }
+      OldEnough = {
+        Type    = "Choice"
+        Choices = [{ Condition = "{% $states.input.waitSeconds > 0 %}", Next = "WaitForTask" }]
+        Default = "Stop"
+      }
+      WaitForTask = {
+        Type    = "Wait"
+        Seconds = "{% $states.input.waitSeconds %}"
+        Next    = "StillIdle"
+      }
+      # 待っている間に使われたら、アラームは OK に戻っている
+      StillIdle = {
+        Type      = "Task"
+        Resource  = "arn:aws:states:::aws-sdk:cloudwatch:describeAlarms"
+        Arguments = { AlarmNames = [aws_cloudwatch_metric_alarm.idle[0].alarm_name] }
+        Output    = { alarm = "{% $states.result.MetricAlarms[0].StateValue %}" }
+        Next      = "IdleAfterWait"
+      }
+      IdleAfterWait = {
+        Type    = "Choice"
+        Choices = [{ Condition = "{% $states.input.alarm = 'ALARM' %}", Next = "DescribeService" }]
+        Default = "InUse"
       }
       Stop = {
         Type      = "Task"
@@ -100,10 +149,11 @@ resource "aws_sfn_state_machine" "idle_stop" {
       }
       Deploying      = { Type = "Succeed", Output = { stopped = false, reason = "deploying" } }
       AlreadyStopped = { Type = "Succeed", Output = { stopped = false, reason = "already-stopped" } }
+      InUse          = { Type = "Succeed", Output = { stopped = false, reason = "in-use" } }
     }
   })
 
-  # Express は実行の履歴を残さない。止めたかどうかと理由（出力）を、ログで追えるようにする
+  # 止めたかどうかと理由（出力）を、Logs Insights でも追えるようにする。実行の履歴はコンソールでも見られる（90 日）
   logging_configuration {
     log_destination        = "${aws_cloudwatch_log_group.idle_stop[0].arn}:*"
     include_execution_data = true
@@ -120,7 +170,7 @@ resource "aws_cloudwatch_log_group" "idle_stop" {
 
 # ---- ロール ----
 
-# Step Functions: このサービスを調べて、タスク数を変えることだけを許す
+# Step Functions: このサービスとタスク、使われていないアラームを調べて、タスク数を変えることだけを許す
 data "aws_iam_policy_document" "idle_stop_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -149,6 +199,28 @@ data "aws_iam_policy_document" "idle_stop" {
   statement {
     actions   = ["ecs:DescribeServices", "ecs:UpdateService"]
     resources = [aws_ecs_service.app.id]
+  }
+
+  # ListTasks はタスクを ARN で指定できない。クラスタで絞る
+  statement {
+    actions   = ["ecs:ListTasks"]
+    resources = ["*"]
+
+    condition {
+      test     = "ArnEquals"
+      variable = "ecs:cluster"
+      values   = [aws_ecs_cluster.this.arn]
+    }
+  }
+
+  statement {
+    actions   = ["ecs:DescribeTasks"]
+    resources = ["arn:aws:ecs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:task/${aws_ecs_cluster.this.name}/*"]
+  }
+
+  statement {
+    actions   = ["cloudwatch:DescribeAlarms"]
+    resources = aws_cloudwatch_metric_alarm.idle[*].arn
   }
 
   # ログの配信の設定は、ロググループを指定できない（Step Functions の仕様）
