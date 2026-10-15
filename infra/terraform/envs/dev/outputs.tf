@@ -109,6 +109,14 @@ output "load_user_password" {
 }
 
 # 関数のコードを載せ替えるときと、送れなかったものを見るときに使う。開発ガイドラインの「通知（notification-service）」を参照
+output "news_quiz_drafter_function_name" {
+  value = module.news_quiz_drafter.function_name
+}
+
+output "news_quizzes_bucket_name" {
+  value = module.news_quiz_drafter.bucket_name
+}
+
 output "notification_function_name" {
   value = module.notification_service.function_name
 }

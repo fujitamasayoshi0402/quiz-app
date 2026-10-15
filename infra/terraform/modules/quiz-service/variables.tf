@@ -112,6 +112,15 @@ variable "event_bus" {
   })
 }
 
+variable "news_quizzes" {
+  description = "技術ニュースの下書きの受け箱（ADR-0031、modules/news-quiz-drafter）。null なら取り込まない"
+  type = object({
+    bucket_name = string
+    bucket_arn  = string
+  })
+  default = null
+}
+
 # ---- タスク ----
 
 variable "image_tag" {
