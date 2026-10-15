@@ -135,6 +135,11 @@ app:
     parameter-prefix: ${NOTIFICATIONS_PARAMETER_PREFIX:/quiz-app/local}
     ssm:
       endpoint: ${NOTIFICATIONS_SSM_ENDPOINT:http://localhost:4566}
+  news-quizzes:
+    # AI が技術ニュースから作った下書きの取り込み（ADR-0031、NewsQuizProperties）。既定では止めている。
+    # dev ではアプリのタスク定義の環境変数で動かし、Lambda が下書きを置くバケットを渡す
+    enabled: ${NEWS_QUIZZES_ENABLED:false}
+    bucket: ${NEWS_QUIZZES_BUCKET:}
   events:
     # クイズのイベントを送る EventBridge のカスタムバス（ADR-0022、EventsProperties）。
     # 既定値はローカル（LocalStack）向け。AWS ではアプリのタスク定義の環境変数で、接続先を空にし、バスの名前を環境のものにする。

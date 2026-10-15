@@ -52,12 +52,20 @@ data class Quiz(
     val explanation: String,
     val choices: List<Choice> = emptyList(),
     val status: QuizStatus = QuizStatus.DRAFT,
+    /**
+     * AI が技術ニュースから作ったときの、元にした発表の URL（ADR-0031）。人が作ったものは null。
+     * 作るときにだけ決まり、編集しても変わらない
+     */
+    val sourceUrl: String? = null,
 ) {
     init {
         require(question.isNotBlank()) { "問題文を入力してください" }
         require(question.length <= MAX_QUESTION_LENGTH) { "問題文は $MAX_QUESTION_LENGTH 文字以内で入力してください" }
         require(choices.size <= CHOICE_COUNT) { "選択肢は $CHOICE_COUNT 個までです" }
         require(choices.count { it.isCorrect } <= 1) { "正解は 1 つだけ指定してください" }
+        require(sourceUrl == null || (sourceUrl.startsWith("https://") && sourceUrl.length <= MAX_SOURCE_URL_LENGTH)) {
+            "出典の URL は https:// で始まる $MAX_SOURCE_URL_LENGTH 文字以内にしてください"
+        }
 
         if (status == QuizStatus.PUBLISHED) {
             require(choices.size == CHOICE_COUNT) { "公開するには選択肢が $CHOICE_COUNT 個必要です" }
@@ -72,6 +80,7 @@ data class Quiz(
     companion object {
         const val CHOICE_COUNT = 4
         const val MAX_QUESTION_LENGTH = 2000
+        const val MAX_SOURCE_URL_LENGTH = 2048
 
         /** 解説の書き方。API 定義の説明に使う。表示する側が守ること（ADR-0018、ADR-0020、ADR-0021） */
         const val EXPLANATION_FORMAT = "解説。Markdown（GitHub Flavored Markdown）で書く。" +

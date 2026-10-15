@@ -726,7 +726,7 @@ Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SEC
 
 | 種類 | `demo`（デモ） | `geo-club`（地理の勉強会） |
 | --- | --- | --- |
-| カテゴリ | AWS / インフラ、認証認可、イベント駆動設計、Web アプリの技術スタック | 世界の首都 |
+| カテゴリ | AWS / インフラ、認証認可、イベント駆動設計、Web アプリの技術スタック、AWS の最新情報（AI の下書きの入れ先。シードではクイズを入れない） | 世界の首都 |
 | 難易度 | カテゴリごとに体系が異なる。AWS は同じレベルに SAA / DVA が並ぶ | 1 つ |
 | クイズ | 公開 47 問、下書き 1 問。解説は Markdown（箇条書き・表・コード） | 公開 3 問 |
 
@@ -1182,6 +1182,27 @@ DB の制約では表しきれない決まりを、quiz-service が **1 日に 1
 ```
 fields @timestamp, log.level, message, integrity.rule, tenant.id, integrity.subject_id
 | filter ispresent(integrity.violations) or ispresent(integrity.rule)
+| sort @timestamp desc
+```
+
+#### 技術ニュースからの下書き
+
+AI（Bedrock）が AWS の What's New から作ったクイズの下書きを、quiz-service がデモのテナントに取り込む（DEV-161。[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)。`quiz/infrastructure/newsquiz/`）。
+下書きを作って S3 の受け箱（`inbox/`）に置くのは Lambda（`news-quiz-drafter`）で、quiz-service は読むだけ。
+
+- **利用者が DB を使ってから 5 分の間に、前に見てから 1 時間たっていれば受け箱を見る。** Outbox の拾い直しやデータの整合性の確認と同じく、Aurora を起こさない
+- 入れる先（テナント、カテゴリ、難易度）は設定（`app.news-quizzes.*`）の名前で指す。カテゴリと難易度はシードが作る
+- **下書きとして入れ、元にした発表の URL（`quiz.quizzes.source_url`）を持たせる。** 取り込みの API と同じユースケースを通すので、決まりと問題文の重複もそこで確かめる
+- AI の下書きは、そのまま公開できる形（選択肢 4 つ、正解 1 つ、解説あり）で、出典が `https://aws.amazon.com/` の下のものだけを受け付ける。満たさないもの、読めないもの、同じ問題文のものは、ログに残して捨てる
+- 確かめていない AI の下書きが 30 件あれば、取り込まずに受け箱に残す
+- 受け箱の形は `docs/news-quizzes/draft.json` の見本に固定する。読めることは `NewsQuizDraftSampleTest` が確かめる
+- **既定では止めている**（`app.news-quizzes.enabled`）。dev だけで、タスク定義の環境変数（`NEWS_QUIZZES_ENABLED`、`NEWS_QUIZZES_BUCKET`）で動かす
+
+取り込んだかどうかは、ロググループ `/ecs/quiz-app-dev/quiz-service` を Logs Insights で見る。
+
+```
+fields @timestamp, message, news_quizzes.imported, news_quizzes.discarded
+| filter message like /技術ニュースの下書き/
 | sort @timestamp desc
 ```
 

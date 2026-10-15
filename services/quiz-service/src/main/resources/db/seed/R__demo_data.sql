@@ -796,6 +796,17 @@ SELECT v.id::uuid, v.tenant_id::uuid, v.quiz_id::uuid, v.body, v.is_correct, v.s
     WHERE NOT EXISTS (SELECT 1 FROM quiz.choices c WHERE c.quiz_id = v.quiz_id::uuid)
     ON CONFLICT (id) DO NOTHING;
 
+-- 技術ニュースからの下書き（ADR-0031、DEV-161） ----------------------------------------
+-- AI が AWS の What's New から作ったクイズの下書きを、quiz-service がここに入れる（app.news-quizzes）。
+-- シードではクイズを入れない。公開したものがないうちは、出題の画面に出ない
+INSERT INTO quiz.categories (id, tenant_id, name, description, sort_order) VALUES
+    ('2f6c1b8e-4d0a-5c3e-9b7f-a1e2d3c4b5a6', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', 'AWS の最新情報', 'AWS の公式の発表から、AI が作り、人が確かめたクイズ', 5)
+    ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO quiz.difficulties (id, tenant_id, category_id, name, level, sort_order) VALUES
+    ('5b9e7c2d-1a3f-5e4b-8c6d-f0a1b2c3d4e5', '7fd43527-dbbf-525e-9f33-f48e4e507fd1', '2f6c1b8e-4d0a-5c3e-9b7f-a1e2d3c4b5a6', 'ニュース', 1, 1)
+    ON CONFLICT (id) DO NOTHING;
+
 -- 地理の勉強会 ----------------------------------------------------------------
 -- 扱う分野がテナントごとに違ってよいことを示す。アプリは分野を前提にしない
 SELECT set_config('app.tenant_id', '9efd94a0-e517-573b-b46e-0f1ae96fc342', true);

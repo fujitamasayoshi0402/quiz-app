@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "source": {
+    "url": "https://aws.amazon.com/about-aws/whats-new/2026/10/amazon-ecs-livetaskcount/",
+    "title": "Amazon ECS adds LiveTaskCount and removes the charge for RunningTaskCount metric",
+    "publishedAt": "2026-10-13T22:00:00Z"
+  },
+  "quiz": {
+    "question": "Amazon ECS が新しく出したサービスのメトリクス LiveTaskCount は、何を数えますか。",
+    "choices": [
+      { "body": "サービスの中で、実際に動いているタスクの数", "isCorrect": true },
+      { "body": "サービスが動かそうとしているタスクの数（desired count）", "isCorrect": false },
+      { "body": "直近 1 時間に起動に失敗したタスクの数", "isCorrect": false },
+      { "body": "クラスタに登録されているコンテナインスタンスの数", "isCorrect": false }
+    ],
+    "explanation": "LiveTaskCount は、サービスの中で実際に動いているタスクの数を表すメトリクスです。\n\n出典: [Amazon ECS adds LiveTaskCount and removes the charge for RunningTaskCount metric](https://aws.amazon.com/about-aws/whats-new/2026/10/amazon-ecs-livetaskcount/)"
+  }
+}
