@@ -52,7 +52,9 @@ class BedrockQuizWriter(private val client: BedrockRuntimeClient, private val mo
                 "- 発表に書かれた事実だけを使う。発表の文をそのまま写さず、自分の言葉で書く\n" +
                 "- 正解はちょうど 1 つ。ほかの 3 つは、もっともらしいが、発表に照らして明らかに誤りのもの\n" +
                 "- 問題文は 200 文字まで、選択肢は 80 文字まで。製品名は英語のまま書く\n" +
-                "- 解説は Markdown で 600 文字まで。なぜその選択肢が正解かを、発表の内容で説明する。リンクと HTML は書かない\n\n" +
+                "- 解説は Markdown で 600 文字まで。なぜその選択肢が正解かを、発表の内容で説明する。リンクと HTML は書かない\n" +
+                "- 発表を引用しない。かぎかっこで発表の文を引いたり、英文をそのまま載せたりせず、日本語で言い換えて事実として書く。" +
+                "出典のリンクは別に付く\n\n" +
                 announcement(item),
             tool = QUIZ,
             maxTokens = LARGE_OUTPUT,
@@ -72,7 +74,8 @@ class BedrockQuizWriter(private val client: BedrockRuntimeClient, private val mo
         val input = call(
             system = REVIEWER,
             user = "次のクイズが、発表の内容と食い違っていないかを判定してください。\n" +
-                "正解が発表で裏づけられ、ほかの選択肢が正解になりえず、解説に発表にない主張がなければ、食い違っていないとします。\n\n" +
+                "正解が発表で裏づけられ、ほかの選択肢が正解になりえず、解説に発表にない主張がなければ、食い違っていないとします。" +
+                "食い違っているときは、reason にどこが食い違うかを必ず書きます。\n\n" +
                 announcement(item) +
                 "\n\n<quiz>\n問題: ${quiz.question}\n$choices\n解説: ${quiz.explanation}\n</quiz>",
             tool = VERDICT,
