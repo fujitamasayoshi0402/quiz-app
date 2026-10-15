@@ -128,12 +128,8 @@ class DemoSeedTest {
         assertThat(
             count("SELECT count(*) FROM quiz.quizzes WHERE id = '$trimmed' AND deleted_at IS NOT NULL"),
         ).isEqualTo(1)
-        assertThat(
-            count(
-                "SELECT count(*) FROM quiz.quizzes WHERE id = '808eab59-8191-526d-8019-0ffb31f67840' AND deleted_at IS NULL",
-            ),
-        )
-            .isEqualTo(1)
+        val kept = "808eab59-8191-526d-8019-0ffb31f67840"
+        assertThat(count("SELECT count(*) FROM quiz.quizzes WHERE id = '$kept' AND deleted_at IS NULL")).isEqualTo(1)
     }
 
     @Test
