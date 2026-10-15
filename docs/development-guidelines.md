@@ -71,6 +71,7 @@
 - `quiz-service` … クイズ / カテゴリ / 難易度の CRUD、出題
 - `answer` … 回答受付、採点、履歴、スコア。quiz-service 内のモジュールのまま、物理的には分けない（[ADR-0023](adr/0023-keep-answer-as-module-in-quiz-service.md)）
 - `notification-service` … EventBridge ルールから起動する Lambda。Slack へ通知
+- `news-quiz-drafter` … 毎日起動する Lambda。公式の技術ニュースから、Bedrock でクイズの下書きを作り、S3 に置く。quiz-service が使われたときに取り込む（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）
 - 認証は Cognito（マネージド）に寄せ、自前の auth-service は作らない
 - モジュール間（quiz と answer）は、呼ぶ側が持つインターフェースで同期に呼ぶ。イベントは、サービスの外へ出すもの（通知）に限る（ADR-0023）
   - **相手のスキーマの表に触れない。相手の型は、2 つのインターフェース（`QuizCatalog`、`AnsweredQuizzes`）に出るものだけを使う。**
@@ -1668,6 +1669,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | Secrets Manager（Aurora のマスター） | 0.4 ドル | 続く |
 | 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |
 | 通知（Lambda、DynamoDB、SQS） | イベントの数だけで、dev の量ではほぼ 0 | — |
+| 技術ニュースからの下書き（Bedrock の Haiku 4.5、Lambda、S3） | 1 日最大 3 件で、月 約 1 ドル（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）。確かめていない下書きがたまると止まる | — |
 | 分散トレース（X-Ray、コレクタ） | 月 10 万件の記録まで無料。コレクタは quiz-service のタスクの中で、タスクの費用は増えない | — |
 | アラームとダッシュボード（CloudWatch のアラーム 6 つ、メトリクスフィルタのメトリクス 4 つ、ダッシュボード 1 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
