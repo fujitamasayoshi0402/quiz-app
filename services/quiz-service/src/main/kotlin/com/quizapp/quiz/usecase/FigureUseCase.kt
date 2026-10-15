@@ -8,6 +8,7 @@ import com.quizapp.quiz.domain.FigureRepository
 import com.quizapp.quiz.domain.FigureStore
 import com.quizapp.quiz.domain.FigureUploadStore
 import com.quizapp.quiz.domain.FigureUploads
+import com.quizapp.quiz.domain.FigureUsages
 import com.quizapp.quiz.domain.ImageFormat
 import com.quizapp.quiz.domain.LimitedResource
 import com.quizapp.quiz.domain.TenantCapacity
@@ -15,6 +16,7 @@ import com.quizapp.tenant.TenantTransaction
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.net.URI
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -34,6 +36,7 @@ class FigureUseCase(
     private val repository: FigureRepository,
     private val store: FigureStore,
     private val uploads: FigureUploadStore,
+    private val usages: FigureUsages,
     private val capacity: TenantCapacity,
     private val tenantTransaction: TenantTransaction,
 ) {
@@ -121,12 +124,26 @@ class FigureUseCase(
     /** 本文の中に出す画像の URL。PDF は 1 ページ目の画像になる */
     fun previewUrl(id: UUID): URI = store.previewUrl(id, kind(id))
 
+    /** このテナントの図と、それを使っている問題の数。置いた日時の新しい順（DEV-165） */
+    fun list(): List<FigureSummary> = tenantTransaction.execute {
+        val used = usages.usages()
+        repository.list().map {
+            val usage = used[it.id]
+            FigureSummary(it.id, it.kind, it.createdAt, usage?.liveQuestions?.size ?: 0, usage?.trashedCount ?: 0)
+        }
+    }
+
     /**
      * 行を消してから、本体を消す。本体を消せなくても失敗にはしない。行がないので、もう誰にも返らない。
-     * 発行済みの URL は期限（最長 10 分）まで使える
+     * 発行済みの URL は期限（最長 10 分）まで使える。
+     *
+     * **公開中・下書きの問題が解説で使っている図は消さない**（DEV-165）。消すと、解説がない図を指す。
+     * ゴミ箱の問題だけが使っている図は消せる。その問題は、ゴミ箱から戻せなくなる（[com.quizapp.quiz.domain.RestoreObstacle.MISSING_FIGURE]）
      */
     fun delete(id: UUID) {
         tenantTransaction.executeWithoutResult {
+            val inUse = usages.usages()[id]?.liveQuestions.orEmpty()
+            if (inUse.isNotEmpty()) throw FigureInUseException(id, inUse)
             if (!repository.delete(id)) throw FigureNotFoundException(id)
         }
         runCatching { store.delete(id) }
@@ -138,5 +155,17 @@ class FigureUseCase(
 data class FigureUpload(val id: UUID, val url: URI, val contentType: String)
 
 class FigureNotFoundException(val id: UUID) : RuntimeException("図が見つかりません: $id")
+
+/** 公開中・下書きの問題が使っているため、消せない。[questions] は使っている問題の問題文 */
+class FigureInUseException(val id: UUID, val questions: List<String>) : RuntimeException("図が使われています: $id")
+
+/** 一覧に出す図。使っている問題の数は、生きているもの（公開中・下書き）とゴミ箱のものを分けて数える */
+data class FigureSummary(
+    val id: UUID,
+    val kind: FigureKind,
+    val createdAt: Instant,
+    val quizCount: Int,
+    val trashedQuizCount: Int,
+)
 
 class FigureUploadNotFoundException(val id: UUID) : RuntimeException("上がってきたファイルが見つかりません: $id")

@@ -54,13 +54,19 @@ class PlayFixture(
     }
 
     /** 先頭の選択肢を正解にする。テストはこれを前提に「1 番目が正解」として書ける。 */
-    fun quiz(categoryId: UUID, difficultyId: UUID, question: String, status: String = "published"): UUID {
+    fun quiz(
+        categoryId: UUID,
+        difficultyId: UUID,
+        question: String,
+        status: String = "published",
+        explanation: String = "$question の解説",
+    ): UUID {
         val choices = (1..4).joinToString(",") { """{"body":"選択肢 $it","isCorrect":${it == 1}}""" }
         val result = mockMvc.post("/api/t/$slug/admin/quizzes") {
             contentType = MediaType.APPLICATION_JSON
             content = """
                 {"categoryId":"$categoryId","difficultyId":"$difficultyId",
-                 "question":"$question","explanation":"$question の解説",
+                 "question":"$question","explanation":${objectMapper.writeValueAsString(explanation)},
                  "choices":[$choices],"status":"$status"}
             """.trimIndent()
             header("Authorization", TestAuth.bearer(admin))

@@ -77,6 +77,9 @@ enum class RestoreObstacle {
 
     /** 同じ名前のものが作り直されている */
     NAME_TAKEN,
+
+    /** 戻すクイズの解説が指す図が、消されている（DEV-165）。戻すと、解説がない図を指す */
+    MISSING_FIGURE,
 }
 
 class RestoreBlocked(val obstacle: RestoreObstacle, message: String, cause: Throwable? = null) :

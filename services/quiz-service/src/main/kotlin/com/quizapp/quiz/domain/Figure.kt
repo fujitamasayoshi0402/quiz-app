@@ -2,6 +2,7 @@ package com.quizapp.quiz.domain
 
 import java.io.StringReader
 import java.net.URI
+import java.time.Instant
 import java.util.UUID
 import javax.xml.XMLConstants
 import javax.xml.stream.XMLInputFactory
@@ -77,7 +78,26 @@ interface FigureRepository {
 
     /** 消したら true。見えない（無い、別テナント）なら false */
     fun delete(id: UUID): Boolean
+
+    /** このテナントの図。置いた日時の新しい順 */
+    fun list(): List<FigureRow>
 }
+
+/** 図の行。一覧に出すもの */
+data class FigureRow(val id: UUID, val kind: FigureKind, val createdAt: Instant)
+
+/**
+ * 解説で図を指している問題（DEV-165）。テナントは行レベルセキュリティが絞る。
+ *
+ * 指しているかどうかは [FigureReferences] で拾う。SQL の正規表現で書き直すと、2 つがずれる
+ */
+interface FigureUsages {
+    /** 図ごとの使われ方。どの問題からも指されていない図は入らない */
+    fun usages(): Map<UUID, FigureUsage>
+}
+
+/** 図を指している問題。生きているもの（公開中・下書き）は問題文を、ゴミ箱のものは数だけを持つ */
+data class FigureUsage(val liveQuestions: List<String>, val trashedCount: Int)
 
 /**
  * 図の本体（原本と SVG）の置き場所。テナントは [FigureRepository] と同じく、要求の文脈から決める。
