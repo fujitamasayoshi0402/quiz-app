@@ -66,6 +66,7 @@ class Drafter(
         val rejected = when {
             quiz == null -> "書けませんでした"
             quiz.problems().isNotEmpty() -> quiz.problems().joinToString("、")
+            copies(item, quiz) -> "発表の文をそのまま写しています"
             else -> writer.check(item, quiz).takeUnless { it.consistent }?.let { "元の発表と食い違います: ${it.reason}" }
         }
         if (rejected != null || quiz == null) {
@@ -74,6 +75,16 @@ class Drafter(
         }
         store.put(keyOf(item), DraftJson.write(item, quiz))
         return true
+    }
+
+    /**
+     * 発表の文を写していないか（ADR-0031）。説明の中の [COPY_WORDS] 語の並びが、問題・選択肢・解説にそのまま出ていれば写したとみなす。
+     * AI には引用しないよう指示しているが、守られるとは限らない
+     */
+    private fun copies(item: NewsItem, quiz: DraftQuiz): Boolean {
+        val words = item.description.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val text = (listOf(quiz.question, quiz.explanation) + quiz.choices.map { it.body }).joinToString("\n")
+        return words.windowed(COPY_WORDS).any { text.contains(it.joinToString(" ")) }
     }
 
     private fun DraftQuiz.withSource(item: NewsItem) =
@@ -94,6 +105,9 @@ class Drafter(
         const val DEFAULT_MAX_INBOX = 30
         const val DEFAULT_KEEP_SEEN_DAYS = 30L
         private const val HASH_LENGTH = 12
+
+        /** これだけの語が続けて同じなら、写したとみなす。製品名（3〜4 語）は写してよい */
+        private const val COPY_WORDS = 8
         private val KEY_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern(
             "yyyyMMdd'T'HHmmss",
         ).withZone(ZoneOffset.UTC)

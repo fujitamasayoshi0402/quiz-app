@@ -74,6 +74,25 @@ class DrafterTest {
     }
 
     @Test
+    @DisplayName("発表の文をそのまま写したものは置かない。製品名ほどの短い一致はよい")
+    fun discardsCopies() {
+        val source = item(
+            "n1",
+        ).copy(description = "You pay for active CPU time and the memory your environment holds, not for idle time.")
+        val copied = FakeQuizWriter.quizFor("n1").copy(
+            explanation = "発表では「You pay for active CPU time and the memory your environment holds」とある",
+        )
+        val named = FakeQuizWriter.quizFor("n2").copy(explanation = "active CPU time と memory に課金される")
+        val writer = FakeQuizWriter(quizzes = mapOf("n1" to copied, "n2" to named))
+        val store = InMemoryDraftStore()
+
+        drafter(FakeFeed(listOf(source, item("n2").copy(description = source.description))), writer, store).run()
+
+        assertThat(store.files).hasSize(1)
+        assertThat(logs).anyMatch { it.contains("発表の文をそのまま写しています") }
+    }
+
+    @Test
     @DisplayName("書けなかったもの、決まりを満たさないもの、元の発表と食い違うものは置かない")
     fun discardsBadDrafts() {
         val twoCorrect = FakeQuizWriter.quizFor("n2").let { q ->
