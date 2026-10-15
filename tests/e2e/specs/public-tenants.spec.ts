@@ -5,6 +5,7 @@ import { storageStateOf, tenant, users } from "../support/users";
 /**
  * 公開テナントに、招待なしで参加する（DEV-130、ADR-0025）。
  * 管理者が設定の画面で公開し、どこにも所属していない人が一覧から見つけて参加する。
+ * 参加した人は、ヘッダのメニューから退会でき、一覧からまた参加できる（DEV-157、ADR-0030）。最後の管理者は退会できない。
  *
  * 未所属の人は、ほかのテスト（roles）で「所属がない」ことを確かめている。終わったら所属を外し、テナントを非公開に戻す
  */
@@ -18,7 +19,7 @@ test.afterAll(() => {
   `);
 });
 
-test("管理者が公開したテナントを、未所属の人が一覧から見つけて参加し、クイズを解ける画面に入る", async ({
+test("管理者が公開したテナントに、未所属の人が一覧から参加し、退会できる", async ({
   browser,
 }) => {
   const admin = await (await browser.newContext({ storageState: storageStateOf("admin") })).newPage();
@@ -51,5 +52,32 @@ test("管理者が公開したテナントを、未所属の人が一覧から�
     await outsider.goto("/tenants");
     await expect(outsider.getByText("参加済み")).toBeVisible();
     await expect(outsider.getByRole("button", { name: `${tenant.name} に参加する` })).toHaveCount(0);
+  });
+
+  await test.step("最後の管理者は、退会を押しても理由が出て退会できない", async () => {
+    await admin.goto(`/t/${tenant.slug}/play`);
+    await admin.getByRole("button", { name: tenant.name }).click();
+    await admin.getByRole("menuitem", { name: "このテナントから退会する" }).click();
+    const dialog = admin.getByRole("alertdialog");
+    await dialog.getByRole("button", { name: "退会する" }).click();
+    await expect(dialog.getByText("最後の管理者は退会できません", { exact: false })).toBeVisible();
+    await dialog.getByRole("button", { name: "やめる" }).click();
+    await expect(admin).toHaveURL(new RegExp(`/t/${tenant.slug}/play$`));
+  });
+
+  await test.step("参加した人は、履歴が消えることを確かめてから退会し、所属のない画面に戻る", async () => {
+    await outsider.goto(`/t/${tenant.slug}/play`);
+    await outsider.getByRole("button", { name: tenant.name }).click();
+    await outsider.getByRole("menuitem", { name: "このテナントから退会する" }).click();
+    const dialog = outsider.getByRole("alertdialog");
+    await expect(dialog.getByText("回答の履歴と、ランキングへの参加が消えます", { exact: false })).toBeVisible();
+    await dialog.getByRole("button", { name: "退会する" }).click();
+    await expect(outsider).toHaveURL(/\/$/);
+    await expect(outsider.getByText("所属しているテナントがありません")).toBeVisible();
+  });
+
+  await test.step("一覧からまた参加できる", async () => {
+    await outsider.getByRole("link", { name: "公開されているテナントを探す" }).click();
+    await expect(outsider.getByRole("button", { name: `${tenant.name} に参加する` })).toBeVisible();
   });
 });
