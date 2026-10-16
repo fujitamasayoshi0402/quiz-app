@@ -79,6 +79,18 @@ variable "iam_db_user_arns" {
   })
 }
 
+variable "wake_database" {
+  description = <<-EOT
+    タスクを起こすとき（wake.tf）に、一緒に起こす Aurora。Data API で SELECT 1 を送る。
+    secret_arn は Data API が使う認証情報（マスターのシークレット）。null なら Aurora は起こさない
+  EOT
+  type = object({
+    cluster_arn = string
+    secret_arn  = string
+  })
+  default = null
+}
+
 # ---- 解説図（modules/figures） ----
 
 variable "figures" {

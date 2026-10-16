@@ -1,6 +1,7 @@
 # 止まっているサービスを起こす（DEV-154）。使われなくなったら止める環境（idle_stop.tf）にだけ置く。
 #
 # 画面の「起動する」→ web の proxy（アクセストークンを付ける）→ API Gateway の POST /api/wake → Step Functions → ECS の UpdateService
+#                                                                                                            └ Aurora（Data API）
 #
 # - タスクが止まっていても届くよう、API Gateway が Step Functions を直接起動する。quiz-service を通らない
 # - **ログインした人だけが起こせる。** アクセストークンは API Gateway が確かめる（JWT の認可）。quiz-service と同じく、発行者と web のクライアントを見る。
@@ -8,6 +9,8 @@
 # - 何度呼ばれても、タスクは 1 つより増えない。止まっているときだけ起こす
 # - 流量の上限は、ほかの API より低くする（api.tf の route_settings）。叩き続けても、費用はタスク 1 つ分を超えない
 # - 電話から起こすとき（DEV-152）も、同じステートマシンを呼ぶ
+# - **Aurora も一緒に起こす**（DEV-181。wake_database）。アプリは起動のときに DB へつながないため、
+#   起こさないと、タスクが使えるようになってからの最初の要求で、Aurora の復帰（15〜20 秒）を待つ
 
 resource "aws_apigatewayv2_authorizer" "cognito" {
   count = local.idle_stop ? 1 : 0
@@ -50,6 +53,29 @@ resource "aws_apigatewayv2_route" "wake" {
 
 locals {
   wake_route_key = "POST /api/wake"
+
+  wake_start_service = {
+    Type      = "Task"
+    Resource  = "arn:aws:states:::aws-sdk:ecs:updateService"
+    Arguments = { Cluster = aws_ecs_cluster.this.name, Service = aws_ecs_service.app.name, DesiredCount = var.desired_count }
+  }
+
+  wake_database_branches = [for db in(var.wake_database == null ? [] : [var.wake_database]) : {
+    StartAt = "WakeDatabase"
+    States = {
+      WakeDatabase = {
+        Type           = "Task"
+        Resource       = "arn:aws:states:::aws-sdk:rdsdata:executeStatement"
+        Arguments      = { ResourceArn = db.cluster_arn, SecretArn = db.secret_arn, Database = var.db_name, Sql = "SELECT 1" }
+        TimeoutSeconds = 60
+        # 一時停止中は DatabaseResumingException が返るが、復帰は始まる。
+        # ほかの失敗でも、タスクを起こすことは止めない（最初の要求で Aurora が起きる）。理由はログに残る
+        Catch = [{ ErrorEquals = ["States.ALL"], Next = "Resuming" }]
+        End   = true
+      }
+      Resuming = { Type = "Succeed" }
+    }
+  }]
 }
 
 # ---- 起こす手順 ----
@@ -78,12 +104,12 @@ resource "aws_sfn_state_machine" "wake" {
         Choices = [{ Condition = "{% $states.input.desiredCount = 0 %}", Next = "Start" }]
         Default = "AlreadyRunning"
       }
+      # 動いていなければ、タスクと Aurora を同時に起こす
       Start = {
-        Type      = "Task"
-        Resource  = "arn:aws:states:::aws-sdk:ecs:updateService"
-        Arguments = { Cluster = aws_ecs_cluster.this.name, Service = aws_ecs_service.app.name, DesiredCount = var.desired_count }
-        Output    = { started = true }
-        End       = true
+        Type     = "Parallel"
+        Branches = concat([{ StartAt = "StartService", States = { StartService = merge(local.wake_start_service, { End = true }) } }], local.wake_database_branches)
+        Output   = { started = true }
+        End      = true
       }
       AlreadyRunning = { Type = "Succeed", Output = { started = false } }
     }
@@ -106,7 +132,7 @@ resource "aws_cloudwatch_log_group" "wake" {
 
 # ---- ロール ----
 
-# Step Functions: このサービスを調べて、タスク数を変えることだけを許す。ロールの信頼は止めるほうと同じ
+# Step Functions: このサービスを調べて、タスク数を変えることと、Aurora に決まった SQL を送ることだけを許す。ロールの信頼は止めるほうと同じ
 resource "aws_iam_role" "wake" {
   count = local.idle_stop ? 1 : 0
 
@@ -118,6 +144,25 @@ data "aws_iam_policy_document" "wake" {
   statement {
     actions   = ["ecs:DescribeServices", "ecs:UpdateService"]
     resources = [aws_ecs_service.app.id]
+  }
+
+  # Data API はマスターのシークレットで接続する。送る SQL（SELECT 1）は定義に固定してあり、外から渡せない
+  dynamic "statement" {
+    for_each = var.wake_database == null ? [] : [var.wake_database]
+
+    content {
+      actions   = ["rds-data:ExecuteStatement"]
+      resources = [statement.value.cluster_arn]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.wake_database == null ? [] : [var.wake_database]
+
+    content {
+      actions   = ["secretsmanager:GetSecretValue"]
+      resources = [statement.value.secret_arn]
+    }
   }
 
   # ログの配信の設定は、ロググループを指定できない（Step Functions の仕様）

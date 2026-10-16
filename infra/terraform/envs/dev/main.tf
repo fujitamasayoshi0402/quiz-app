@@ -177,6 +177,12 @@ module "quiz_service" {
   db_name          = local.app_database.database_name
   iam_db_user_arns = local.app_database.iam_db_user_arns
 
+  # 起こすときに Aurora も起こす（DEV-181）。タスクの起動（約 2.5 分）を待つ間に、Aurora の復帰が済む
+  wake_database = {
+    cluster_arn = local.app_database.cluster_arn
+    secret_arn  = local.app_database.master_user_secret_arn
+  }
+
   image_tag = var.quiz_service_image_tag
 
   # 0.25 vCPU では Spring Boot の起動に時間がかかり、デプロイのたびに待たされる
