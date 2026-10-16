@@ -72,8 +72,10 @@ resource "aws_lambda_function" "this" {
   memory_size = var.memory_size
   # 3 件を選ぶ・書く・確かめる（Bedrock を 7 回ほど呼ぶ）。1 回に数秒〜十数秒かかる
   timeout = 300
-  # 同時に 2 つ動かさない。同じ発表から重ねて作り、Bedrock の費用も重なる
-  reserved_concurrent_executions = 1
+  # 同時に動くことを、予約の同時実行（reserved_concurrent_executions）では止めない（DEV-163）。
+  # アカウントの同時実行の上限が 10 で、Lambda は予約されていない分を 10 残すことを求めるため、1 つも予約できない。
+  # 重なるのは、毎日の起動と手で起動したものがぶつかったときだけ（Scheduler は 1 日 1 回で、やり直しもしない）。
+  # そのときは同じ発表から下書きが 2 つでき、Bedrock の費用も 1 回分重なる。下書きは人が確かめて捨てる
 
   environment {
     variables = {

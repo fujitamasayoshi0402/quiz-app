@@ -1496,7 +1496,7 @@ aws --endpoint-url http://localhost:4566 logs tail /aws/lambda/quiz-app-local-no
 `modules/news-quiz-drafter` で作る（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)、DEV-161）。コードは `services/news-quiz-drafter`（Kotlin、Spring は使わない）。
 
 ```
-EventBridge Scheduler（毎日 7:00、日本時間）→ Lambda（Java 21 / arm64 / 512 MB、同時に 1 つ）
+EventBridge Scheduler（毎日 7:00、日本時間）→ Lambda（Java 21 / arm64 / 512 MB）
   ├ AWS の What's New の RSS を読む（見出しと説明だけ。DTD は読まない）
   ├ Bedrock（Haiku 4.5、グローバルの推論プロファイル）: 選ぶ → 書く → 確かめる。答えは道具（tool）の入力として JSON で受け取る
   └ S3（quiz-app-dev-news-quizzes）の inbox/ に置く。読んだ発表は state/seen.json に 30 日残す
@@ -1510,7 +1510,9 @@ quiz-service が、使われたときに inbox/ を読んで取り込む（[技�
 - 1 回の費用は、ログの「Bedrock n 回（入力 n、出力 n トークン）」で確かめる。Haiku 4.5 は 100 万トークンあたり入力 1 ドル、出力 5 ドル
 - Anthropic のモデルは、アカウントで一度、利用目的（use case）の届け出が要る。無いと `Model use case details have not been submitted` で失敗する
 - **コードは Terraform では載せ替えない。** 関数を作るときにだけ zip を読む（`./gradlew :services:news-quiz-drafter:buildZip` を先に流す）。
-  develop へのマージで載せる仕組みはまだない（DEV-163）。それまでは手で載せる
+  以後は、develop へのマージでデプロイが載せる（[デプロイ](#デプロイ)、DEV-163）
+- 同時に動くことは止めていない。アカウントの Lambda の同時実行の上限が 10 で、1 つも予約できないため（DEV-163）。
+  手で起動した回が毎日の回と重なると、同じ発表から下書きが 2 つでき、Bedrock の費用も重なる。7:00 の前後に手で起動しない
 
 ```bash
 cd infra/terraform/envs/dev
@@ -1523,11 +1525,6 @@ aws logs tail "/aws/lambda/$FUNCTION" --since 10m
 # 初期化できるかだけを確かめる（Bedrock は呼ばない）
 aws lambda invoke --function-name "$FUNCTION" --payload '{"check":true}' --cli-binary-format raw-in-base64-out /dev/stdout
 
-# コードを手で載せる（DEV-163 まで）
-(cd ../../../.. && ./gradlew :services:news-quiz-drafter:buildZip)
-aws lambda update-function-code --function-name "$FUNCTION" \
-  --zip-file fileb://../../../../services/news-quiz-drafter/build/distributions/news-quiz-drafter.zip
-
 # 受け箱の中身
 aws s3 ls "s3://$(terraform output -raw news_quizzes_bucket_name)/inbox/"
 ```
@@ -1539,7 +1536,8 @@ develop にマージすると、CI（`ci.yml`）のチェックが通ったあ�
 
 ```
 notification-service（zip を作る → 関数に載せる → 1 度呼んで確かめる）
-→ イメージを作る（arm64）→ ECR に push → マイグレーション（単発タスク。変更があるときだけ）→ サービスの入れ替え → web のビルド（Amplify）→ スモークテスト
+→ イメージを作る（arm64）→ ECR に push → マイグレーション（単発タスク。変更があるときだけ）→ サービスの入れ替え
+→ news-quiz-drafter（zip を作る → 関数に載せる → 1 度呼んで確かめる。dev だけ）→ web のビルド（Amplify）→ スモークテスト
 ```
 
 - **dev で動いているものと比べて、変わったほうだけを載せる**（DEV-79）。動いているもののコミットから develop の先頭までに、
@@ -1556,6 +1554,10 @@ notification-service（zip を作る → 関数に載せる → 1 度呼んで�
   - **確かめるのに失敗しても、前のコードには戻らない。** その間に届いたイベントは再試行のあと DLQ に入り、メールが届く。
     直したものが載ったら、アーカイブから流し直す。dev だけのため、版とエイリアスで切り替える仕組みは入れていない
   - 失敗したときはタグを書かない。次のデプロイが、直したものを載せ直す
+- **news-quiz-drafter は、`news-quiz-drafter` のパスが変わったときだけ載せる**（DEV-163）。載せ方とコミットの残し方は notification-service と同じ（`.github/scripts/deploy-lambda.sh`）
+  - **quiz-service の後に載せる。** 受け箱の下書きを読む側を、先に替える
+  - 確かめるときは `{"check":true}` で呼ぶ。初期化できることだけを確かめて返り、RSS も Bedrock も呼ばない
+  - **関数は dev にだけある**（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）。prod では、`drafter=deploy` を指定しても載せない
 - **マイグレーションは、DB に流れるもの（`migration` のパス）が変わったときだけ流す**（DEV-88）。変わっていなければ、単発タスクを飛ばす（約 1.6 分）。
   飛ばしたかどうかは、デプロイのジョブのサマリーに出る
   - 比べる相手は、quiz-service の動いているもののコミット。**そのコミットまでのマイグレーションは、流し終わっている。**
@@ -1575,7 +1577,7 @@ notification-service（zip を作る → 関数に載せる → 1 度呼んで�
 - イメージのタグはコミットの SHA（先頭 12 桁）。ECR には直近 10 個が残る
 - マージから載り終えるまで約 9 分（イメージ 2 分、quiz-service 5 分、web 2 分）。起動に失敗して前のリビジョンに戻るときは、失敗が分かるまで 15 分ほどかかる
 
-手で流すとき（形を変えたあと、失敗をやり直すときなど）。`backend`、`frontend`、`notification` は `auto`（動いているものと比べる）/ `deploy`（必ず載せる）/ `skip`（載せない）、
+手で流すとき（形を変えたあと、失敗をやり直すときなど）。`backend`、`frontend`、`notification`、`drafter` は `auto`（動いているものと比べる）/ `deploy`（必ず載せる）/ `skip`（載せない）、
 `migration` は `auto` / `run`（必ず流す）を指定できる。
 
 ```bash
@@ -1583,6 +1585,7 @@ gh workflow run deploy.yml --ref develop                                     # �
 gh workflow run deploy.yml --ref develop -f backend=deploy -f frontend=skip  # quiz-service だけを載せ直す（形を変えたあと）
 gh workflow run deploy.yml --ref develop -f backend=deploy -f frontend=skip -f migration=run  # マイグレーションも流し直す
 gh workflow run deploy.yml --ref develop -f backend=skip -f frontend=skip -f notification=deploy  # notification-service だけを載せ直す
+gh workflow run deploy.yml --ref develop -f backend=skip -f frontend=skip -f drafter=deploy  # news-quiz-drafter だけを載せ直す
 ```
 
 GitHub Actions が使えないときは、手元から同じスクリプトで流せる。
@@ -1599,15 +1602,22 @@ docker push "$REPO:$TAG"
 
 # notification-service
 (cd ../../../.. && ./gradlew :services:notification-service:buildZip)
-../../../../.github/scripts/deploy-notification-service.sh "$(terraform output -raw notification_function_name)" \
-  ../../../../services/notification-service/build/distributions/notification-service.zip "$(git rev-parse HEAD)"
+../../../../.github/scripts/deploy-lambda.sh "$(terraform output -raw notification_function_name)" \
+  ../../../../services/notification-service/build/distributions/notification-service.zip "$(git rev-parse HEAD)" \
+  '{"detail-type":"DeployCheck","detail":{}}' notification-service
+
+# news-quiz-drafter
+(cd ../../../.. && ./gradlew :services:news-quiz-drafter:buildZip)
+../../../../.github/scripts/deploy-lambda.sh "$(terraform output -raw news_quiz_drafter_function_name)" \
+  ../../../../services/news-quiz-drafter/build/distributions/news-quiz-drafter.zip "$(git rev-parse HEAD)" \
+  '{"check":true}' news-quiz-drafter
 ```
 
 **GitHub Actions は OIDC でロールを引き受ける。アクセスキーは使わない**（`modules/deploy-role`）。
 
 - 引き受けられるのは、このリポジトリの Environment `dev` で動くジョブだけ。`dev` は develop からしか使えない（GitHub の設定）
 - ロールにできるのは、ECR への push、2 つのタスク定義の登録、マイグレーションの起動、サービスの更新、Amplify のビルドの起動、
-  notification-service の関数のコードの載せ替え（と、確かめるための呼び出し、`DeployedCommit` のタグ）だけ。ほかの Lambda には触れない
+  notification-service と news-quiz-drafter（dev だけ）の関数のコードの載せ替え（と、確かめるための呼び出し、`DeployedCommit` のタグ）だけ。ほかの Lambda には触れない
 - OIDC のプロバイダはアカウントに 1 つだけ作れる。`infra/terraform/account` に置いている
 
 Environment `dev` には、次を置く。値は Terraform の出力から入れる。

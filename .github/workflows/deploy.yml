@@ -6,7 +6,7 @@ name: deploy
 #          **Environment prod の承認を待ってから動く**（DEV-134）
 # Actions の画面から手で流すこともできる（Terraform でタスク定義の形を変えたあとなど）。
 #
-# **何を載せるかは、その環境でいま動いているものと比べて決める**（DEV-79）。quiz-service、web、notification-service のそれぞれで、
+# **何を載せるかは、その環境でいま動いているものと比べて決める**（DEV-79）。quiz-service、web、notification-service、news-quiz-drafter のそれぞれで、
 # 動いているもののコミットから develop の先頭までに、関わるパス（.github/path-filters.yml）が変わっていれば載せる。
 # 直前の push との差で決めると、続けてマージして待ちの実行が取り消されたとき、その分が載らない。
 #
@@ -17,10 +17,13 @@ name: deploy
 # notification-service（Lambda）は、quiz-service より先に載せる（DEV-99）。受け手は、新しい版のイベントを読めるようにしてから
 # 送る側を替える（ADR-0022）。載せたコミットは関数のタグ（DeployedCommit）に残し、次のデプロイがこれと比べる
 #
+# news-quiz-drafter（Lambda、ADR-0031）は、quiz-service の後に載せる（DEV-163）。受け箱の下書きを読む側（quiz-service）を先に替える。
+# 載せたコミットの残し方は notification-service と同じ。**関数は dev にだけある。** prod では載せない
+#
 # GitHub の Environment（dev / prod）で動く。dev は develop から、prod は main からしか使えない。
 # AWS のロールは環境ごとに別で、その Environment のジョブにしか引き受けさせない（modules/deploy-role）。
 # Environment ごとの secret と variable（AWS_ROLE_ARN、AMPLIFY_APP_ID など）は同じ名前で、Environment が値を決める
-# 入力の backend、frontend、notification は auto（動いているものと比べる）/ deploy（必ず載せる）/ skip（載せない）。
+# 入力の backend、frontend、notification、drafter は auto（動いているものと比べる）/ deploy（必ず載せる）/ skip（載せない）。
 # Terraform でタスク定義の形を変えたあとは、コミットが同じでも載せ直すため deploy を指定する。
 # migration は auto（動いているものと比べる）/ run（必ず流す）。**飛ばす指定は持たない。** DB に流れるものを変えたコミットを、
 # 流さずに載せると、それが動いているものになり、以後は差がないとして流れなくなる
@@ -41,6 +44,10 @@ on:
         default: auto
       notification:
         description: notification-service（Lambda）を載せるか（auto / deploy / skip）
+        type: string
+        default: auto
+      drafter:
+        description: news-quiz-drafter（Lambda）を載せるか（auto / deploy / skip）。dev だけ
         type: string
         default: auto
       migration:
@@ -73,6 +80,11 @@ on:
         type: choice
         options: [auto, deploy, skip]
         default: auto
+      drafter:
+        description: news-quiz-drafter（Lambda）を載せるか。dev だけ
+        type: choice
+        options: [auto, deploy, skip]
+        default: auto
       migration:
         description: quiz-service を載せるとき、マイグレーションを流すか
         type: choice
@@ -93,6 +105,8 @@ env:
   # Amplify は環境ごとにアプリが別で、配るブランチも違う（modules/web）
   AMPLIFY_BRANCH: ${{ inputs.environment == 'prod' && 'main' || 'develop' }}
   NOTIFICATION_FUNCTION: quiz-app-${{ inputs.environment }}-notification-service
+  # 下書きを作る関数は dev にだけある（envs/dev の modules/news-quiz-drafter）。空なら、調べも載せもしない
+  DRAFTER_FUNCTION: ${{ inputs.environment == 'dev' && 'quiz-app-dev-news-quiz-drafter' || '' }}
 
 jobs:
   deploy:
@@ -111,7 +125,7 @@ jobs:
       group: deploy-${{ inputs.environment }}
       cancel-in-progress: false
     outputs:
-      deployed: ${{ steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true' || steps.plan.outputs.notification == 'true' }}
+      deployed: ${{ steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true' || steps.plan.outputs.notification == 'true' || steps.plan.outputs.drafter == 'true' }}
     steps:
       # 動いているもののコミットとの差を取るため、履歴をすべて取る
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -128,7 +142,7 @@ jobs:
       - name: 動いているものを調べる
         id: deployed
         run: >-
-          .github/scripts/deployed-commits.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$AMPLIFY_APP_ID" "$AMPLIFY_BRANCH" "$NOTIFICATION_FUNCTION"
+          .github/scripts/deployed-commits.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$AMPLIFY_APP_ID" "$AMPLIFY_BRANCH" "$NOTIFICATION_FUNCTION" "$DRAFTER_FUNCTION"
           | tee -a "$GITHUB_OUTPUT"
         env:
           AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
@@ -159,6 +173,14 @@ jobs:
           base: ${{ steps.deployed.outputs.notification }}
           filters: .github/path-filters.yml
 
+      - name: news-quiz-drafter に関わる変更を探す
+        id: drafter-changes
+        if: inputs.drafter == 'auto' && env.DRAFTER_FUNCTION != '' && steps.deployed.outputs.drafter != ''
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          base: ${{ steps.deployed.outputs.drafter }}
+          filters: .github/path-filters.yml
+
       - name: 載せるものを決める
         id: plan
         run: |
@@ -177,12 +199,19 @@ jobs:
           BACKEND=$(decide "$BACKEND_MODE" "$BACKEND_DEPLOYED" "$BACKEND_CHANGED")
           FRONTEND=$(decide "$FRONTEND_MODE" "$WEB_DEPLOYED" "$FRONTEND_CHANGED")
           NOTIFICATION=$(decide "$NOTIFICATION_MODE" "$NOTIFICATION_DEPLOYED" "$NOTIFICATION_CHANGED")
+          # 関数のない環境（prod）では、deploy を指定されても載せない
+          if [[ -n "$DRAFTER_FUNCTION" ]]; then
+            DRAFTER=$(decide "$DRAFTER_MODE" "$DRAFTER_DEPLOYED" "$DRAFTER_CHANGED")
+          else
+            DRAFTER=false
+          fi
           # マイグレーションは、差がないと分かったときだけ飛ばす。動いているものが不明で差を調べていなければ（空）流す
           if [[ "$MIGRATION_MODE" != "run" && "$MIGRATION_CHANGED" == "false" ]]; then MIGRATION=skip; else MIGRATION=run; fi
           {
             echo "backend=$BACKEND"
             echo "frontend=$FRONTEND"
             echo "notification=$NOTIFICATION"
+            echo "drafter=$DRAFTER"
             echo "migration=$MIGRATION"
           } >> "$GITHUB_OUTPUT"
           {
@@ -191,29 +220,37 @@ jobs:
             if [[ "$BACKEND" == "true" ]]; then echo "  - マイグレーション: ${MIGRATION}"; fi
             echo "- web: 動いているもの ${WEB_DEPLOYED:0:12}（不明なら空）→ 載せる: ${FRONTEND}"
             echo "- notification-service: 動いているもの ${NOTIFICATION_DEPLOYED:0:12}（不明なら空）→ 載せる: ${NOTIFICATION}"
+            if [[ -n "$DRAFTER_FUNCTION" ]]; then
+              echo "- news-quiz-drafter: 動いているもの ${DRAFTER_DEPLOYED:0:12}（不明なら空）→ 載せる: ${DRAFTER}"
+            fi
           } | tee -a "$GITHUB_STEP_SUMMARY"
         env:
           BACKEND_MODE: ${{ inputs.backend }}
           FRONTEND_MODE: ${{ inputs.frontend }}
           NOTIFICATION_MODE: ${{ inputs.notification }}
+          DRAFTER_MODE: ${{ inputs.drafter }}
           MIGRATION_MODE: ${{ inputs.migration }}
           BACKEND_DEPLOYED: ${{ steps.deployed.outputs.backend }}
           WEB_DEPLOYED: ${{ steps.deployed.outputs.web }}
           NOTIFICATION_DEPLOYED: ${{ steps.deployed.outputs.notification }}
+          DRAFTER_DEPLOYED: ${{ steps.deployed.outputs.drafter }}
           BACKEND_CHANGED: ${{ steps.backend-changes.outputs.backend }}
           FRONTEND_CHANGED: ${{ steps.frontend-changes.outputs.frontend }}
           NOTIFICATION_CHANGED: ${{ steps.notification-changes.outputs.notification }}
+          DRAFTER_CHANGED: ${{ steps.drafter-changes.outputs.news-quiz-drafter }}
           MIGRATION_CHANGED: ${{ steps.backend-changes.outputs.migration }}
 
-      # ---- notification-service（quiz-service より先に載せる） ----
+      # ---- Lambda の zip を作る道具 ----
 
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
-        if: steps.plan.outputs.notification == 'true'
+        if: steps.plan.outputs.notification == 'true' || steps.plan.outputs.drafter == 'true'
         with:
           install_args: java
 
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-        if: steps.plan.outputs.notification == 'true'
+        if: steps.plan.outputs.notification == 'true' || steps.plan.outputs.drafter == 'true'
+
+      # ---- notification-service（quiz-service より先に載せる） ----
 
       # テストは CI の notification ジョブで済んでいる。ここでは zip を作るだけ
       - name: notification-service の zip を作る
@@ -223,8 +260,9 @@ jobs:
       - name: notification-service を載せる
         if: steps.plan.outputs.notification == 'true'
         run: >-
-          .github/scripts/deploy-notification-service.sh "$NOTIFICATION_FUNCTION"
+          .github/scripts/deploy-lambda.sh "$NOTIFICATION_FUNCTION"
           services/notification-service/build/distributions/notification-service.zip "$GITHUB_SHA"
+          '{"detail-type":"DeployCheck","detail":{}}' notification-service
 
       # ---- quiz-service ----
 
@@ -277,6 +315,21 @@ jobs:
         run: .github/scripts/deploy-quiz-service.sh "$ECS_CLUSTER" "$ECS_SERVICE" "$MIGRATE_FAMILY" "$IMAGE" "$MIGRATION"
         env:
           MIGRATION: ${{ steps.plan.outputs.migration }}
+
+      # ---- news-quiz-drafter（quiz-service の後に載せる） ----
+
+      # テストは CI の news-quiz-drafter ジョブで済んでいる。ここでは zip を作るだけ
+      - name: news-quiz-drafter の zip を作る
+        if: steps.plan.outputs.drafter == 'true'
+        run: ./gradlew :services:news-quiz-drafter:buildZip
+
+      # {"check":true} では、初期化できることだけを確かめて終わる。Bedrock は呼ばない
+      - name: news-quiz-drafter を載せる
+        if: steps.plan.outputs.drafter == 'true'
+        run: >-
+          .github/scripts/deploy-lambda.sh "$DRAFTER_FUNCTION"
+          services/news-quiz-drafter/build/distributions/news-quiz-drafter.zip "$GITHUB_SHA"
+          '{"check":true}' news-quiz-drafter
 
       # ---- web ----
 

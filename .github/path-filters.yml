@@ -47,7 +47,7 @@ notification:
   - '.github/workflows/ci.yml'
   - '.github/workflows/deploy.yml'
   - '.github/scripts/deployed-commits.sh'
-  - '.github/scripts/deploy-notification-service.sh'
+  - '.github/scripts/deploy-lambda.sh'
 news-quiz-drafter:
   - 'services/news-quiz-drafter/**'
   # 受け箱に置く下書きの形（DraftJsonTest が見本と比べる）
@@ -61,6 +61,9 @@ news-quiz-drafter:
   - '.mise.toml'
   - '.github/path-filters.yml'
   - '.github/workflows/ci.yml'
+  - '.github/workflows/deploy.yml'
+  - '.github/scripts/deployed-commits.sh'
+  - '.github/scripts/deploy-lambda.sh'
 frontend:
   - 'apps/**'
   - '.dockerignore'
