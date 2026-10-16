@@ -115,6 +115,50 @@ class QuizDeliveryUseCaseTest {
     }
 
     @Test
+    @DisplayName("間違えた問題: 直近の回答が不正解のものだけを出し、尽きたらそこで終わる")
+    fun incorrectOnly() {
+        val (missed, solved, notYet) = (1..3).map { save("q$it") }
+        answered.answer(user, missed, correct = false)
+        answered.answer(user, solved)
+
+        assertThat(select(DeliveryScope.INCORRECT, limit = 10)).containsExactly(missed)
+        assertThat(notYet).isNotIn(select(DeliveryScope.INCORRECT))
+    }
+
+    @Test
+    @DisplayName("間違えた問題: 後で正解したものは外れ、後で間違えたものは入る")
+    fun incorrectFollowsLatestAnswer() {
+        val (fixed, slipped) = (1..2).map { save("q$it") }
+        answered.answer(user, fixed, correct = false)
+        answered.answer(user, fixed, correct = true)
+        answered.answer(user, slipped, correct = true)
+        answered.answer(user, slipped, correct = false)
+
+        assertThat(select(DeliveryScope.INCORRECT)).containsExactly(slipped)
+    }
+
+    @Test
+    @DisplayName("間違えた問題: 他の利用者の不正解は数えない")
+    fun otherUsersMistakesDoNotCount() {
+        val quiz = save("q1")
+        answered.answer(UUID.randomUUID(), quiz, correct = false)
+
+        assertThat(select(DeliveryScope.INCORRECT)).isEmpty()
+    }
+
+    @Test
+    @DisplayName("あとで見直す問題: 自分が印を付けたものだけを出す。正解していても出す")
+    fun bookmarkedOnly() {
+        val (marked, solvedAndMarked, others) = (1..3).map { save("q$it") }
+        answered.bookmark(user, marked)
+        answered.bookmark(user, solvedAndMarked)
+        answered.answer(user, solvedAndMarked)
+        answered.bookmark(UUID.randomUUID(), others)
+
+        assertThat(select(DeliveryScope.BOOKMARKED, limit = 10)).containsExactlyInAnyOrder(marked, solvedAndMarked)
+    }
+
+    @Test
     @DisplayName("再開用の引き直しでは、非公開に戻したクイズを落とす")
     fun findDeliverableExcludesUnpublished() {
         val kept = save("公開のまま")

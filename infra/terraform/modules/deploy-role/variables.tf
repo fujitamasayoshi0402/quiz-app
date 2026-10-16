@@ -55,3 +55,11 @@ variable "notification_function_arn" {
   description = "コードを載せ替える Lambda。ほかの関数には触れさせない"
   type        = string
 }
+
+# ---- news-quiz-drafter（modules/news-quiz-drafter） ----
+
+variable "news_quiz_drafter_function_arn" {
+  description = "コードを載せ替える、技術ニュースの下書きを作る Lambda。関数を置かない環境（prod）では渡さない"
+  type        = string
+  default     = null
+}

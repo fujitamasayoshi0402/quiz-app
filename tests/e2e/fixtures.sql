@@ -33,6 +33,12 @@ UPDATE core.tenants t SET deleted_at = now()
 FROM core.users u
 WHERE t.created_by = u.id AND t.deleted_at IS NULL AND lower(u.email) = 'e2e-outsider@example.com';
 
+-- デモとして入るテスト（DEV-151）が、共有のデモのアカウントで解きかけたクイズを消す。
+-- 前の実行の残りがあると、出題の画面に「中断中のクイズ」が出て、同じ手順で始められない
+DELETE FROM answer.attempts a
+USING core.users u
+WHERE a.user_id = u.id AND lower(u.email) = 'demo@example.com';
+
 -- 前の実行が途中で止まって残った招待を取り消す。招待の一覧が空の状態から始める
 UPDATE core.invitations i SET revoked_at = now()
 FROM core.tenants t
@@ -45,6 +51,7 @@ SELECT id AS tenant_id FROM core.tenants WHERE slug = 'e2e' \gset
 
 DELETE FROM answer.attempts WHERE tenant_id = :'tenant_id';
 DELETE FROM answer.ranking_entries WHERE tenant_id = :'tenant_id';
+DELETE FROM answer.bookmarks WHERE tenant_id = :'tenant_id';
 DELETE FROM quiz.quizzes WHERE tenant_id = :'tenant_id';
 DELETE FROM quiz.difficulties WHERE tenant_id = :'tenant_id';
 DELETE FROM quiz.categories WHERE tenant_id = :'tenant_id';
@@ -71,3 +78,23 @@ VALUES ('2add36c9-c0a6-47d0-a2e2-58007be9d60d', :'tenant_id', '7094e19e-0922-453
        ('2d696f82-6679-451b-bd7f-5da17b3ad6e4', :'tenant_id', '10998312-cc5b-487c-b5dc-e16257e26e0a', '11 か月', false, 2),
        ('cc7a7e1c-993b-4cf6-b371-d6549b600222', :'tenant_id', '10998312-cc5b-487c-b5dc-e16257e26e0a', '12 か月', true, 3),
        ('5b0c3f7e-2c1a-4d8e-9f6b-3a7d1e4c8b20', :'tenant_id', '10998312-cc5b-487c-b5dc-e16257e26e0a', '13 か月', false, 4);
+
+-- AI が技術ニュースから作った下書き（ADR-0031、DEV-162）。受け箱から取り込んだときと同じく、出典の URL を持つ下書きにする。
+-- 管理者が確かめて公開し、一般ユーザーが解く
+INSERT INTO quiz.categories (id, tenant_id, name)
+VALUES ('bc60ce66-bbc6-47f2-93b0-fc0a57e5e43a', :'tenant_id', 'E2E 技術ニュース');
+
+INSERT INTO quiz.difficulties (id, tenant_id, category_id, name, level)
+VALUES ('3aff0fed-7ef4-439c-9529-288ba4716002', :'tenant_id', 'bc60ce66-bbc6-47f2-93b0-fc0a57e5e43a', 'ニュース', 1);
+
+INSERT INTO quiz.quizzes (id, tenant_id, category_id, difficulty_id, question, explanation, status, source_url)
+VALUES ('04d1ad90-2503-4b3b-9fb6-261bb611ad94', :'tenant_id', 'bc60ce66-bbc6-47f2-93b0-fc0a57e5e43a', '3aff0fed-7ef4-439c-9529-288ba4716002',
+        'Amazon ECS の新しいメトリクス LiveTaskCount は、何を数えますか。',
+        E'サービスの中で、実際に動いているタスクの数を数えます。\n\n出典: [Amazon ECS adds LiveTaskCount](https://aws.amazon.com/about-aws/whats-new/2026/10/amazon-ecs-livetaskcount/)',
+        'draft', 'https://aws.amazon.com/about-aws/whats-new/2026/10/amazon-ecs-livetaskcount/');
+
+INSERT INTO quiz.choices (id, tenant_id, quiz_id, body, is_correct, sort_order)
+VALUES ('466a400a-b813-46e7-a56b-6a4a708d6c5b', :'tenant_id', '04d1ad90-2503-4b3b-9fb6-261bb611ad94', '実際に動いているタスクの数', true, 1),
+       ('69cf5436-260f-486e-bd4c-e609ae70cce5', :'tenant_id', '04d1ad90-2503-4b3b-9fb6-261bb611ad94', '動かそうとしているタスクの数', false, 2),
+       ('dd09b336-e1a1-455e-9ff8-51da38c3bcce', :'tenant_id', '04d1ad90-2503-4b3b-9fb6-261bb611ad94', '起動に失敗したタスクの数', false, 3),
+       ('52c41910-7219-4f26-bb89-5425c8b9d5c8', :'tenant_id', '04d1ad90-2503-4b3b-9fb6-261bb611ad94', '登録されているコンテナインスタンスの数', false, 4);

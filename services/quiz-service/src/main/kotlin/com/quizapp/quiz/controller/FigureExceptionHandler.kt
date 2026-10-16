@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.quiz.usecase.FigureInUseException
 import com.quizapp.quiz.usecase.FigureNotFoundException
 import com.quizapp.quiz.usecase.FigureUploadNotFoundException
 import org.springframework.http.HttpStatus
@@ -20,6 +21,16 @@ class FigureExceptionHandler {
         ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "上げたファイルが見つかりません。もう一度上げてください").apply {
             title = "リソースが見つかりません"
         }
+
+    /** **使っている問題の問題文を `quizzes` で返す。** 管理者が、どの解説から外せばよいかを知るため。同じテナントの問題なので、見せてよい */
+    @ExceptionHandler(FigureInUseException::class)
+    fun handleFigureInUse(e: FigureInUseException): ProblemDetail = ProblemDetail.forStatusAndDetail(
+        HttpStatus.CONFLICT,
+        "この図は、公開中か下書きの問題の解説で使われています。先に解説から外してください",
+    ).apply {
+        title = "使われている図は消せません"
+        setProperty("quizzes", e.questions)
+    }
 
     @ExceptionHandler(FigureNotFoundException::class)
     fun handleFigureNotFound(): ProblemDetail =

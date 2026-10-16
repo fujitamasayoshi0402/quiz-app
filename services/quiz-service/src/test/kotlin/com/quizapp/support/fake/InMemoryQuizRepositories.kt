@@ -1,5 +1,6 @@
 package com.quizapp.support.fake
 
+import com.quizapp.quiz.domain.AnswerTally
 import com.quizapp.quiz.domain.AnsweredQuizzes
 import com.quizapp.quiz.domain.Category
 import com.quizapp.quiz.domain.CategoryRepository
@@ -11,10 +12,12 @@ import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.DifficultyRepository
 import com.quizapp.quiz.domain.FigureKind
 import com.quizapp.quiz.domain.FigureRepository
+import com.quizapp.quiz.domain.FigureRow
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
 import com.quizapp.quiz.domain.Trash
+import java.time.Instant
 import java.util.UUID
 
 /*
@@ -52,6 +55,8 @@ class InMemoryDifficultyRepository : DifficultyRepository {
         it.categoryId == categoryId
     }
 
+    override fun findAll(): List<Difficulty> = rows.values.toList()
+
     override fun findById(id: UUID): Difficulty? = rows[id]
 
     override fun save(difficulty: Difficulty): Difficulty {
@@ -72,10 +77,16 @@ class InMemoryDifficultyRepository : DifficultyRepository {
 class InMemoryQuizRepository : QuizRepository {
     private val rows = linkedMapOf<UUID, Quiz>()
 
-    override fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> = rows.values.filter {
+    override fun search(
+        categoryId: UUID?,
+        difficultyId: UUID?,
+        status: QuizStatus?,
+        aiGenerated: Boolean?,
+    ): List<Quiz> = rows.values.filter {
         (categoryId == null || it.categoryId == categoryId) &&
             (difficultyId == null || it.difficultyId == difficultyId) &&
-            (status == null || it.status == status)
+            (status == null || it.status == status) &&
+            (aiGenerated == null || (it.sourceUrl != null) == aiGenerated)
     }
 
     override fun findById(id: UUID): Quiz? = rows[id]
@@ -111,17 +122,37 @@ class InMemoryFigureRepository : FigureRepository {
     override fun findExisting(ids: Collection<UUID>): Set<UUID> = ids.filter { it in kinds }.toSet()
 
     override fun delete(id: UUID): Boolean = kinds.remove(id) != null
+
+    override fun list(): List<FigureRow> = kinds.map { (id, kind) -> FigureRow(id, kind, Instant.EPOCH) }
 }
 
+/** 利用者とクイズごとに、最後の回答が正解だったかを覚える */
 class FakeAnsweredQuizzes : AnsweredQuizzes {
-    private val answered = mutableSetOf<Pair<UUID, UUID>>()
+    private val lastCorrect = mutableMapOf<Pair<UUID, UUID>, Boolean>()
+    private val bookmarks = mutableSetOf<Pair<UUID, UUID>>()
 
-    fun answer(userId: UUID, quizId: UUID) {
-        answered += userId to quizId
+    fun answer(userId: UUID, quizId: UUID, correct: Boolean = true) {
+        lastCorrect[userId to quizId] = correct
+    }
+
+    fun bookmark(userId: UUID, quizId: UUID) {
+        bookmarks += userId to quizId
     }
 
     override fun filterAnswered(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
-        candidateQuizIds.filter { (userId to it) in answered }.toSet()
+        candidateQuizIds.filter { (userId to it) in lastCorrect }.toSet()
+
+    override fun filterMissed(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
+        candidateQuizIds.filter { lastCorrect[userId to it] == false }.toSet()
+
+    override fun filterBookmarked(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
+        candidateQuizIds.filter { (userId to it) in bookmarks }.toSet()
+
+    // 最後の回答しか覚えていないため、利用者ごとに 1 回と数える。解き直しを数えることは API テストが見る
+    override fun tally(quizIds: List<UUID>): Map<UUID, AnswerTally> = lastCorrect.entries
+        .filter { (key, _) -> key.second in quizIds }
+        .groupBy({ it.key.second }, { it.value })
+        .mapValues { (_, results) -> AnswerTally(answered = results.size, correct = results.count { it }) }
 }
 
 /**

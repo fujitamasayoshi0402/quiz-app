@@ -105,6 +105,17 @@ resource "aws_apigatewayv2_stage" "default" {
     throttling_burst_limit = var.throttling.burst_limit
   }
 
+  # 起こす口（wake.tf）は、画面が 1 回呼べば足りる。叩き続けられても、ほかの API の上限を食わないように低くする
+  dynamic "route_settings" {
+    for_each = local.idle_stop ? [local.wake_route_key] : []
+
+    content {
+      route_key              = route_settings.value
+      throttling_rate_limit  = 1
+      throttling_burst_limit = 5
+    }
+  }
+
   # パスは残さない。招待の受け入れ（/api/me/invitations/{token}）のパスにはトークンが入る。
   # DB にもハッシュしか持たない値を、ログに平文で残さない
   access_log_settings {
@@ -122,6 +133,9 @@ resource "aws_apigatewayv2_stage" "default" {
       integrationError   = "$context.integrationErrorMessage"
     })
   }
+
+  # ルートの設定は、ルートができてからでないと置けない
+  depends_on = [aws_apigatewayv2_route.wake]
 }
 
 # ---- 独自ドメイン ----

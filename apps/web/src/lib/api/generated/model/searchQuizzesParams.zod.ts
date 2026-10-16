@@ -17,7 +17,8 @@ import * as zod from 'zod';
 export const SearchQuizzesParams = zod.object({
   "categoryId": zod.uuid().optional(),
   "difficultyId": zod.uuid().optional(),
-  "status": zod.string().optional()
+  "status": zod.string().optional(),
+  "aiGenerated": zod.boolean().optional()
 })
 
 export type SearchQuizzesParams = zod.input<typeof SearchQuizzesParams>;

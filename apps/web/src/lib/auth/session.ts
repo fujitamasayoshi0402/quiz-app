@@ -22,6 +22,10 @@ const SESSION_MAX_AGE = 30 * 24 * 60 * 60;
 const LOGIN_MAX_AGE = 10 * 60;
 
 export type Session = Identity & { accessToken: string; expiresAt: number };
+/**
+ * `shared` … 共有のデモのアカウントのセッション（ADR-0029）。リフレッシュトークンを、押した人みんなで共有している
+ */
+type RefreshPayload = { refreshToken: string; shared?: boolean };
 export type LoginState = { state: string; codeVerifier: string; returnTo: string };
 
 type CookieOptions = { httpOnly: true; secure: boolean; sameSite: "lax"; path: "/"; maxAge: number };
@@ -69,22 +73,35 @@ export async function readSession(cookies: CookieReader): Promise<Session | unde
 }
 
 export async function readRefreshToken(cookies: CookieReader): Promise<string | undefined> {
-  return (await open<{ refreshToken: string }>(cookies.get(REFRESH_COOKIE)?.value))?.refreshToken;
+  return (await open<RefreshPayload>(cookies.get(REFRESH_COOKIE)?.value))?.refreshToken;
+}
+
+/**
+ * 共有のデモのアカウントのセッションか（ADR-0029）。**そのリフレッシュトークンは失効させない。**
+ * 失効させると、同じトークンを持つほかの人のセッションも延ばせなくなる
+ */
+export async function isSharedSession(cookies: CookieReader): Promise<boolean> {
+  return (await open<RefreshPayload>(cookies.get(REFRESH_COOKIE)?.value))?.shared === true;
 }
 
 /**
  * トークンを Cookie に書く。更新（リフレッシュ）のときは、リフレッシュトークンと利用者の情報を前のものから引き継ぐ。
+ * 共有の印（`shared`）もリフレッシュトークンと一緒に置くので、更新しても残る
  */
 export async function writeSession(
   cookies: CookieWriter,
   tokens: TokenSet,
   identity: Identity,
   secure: boolean,
+  { shared = false }: { shared?: boolean } = {},
 ): Promise<void> {
   const session: Session = { ...identity, accessToken: tokens.accessToken, expiresAt: tokens.expiresAt };
   cookies.set(SESSION_COOKIE, await seal(session, SESSION_MAX_AGE), cookieOptions(secure));
   if (tokens.refreshToken) {
-    const refresh = await seal({ refreshToken: tokens.refreshToken }, SESSION_MAX_AGE);
+    const payload: RefreshPayload = shared
+      ? { refreshToken: tokens.refreshToken, shared }
+      : { refreshToken: tokens.refreshToken };
+    const refresh = await seal(payload, SESSION_MAX_AGE);
     cookies.set(REFRESH_COOKIE, refresh, cookieOptions(secure));
   }
 }

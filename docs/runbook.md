@@ -136,6 +136,17 @@ DB の制約で表しきれない決まりが崩れた（[データの整合性]
    aws sqs purge-queue --queue-url "$(terraform output -raw notification_dlq_url)"
    ```
 
+### 技術ニュースの下書きを作れなかった
+
+アラーム `quiz-app-dev-news-quiz-drafter-errors`。その日の下書きは作られていない。急がない。やり直しはせず、次の日（7:00）にまた動く。
+
+1. Lambda のログ（`/aws/lambda/quiz-app-dev-news-quiz-drafter`）で、例外を見る
+   - `Model use case details have not been submitted`: Anthropic の利用目的の届け出がない。Bedrock のコンソールのモデルカタログから届け出る
+   - `ThrottlingException` / `ServiceUnavailableException`: Bedrock の一時的な失敗。次の日を待つ
+   - `RSS を読めません`: What's New の RSS が変わったか、止まっている。`curl` で RSS を開いて確かめる
+   - `AccessDenied`: 権限（`modules/news-quiz-drafter/iam.tf`）。モデルや推論プロファイルを替えたときに起きる
+2. 直したら、急ぐときは手で 1 回動かす（開発ガイドライン「技術ニュースの下書き（news-quiz-drafter）」）。Bedrock の費用がかかる
+
 ### タスクの停止のメール
 
 「quiz-service のタスクが止まりました」というメールに、止まった理由（`stoppedReason`）と止まり方（`stopCode`）が入っている。
@@ -152,9 +163,11 @@ ECS は、止まったタスクの代わりを自動で起動する。**同じ�
 
 ### 画面に「サーバーが止まっているか、起動の途中です」と出る
 
-API Gateway が 503 を返している。送り先のタスクがない。
+API Gateway が 500 か 503 を返している（ProblemDetail ではない `{"message": ...}` の形）。送り先のタスクがない。
+アクセスログ（`/aws/apigateway/quiz-app-dev`）では、500 の行の `integrationError` に `No target endpoints found` が入る。
 
-- 2:00〜8:00 は、夜間の停止で止まっている（[ECS](development-guidelines.md#ecsquiz-service)）。使うなら手で起動する。次の停止の時刻にまた止まる
+- 使われていない（API への要求が 30 分ない）か、深夜 2:00 を過ぎて止まっている（[ECS](development-guidelines.md#ecsquiz-service)）。画面の「サーバーを起動する」で起こせる（ログインしていれば誰でも押せる）。手で起動するときは下のコマンド。使い終わって 30 分たつと、また止まる
+- 「サーバーを起動する」で起きないときは、起こす手順のログ（`/aws/vendedlogs/states/quiz-app-dev-quiz-service-wake`）と、API Gateway のアクセスログの `POST /api/wake` の行を見る
 
   ```bash
   aws ecs update-service --cluster quiz-app-dev --service quiz-service --desired-count 1
@@ -247,7 +260,12 @@ aws ecs update-service --cluster quiz-app-dev --service quiz-service \
 4. notification-service は、前のリリースのコミットを手元に取り出し、zip を作って載せる（「[デプロイ](development-guidelines.md#デプロイ)」の手元から流す手順）
 
 - **マイグレーションは戻さない。** 1 つ前のアプリと両立させる規約のため、前のアプリはそのまま動く
-- 戻したあと、スモークテストを手元から流して確かめる（開発ガイドラインの「[スモークテスト](development-guidelines.md#スモークテスト)」。`baseUrl` を prod にする）
+- 戻したあと、スモークテストを手元から流して確かめる（開発ガイドラインの「[スモークテスト](development-guidelines.md#スモークテスト)」。`baseUrl` を prod にする）。
+  **コレクションも、戻した先のコミットのものを使う**（`git worktree add <場所> <前のリリースのタグ>`）。新しいコレクションは、戻したアプリにない API を呼ぶことがある
+- 直したものをリリースせずに最新の main へ戻すときは、`gh workflow run deploy.yml --ref main -f environment=prod`（承認が要る）
+
+DEV-135 で試した時間。web のビルドと quiz-service の入れ替えを同時に始めると、web は約 2 分、quiz-service は約 4 分で終わり、スモークテスト（約 25 秒）まで約 5 分で済んだ。
+最新の main へ戻すデプロイは、承認から約 9 分。
 
 ### 通知をアーカイブから流し直す
 
@@ -353,7 +371,8 @@ dev で測った時間（DEV-117。戻せる最も新しい時刻を指定）。
 1. Cost Explorer で、タグ `Env` ごと、サービスごとに見る
 2. よくある原因
    - **Aurora が一時停止しない**: ダッシュボードの ACU が 0 に戻らない。接続の数を見て、`pg_stat_activity` で誰がつないでいるかを確かめる（[Aurora](development-guidelines.md#aurora)、[コスト方針](development-guidelines.md#8-コスト方針)）
-   - **タスクが夜も動いている**: 夜間の停止のスケジュールが失敗していないか。手で起動したまま、なら次の停止の時刻に止まる
+   - **使われていないのにタスクが動いている**: 使われていないアラーム（`quiz-app-dev-quiz-service-idle`）の状態と、Step Functions のログ（`/aws/vendedlogs/states/quiz-app-dev-quiz-service-idle-stop`）を見る。
+     起こしたまま一度も使っていなければ、アラームの状態が変わらないため止まらない。深夜 2:00 の停止が止める
    - **API が叩かれ続けている**: ダッシュボードの要求の数。API 全体（20 件/秒）と利用者ごと（5 件/秒）の上限は付いている。利用者ごとに超えたものは、アプリのログの「流量の上限を超えました」に `user.id` 付きで出る
 3. すぐに止めるなら、タスクを止める。Aurora は接続がなくなれば止まる
 

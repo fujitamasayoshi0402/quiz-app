@@ -5,11 +5,15 @@
 #
 # 同じ一覧を使い、「CI が見るもの」と「デプロイが載せるもの」を揃える。migration はデプロイだけが使う
 #
-# backend は quiz-service、notification は notification-service（Lambda）。片方だけを変えたときに、もう片方を載せ直さない
+# backend は quiz-service、notification は notification-service（Lambda）、news-quiz-drafter は技術ニュースの下書きを作る Lambda（ADR-0031）。
+# 片方だけを変えたときに、もう片方を載せ直さない
 backend:
   - 'services/quiz-service/**'
   # quiz-service のイメージのビルドが読む。壊れていると、イメージが作れない
   - 'services/notification-service/build.gradle.kts'
+  - 'services/news-quiz-drafter/build.gradle.kts'
+  # Lambda から受け取る下書きの形（NewsQuizDraftSampleTest が読む）
+  - 'docs/news-quizzes/**'
   # サービスの間で共有する型（ADR-0022）。quiz-service のイメージにも入る
   - 'libs/**'
   - 'build.gradle.kts'
@@ -43,7 +47,23 @@ notification:
   - '.github/workflows/ci.yml'
   - '.github/workflows/deploy.yml'
   - '.github/scripts/deployed-commits.sh'
-  - '.github/scripts/deploy-notification-service.sh'
+  - '.github/scripts/deploy-lambda.sh'
+news-quiz-drafter:
+  - 'services/news-quiz-drafter/**'
+  # 受け箱に置く下書きの形（DraftJsonTest が見本と比べる）
+  - 'docs/news-quizzes/**'
+  - 'build.gradle.kts'
+  - 'config/detekt.yml'
+  - '.editorconfig'
+  - 'gradle/**'
+  - 'gradlew'
+  - 'settings.gradle.kts'
+  - '.mise.toml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci.yml'
+  - '.github/workflows/deploy.yml'
+  - '.github/scripts/deployed-commits.sh'
+  - '.github/scripts/deploy-lambda.sh'
 frontend:
   - 'apps/**'
   - '.dockerignore'

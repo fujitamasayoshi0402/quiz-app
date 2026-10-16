@@ -1,5 +1,6 @@
 package com.quizapp.answer.infrastructure
 
+import com.quizapp.quiz.domain.AnswerTally
 import com.quizapp.quiz.domain.AnsweredQuizzes
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Component
@@ -24,5 +25,51 @@ class AnsweredQuizzesJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) 
             mapOf("userId" to userId, "quizIds" to candidateQuizIds),
         ) { rs, _ -> rs.getObject("quiz_id", UUID::class.java) }
             .toSet()
+    }
+
+    override fun filterMissed(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> {
+        if (candidateQuizIds.isEmpty()) return emptySet()
+
+        // クイズごとに最後の回答だけを残し、それが不正解のものを返す
+        return jdbcTemplate.query(
+            """
+            SELECT quiz_id FROM (
+                SELECT DISTINCT ON (quiz_id) quiz_id, is_correct FROM answer.answers
+                WHERE user_id = :userId AND quiz_id IN (:quizIds)
+                ORDER BY quiz_id, answered_at DESC
+            ) latest
+            WHERE NOT is_correct
+            """,
+            mapOf("userId" to userId, "quizIds" to candidateQuizIds),
+        ) { rs, _ -> rs.getObject("quiz_id", UUID::class.java) }
+            .toSet()
+    }
+
+    override fun filterBookmarked(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> {
+        if (candidateQuizIds.isEmpty()) return emptySet()
+
+        return jdbcTemplate.query(
+            "SELECT quiz_id FROM answer.bookmarks WHERE user_id = :userId AND quiz_id IN (:quizIds)",
+            mapOf("userId" to userId, "quizIds" to candidateQuizIds),
+        ) { rs, _ -> rs.getObject("quiz_id", UUID::class.java) }
+            .toSet()
+    }
+
+    override fun tally(quizIds: List<UUID>): Map<UUID, AnswerTally> {
+        if (quizIds.isEmpty()) return emptyMap()
+
+        // テナントでは絞らない。行レベルセキュリティが、いまのテナントの回答だけを返す
+        return jdbcTemplate.query(
+            """
+            SELECT quiz_id, count(*) AS answered, count(*) FILTER (WHERE is_correct) AS correct
+            FROM answer.answers
+            WHERE quiz_id IN (:quizIds)
+            GROUP BY quiz_id
+            """,
+            mapOf("quizIds" to quizIds),
+        ) { rs, _ ->
+            rs.getObject("quiz_id", UUID::class.java) to
+                AnswerTally(answered = rs.getInt("answered"), correct = rs.getInt("correct"))
+        }.toMap()
     }
 }

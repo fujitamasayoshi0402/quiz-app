@@ -93,6 +93,7 @@ class AttemptUseCase(
             isCorrect = choiceId == key.correctChoiceId,
             correctChoiceId = key.correctChoiceId,
             explanation = key.explanation,
+            sourceUrl = key.sourceUrl,
             answeredCount = repository.findAnswers(attemptId).size,
             totalCount = attempt.quizIds.size,
         )
@@ -171,12 +172,16 @@ class AttemptUseCase(
                 correctChoiceId = key.correctChoiceId,
                 isCorrect = answers[quizId]?.isCorrect ?: false,
                 explanation = key.explanation,
+                sourceUrl = key.sourceUrl,
             )
         }
 
         return AttemptResult(
             id = attemptId,
             status = attempt.status.label(),
+            categoryId = attempt.categoryId,
+            difficultyId = attempt.difficultyId,
+            level = attempt.level,
             totalCount = attempt.quizIds.size,
             answeredCount = answers.size,
             correctCount = answers.values.count { it.isCorrect },
@@ -218,14 +223,23 @@ data class AnswerResult(
     val correctChoiceId: UUID,
     @field:Schema(description = AnswerKey.EXPLANATION_FORMAT)
     val explanation: String,
+    @field:Schema(description = SOURCE_URL_DESCRIPTION)
+    val sourceUrl: String?,
     val answeredCount: Int,
     val totalCount: Int,
 )
 
-/** 結果画面。模試モードではここで全問の解説を見せる。 */
+/**
+ * 結果画面。模試モードではここで全問の解説を見せる。
+ *
+ * 出題の範囲（[categoryId]・[difficultyId]・[level]）は、結果画面から同じ範囲で解き直すために返す。
+ */
 data class AttemptResult(
     val id: UUID,
     val status: String,
+    val categoryId: UUID?,
+    val difficultyId: UUID?,
+    val level: Int?,
     val totalCount: Int,
     val answeredCount: Int,
     val correctCount: Int,
@@ -244,7 +258,12 @@ data class QuizResult(
     val isCorrect: Boolean,
     @field:Schema(description = AnswerKey.EXPLANATION_FORMAT)
     val explanation: String,
+    @field:Schema(description = SOURCE_URL_DESCRIPTION)
+    val sourceUrl: String?,
 )
+
+private const val SOURCE_URL_DESCRIPTION =
+    "AI が技術ニュースから作り、管理者が確かめて公開したクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）"
 
 data class AttemptSummary(val id: UUID, val totalCount: Int, val answeredCount: Int)
 

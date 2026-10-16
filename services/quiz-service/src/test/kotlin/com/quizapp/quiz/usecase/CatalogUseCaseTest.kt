@@ -4,6 +4,7 @@ import com.quizapp.quiz.domain.Category
 import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.QuizStatus
+import com.quizapp.support.fake.FakeAnsweredQuizzes
 import com.quizapp.support.fake.InMemoryCategoryRepository
 import com.quizapp.support.fake.InMemoryDifficultyRepository
 import com.quizapp.support.fake.InMemoryFigureRepository
@@ -47,6 +48,7 @@ class CatalogUseCaseTest {
             InMemoryFigureRepository(),
             RecordingQuizEventOutbox(),
             UnlimitedTenantCapacity,
+            FakeAnsweredQuizzes(),
             transaction,
         )
 

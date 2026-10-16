@@ -71,6 +71,7 @@
 - `quiz-service` … クイズ / カテゴリ / 難易度の CRUD、出題
 - `answer` … 回答受付、採点、履歴、スコア。quiz-service 内のモジュールのまま、物理的には分けない（[ADR-0023](adr/0023-keep-answer-as-module-in-quiz-service.md)）
 - `notification-service` … EventBridge ルールから起動する Lambda。Slack へ通知
+- `news-quiz-drafter` … 毎日起動する Lambda。公式の技術ニュースから、Bedrock でクイズの下書きを作り、S3 に置く。quiz-service が使われたときに取り込む（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）
 - 認証は Cognito（マネージド）に寄せ、自前の auth-service は作らない
 - モジュール間（quiz と answer）は、呼ぶ側が持つインターフェースで同期に呼ぶ。イベントは、サービスの外へ出すもの（通知）に限る（ADR-0023）
   - **相手のスキーマの表に触れない。相手の型は、2 つのインターフェース（`QuizCatalog`、`AnsweredQuizzes`）に出るものだけを使う。**
@@ -99,7 +100,8 @@
 │   └── web/                 # Next.js フロントエンド
 ├── services/
 │   ├── quiz-service/        # Kotlin + Spring Boot
-│   └── notification-service/
+│   ├── notification-service/
+│   └── news-quiz-drafter/   # 技術ニュースから下書きを作る Lambda（ADR-0031）
 ├── libs/
 │   └── quiz-events/         # サービスの間で共有するイベントの型（ADR-0022）
 ├── infra/
@@ -115,7 +117,8 @@
 │   ├── adr/                 # ADR（MADR 形式）
 │   ├── architecture/        # C4 図・drawio
 │   ├── api/                 # OpenAPI
-│   └── events/              # イベントの JSON の見本
+│   ├── events/              # イベントの JSON の見本
+│   └── news-quizzes/        # 技術ニュースの下書きの JSON の見本（ADR-0031）
 └── .github/workflows/
 ```
 
@@ -211,6 +214,7 @@ pnpm --filter web lint
 | `changes` | 変更パスを見て後続を出し分ける |
 | `backend` | quiz-service。ktlint / detekt → test（Testcontainers）→ カバレッジの集計 → bootJar → イメージのビルド → 脆弱性の検査（Trivy） |
 | `notification` | notification-service（Lambda）。ktlint / detekt → test（Testcontainers の LocalStack）→ zip のビルド → 脆弱性の検査（Trivy） |
+| `news-quiz-drafter` | 技術ニュースから下書きを作る Lambda。ktlint / detekt → test（Bedrock と RSS と S3 は差し替える）→ zip のビルド → 脆弱性の検査（Trivy） |
 | `frontend` | API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → build → イメージのビルド → 脆弱性の検査（Trivy） |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりと出題・管理の流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
@@ -399,7 +403,7 @@ JaCoCo で計測し、CI のジョブサマリーに出す。**閾値でビル�
 #### スモークテスト
 
 Postman のコレクション（`tests/api/`）を Newman で流し、**デプロイした環境で主要な導線が通るか**を確かめる。
-管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → 解説図（draw.io、画像、PDF）→ 招待 → テナントの境界 → 片付け、の順に 42 本を呼ぶ。
+管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → 解説図（draw.io、画像、PDF）→ 招待 → テナントの境界 → 起こす口（dev だけ）→ 片付け、の順に 44 本を呼ぶ。
 画像と PDF は、ブラウザと同じく S3 へ直接上げる（`tests/api/fixtures/`）。
 
 スモークテストの利用者（`smoke@example.com`、Terraform の `modules/auth` が作る）でアクセストークンを取り、`Authorization` に付けて呼ぶ。
@@ -437,7 +441,8 @@ dev では、デプロイの最後に自動で流れる（[デプロイ](#デプ
 [Playwright](https://playwright.dev/) で、**権限まわりと、出題・管理の主な流れを画面から**確かめる（`tests/e2e/`）。
 ログインのあとに元の画面へ戻るか、ロールによって管理画面に入れるか、招待のリンクで招待された人だけが参加できるか。
 管理者が作って公開したクイズ（解説の画像を含む）を一般ユーザーが解き、結果と履歴で振り返れるか。途中でやめたクイズを続きから解けるか（DEV-111）。
-管理者が、影響を確かめてからテナントを公開し、非公開に戻せるか（DEV-129）。公開したテナントに、未所属の人が一覧から参加できるか（DEV-130）。未所属の人が自分のテナントを作り、クイズを作って解けるか（DEV-139）。
+管理者が、影響を確かめてからテナントを公開し、非公開に戻せるか（DEV-129）。公開したテナントに、未所属の人が一覧から参加でき、退会できるか（DEV-130、DEV-157）。管理者が、使っていない解説図を一覧から消せ、使われている図からは使っている問題の編集画面へ移れるか。編集画面で図を外して消せるか（DEV-166〜DEV-168）。未所属の人が自分のテナントを作り、クイズを作って解けるか（DEV-139）。AI が作った下書きを管理者が確かめて公開し、解く人に出典が示されるか（DEV-162）。
+見に来た人が「デモとして入る」で、ログインせずにデモのテナントのクイズを解けるか（DEV-151）。
 API の細かい仕様は JUnit、デプロイした環境のつながりはスモークテストが見る。ここは画面をまたいだ流れだけを見る。
 
 ```bash
@@ -462,9 +467,11 @@ pnpm test:e2e
 - 中断と再開は、スマホの幅（360px）で流し、各画面が横にはみ出さないことも見る（[コード](#コード)の「画面の幅」）
 - 流していないもの: draw.io で図を描く（`embed.diagrams.net` の画面に依存する）、まとめて取り込む（読み取りの規則は JUnit が見る。画面はファイルを選ぶだけ）
 - 招待される人の所属は、テストの前に外す。何度流しても、同じ状態から始まる
+- 「デモとして入る」のテストは、共有のデモのアカウント（シードの利用者）で解く。解きかけたクイズは、テストの前に消す（`fixtures.sql`）。ローカルで流すときは、`.env` に `AUTH_DEMO_USER_*` を入れる
 - 公開テナントに参加するテストは、終わったら未所属の人の所属を外し、テナントを非公開に戻す（`afterAll`）。ほかのテストが、未所属のまま・非公開のままであることを前提にしている
 - テナントを作るテストは、終わったら未所属の人が作ったテナントを消す（`afterAll`。論理削除）。途中で止まって残っても、`fixtures.sql` がテストの前に消す
 - テスト同士が状態を共有する（招待を受け入れると所属が増える）ため、並列にせず、やり直しもしない
+- **ダイアログを閉じたら、`toBeHidden()` で消えきるのを待ってから次を押す**（DEV-143）。閉じる動きの間（約 100ms）はダイアログの外が隠れたままで、同じ名前のボタンを探すと閉じかけのダイアログの中のものを押してしまう
 - **パスワードを入力するプロジェクト（setup と login）では、トレースもスクリーンショットも残さない。**
   トレースにも、失敗したときの画面の記録（アクセシビリティのツリー）にも入力した値が残り、CI の成果物は公開リポジトリでは誰でも取り出せる。
   CI が保存するのは、保存した Cookie を使うテスト（e2e のプロジェクト）の結果だけ。ログインの操作が失敗したときは、パスワードの欄を空にしてから失敗させる
@@ -478,14 +485,16 @@ CI では `e2e` ジョブが、バックエンドか画面か E2E に関わる�
 | `AUTH_CLIENT_ID` | variable | `terraform output -raw auth_client_id` |
 | `AUTH_CLIENT_SECRET` | secret | `terraform output -raw auth_client_secret` |
 | `E2E_USER_PASSWORD` | secret | `terraform output -raw e2e_user_password` |
+| `DEMO_USER_PASSWORD` | secret | `terraform output -raw demo_user_password`。「デモとして入る」（ADR-0029）のため、docker compose の web に渡す |
 
-**Dependabot の PR には、リポジトリの secret が渡らない**（変数は渡る）。上の 2 つの secret は、Dependabot の secret にも同じ値を置く。
+**Dependabot の PR には、リポジトリの secret が渡らない**（変数は渡る）。上の 3 つの secret は、Dependabot の secret にも同じ値を置く。
 無いと、Dependabot の PR で `e2e` が落ち、マージできない。
 
 ```bash
 cd infra/terraform/envs/dev
 terraform output -raw auth_client_secret | gh secret set AUTH_CLIENT_SECRET --app dependabot
 terraform output -raw e2e_user_password | gh secret set E2E_USER_PASSWORD --app dependabot
+terraform output -raw demo_user_password | gh secret set DEMO_USER_PASSWORD --app dependabot
 ```
 
 #### 負荷試験
@@ -560,7 +569,7 @@ UPDATE_EVENT_SAMPLES=true ./gradlew :services:quiz-service:test --tests '*QuizEv
 
 - **拾い直しは、いつも動かさない。** 定期的に DB へ接続すると、Aurora が一時停止しなくなる（min 0 ACU）。
   利用者を特定できた要求（毎回 DB から利用者を引く）があってから、5 分だけ動く。拾い直し自身が DB を使っても数えない
-- **起動したときには拾わない。** 夜間の停止の明け（8:00）に、毎朝 Aurora を起こさない
+- **起動したときには拾わない。** 止まっていたタスクを起こすたびに、Aurora まで起こさない
 - そのため、送れなかったものは**次に誰かが使うまで遅れる。** 通知は急がないため、受け入れている（ADR-0022）
 - 拾い直しは `app.outbox_relay` を立て、`FOR UPDATE SKIP LOCKED` で読む。デプロイの入れ替え中にタスクが 2 つあっても、同じ行を送らない。それでも重なったものは、受け手がイベントの ID で捨てる
 - 拾い直しは、送ってから 7 日たった行を消す。送れていない最も古い行の経過時間をログに出し、3 分を超えるとアラームが鳴る（[アラーム](#アラーム)）
@@ -720,9 +729,9 @@ Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SEC
 
 | 種類 | `demo`（デモ） | `geo-club`（地理の勉強会） |
 | --- | --- | --- |
-| カテゴリ | AWS / インフラ、認証認可、イベント駆動設計、Web アプリの技術スタック | 世界の首都 |
+| カテゴリ | AWS / インフラ、認証認可、イベント駆動設計、Web アプリの技術スタック、AWS の最新情報（AI の下書きの入れ先。シードではクイズを入れない） | 世界の首都 |
 | 難易度 | カテゴリごとに体系が異なる。AWS は同じレベルに SAA / DVA が並ぶ | 1 つ |
-| クイズ | 公開 47 問、下書き 1 問。解説は Markdown（箇条書き・表・コード） | 公開 3 問 |
+| クイズ | 公開 11 問（各カテゴリの見本）、下書き 1 問。解説は Markdown（箇条書き・表・コード） | 公開 3 問 |
 
 2 つ目のテナントは、テナントの選択と、テナントごとにロールが違うことを見せるためにある。
 利用者は所属の数が 0 / 1 / 2 の 3 人で、`/` の出し分けをすべて試せる（[最初の管理者](#最初の管理者)の表）。
@@ -824,6 +833,10 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
   proxy が `Origin` を、利用者から見たオリジン（`appOrigin`）と比べ、違えば 403 を返す。`Origin` が無ければ `Sec-Fetch-Site` で決める。
   Cookie の `SameSite=Lax` だけでは、同じドメインの別のサブドメインからの要求に Cookie が付く。どちらも無い要求はブラウザからではないとして通す（スモークテスト）
 - ログインのセッションが無い要求は、`Authorization` をそのまま渡す。スモークテストのように、トークンを自分で取る呼び出し元のため
+- **「デモとして入る」（`POST /auth/demo`）は、web のサーバーが共有のデモのアカウントのパスワードで Cognito にログインする**（[ADR-0029](adr/0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md)。`lib/auth/demo.ts`）
+  - 取ったトークンはサーバーのメモリに持ち、押した人みんなに配る。残りが 15 分を切ったら取り直す。連打されても Cognito のログインの回数の上限（120 件/秒、アカウントで共有）を使わない
+  - セッションには共有の印を付け、ログアウトでリフレッシュトークンを失効させない。失効させると、同じトークンを持つほかの人のセッションも延ばせなくなる
+  - パスワードは環境変数 `AUTH_DEMO_USER_EMAIL` と `AUTH_DEMO_USER_PASSWORD` で渡す。dev は Terraform（`modules/web`）、ローカルは `.env`。無ければ `/auth/demo` は 404 で、入口も出さない
 - ログインが要る画面（`/t/...`、`/invitations/...`）を未ログインで開くと、proxy が**開こうとしたパスとクエリ**を戻り先にしてログインへ移す。
   レイアウトは開いているパスを知らないため、そこで戻り先を決めると、テナントのトップにしか戻せない
 
@@ -941,7 +954,7 @@ README のデモの URL（dev の web）だけは、見に来た人が開くた�
 - web のクライアントのスコープは `openid email aws.cognito.signin.user.admin`。最後のものは、バックエンドが確認済みのメールアドレスを取る（`GetUser`）ために要る。
   このスコープのトークンは自分の属性を書き換えられるが、トークンはブラウザに渡らない
 - スモークテストの利用者（`smoke@example.com`）も Terraform が作る。パスワードは `terraform output -raw smoke_user_password`
-- 見に来た人が試すための、共有のデモのアカウント（`demo@example.com`）も同じ。**パスワードは公開する前提**で、`terraform output -raw demo_user_password`。
+- 見に来た人が試すための、共有のデモのアカウント（`demo@example.com`）も同じ。**パスワードは公開する前提**で、`terraform output -raw demo_user_password`。web にも渡し、「デモとして入る」で使う（[フロントエンド](#フロントエンド)）。
   README に載せている。パスワードを作り直したら、README も直す。
   `example.com` は誰も受け取れないので、パスワードを忘れた人の手続き（確認コード）で乗っ取られることはない
 - E2E テストの利用者（`e2e-*@example.com` の 4 人）も同じ。パスワードは全員で共通で、`terraform output -raw e2e_user_password`（[E2E テスト](#e2e-テスト)）
@@ -1026,7 +1039,7 @@ TF_VAR_github_access_token=<トークン> terraform apply
     HTTP API には WAF も付けられない
   - 認証の後、テナントの所属を確かめる前に数える。超えた要求で、所属を DB に問い合わせない。アクセストークンのない要求（401）は数えず、全体の上限で受ける
   - 数えるのはタスクのメモリ。デプロイの入れ替えの間はタスクが 2 つになり、上限も 2 倍になる。タスクを増やすときは、共有の置き場所（DynamoDB など）に替える
-  - テストでは止めている（`app.rate-limit.enabled`）。上限そのものは `RateLimitApiTest` が、上限を小さくして確かめる
+  - テストと、docker compose の一式（E2E を流す）では止めている（`app.rate-limit.enabled`）。どちらも同じ利用者で要求を続けて送り、上限に当たる。上限そのものは `RateLimitApiTest` が、上限を小さくして確かめる
 - TLS は 1.2 / 1.3（HTTP API で選べるのは `TLS_1_2` のポリシーだけ）。証明書は ACM が DNS 検証で自動更新する
 - アクセスログは CloudWatch Logs の `/aws/apigateway/quiz-app-dev`。**パスは残さない。** 招待を受け入れる API のパスにはトークンが入る
 - **タスクの状態は、コンテナのヘルスチェック（中から `curl` でアクチュエータを叩く）で決まる。** 通るまで Cloud Map で UNHEALTHY のままで、API Gateway は要求を送らない。
@@ -1041,11 +1054,32 @@ TF_VAR_github_access_token=<トークン> terraform apply
 - ログは CloudWatch Logs の `/ecs/quiz-app-dev/quiz-service`（`app/` と `migrate/`）。JSON で出し、14 日で消える（[ログ](#ログquiz-service)）
 - タスクには、分散トレースのコレクタ（`otel-collector`、メモリ 128 MB まで）も入る（[分散トレース](#分散トレース)）
 - 起動に失敗したら、前のタスク定義に自動で戻る（デプロイサーキットブレーカー）
-- **深夜（2:00〜8:00、日本時間）は止める。** EventBridge Scheduler がタスクの数を 0 にし、朝に 1 に戻す（`schedule.tf`）。
-  止まっている間、API は API Gateway が 503 を返し（送り先のタスクがない）、画面には「サーバーが止まっているか、起動の途中です」と出る。
-  タスクの数は Terraform では無視している。夜に apply しても起動しない
+- **使われなくなったら止める**（DEV-153。`idle_stop.tf`）。API への要求が 30 分ないと、CloudWatch のアラーム（`quiz-app-dev-quiz-service-idle`）が ALARM になり、
+  EventBridge から Step Functions がタスクの数を 0 にする。入れ替えの途中（デプロイ）なら止めない。朝に戻すことはせず、使うときに起こす。
+  **起動してから 30 分たっていないタスクは、すぐには止めない。** 残りの時間だけ待ち、アラームがまだ ALARM なら止める。
+  アラームは最後の要求から数えるため、最後の要求から間もないうちに起こすと（深夜の停止の直後など）、起こしてすぐに止まってしまう（DEV-153 で起きた）。
+  深夜 2:00（日本時間）にも止める（`schedule.tf`）。起こしたまま一度も使わないと、アラームの状態が変わらず止まらないため、その拾い直し。
+  止まっている間、API は API Gateway が 500 か 503 を返し（送り先のタスクがない。どちらになるかは選べない）、画面には「サーバーが止まっているか、起動の途中です」と出る。
+  画面は、ProblemDetail でない 500 / 503 をこれとみなす（DEV-148）。そのため、**アプリのエラーは、想定していない例外や無いパスも含めて、すべて ProblemDetail で返す**（`ProblemErrorController`）
+  タスクの数は Terraform では無視している。apply しても起動しない
+- 使われていないアラームは、通知につないでいない。ALARM がふつうの状態で、異常ではない。止めたかどうかと理由は、Step Functions のログ（`/aws/vendedlogs/states/quiz-app-dev-quiz-service-idle-stop`）に出る
 
-止まっている間に使うときは、手で起動する。次の停止の時刻（2:00）にまた止まる。
+止まっている間に使うときは、画面の「サーバーを起動する」を押す（DEV-154。`wake.tf`）。止まっているときの案内（`ApiErrorAlert`）の中に出る。
+API が使えるまで約 2.5 分かかる（DEV-153 で測った）。使い終わって 30 分たつと、また止まる。
+
+```
+画面「サーバーを起動する」→ web の proxy（アクセストークンを付ける）→ API Gateway の POST /api/wake
+  → JWT の認可（Cognito。発行者と web のクライアント）→ Step Functions → 止まっていれば ECS の UpdateService（タスク数 1）
+画面は 10 秒おきに /api/me/tenants を読み、バックエンドに届いたら読み込みをやり直す（5 分で諦める）
+```
+
+- タスクが止まっていても届くよう、API Gateway が Step Functions を直接起動する。quiz-service を通らず、Lambda もない
+- **ログインした人なら誰でも起こせる。** 誰でもサインアップできるため、絞っても意味が薄い。起こしても、使われなければ止まる
+- 何度押されても、タスクは 1 つより増えない。流量の上限はほかの API より低い（1 件/秒、バースト 5）
+- 起こす口は dev にだけある。ローカルと prod でボタンを押すと、「起動できませんでした」と出る
+- 電話から起こすとき（DEV-152）も、同じステートマシンを呼ぶ
+
+手で起動するときは、次のコマンドを使う。
 
 ```bash
 aws ecs update-service --cluster quiz-app-dev --service quiz-service --desired-count 1
@@ -1169,6 +1203,34 @@ fields @timestamp, log.level, message, integrity.rule, tenant.id, integrity.subj
 | sort @timestamp desc
 ```
 
+#### 技術ニュースからの下書き
+
+AI（Bedrock）が AWS の What's New から作ったクイズの下書きを、quiz-service がデモのテナントに取り込む（DEV-161。[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)。`quiz/infrastructure/newsquiz/`）。
+下書きを作って S3 の受け箱（`inbox/`）に置くのは Lambda（`news-quiz-drafter`）で、quiz-service は読むだけ。
+
+- **利用者が DB を使ってから 5 分の間に、前に見てから 1 時間たっていれば受け箱を見る。** Outbox の拾い直しやデータの整合性の確認と同じく、Aurora を起こさない
+- 入れる先（テナント、カテゴリ、難易度）は設定（`app.news-quizzes.*`）の名前で指す。カテゴリと難易度はシードが作る
+- **下書きとして入れ、元にした発表の URL（`quiz.quizzes.source_url`）を持たせる。** 取り込みの API と同じユースケースを通すので、決まりと問題文の重複もそこで確かめる
+- AI の下書きは、そのまま公開できる形（選択肢 4 つ、正解 1 つ、解説あり）で、出典が `https://aws.amazon.com/` の下のものだけを受け付ける。満たさないもの、読めないもの、同じ問題文のものは、ログに残して捨てる
+- 確かめていない AI の下書きが 30 件あれば、取り込まずに受け箱に残す
+- 受け箱の形は `docs/news-quizzes/draft.json` の見本に固定する。読めることは `NewsQuizDraftSampleTest` が確かめる
+- **既定では止めている**（`app.news-quizzes.enabled`）。dev だけで、タスク定義の環境変数（`NEWS_QUIZZES_ENABLED`、`NEWS_QUIZZES_BUCKET`）で動かす
+
+確かめて公開するのは、管理画面のふつうのクイズの編集で行う（DEV-162）。AI の下書きのための画面や API は分けない。
+
+- 管理の一覧は、出典の URL（`sourceUrl`）を返し、作った人で絞り込める（`aiGenerated`）。画面は「AI」の印を付ける
+- 編集の画面は、AI が作ったことと、元の発表へのリンクを出す。**出典の URL は、直しても公開しても変わらない。** 更新の要求では受け取らない
+- 解く人には、採点の結果と結果の画面で、AI が作って管理者が確かめたことと、元の発表へのリンクを出す（`components/play/parts.tsx` の `AiSourceNote`）。
+  解説の最後の出典のリンクは管理者が消せるため、別に出す。出題の時点では返さない
+
+取り込んだかどうかは、ロググループ `/ecs/quiz-app-dev/quiz-service` を Logs Insights で見る。
+
+```
+fields @timestamp, message, news_quizzes.imported, news_quizzes.discarded
+| filter message like /技術ニュースの下書き/
+| sort @timestamp desc
+```
+
 #### アラーム
 
 異常は、メールで知らせる（DEV-108）。送り先は環境に 1 つの SNS のトピック（`modules/alarms`）で、アドレスは `terraform.tfvars` の `alarm_email`。
@@ -1181,16 +1243,17 @@ fields @timestamp, log.level, message, integrity.rule, tenant.id, integrity.subj
 | `quiz-app-dev-quiz-service-outbox-stuck` | Outbox に 3 分以上送れていないイベントがある | アプリのログの「イベントを送れませんでした」で理由を見る。送れるようになれば、拾い直しが送る |
 | `quiz-app-dev-quiz-service-integrity-violations` | データの整合性が崩れている（1 件でも。[データの整合性](#データの整合性)） | アプリのログの「データの整合性が崩れています」で、決まり（`integrity.rule`）、`tenant.id`、対象の ID（`integrity.subject_id`）を見る |
 | `quiz-app-dev-notification-dlq-not-empty` | 通知が DLQ に入った（[通知](#通知notification-service)） | DLQ の中身と、Lambda のログ |
+| `quiz-app-dev-news-quiz-drafter-errors` | 技術ニュースから下書きを作る Lambda が失敗した（[技術ニュースの下書き](#技術ニュースの下書きnews-quiz-drafter)） | Lambda のログ。その日は作られない |
 | タスクの停止（EventBridge のルール） | quiz-service のタスクが落ちた、起動に失敗した、ヘルスチェックに落ちた | メールの理由と、`/ecs/quiz-app-dev/quiz-service` の止まる前のログ |
 
 数えるものの多くは、アプリが JSON で出すログ（[ログ](#ログquiz-service)）から、メトリクスフィルタで作る（`modules/quiz-service` の `alarms.tf`）。
 **ログの項目の名前（`http.response.status_code`、`outbox.oldest_unpublished_seconds`、`integrity.violations`）を変えると、アラームが黙って鳴らなくなる。**
 
-**誤報を出さない。** 夜間の停止、デプロイの入れ替え、止まっている Aurora の復帰は、ふつうに起きる。
+**誤報を出さない。** 使われていないときと夜間の停止、デプロイの入れ替え、止まっている Aurora の復帰は、ふつうに起きる。
 
-- **API Gateway の 5xx の率は使わない。** 夜間の停止中は、送り先のタスクがなく 503 が返る。アプリの 5xx と、API Gateway の 502 / 504 を分けて数え、503 は数えない。昼にタスクがなくなったことは、タスクの停止で分かる
+- **API Gateway の 5xx の率は使わない。** 止まっている間は、送り先のタスクがなく 500 か 503 が返る。アプリの 5xx と、API Gateway の 502 / 504 を分けて数え、500 と 503 は数えない。昼にタスクがなくなったことは、タスクの停止で分かる
 - 止まっている Aurora の復帰が 30 秒を超えると、504 が 1 回出て画面が再試行する。5 分で 3 回からにして、これでは鳴らさない
-- タスクの停止は、ECS が自分で止めたもの（デプロイの入れ替え、夜間の停止）とマイグレーションの単発タスクを除く。絞り込みは、本物の EventBridge で確かめた（`aws events test-event-pattern`）
+- タスクの停止は、ECS が自分で止めたもの（デプロイの入れ替え、使われていないときと夜間の停止）とマイグレーションの単発タスクを除く。絞り込みは、本物の EventBridge で確かめた（`aws events test-event-pattern`）
 - データが無い時間（使われていない、夜間）は、異常とみなさない
 - Outbox の閾値は、拾い直しが動く時間（利用者が DB を使ってから 5 分）より短くする。長いと、測れないうちに拾い直しが止まる
 
@@ -1233,9 +1296,9 @@ terraform output -raw dashboard_url
 
 ふつうに見える形。異常と取り違えない。
 
-- **夜間（2:00〜8:00）は、タスクの数が 0 になり、ECS の線が途切れる**（[ECS](#ecsquiz-service)）
+- **使われていないときと深夜は、タスクの数が 0 になり、ECS の線が途切れる**（[ECS](#ecsquiz-service)）
 - **Aurora の ACU は、使われないと 0 になる**（一時停止）。使い始めの要求は、タスクの p95 が数秒〜20 秒ほどに跳ねる。復帰を待っている
-- API Gateway の 5xx には、夜間の停止中の 503 が入る。アプリの不具合はアプリの 5xx で見る
+- API Gateway の 5xx には、止まっている間の 500 / 503 が入る。アプリの不具合はアプリの 5xx で見る
 - EventBridge に送った数は、バスごとには出ない（アカウントで 1 つ）。いま送るのは quiz-service だけ
 
 載せていないもの。
@@ -1288,6 +1351,8 @@ terraform output -raw dashboard_url
 - アプリのロールは、バケットの一覧（ListBucket）も持つ。一覧の権限がないと、S3 は無いオブジェクトを 404 ではなく 403 で返し、
   「まだ上がっていない」と見分けられない
 - **図は変えない。** 描き直した図は新しい ID になる。キャッシュを無効にする操作は要らない
+- 図は、管理画面の図の一覧か、クイズの編集画面（解説から外して、保存したときに消す。DEV-168）から消す（DEV-165、DEV-166）。**公開中・下書きの問題が解説で使っている図は、消せない**（409）。
+  ゴミ箱の問題だけが使っている図は消せ、その問題はゴミ箱から戻せなくなる（`RestoreObstacle.MISSING_FIGURE`）。データの整合性の決まり（`missing-figure`）を、操作で崩さないため
 - **消した図は、7 日の間、前の版が残る**（バケットの版。DEV-117）。Aurora をバックアップから戻すと、戻した行が後から消した図を指すことがあるため。
   Aurora の保持（1 日）より長く残す。図は消すとき以外に書き換えないので、増える費用はほとんどない
 - 署名の秘密鍵は Terraform が作り、SSM Parameter Store（SecureString）に置く。アプリのタスクに ECS の `secrets` で渡す
@@ -1426,6 +1491,44 @@ aws --endpoint-url http://localhost:4566 logs tail /aws/lambda/quiz-app-local-no
 - 本当に Slack へ送るときは、`SLACK_DELIVERY=send` を付けてスクリプトを流す
 - LocalStack は、Lambda に自分を指す `AWS_ENDPOINT_URL` を渡す。関数のコードは接続先を持たず、SDK がこれを読む
 
+#### 技術ニュースの下書き（news-quiz-drafter）
+
+`modules/news-quiz-drafter` で作る（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)、DEV-161）。コードは `services/news-quiz-drafter`（Kotlin、Spring は使わない）。
+
+```
+EventBridge Scheduler（毎日 7:00、日本時間）→ Lambda（Java 21 / arm64 / 512 MB）
+  ├ AWS の What's New の RSS を読む（見出しと説明だけ。DTD は読まない）
+  ├ Bedrock（Haiku 4.5、グローバルの推論プロファイル）: 選ぶ → 書く → 確かめる。答えは道具（tool）の入力として JSON で受け取る
+  └ S3（quiz-app-dev-news-quizzes）の inbox/ に置く。読んだ発表は state/seen.json に 30 日残す
+quiz-service が、使われたときに inbox/ を読んで取り込む（[技術ニュースからの下書き](#技術ニュースからの下書き)）
+```
+
+- **Bedrock を呼べるのは、この関数のロールだけ。** モデルは Haiku 4.5 の推論プロファイルに限る
+- 1 回に最大 3 件。受け箱に 30 件たまっていれば、Bedrock を呼ばずに終わる
+- 失敗しても、やり直さない（Scheduler も Lambda の非同期呼び出しも 0 回）。アラームが鳴り、次の日に前の回より新しい発表から作る
+- 解説の最後の出典のリンクは、AI に書かせずにコードで足す
+- 1 回の費用は、ログの「Bedrock n 回（入力 n、出力 n トークン）」で確かめる。Haiku 4.5 は 100 万トークンあたり入力 1 ドル、出力 5 ドル
+- Anthropic のモデルは、アカウントで一度、利用目的（use case）の届け出が要る。無いと `Model use case details have not been submitted` で失敗する
+- **コードは Terraform では載せ替えない。** 関数を作るときにだけ zip を読む（`./gradlew :services:news-quiz-drafter:buildZip` を先に流す）。
+  以後は、develop へのマージでデプロイが載せる（[デプロイ](#デプロイ)、DEV-163）
+- 同時に動くことは止めていない。アカウントの Lambda の同時実行の上限が 10 で、1 つも予約できないため（DEV-163）。
+  手で起動した回が毎日の回と重なると、同じ発表から下書きが 2 つでき、Bedrock の費用も重なる。7:00 の前後に手で起動しない
+
+```bash
+cd infra/terraform/envs/dev
+FUNCTION=$(terraform output -raw news_quiz_drafter_function_name)
+
+# 手で 1 回動かす（Bedrock を呼ぶ）。結果はログに出る
+aws lambda invoke --function-name "$FUNCTION" --payload '{}' --cli-binary-format raw-in-base64-out /dev/stdout
+aws logs tail "/aws/lambda/$FUNCTION" --since 10m
+
+# 初期化できるかだけを確かめる（Bedrock は呼ばない）
+aws lambda invoke --function-name "$FUNCTION" --payload '{"check":true}' --cli-binary-format raw-in-base64-out /dev/stdout
+
+# 受け箱の中身
+aws s3 ls "s3://$(terraform output -raw news_quizzes_bucket_name)/inbox/"
+```
+
 #### デプロイ
 
 develop にマージすると、CI（`ci.yml`）のチェックが通ったあとに、`deploy.yml` が dev に載せる
@@ -1433,7 +1536,8 @@ develop にマージすると、CI（`ci.yml`）のチェックが通ったあ�
 
 ```
 notification-service（zip を作る → 関数に載せる → 1 度呼んで確かめる）
-→ イメージを作る（arm64）→ ECR に push → マイグレーション（単発タスク。変更があるときだけ）→ サービスの入れ替え → web のビルド（Amplify）→ スモークテスト
+→ イメージを作る（arm64）→ ECR に push → マイグレーション（単発タスク。変更があるときだけ）→ サービスの入れ替え
+→ news-quiz-drafter（zip を作る → 関数に載せる → 1 度呼んで確かめる。dev だけ）→ web のビルド（Amplify）→ スモークテスト
 ```
 
 - **dev で動いているものと比べて、変わったほうだけを載せる**（DEV-79）。動いているもののコミットから develop の先頭までに、
@@ -1450,6 +1554,10 @@ notification-service（zip を作る → 関数に載せる → 1 度呼んで�
   - **確かめるのに失敗しても、前のコードには戻らない。** その間に届いたイベントは再試行のあと DLQ に入り、メールが届く。
     直したものが載ったら、アーカイブから流し直す。dev だけのため、版とエイリアスで切り替える仕組みは入れていない
   - 失敗したときはタグを書かない。次のデプロイが、直したものを載せ直す
+- **news-quiz-drafter は、`news-quiz-drafter` のパスが変わったときだけ載せる**（DEV-163）。載せ方とコミットの残し方は notification-service と同じ（`.github/scripts/deploy-lambda.sh`）
+  - **quiz-service の後に載せる。** 受け箱の下書きを読む側を、先に替える
+  - 確かめるときは `{"check":true}` で呼ぶ。初期化できることだけを確かめて返り、RSS も Bedrock も呼ばない
+  - **関数は dev にだけある**（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）。prod では、`drafter=deploy` を指定しても載せない
 - **マイグレーションは、DB に流れるもの（`migration` のパス）が変わったときだけ流す**（DEV-88）。変わっていなければ、単発タスクを飛ばす（約 1.6 分）。
   飛ばしたかどうかは、デプロイのジョブのサマリーに出る
   - 比べる相手は、quiz-service の動いているもののコミット。**そのコミットまでのマイグレーションは、流し終わっている。**
@@ -1462,13 +1570,14 @@ notification-service（zip を作る → 関数に載せる → 1 度呼んで�
   **Terraform で形（環境変数など）を変えたら、デプロイを手で流して反映する**（コミットが同じでも載せるよう、`backend=deploy` を指定する）。
   マイグレーションのタスク定義の形を変えたときは、`migration=run` も付ける。付けないと、DB に流れるものが同じなので飛ばす
 - 後から始まったデプロイは、先のものが終わるまで待つ。途中で止めない
-- **夜間の停止中にデプロイすると、1 つ起動してから載せる。** 止めたままでは、スモークテストで確かめられないため。
-  次の停止の時刻にまた止まる
+- **止まっている間にデプロイすると、1 つ起動してから載せる。** 止めたままでは、スモークテストで確かめられないため。
+  web だけを載せるときも、スモークテストの前に起こし、API が答えるまで待つ（DEV-153。web だけのデプロイで、止まった API に当たって落ちた）。
+  起こしたものは、使われなければまた止まる
 - 失敗すると GitHub から通知が届く。マイグレーションのログは CloudWatch Logs の `migrate/quiz-service/<タスク ID>` にある
 - イメージのタグはコミットの SHA（先頭 12 桁）。ECR には直近 10 個が残る
 - マージから載り終えるまで約 9 分（イメージ 2 分、quiz-service 5 分、web 2 分）。起動に失敗して前のリビジョンに戻るときは、失敗が分かるまで 15 分ほどかかる
 
-手で流すとき（形を変えたあと、失敗をやり直すときなど）。`backend`、`frontend`、`notification` は `auto`（動いているものと比べる）/ `deploy`（必ず載せる）/ `skip`（載せない）、
+手で流すとき（形を変えたあと、失敗をやり直すときなど）。`backend`、`frontend`、`notification`、`drafter` は `auto`（動いているものと比べる）/ `deploy`（必ず載せる）/ `skip`（載せない）、
 `migration` は `auto` / `run`（必ず流す）を指定できる。
 
 ```bash
@@ -1476,6 +1585,7 @@ gh workflow run deploy.yml --ref develop                                     # �
 gh workflow run deploy.yml --ref develop -f backend=deploy -f frontend=skip  # quiz-service だけを載せ直す（形を変えたあと）
 gh workflow run deploy.yml --ref develop -f backend=deploy -f frontend=skip -f migration=run  # マイグレーションも流し直す
 gh workflow run deploy.yml --ref develop -f backend=skip -f frontend=skip -f notification=deploy  # notification-service だけを載せ直す
+gh workflow run deploy.yml --ref develop -f backend=skip -f frontend=skip -f drafter=deploy  # news-quiz-drafter だけを載せ直す
 ```
 
 GitHub Actions が使えないときは、手元から同じスクリプトで流せる。
@@ -1492,15 +1602,22 @@ docker push "$REPO:$TAG"
 
 # notification-service
 (cd ../../../.. && ./gradlew :services:notification-service:buildZip)
-../../../../.github/scripts/deploy-notification-service.sh "$(terraform output -raw notification_function_name)" \
-  ../../../../services/notification-service/build/distributions/notification-service.zip "$(git rev-parse HEAD)"
+../../../../.github/scripts/deploy-lambda.sh "$(terraform output -raw notification_function_name)" \
+  ../../../../services/notification-service/build/distributions/notification-service.zip "$(git rev-parse HEAD)" \
+  '{"detail-type":"DeployCheck","detail":{}}' notification-service
+
+# news-quiz-drafter
+(cd ../../../.. && ./gradlew :services:news-quiz-drafter:buildZip)
+../../../../.github/scripts/deploy-lambda.sh "$(terraform output -raw news_quiz_drafter_function_name)" \
+  ../../../../services/news-quiz-drafter/build/distributions/news-quiz-drafter.zip "$(git rev-parse HEAD)" \
+  '{"check":true}' news-quiz-drafter
 ```
 
 **GitHub Actions は OIDC でロールを引き受ける。アクセスキーは使わない**（`modules/deploy-role`）。
 
 - 引き受けられるのは、このリポジトリの Environment `dev` で動くジョブだけ。`dev` は develop からしか使えない（GitHub の設定）
 - ロールにできるのは、ECR への push、2 つのタスク定義の登録、マイグレーションの起動、サービスの更新、Amplify のビルドの起動、
-  notification-service の関数のコードの載せ替え（と、確かめるための呼び出し、`DeployedCommit` のタグ）だけ。ほかの Lambda には触れない
+  notification-service と news-quiz-drafter（dev だけ）の関数のコードの載せ替え（と、確かめるための呼び出し、`DeployedCommit` のタグ）だけ。ほかの Lambda には触れない
 - OIDC のプロバイダはアカウントに 1 つだけ作れる。`infra/terraform/account` に置いている
 
 Environment `dev` には、次を置く。値は Terraform の出力から入れる。
@@ -1544,6 +1661,8 @@ develop → main の PR（タイトルは「release: <内容>」）→ CI → �
 3. マージすると、main の CI が通ったあと、`deploy-prod` が Environment `prod` の承認を待つ。Actions の画面で、載せるコミットを確かめて承認する
 4. 載せ終わると、リリース（`release-<日時>` のタグと、前のリリースからの PR の一覧）ができる。何も載せなかった（ドキュメントだけ）ときは作らない
 
+承認から載せ終わるまで 11〜13 分（DEV-135 で測った）。最初のリリースの内訳は、notification-service 1.5 分、イメージ 2 分、マイグレーションと quiz-service 6 分、web 3 分、スモークテスト 30 秒。
+
 - **Environment `prod` は main からだけ使える。** develop や PR のジョブは、prod のロールを引き受けられない（`modules/deploy-role` の信頼の条件が Environment で絞る）
 - prod を手で流すときは `gh workflow run deploy.yml --ref main -f environment=prod`。これも承認を待つ。手で流したときは、リリースを作らない
 - **Terraform の変更を含むリリースは、main にマージしたあと、承認する前に apply する。** prod の apply は main から行う（[prod](#prod)）
@@ -1578,8 +1697,8 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | 名前 | `quiz-app-dev` | `quiz-app-prod` |
 | web / API / 図 | `dev.<ドメイン>` / `api.dev.<ドメイン>` / `figures.dev.<ドメイン>` | `quiz.<ドメイン>` / `api.quiz.<ドメイン>` / `figures.quiz.<ドメイン>` |
 | VPC | `10.0.0.0/16` | `10.1.0.0/16` |
-| Aurora | 止まるまで 30 分、バックアップ 1 日、削除保護なし | 止まるまで 60 分、バックアップ 7 日、削除保護と最終スナップショット |
-| ECS | 夜間（2:00〜8:00）に止める | 止めない |
+| Aurora | 止まるまで 30 分、バックアップ 1 日、削除保護なし | 止まるまで 15 分、バックアップ 7 日、削除保護と最終スナップショット |
+| ECS | 0.5 vCPU / 1 GB。使われなくなったら止める（深夜 2:00 にも止める） | 0.25 vCPU / 1 GB。夜間も止めない。公開までは止めてある |
 | ログ | 14 日 | 30 日 |
 | 消した図を残す日数 | 7 日 | 14 日 |
 | Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテストだけ |
@@ -1588,7 +1707,16 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 
 - **apply は main から行う。** prod には、リリースしたものと同じ形だけを流す
 - `terraform.tfvars` は dev と同じ項目（`domain_name`、`quiz_service_image_tag`、`alarm_email`）。書き方は `envs/prod/terraform.tfvars.example`
-- 公開までは動かさない（ADR-0024 の B-1）
+- **公開までは、quiz-service のタスクの数を 0 にしてある**（ADR-0024 の B-1、DEV-135）。タスクの数は Terraform が無視するため、CLI で変える
+
+  ```bash
+  aws ecs update-service --cluster quiz-app-prod --service quiz-service --desired-count 0   # 止める
+  aws ecs update-service --cluster quiz-app-prod --service quiz-service --desired-count 1   # 動かす
+  ```
+
+- **リリースすると、止めていても 1 つ起動する。** スモークテストで確かめるため、デプロイが起動してから載せる（[デプロイ](#デプロイ)）。公開までは、リリースのあとに 0 に戻す
+- 止めている間、API は API Gateway が 500 を返す（送り先のタスクがない）。web は Amplify にあるので開ける
+- 止めている間も続く費用は、月に 1〜2 ドル（Cloud Map のホストゾーン、Secrets Manager、Aurora のストレージ、ECR のイメージ）。Aurora は使われなければ 60 分で一時停止する
 
 #### state のバケットを作り直すとき
 
@@ -1628,13 +1756,15 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
   - 一時停止しないときは、`DatabaseConnections` と RDS のイベント（クラスタ単位の「Initiated pause / resume」）を見る。
     接続の中身は Data API で `pg_stat_activity` を読むと分かる。`rdsadmin` の接続は一時停止を妨げない
 - 通知は Lambda（イベント時のみ課金）で実装し、常駐サービスを増やさない
-- 開発環境の ECS タスクは深夜（2:00〜8:00）に止める（[ECS](#ecsquiz-service)）。タスクとそのパブリック IP の費用が、月に約 5 ドル減る
-  - Lambda は挟まず、EventBridge Scheduler から ECS の UpdateService を直接呼ぶ。タスクの数を変えるだけで、判断することがない
-  - 止まっている間にデプロイしたときは、デプロイが起動する。夜に作業しているなら、動いていてほしいため
+- 開発環境の ECS タスクは、使われなくなったら止める（[ECS](#ecsquiz-service)、DEV-153）。以前は深夜（2:00〜8:00）だけ止めていた。
+  直近 30 日の dev の費用は約 15 ドルで、ECS とタスクのパブリック IP が半分を占めていた
+  - 止めるのは、要求が 30 分ないとき。画面を読んだり解説を書いたりしている間に止まらない長さ（Aurora の一時停止と同じ）
+  - Lambda は挟まず、Step Functions から ECS の UpdateService を直接呼ぶ。判断は「デプロイの途中なら止めない」「起動したばかりなら待ってから確かめ直す」だけで、コードを書くほどではない
+  - 止まっている間にデプロイしたときは、デプロイが起動する。載せたものが動くかを確かめるため
 
 止めても課金が続くものがある。dev の月額の目安（東京リージョン、1 か月 730 時間）。
 
-| 費用 | 月額 | 深夜の停止 |
+| 費用 | 月額 | 止めている間 |
 | --- | --- | --- |
 | API Gateway（HTTP API） | 100 万リクエストあたり約 1.3 ドル。dev の量ではほぼ 0 | — |
 | EventBridge（カスタムバス、アーカイブ） | 100 万件あたり 1 ドル。アーカイブは GB あたり 0.1 ドル。dev の量ではほぼ 0 | — |
@@ -1642,17 +1772,32 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | Secrets Manager（Aurora のマスター） | 0.4 ドル | 続く |
 | 解説図（S3、CloudFront、SSM のパラメータ、us-east-1 の証明書） | ほぼ 0。CloudFront は月 1 TB と 1,000 万リクエストまで無料枠、SSM の標準のパラメータと ACM は無料 | 続く |
 | 通知（Lambda、DynamoDB、SQS） | イベントの数だけで、dev の量ではほぼ 0 | — |
+| 技術ニュースからの下書き（Bedrock の Haiku 4.5、Lambda、S3） | 1 日最大 3 件で、月 約 1 ドル（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）。確かめていない下書きがたまると止まる | — |
 | 分散トレース（X-Ray、コレクタ） | 月 10 万件の記録まで無料。コレクタは quiz-service のタスクの中で、タスクの費用は増えない | — |
-| アラームとダッシュボード（CloudWatch のアラーム 5 つ、メトリクスフィルタのメトリクス 4 つ、ダッシュボード 1 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
+| アラームとダッシュボード（CloudWatch のアラーム 7 つ、メトリクスフィルタのメトリクス 4 つ、ダッシュボード 1 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
-| ECS のタスク（0.5 vCPU / 1 GB） | 約 13.5 ドル（1 時間 0.0246 ドル × 1 日 18 時間） | 止まる |
-| タスクのパブリック IPv4 | 約 2.7 ドル | 止まる |
+| ECS のタスク（0.5 vCPU / 1 GB、arm64） | 動いている時間だけ。1 時間 0.0246 ドル（常時なら月に約 18 ドル） | 止まる |
+| タスクのパブリック IPv4 | 動いている時間だけ。1 時間 0.005 ドル（常時なら月に約 3.7 ドル） | 止まる |
+| 使われていないときに止める（アラーム、EventBridge、Step Functions） | ほぼ 0。Step Functions は、アラームが鳴ったときに 1 回動くだけ（状態の遷移 1,000 回あたり 0.025 ドル） | 続く |
 | Aurora の ACU | 使った分だけ（1 ACU 時 0.15 ドル） | 一時停止すれば 0 |
 | Amplify | ビルド（1 分 0.01 ドル）と SSR の実行。使った分だけ | — |
 
 **止められない費用は、月に数ドルに収まる。** 以前は ALB がパブリック IPv4 を含めて月に約 25 ドルかかり、使っていなくても減らなかった（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)）。
-- **prod は、公開（Phase 7）のときから常時動かす**（[ADR-0024](adr/0024-run-prod-in-same-account-and-launch-at-release.md)）。常時の費用は約 25 ドルで、dev と合わせると予算を超えるため、公開のときに予算を上げるか dev を縮める
+- **prod は、公開（Phase 7）のときから常時動かす**（[ADR-0024](adr/0024-run-prod-in-same-account-and-launch-at-release.md)）。見に来た人を、起動の 2〜3 分も待たせない。
+  費用は、請求の実績から見積もり直して決めた（DEV-155）。0.5 vCPU のままでは、prod が月に約 24〜27 ドル、dev が約 10〜15 ドル（開発でよく起きている）で、予算を超える
+
+  | prod の費用（月） | 0.5 vCPU、Aurora は 60 分で一時停止 | 0.25 vCPU、Aurora は 15 分で一時停止（いま） |
+  | --- | --- | --- |
+  | ECS のタスク | 約 18 ドル | 約 10.6 ドル（1 時間 0.0145 ドル） |
+  | タスクのパブリック IPv4 | 約 3.7 ドル | 約 3.7 ドル |
+  | Aurora の ACU | 2〜4 ドル（見に来るたびに 1 時間分） | 1〜2 ドル |
+  | 止められないもの（Secrets Manager、Cloud Map、ストレージなど） | 約 1.5 ドル | 約 1.5 ドル |
+  | 合計 | 約 24〜27 ドル | 約 17〜18 ドル |
+
+  - **dev と合わせて約 27〜32 ドル。** 予算（月 30 ドル）は変えず、超えた月は予算の通知で気づく。dev が多く起きている月は超えうる
+  - 0.25 vCPU では、起動が遅くなる（dev の 0.5 vCPU で約 45 秒）。起動するのはリリースのときだけで、ヘルスチェックの猶予（180 秒）に収まる
+  - 採らなかったもの: 予算を上げる（構成で下げられるうちは下げる）、prod も使われなくなったら止める（見に来た人が最初に待つ）、Fargate Spot（止められると、タスクが 1 つのため使えなくなる）
 - **予算は月 30 ドル。** 実績が 85% と 100% を超えたとき、月末の予測が 100% を超えたときにメールで届く
   （`infra/terraform/account`）。通知先は公開リポジトリに載せないため、`terraform.tfvars`（Git の管理外）で渡す
   - 予測でも知らせるのは、月の途中で止める判断をするため。実績だけだと、気づいたときには超えている

@@ -112,6 +112,15 @@ variable "event_bus" {
   })
 }
 
+variable "news_quizzes" {
+  description = "技術ニュースの下書きの受け箱（ADR-0031、modules/news-quiz-drafter）。null なら取り込まない"
+  type = object({
+    bucket_name = string
+    bucket_arn  = string
+  })
+  default = null
+}
+
 # ---- タスク ----
 
 variable "image_tag" {
@@ -155,14 +164,28 @@ variable "throttling" {
 variable "nightly_stop" {
   description = <<-EOT
     夜間にサービスを止める時間帯。止める時刻（stop）と戻す時刻（start）を、EventBridge Scheduler の cron 式で渡す。
-    null なら止めない
+    start を省くと、止めるだけで戻さない（使うときに起こす。idle_stop_minutes と組み合わせる）。null なら止めない
   EOT
   type = object({
     stop     = string
-    start    = string
+    start    = optional(string)
     timezone = string
   })
   default = null
+}
+
+variable "idle_stop_minutes" {
+  description = <<-EOT
+    API への要求がこの分数ないと、サービスのタスク数を 0 にする（idle_stop.tf）。5 の倍数で渡す。
+    null なら止めない
+  EOT
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.idle_stop_minutes == null || (var.idle_stop_minutes >= 10 && var.idle_stop_minutes <= 1440 && var.idle_stop_minutes % 5 == 0)
+    error_message = "idle_stop_minutes は 10〜1440 の 5 の倍数にしてください"
+  }
 }
 
 variable "spring_profiles" {

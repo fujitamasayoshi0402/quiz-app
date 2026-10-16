@@ -1,7 +1,9 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.quiz.usecase.FigureSummary
 import io.swagger.v3.oas.annotations.media.Schema
 import java.net.URI
+import java.time.Instant
 import java.util.UUID
 
 data class CreateFigureRequest(
@@ -20,6 +22,40 @@ data class FigureDetailResponse(
         allowableValues = ["drawio", "image", "pdf"],
     )
     val kind: String,
+)
+
+/** 図の一覧の 1 件（DEV-165） */
+data class FigureSummaryResponse(
+    val id: UUID,
+    @field:Schema(description = "種類。drawio、image、pdf", allowableValues = ["drawio", "image", "pdf"])
+    val kind: String,
+    val createdAt: Instant,
+    @field:Schema(description = "解説でこの図を使っている、公開中か下書きの問題の数。1 以上なら消せない")
+    val quizCount: Int,
+    @field:Schema(description = "解説でこの図を使っている、ゴミ箱の問題の数。消すと、それらの問題はゴミ箱から戻せなくなる")
+    val trashedQuizCount: Int,
+    @field:Schema(description = "解説でこの図を使っている問題。公開中・下書きのものが先で、ゴミ箱のもの（`deleted`）が後（DEV-167）")
+    val quizzes: List<FigureQuizResponse>,
+) {
+    companion object {
+        fun from(figure: FigureSummary) = FigureSummaryResponse(
+            figure.id,
+            figure.kind.name.lowercase(),
+            figure.createdAt,
+            figure.quizzes.size,
+            figure.trashedQuizzes.size,
+            figure.quizzes.map { FigureQuizResponse(it.id, it.question, deleted = false) } +
+                figure.trashedQuizzes.map { FigureQuizResponse(it.id, it.question, deleted = true) },
+        )
+    }
+}
+
+/** 図を使っている問題。削除済みの問題は編集できない */
+data class FigureQuizResponse(
+    val id: UUID,
+    val question: String,
+    @field:Schema(description = "ゴミ箱にある（削除済み）")
+    val deleted: Boolean,
 )
 
 data class StartFigureUploadRequest(

@@ -92,7 +92,7 @@ locals {
         title = "エラー"
         metrics = [
           concat(["AWS/ApiGateway", "4xx"], local.api_dimensions, [{ stat = "Sum", label = "4xx" }]),
-          # 夜間の停止中の 503 も入る
+          # 夜間の停止中の 500 / 503 も入る
           concat(["AWS/ApiGateway", "5xx"], local.api_dimensions, [{ stat = "Sum", label = "5xx（API Gateway）" }]),
           [local.qs.metric_namespace, "ServerErrors", { stat = "Sum", label = "5xx（アプリ）" }],
           [local.qs.metric_namespace, "GatewayErrors", { stat = "Sum", label = "502 / 504" }],

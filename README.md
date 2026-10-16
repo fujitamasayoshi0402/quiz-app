@@ -6,26 +6,34 @@
 そのテナントの中だけに存在し、他のテナントからは見えません。
 一般ユーザーは所属するテナントのクイズに回答し、正誤判定と解説を確認できます。
 ログインした人は自分のテナントを 1 つ作り、管理者としてクイズを作れます（[ADR-0028](docs/adr/0028-let-signed-in-users-create-their-own-tenant.md)）。
+所属したテナントからは、自分で退会できます。退会すると、そのテナントでの回答の履歴も消えます（[ADR-0030](docs/adr/0030-let-members-leave-tenant-and-erase-their-history.md)）。
 解説は Markdown で書き、draw.io の図・画像・PDF を入れられます。
 ログインにはパスキー（WebAuthn）とパスワードを使えます。
 
 デモ用のデータとして、技術系のクイズ（AWS / インフラ、認証認可、イベント駆動設計、このアプリが使っている技術）を収録しています。
+さらに、公式の技術ニュース（AWS の What's New）から AI（Amazon Bedrock）が毎日クイズの下書きを作り、管理者が確かめて公開したものだけが出題されます
+（[ADR-0031](docs/adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）。
 
 実装だけでなく、設計判断の記録（ADR）、Terraform による IaC、GitHub Actions での CI/CD までを一貫して扱っています。
 
 ## デモ
 
-**https://dev.portfolio-masayoshi.click** で、デモのテナントのクイズを解けます。ログインの画面で、次の共有のアカウントを使ってください。
+**https://dev.portfolio-masayoshi.click** で、デモのテナントのクイズを解けます。ログインの画面の「**デモとして入る**」を押すと、アカウントを作らずに共有のアカウントで入れます。
+
+ログインの画面（Amazon Cognito）から入るときは、次の共有のアカウントを使ってください。
 
 | メールアドレス | パスワード |
 | --- | --- |
 | `demo@example.com` | `MbkZcXDvm2Nv4WhH` |
 
 - カテゴリと難易度を選んで解き、正誤と解説、結果、回答の履歴、カテゴリごとの正答率、ランキングを見られます。途中でやめたクイズは続きから解けます
+- 「AWS の最新情報」のカテゴリには、AI が公式の発表から作り、管理者が確かめて公開した問題が入ります。解説の下に、そのことと元の発表へのリンクが出ます
 - 共有のアカウントです。回答の履歴とランキングは、見た人同士で共有されます
-- 一般ユーザーのため、クイズの管理はできません。管理画面は[画面](#画面)を参照してください
+- 共有のアカウントは一般ユーザーのため、クイズの管理はできません。管理を試すときは、ログインの画面で自分のアカウントを作り（メールアドレスの確認があります）、
+  「自分のテナントを作る」から、自分が管理者のテナントを作ってください。カテゴリ・難易度・クイズを作り、解説に draw.io の図や画像・PDF を入れ、招待のリンクを作れます。
+  テナントは 1 人 1 つで、クイズは 100 問、図は 50 個までです
 - 開発環境（dev）のため、次のことがあります
-  - 2:00〜8:00（日本時間）は止めています。画面には「サーバーが止まっているか、起動の途中です」と出ます
+  - しばらく（30 分）使われていないと、API のサーバーを止めています。画面に「サーバーが止まっているか、起動の途中です」と出たら、「サーバーを起動する」を押してください。使えるまで 2〜3 分かかります
   - しばらく使われていないと DB が一時停止しており、最初の読み込みに 20 秒ほどかかります。3 秒を過ぎると、待っている旨の案内が出ます
   - develop へのマージのたびに載せ替えるため、数分のあいだ不安定になることがあります
 
@@ -60,7 +68,10 @@
 - **異常に気づき、戻せる。** ログは JSON で出し、要求の ID・テナント・利用者で 1 本の要求を追えます。アプリの 5xx、タスクの停止、イベントの滞留はアラームがメールで知らせ、
   夜間の停止や Aurora の一時停止といったふつうの動きでは鳴らないようにしています。状態は CloudWatch のダッシュボードの 1 画面で見て、
   鳴ったときに何を見てどう戻すかは [Runbook](docs/runbook.md) にあります
-- **判断の根拠を残す。** 技術選定と設計のトレードオフを、採らなかった案とともに [ADR](docs/adr/) に残しています（27 本）
+- **AI の出力を、人が確かめるまで出さない。** 技術ニュースからの下書きは、Bedrock に「選ぶ → 書く → 確かめる」の 3 段で作らせ、決まった形（JSON）で受け取ります。
+  取り込むのは下書きとしてだけで、管理者が元の発表と照らして公開するまで出題されません。Lambda が S3 に置き、quiz-service は使われたときに取り込むため、
+  止まっている DB を起こしません。1 日 3 件までで、費用は月 1 ドルほどに収まります（[ADR-0031](docs/adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）
+- **判断の根拠を残す。** 技術選定と設計のトレードオフを、採らなかった案とともに [ADR](docs/adr/) に残しています（31 本）
 
 ## アーキテクチャ
 
@@ -89,7 +100,11 @@ flowchart LR
     cloudfront[CloudFront]
     eventbridge[EventBridge]
     lambda[Lambda<br/>notification-service]
+    drafter[Lambda<br/>news-quiz-drafter]
+    bedrock[Bedrock<br/>Claude Haiku 4.5]
+    inbox[(S3<br/>下書きの受け箱)]
   end
+  news([AWS What's New<br/>RSS])
 
   browser -- ログイン --> cognito
   browser --> amplify
@@ -98,6 +113,10 @@ flowchart LR
   ecs --> s3
   browser -- 署名付き URL --> cloudfront --> s3
   ecs -- Outbox --> eventbridge --> lambda --> slack
+  drafter -- 毎日 --> news
+  drafter --> bedrock
+  drafter --> inbox
+  ecs -- 使われたときに取り込む --> inbox
   gha -- OIDC --> ecs
   gha -- ビルドを起動 --> amplify
 ```
@@ -113,6 +132,7 @@ flowchart LR
 | 実行基盤 | ECS Fargate + API Gateway（HTTP API）、Amplify Hosting（フロント） | [ADR-0012](docs/adr/0012-serve-frontend-on-amplify-hosting.md)、[ADR-0019](docs/adr/0019-expose-api-through-api-gateway-http-api.md) |
 | ファイル | S3 + CloudFront（署名付き URL） | [ADR-0017](docs/adr/0017-deliver-figures-with-cloudfront-signed-urls.md) |
 | 非同期 / 通知 | EventBridge + Lambda + Slack Webhook。Outbox から送り、受け手が重複を捨てる | [ADR-0022](docs/adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md) |
+| 生成 AI | Amazon Bedrock（Claude Haiku 4.5）を Lambda から呼び、EventBridge Scheduler で毎日起動 | [ADR-0031](docs/adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md) |
 | IaC | Terraform | [ADR-0011](docs/adr/0011-terraform-state-and-environments.md) |
 | CI/CD | GitHub Actions（OIDC） | [ADR-0015](docs/adr/0015-deploy-by-registering-task-definitions-from-ci.md) |
 | API 定義 | OpenAPI（コードから生成し、フロントの型を自動生成） | [ADR-0010](docs/adr/0010-generate-openapi-from-code.md) |
@@ -126,7 +146,8 @@ flowchart LR
 │   └── web/                     # Next.js フロントエンド
 ├── services/
 │   ├── quiz-service/            # クイズ / カテゴリ / 難易度の CRUD、出題と採点
-│   └── notification-service/    # EventBridge から起動し Slack へ通知する Lambda
+│   ├── notification-service/    # EventBridge から起動し Slack へ通知する Lambda
+│   └── news-quiz-drafter/       # 技術ニュースから AI でクイズの下書きを作る Lambda
 ├── infra/
 │   └── terraform/
 │       ├── bootstrap/           # tfstate を置く S3 バケット
@@ -232,7 +253,7 @@ Phase 1（ローカルで動く MVP）から Phase 5（イベント駆動と Sla
 - 管理者は、一般ユーザーと管理者を招待できます。招待のリンクを画面に出して渡し、受け入れるときにメールアドレスが招待と一致するかを確かめます
 - 管理者がテナントを公開すると、ログインした人が一覧から見つけて、招待なしで参加できます（[ADR-0025](docs/adr/0025-let-signed-in-users-join-public-tenants.md)）
 - クイズの追加・更新は、テナントの管理者が設定した Slack に知らせます（Outbox → EventBridge → Lambda。[ADR-0022](docs/adr/0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)）
-- 権限まわり（ログイン・招待・ロールによる出し分け・公開テナントへの参加）と、出題・管理の主な流れは、Playwright の E2E テストで PR ごとに確かめています
+- 権限まわり（ログイン・招待・ロールによる出し分け・公開テナントへの参加と退会）と、出題・管理の主な流れは、Playwright の E2E テストで PR ごとに確かめています
 - ログは JSON で出し、アラームと CloudWatch のダッシュボードで見ています。鳴ったときの手順は [Runbook](docs/runbook.md) にあります
 
 進捗は [ロードマップ](docs/ROADMAP.md) を参照してください。

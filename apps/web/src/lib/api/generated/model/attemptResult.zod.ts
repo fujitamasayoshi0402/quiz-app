@@ -16,8 +16,11 @@ import * as zod from 'zod';
 
 export const AttemptResult = zod.object({
   "answeredCount": zod.int(),
+  "categoryId": zod.uuid().nullish(),
   "correctCount": zod.int(),
+  "difficultyId": zod.uuid().nullish(),
   "id": zod.uuid(),
+  "level": zod.int().nullish(),
   "results": zod.array(zod.object({
   "choices": zod.array(zod.object({
   "body": zod.string(),
@@ -28,7 +31,8 @@ export const AttemptResult = zod.object({
   "isCorrect": zod.boolean(),
   "question": zod.string(),
   "quizId": zod.uuid(),
-  "selectedChoiceId": zod.uuid().nullish()
+  "selectedChoiceId": zod.uuid().nullish(),
+  "sourceUrl": zod.string().nullish().describe('AI が技術ニュースから作り、管理者が確かめて公開したクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）')
 })),
   "status": zod.string(),
   "totalCount": zod.int()

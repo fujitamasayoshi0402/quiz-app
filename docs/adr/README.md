@@ -10,14 +10,15 @@
 | --- | --- |
 | 進め方 | [0001](0001-record-architecture-decisions.md) ADR を残す / [0004](0004-split-services-incrementally.md) サービスは段階的に分ける / [0023](0023-keep-answer-as-module-in-quiz-service.md) 回答・採点はモジュールのまま分けない |
 | 技術スタック | [0002](0002-use-kotlin-and-spring-boot.md) Kotlin + Spring Boot / [0008](0008-use-spring-boot-4.md) Spring Boot 4 / [0009](0009-use-spring-data-jdbc.md) Spring Data JDBC / [0003](0003-use-nextjs-for-frontend.md) Next.js |
-| テナントとデータ | [0006](0006-row-level-multi-tenancy.md) 行単位のマルチテナント（RLS） / [0007](0007-soft-delete-master-data.md) マスタデータの論理削除 / [0025](0025-let-signed-in-users-join-public-tenants.md) 公開テナントへの参加 / [0028](0028-let-signed-in-users-create-their-own-tenant.md) 自分のテナントを作る |
-| 認証 | [0016](0016-authenticate-with-cognito-managed-login.md) Cognito の Managed Login、利用者の ID を切り離す / [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) パスキーの自前実装の設計。いまは Cognito を使い続ける |
+| テナントとデータ | [0006](0006-row-level-multi-tenancy.md) 行単位のマルチテナント（RLS） / [0007](0007-soft-delete-master-data.md) マスタデータの論理削除 / [0025](0025-let-signed-in-users-join-public-tenants.md) 公開テナントへの参加 / [0028](0028-let-signed-in-users-create-their-own-tenant.md) 自分のテナントを作る / [0030](0030-let-members-leave-tenant-and-erase-their-history.md) テナントからの退会と履歴の削除 |
+| 認証 | [0016](0016-authenticate-with-cognito-managed-login.md) Cognito の Managed Login、利用者の ID を切り離す / [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) パスキーの自前実装の設計。いまは Cognito を使い続ける / [0029](0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md) ログインの画面を通さずにデモのアカウントで入る |
 | API | [0010](0010-generate-openapi-from-code.md) OpenAPI をコードから生成する / [0019](0019-expose-api-through-api-gateway-http-api.md) 入口は API Gateway（HTTP API） |
 | 解説と解説図 | [0018](0018-write-explanations-in-markdown-and-render-on-screen.md) 解説は Markdown / [0017](0017-deliver-figures-with-cloudfront-signed-urls.md) 図は CloudFront の署名付き URL で配る / [0020](0020-reference-figures-from-explanations-and-add-images-and-pdfs.md) 画像と PDF、`figure:` で指す / [0021](0021-render-first-page-of-pdfs-as-images.md) PDF の 1 ページ目を画像にする |
 | イベントと通知 | [0022](0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md) Outbox から EventBridge、テナントごとの Slack へ |
 | インフラ | [0011](0011-terraform-state-and-environments.md) tfstate と環境の分け方 / [0012](0012-serve-frontend-on-amplify-hosting.md) フロントは Amplify Hosting / [0013](0013-run-ecs-tasks-in-public-subnets.md) タスクはパブリックサブネット（NAT なし） / [0014](0014-connect-to-aurora-with-iam-auth.md) Aurora へ IAM 認証 |
 | デプロイとリリース | [0015](0015-deploy-by-registering-task-definitions-from-ci.md) CI がタスク定義を登録する / [0024](0024-run-prod-in-same-account-and-launch-at-release.md) prod は同じアカウント、公開のときから動かす |
 | 運用 | [0026](0026-trace-requests-with-micrometer-and-x-ray.md) 分散トレース（Micrometer、X-Ray） |
+| AI | [0031](0031-draft-quizzes-from-official-tech-news-with-bedrock.md) 公式の技術ニュースから、Bedrock がクイズの下書きを毎日作る |
 
 ## 置き換えと見直し
 
@@ -29,7 +30,6 @@
 | [0012](0012-serve-frontend-on-amplify-hosting.md) | [0019](0019-expose-api-through-api-gateway-http-api.md) | quiz-service の入口を ALB から API Gateway に替え、秘密のヘッダをやめた（一部を置き換え） |
 | [0020](0020-reference-figures-from-explanations-and-add-images-and-pdfs.md) | [0021](0021-render-first-page-of-pdfs-as-images.md) | 0020 で後に回した PDF の見せ方を決めた。リンクで開くのに加え、1 ページ目を画像にして解説の中に出す（一部を置き換え） |
 | [0016](0016-authenticate-with-cognito-managed-login.md) | [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) | 自前の実装への差し替えを設計したうえで、見送った。0016 は有効のまま（見直して変えなかった） |
-| [0028](0028-let-signed-in-users-create-their-own-tenant.md) | ログインした人が、自分のテナントを 1 つ作れるようにする。作ったテナントは非公開に限り、量に上限を掛ける | Accepted |
 | [0004](0004-split-services-incrementally.md) | [0022](0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)、[0023](0023-keep-answer-as-module-in-quiz-service.md) | 未決にしていたイベントの送り方と、回答・採点を分けるかを決めた（未決の点を決めた） |
 
 ## 一覧
@@ -63,6 +63,10 @@
 | [0025](0025-let-signed-in-users-join-public-tenants.md) | 公開テナントには、ログインした人が承認なしで自分で参加する。一覧と参加の API はテナントの外の `/api/me` に置く | Accepted |
 | [0026](0026-trace-requests-with-micrometer-and-x-ray.md) | 分散トレースは Micrometer Tracing（OpenTelemetry）で取り、同じタスクのコレクタから X-Ray へ送る。イベントは Outbox に文脈を残してつなぐ | Accepted |
 | [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) | パスキーを自前で実装するときの設計を決め、いまは Cognito を使い続ける | Accepted |
+| [0028](0028-let-signed-in-users-create-their-own-tenant.md) | ログインした人が、自分のテナントを 1 つ作れるようにする。作ったテナントは非公開に限り、量に上限を掛ける | Accepted |
+| [0029](0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md) | 見に来た人は、ログインの画面を通さずに共有のデモのアカウントで入れる。web のサーバーがトークンを取って使い回す | Accepted |
+| [0030](0030-let-members-leave-tenant-and-erase-their-history.md) | 所属している人が、自分でテナントから退会できるようにする。退会すると、そのテナントでの回答の履歴を消す | Accepted |
+| [0031](0031-draft-quizzes-from-official-tech-news-with-bedrock.md) | 公式の技術ニュースから、AI（Bedrock）が毎日クイズの下書きを作る。Lambda が S3 に置き、quiz-service が使われたときに取り込む | Accepted |
 
 ## 運用ルール
 

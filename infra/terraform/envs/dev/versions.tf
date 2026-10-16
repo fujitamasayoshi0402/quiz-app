@@ -29,7 +29,7 @@ provider "aws" {
     }
   }
 
-  # デプロイが notification-service の関数に、載せたコミットを書く（deploy-notification-service.sh）。
+  # デプロイが Lambda（notification-service、news-quiz-drafter）に、載せたコミットを書く（deploy-lambda.sh）。
   # Terraform の外で書くタグのため、plan で消そうとしないようにする
   ignore_tags {
     keys = ["DeployedCommit"]

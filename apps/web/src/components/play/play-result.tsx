@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
+import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
-import { Eyebrow, Panel, Stat, Verdict } from "@/components/play/parts";
+import { AiSourceNote, Eyebrow, Panel, Stat, Verdict } from "@/components/play/parts";
 import { completeAttempt, getGetCurrentAttemptQueryKey } from "@/lib/api/generated/endpoints";
-import type { QuizResult } from "@/lib/api/generated/model";
+import type { AttemptResult, QuizResult } from "@/lib/api/generated/model";
 import type { FeedbackMode } from "@/lib/play/mode";
+import { useRetryIncorrect } from "@/lib/play/use-retry-incorrect";
 
 /**
  * 結果画面。
@@ -37,6 +39,8 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
   if (result.isError) return <ApiErrorAlert error={result.error} />;
 
   const { totalCount, answeredCount, correctCount, results } = result.data;
+  // 未回答は間違えた問題に数えない。サーバーも、答えて不正解だったものだけを出す
+  const missedCount = results.filter((quiz) => quiz.selectedChoiceId != null && !quiz.isCorrect).length;
   const rate = totalCount === 0 ? 0 : Math.round((correctCount / totalCount) * 100);
   // 番号は出題順のまま出す。絞り込んだ一覧の中で振り直すと、何問目だったかが分からなくなる
   const numbered = results.map((quiz, index) => ({ quiz, number: index + 1 }));
@@ -63,10 +67,57 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
         )}
       </section>
 
-      <Button asChild size="lg" className="w-full rounded-full">
-        <Link href={`/t/${slug}/play`}>もう一度</Link>
-      </Button>
+      <div className="space-y-3">
+        {missedCount > 0 && <RetryIncorrect slug={slug} range={result.data} mode={mode} />}
+        <Button asChild size="lg" variant={missedCount > 0 ? "outline" : "default"} className="w-full rounded-full">
+          <Link href={`/t/${slug}/play`}>クイズを選ぶ画面に戻る</Link>
+        </Button>
+      </div>
     </div>
+  );
+}
+
+/**
+ * 同じ範囲の「間違えた問題」で、すぐに次の挑戦を始める（DEV-147）。方式も同じにする。
+ *
+ * 出すのは、この回に限らず、範囲の中で最後に答えたとき不正解だった問題すべて。
+ * 前の回に間違えたままの問題も、まとめて解き直せる
+ */
+function RetryIncorrect({
+  slug,
+  range,
+  mode,
+}: {
+  slug: string;
+  range: Pick<AttemptResult, "categoryId" | "difficultyId" | "level">;
+  mode: FeedbackMode;
+}) {
+  const start = useRetryIncorrect(slug, mode);
+
+  return (
+    <>
+      {start.conflict ? (
+        <p className="text-sm text-muted-foreground">
+          中断中のクイズがあります。「クイズを選ぶ画面に戻る」から、再開するか破棄するかを選んでください。
+        </p>
+      ) : (
+        start.error && <ApiErrorAlert error={start.error} />
+      )}
+      <Button
+        size="lg"
+        className="w-full rounded-full"
+        disabled={start.isPending}
+        onClick={() =>
+          start.retry({
+            categoryId: range.categoryId ?? undefined,
+            difficultyId: range.difficultyId ?? undefined,
+            level: range.level ?? undefined,
+          })
+        }
+      >
+        {start.isPending ? "準備しています…" : "間違えた問題を解き直す"}
+      </Button>
+    </>
   );
 }
 
@@ -78,6 +129,7 @@ function Review({ slug, quiz, number }: { slug: string; quiz: QuizResult; number
         <div className="flex items-center gap-3">
           <Eyebrow>QUESTION {number}</Eyebrow>
           <Verdict correct={quiz.isCorrect} answered={answered} />
+          <BookmarkToggle slug={slug} quizId={quiz.quizId} className="ml-auto" />
         </div>
         <p className="leading-snug font-semibold tracking-tight whitespace-pre-wrap">{quiz.question}</p>
       </div>
@@ -88,6 +140,7 @@ function Review({ slug, quiz, number }: { slug: string; quiz: QuizResult; number
       />
       <div className="rounded-xl bg-muted/50 p-4 text-sm">
         <Markdown tenant={slug}>{quiz.explanation}</Markdown>
+        <AiSourceNote sourceUrl={quiz.sourceUrl} className="mt-3 border-t pt-3" />
       </div>
     </Panel>
   );

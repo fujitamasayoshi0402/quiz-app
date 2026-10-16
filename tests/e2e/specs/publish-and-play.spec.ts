@@ -12,7 +12,7 @@ const question = "日本の首都はどこですか。";
  *
  * カテゴリやクイズは `fixtures.sql` がテストの前に消すので、決まった名前で作れる
  */
-test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、結果と履歴で振り返る", async ({ browser }) => {
+test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、間違えた問題を解き直し、結果と履歴で振り返り、あとで見直す。管理者は回答の数を見る", async ({ browser }) => {
   const admin = await (await browser.newContext({ storageState: storageStateOf("admin") })).newPage();
   const member = await (await browser.newContext({ storageState: storageStateOf("member") })).newPage();
 
@@ -82,14 +82,86 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await expect(member.getByText(question)).toBeVisible();
   });
 
+  await test.step("履歴のカテゴリ別の正答率から、そのカテゴリの間違えた問題をすぐ解き直せる", async () => {
+    await member.getByRole("banner").getByRole("link", { name: "履歴" }).click();
+    const score = member
+      .getByRole("listitem")
+      .filter({ hasText: category })
+      .filter({ has: member.getByRole("progressbar") });
+    // 1 問しか解いていないので、0% とは出さない
+    await expect(score).toContainText("回答が少ない");
+    await score.getByRole("button", { name: "間違えた 1 問を解き直す" }).click();
+
+    await expect(member.getByText("1 / 1 問")).toBeVisible();
+    await expect(member.getByText(question)).toBeVisible();
+    // もう一度間違え、結果の画面から解き直す（次の段）
+    await member.getByRole("button", { name: "大阪" }).click();
+    await member.getByRole("button", { name: "回答する" }).click();
+    await member.getByRole("button", { name: "結果を見る" }).click();
+    await expect(member.getByText("0 / 1 問")).toBeVisible();
+  });
+
+  await test.step("結果から、間違えた問題を同じ範囲ですぐ解き直せる", async () => {
+    await member.getByRole("button", { name: "間違えた問題を解き直す" }).click();
+
+    await expect(member.getByText("1 / 1 問")).toBeVisible();
+    await expect(member.getByText(question)).toBeVisible();
+    await member.getByRole("button", { name: "東京" }).click();
+    await member.getByRole("button", { name: "回答する" }).click();
+    await expect(member.getByText("正解", { exact: true })).toBeVisible();
+
+    // 正解したが、あとで見直したい
+    const bookmark = member.getByRole("button", { name: "あとで見直す" });
+    await bookmark.click();
+    await expect(bookmark).toHaveAttribute("aria-pressed", "true");
+
+    // 正解したので、間違えた問題は残っていない
+    await member.getByRole("button", { name: "結果を見る" }).click();
+    await expect(member.getByText("100%")).toBeVisible();
+    await expect(member.getByRole("button", { name: "間違えた問題を解き直す" })).toHaveCount(0);
+  });
+
   await test.step("履歴に残り、そこから結果を開き直せる", async () => {
     await member.getByRole("banner").getByRole("link", { name: "履歴" }).click();
-    const row = member.getByRole("link", { name: new RegExp(`${category}・すべての難易度`) });
+    // 解き直した回も並ぶ。最初の回を開く
+    const row = member
+      .getByRole("link", { name: new RegExp(`${category}・すべての難易度`) })
+      .filter({ hasNotText: "間違えた問題" });
     await expect(row).toContainText("0 / 1");
 
     await row.click();
     await expect(member.getByRole("heading", { name: "答え合わせ" })).toBeVisible();
     await expect(member.getByText(question)).toBeVisible();
+  });
+
+  await test.step("「あとで見直す」を押した問題だけを解き直し、外せる", async () => {
+    await member.goto(`/t/${tenant.slug}/play`);
+    await member.getByText(category).click();
+    // 選んだ範囲に、印を付けた問題が何問あるかが出る
+    await expect(member.getByText("この範囲に 1 問", { exact: false })).toBeVisible();
+    await member.getByText("あとで見直す問題", { exact: true }).click();
+    await member.getByRole("button", { name: "始める" }).click();
+
+    await expect(member.getByText("1 / 1 問")).toBeVisible();
+    await expect(member.getByText(question)).toBeVisible();
+    await member.getByRole("button", { name: "東京" }).click();
+    await member.getByRole("button", { name: "回答する" }).click();
+
+    // 正解しても印は残る。押すと外れる
+    const bookmark = member.getByRole("button", { name: "あとで見直す" });
+    await expect(bookmark).toHaveAttribute("aria-pressed", "true");
+    await bookmark.click();
+    await expect(bookmark).toHaveAttribute("aria-pressed", "false");
+    await member.getByRole("button", { name: "結果を見る" }).click();
+    await expect(member.getByText("100%")).toBeVisible();
+  });
+
+  await test.step("管理者のクイズの一覧に、回答の数が出る。少ないうちは正答率を出さない", async () => {
+    await admin.goto(`/t/${tenant.slug}/admin/quizzes`);
+    // 間違えた 2 回（最初と、履歴から解き直した回）、結果から解き直した 1 回、あとで見直すで解いた 1 回
+    const row = admin.getByRole("row", { name: new RegExp(question) });
+    await expect(row).toContainText("回答が少ない");
+    await expect(row).toContainText("4 回答");
   });
 });
 

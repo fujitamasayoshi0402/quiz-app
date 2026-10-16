@@ -21,6 +21,7 @@ class QuizTest {
         status: QuizStatus = QuizStatus.PUBLISHED,
         question: String = "問題文",
         explanation: String = "解説",
+        sourceUrl: String? = null,
     ) = Quiz(
         categoryId = UUID.randomUUID(),
         difficultyId = UUID.randomUUID(),
@@ -28,6 +29,7 @@ class QuizTest {
         explanation = explanation,
         choices = choices,
         status = status,
+        sourceUrl = sourceUrl,
     )
 
     private fun fourChoices(correct: Int = 1) = (1..4).map { Choice(body = "選択肢 $it", isCorrect = it == correct) }
@@ -126,6 +128,26 @@ class QuizTest {
             assertThatIllegalArgumentException()
                 .isThrownBy { Choice(body = "あ".repeat(Choice.MAX_BODY_LENGTH + 1), isCorrect = false) }
                 .withMessage("選択肢は 500 文字以内で入力してください")
+        }
+    }
+
+    @Nested
+    @DisplayName("出典の URL（ADR-0031）")
+    inner class SourceUrl {
+        @Test
+        @DisplayName("人が作ったものは持たず、AI が作ったものは https の URL を持つ")
+        fun httpsOrNothing() {
+            assertThatCode { quiz(sourceUrl = null) }.doesNotThrowAnyException()
+            assertThatCode {
+                quiz(sourceUrl = "https://aws.amazon.com/about-aws/whats-new/")
+            }.doesNotThrowAnyException()
+        }
+
+        @Test
+        @DisplayName("https 以外と、長すぎるものは持てない")
+        fun rejectsOthers() {
+            listOf("http://aws.amazon.com/", "javascript:alert(1)", "https://" + "a".repeat(Quiz.MAX_SOURCE_URL_LENGTH))
+                .forEach { assertThatIllegalArgumentException().isThrownBy { quiz(sourceUrl = it) } }
         }
     }
 }

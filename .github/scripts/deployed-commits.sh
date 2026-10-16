@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # dev / prod でいま動いているもののコミットを調べる。deploy.yml が、何を載せるかを決めるのに使う（DEV-79）。手元からも同じように流せる。
 #
-#   deployed-commits.sh <クラスタ> <サービス> <Amplify のアプリの ID> <ブランチ> <通知の関数名>
+#   deployed-commits.sh <クラスタ> <サービス> <Amplify のアプリの ID> <ブランチ> <通知の関数名> [<下書きを作る関数名>]
 #
-# 次の 3 行を標準出力に出す（GITHUB_OUTPUT に書ける形）。調べられなかったものは空にする。呼び出し側は、空なら載せるものとして扱う。
+# 次の 4 行を標準出力に出す（GITHUB_OUTPUT に書ける形）。調べられなかったものは空にする。呼び出し側は、空なら載せるものとして扱う。
 #   backend=<quiz-service のコミット>
 #   web=<web のコミット>
 #   notification=<notification-service のコミット>
+#   drafter=<news-quiz-drafter のコミット>。関数名を渡さなければ（その環境に関数がない。prod）、調べずに空にする
 # 調べられなかった理由は、標準エラーに警告として出す
 #
 # 直前の push との差ではなく、動いているものとの差で決める。
@@ -17,7 +18,8 @@ CLUSTER=$1
 SERVICE=$2
 APP_ID=$3
 BRANCH=$4
-FUNCTION=$5
+NOTIFICATION_FUNCTION=$5
+DRAFTER_FUNCTION=${6:-}
 
 CONTAINER=quiz-service
 
@@ -55,21 +57,26 @@ web_commit() {
   commit_of "$(jq -r '. // empty' <<<"$commit")" "Amplify の最後のビルドのコミット"
 }
 
-# notification-service: 関数のタグ（DeployedCommit）。deploy-notification-service.sh が、載せて確かめたあとに書く。
-# Terraform が作ったばかりの関数にはタグがない。空にして、載せるものとして扱う
-notification_commit() {
-  local arn commit
-  arn=$(aws lambda get-function-configuration --function-name "$FUNCTION" \
-    --query FunctionArn --output text) || { warn "notification-service の関数を読めませんでした"; return 0; }
+# Lambda（notification-service、news-quiz-drafter）: 関数のタグ（DeployedCommit）。deploy-lambda.sh が、載せて確かめたあとに書く。
+# Terraform が作ったばかりの関数と、手で載せた関数にはタグがない。空にして、載せるものとして扱う
+lambda_commit() {
+  local fn=$1 label=$2 arn commit
+  arn=$(aws lambda get-function-configuration --function-name "$fn" \
+    --query FunctionArn --output text) || { warn "${label} の関数を読めませんでした"; return 0; }
   commit=$(aws lambda list-tags --resource "$arn" --query 'Tags.DeployedCommit' --output text) \
-    || { warn "notification-service のタグを読めませんでした"; return 0; }
+    || { warn "${label} のタグを読めませんでした"; return 0; }
   if [[ "$commit" == "None" ]]; then
-    warn "notification-service に載せたコミットの記録（タグ DeployedCommit）がありません"
+    warn "${label} に載せたコミットの記録（タグ DeployedCommit）がありません"
     return 0
   fi
-  commit_of "$commit" "notification-service のタグ"
+  commit_of "$commit" "${label} のタグ"
 }
 
 echo "backend=$(backend_commit)"
 echo "web=$(web_commit)"
-echo "notification=$(notification_commit)"
+echo "notification=$(lambda_commit "$NOTIFICATION_FUNCTION" notification-service)"
+if [[ -n "$DRAFTER_FUNCTION" ]]; then
+  echo "drafter=$(lambda_commit "$DRAFTER_FUNCTION" news-quiz-drafter)"
+else
+  echo "drafter="
+fi

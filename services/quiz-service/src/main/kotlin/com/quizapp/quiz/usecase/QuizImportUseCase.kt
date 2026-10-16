@@ -16,7 +16,10 @@ import com.quizapp.tenant.TenantTransaction
 import org.springframework.stereotype.Service
 import java.util.UUID
 
-/** 取り込む 1 行。カテゴリと難易度は名前で指す。検証の前なので、中身は不正でありうる */
+/**
+ * 取り込む 1 行。カテゴリと難易度は名前で指す。検証の前なので、中身は不正でありうる。
+ * [sourceUrl] は、AI が技術ニュースから作ったもの（ADR-0031）だけが持つ。取り込みの API からは渡らない
+ */
 data class QuizImportRow(
     val category: String,
     val difficulty: String,
@@ -24,6 +27,7 @@ data class QuizImportRow(
     val explanation: String,
     val choices: List<ChoiceInput>,
     val status: String,
+    val sourceUrl: String? = null,
 ) {
     data class ChoiceInput(val body: String, val isCorrect: Boolean)
 }
@@ -98,6 +102,7 @@ class QuizImportUseCase(
                 explanation = row.explanation.trim(),
                 choices = row.choices.map { Choice(body = it.body.trim(), isCorrect = it.isCorrect) },
                 status = status ?: QuizStatus.DRAFT,
+                sourceUrl = row.sourceUrl?.trim(),
             )
         }.onFailure { e ->
             if (e !is IllegalArgumentException) throw e

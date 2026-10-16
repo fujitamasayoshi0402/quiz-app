@@ -25,16 +25,22 @@ class QuizListJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) {
      * PostgreSQL がプレースホルダの型を決められず、
      * `could not determine data type of parameter` で実行に失敗する。
      */
-    fun search(categoryId: UUID?, difficultyId: UUID?, status: String?): List<Quiz> = query(
+    fun search(categoryId: UUID?, difficultyId: UUID?, status: String?, aiGenerated: Boolean?): List<Quiz> = query(
         """
         SELECT * FROM quiz.quizzes
         WHERE deleted_at IS NULL
           AND (CAST(:categoryId AS uuid) IS NULL OR category_id = CAST(:categoryId AS uuid))
           AND (CAST(:difficultyId AS uuid) IS NULL OR difficulty_id = CAST(:difficultyId AS uuid))
           AND (CAST(:status AS text) IS NULL OR status = CAST(:status AS text))
+          AND (CAST(:aiGenerated AS boolean) IS NULL OR (source_url IS NOT NULL) = CAST(:aiGenerated AS boolean))
         ORDER BY created_at
         """,
-        mapOf("categoryId" to categoryId, "difficultyId" to difficultyId, "status" to status),
+        mapOf(
+            "categoryId" to categoryId,
+            "difficultyId" to difficultyId,
+            "status" to status,
+            "aiGenerated" to aiGenerated,
+        ),
     )
 
     /**
@@ -98,6 +104,7 @@ class QuizListJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         question = getString("question"),
         explanation = getString("explanation"),
         status = getString("status"),
+        sourceUrl = getString("source_url"),
     )
 
     private data class Row(
@@ -107,6 +114,7 @@ class QuizListJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         val question: String,
         val explanation: String,
         val status: String,
+        val sourceUrl: String?,
     ) {
         fun toDomain(choices: List<Choice>) = Quiz(
             id = id,
@@ -116,6 +124,7 @@ class QuizListJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) {
             explanation = explanation,
             choices = choices,
             status = QuizStatus.from(status),
+            sourceUrl = sourceUrl,
         )
     }
 }

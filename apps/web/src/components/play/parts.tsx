@@ -58,3 +58,19 @@ export function Verdict({ correct, answered = true }: { correct: boolean; answer
     </span>
   );
 }
+
+/**
+ * AI が公式の発表をもとに作り、管理者が確かめて公開したクイズに添える（ADR-0031）。人が作ったものには何も出さない。
+ * 解説の最後の出典のリンクは管理者が消せるため、元の発表へのリンクはここでも出す
+ */
+export function AiSourceNote({ sourceUrl, className }: { sourceUrl?: string | null; className?: string }) {
+  if (!sourceUrl) return null;
+  return (
+    <p className={cn("text-xs text-muted-foreground", className)}>
+      AI が公式の発表をもとに作り、管理者が確かめて公開した問題です。
+      <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
+        元の発表
+      </a>
+    </p>
+  );
+}

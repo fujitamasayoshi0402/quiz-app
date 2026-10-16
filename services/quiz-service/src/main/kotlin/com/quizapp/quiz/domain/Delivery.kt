@@ -22,12 +22,27 @@ enum class DeliveryScope {
      * 回答済みを混ぜると用をなさない。
      */
     UNANSWERED_ONLY,
+
+    /**
+     * 間違えた問題だけを出す。**直近の回答が不正解**のものを対象にし、尽きたらそこで終了する。
+     *
+     * 一度でも間違えたものを数えると、解き直して正解しても外れず、いつまでも減らない。
+     * 解き直しの目的は「間違えたまま残っている問題をなくす」ことのため、最後の回答で決める。
+     */
+    INCORRECT,
+
+    /**
+     * 「あとで見直す」印を付けた問題だけを出す（DEV-159）。尽きたらそこで終了する。
+     *
+     * 印は本人が外すまで残る。正解しても外さない。正解したが自信がない問題にも付けるため。
+     */
+    BOOKMARKED,
     ;
 
     companion object {
         fun from(value: String): DeliveryScope = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
             ?: throw IllegalArgumentException(
-                "出題対象は all / unanswered / unanswered_only を指定してください: $value",
+                "出題対象は all / unanswered / unanswered_only / incorrect / bookmarked を指定してください: $value",
             )
     }
 }
@@ -92,7 +107,14 @@ data class DeliveredChoice(val id: UUID, val body: String)
  * 正誤の判定そのものは answer モジュールが行う（ADR-0004）。
  * quiz 側は「どれが正解か」という事実だけを渡し、採点の責務は持たない。
  */
-data class AnswerKey(val quizId: UUID, val correctChoiceId: UUID, val choiceIds: Set<UUID>, val explanation: String) {
+data class AnswerKey(
+    val quizId: UUID,
+    val correctChoiceId: UUID,
+    val choiceIds: Set<UUID>,
+    val explanation: String,
+    /** AI が技術ニュースから作ったクイズの、元にした発表。解く人に、AI が作ったことと出典を示す（ADR-0031） */
+    val sourceUrl: String? = null,
+) {
     companion object {
         /**
          * [explanation] の書き方。answer が採点の結果に解説を載せるとき、API 定義の説明に使う。

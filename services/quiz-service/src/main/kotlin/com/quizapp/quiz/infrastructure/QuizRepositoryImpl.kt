@@ -13,8 +13,12 @@ import java.util.UUID
 class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository, private val listJdbc: QuizListJdbc) :
     QuizRepository {
 
-    override fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> =
-        listJdbc.search(categoryId, difficultyId, status?.name?.lowercase())
+    override fun search(
+        categoryId: UUID?,
+        difficultyId: UUID?,
+        status: QuizStatus?,
+        aiGenerated: Boolean?,
+    ): List<Quiz> = listJdbc.search(categoryId, difficultyId, status?.name?.lowercase(), aiGenerated)
 
     override fun findById(id: UUID): Quiz? = jdbcRepository.findActiveById(id)?.toDomain()
 
@@ -39,6 +43,7 @@ class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository, private
                 question = quiz.question,
                 explanation = quiz.explanation,
                 status = quiz.status.name.lowercase(),
+                sourceUrl = quiz.sourceUrl,
                 choices = choices,
             )
         } else {
@@ -64,5 +69,6 @@ class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository, private
         explanation = explanation,
         choices = choices.map { Choice(id = it.id, body = it.body, isCorrect = it.isCorrect) },
         status = QuizStatus.from(status),
+        sourceUrl = sourceUrl,
     )
 }

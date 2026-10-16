@@ -12,11 +12,12 @@ import { ResumeCard } from "@/components/play/resume-card";
 import { ApiError } from "@/lib/api/fetcher";
 import {
   getGetCurrentAttemptQueryKey,
+  useListBookmarks,
   useListPlayableCategories,
   useStartAttempt,
 } from "@/lib/api/generated/endpoints";
 import { type FeedbackMode, parseMode, rememberMode } from "@/lib/play/mode";
-import { rangeOptions, toCriteria } from "@/lib/play/range";
+import { countInRange, rangeOptions, toCriteria } from "@/lib/play/range";
 import { SCOPES } from "@/lib/play/scope";
 
 const ORDERS = [
@@ -43,6 +44,7 @@ export function PlaySetup({ slug }: { slug: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const categories = useListPlayableCategories(slug);
+  const bookmarks = useListBookmarks(slug);
 
   const [categoryId, setCategoryId] = useState<string>();
   const [rangeValue, setRangeValue] = useState("all");
@@ -76,6 +78,14 @@ export function PlaySetup({ slug }: { slug: string }) {
   const category = categories.data.find((c) => c.id === categoryId);
   const ranges = category ? rangeOptions(category) : [];
   const range = ranges.find((r) => r.value === rangeValue) ?? ranges[0];
+  // 「あとで見直す問題」に、選んだ範囲で何問あるかを添える。数えられないうちは添えない
+  const bookmarked =
+    category && range && bookmarks.data ? countInRange(bookmarks.data.items, category, range.range) : undefined;
+  const scopes = SCOPES.map((option) =>
+    option.value === "bookmarked" && bookmarked !== undefined
+      ? { ...option, hint: `${option.hint}・この範囲に ${bookmarked} 問` }
+      : option,
+  );
 
   const submit = (discardInProgress = false) => {
     if (!category || !range) return;
@@ -121,7 +131,7 @@ export function PlaySetup({ slug }: { slug: string }) {
             <OptionGroup name="range" value={range?.value ?? "all"} onChange={setRangeValue} options={ranges} />
           </Section>
           <Section title="出題対象">
-            <OptionGroup name="scope" value={scope} onChange={setScope} options={SCOPES} />
+            <OptionGroup name="scope" value={scope} onChange={setScope} options={scopes} />
           </Section>
           <Section title="並び">
             <OptionGroup name="order" columns={2} value={order} onChange={setOrder} options={ORDERS} />

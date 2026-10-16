@@ -117,6 +117,21 @@ module "notification_service" {
   log_retention_days = 14
 }
 
+# 公式の技術ニュースから、Bedrock でクイズの下書きを作る（ADR-0031）。quiz-service がデモのテナントに取り込む
+module "news_quiz_drafter" {
+  source = "../../modules/news-quiz-drafter"
+
+  name = "quiz-app-dev"
+
+  # 関数を作るときにだけ読む。先に ./gradlew :services:news-quiz-drafter:buildZip で作っておく
+  package_path = "${path.root}/../../../../services/news-quiz-drafter/build/distributions/news-quiz-drafter.zip"
+
+  alarm_topic_arn = module.alarms.topic_arn
+  runbook_url     = "${local.runbook_url}#${urlencode("技術ニュースの下書きを作れなかった")}"
+
+  log_retention_days = 14
+}
+
 module "quiz_service" {
   source = "../../modules/quiz-service"
 
@@ -151,6 +166,11 @@ module "quiz_service" {
     arn  = module.events.bus_arn
   }
 
+  news_quizzes = {
+    bucket_name = module.news_quiz_drafter.bucket_name
+    bucket_arn  = module.news_quiz_drafter.bucket_arn
+  }
+
   db_endpoint      = local.app_database.cluster_endpoint
   db_port          = local.app_database.port
   db_name          = local.app_database.database_name
@@ -166,10 +186,13 @@ module "quiz_service" {
   # ふだんは既定（20 件/秒）。負荷試験の間だけ -var で上げる
   throttling = var.api_throttling
 
-  # 使わない深夜は止める。Aurora のストレージなどは、止めている間も課金が続く
+  # 使われなくなったら止め、使うときに起こす（DEV-153）。Aurora のストレージなどは、止めている間も課金が続く。
+  # 30 分は、画面を読んだり解説を書いたりしている間に止まらない長さ（Aurora の一時停止と同じ）
+  idle_stop_minutes = 30
+
+  # 深夜は、使われていなくても止める。起こしたまま一度も使わなかったときの拾い直し。朝には戻さない
   nightly_stop = {
     stop     = "cron(0 2 * * ? *)"
-    start    = "cron(0 8 * * ? *)"
     timezone = "Asia/Tokyo"
   }
 
@@ -267,6 +290,12 @@ module "web" {
     client_secret = module.auth.client_secret
   }
 
+  # パスワードは公開している（README）。web のサーバーだけが持ち、ブラウザには渡さない
+  demo_user = {
+    email    = module.auth.demo_user_email
+    password = module.auth.demo_user_password
+  }
+
   github_access_token = var.github_access_token
 
   log_retention_days = 14
@@ -288,5 +317,6 @@ module "deploy_role" {
 
   amplify_branch_arn = module.web.branch_arn
 
-  notification_function_arn = module.notification_service.function_arn
+  notification_function_arn      = module.notification_service.function_arn
+  news_quiz_drafter_function_arn = module.news_quiz_drafter.function_arn
 }

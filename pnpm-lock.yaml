@@ -243,7 +243,7 @@ importers:
         version: 10.1.8(eslint@9.39.5(jiti@2.7.0)(supports-color@10.2.2))
       orval:
         specifier: 8.36.0
-        version: 8.36.0(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.6.5))(@tanstack/react-query@5.103.2(react@19.2.8))(prettier@3.9.9)(typescript@5.9.3)(zod@4.6.5)
+        version: 8.36.0(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(@tanstack/react-query@5.103.2(react@19.2.8))(prettier@3.9.9)(typescript@5.9.3)(zod@4.6.5)
       prettier:
         specifier: 3.9.9
         version: 3.9.9
@@ -928,8 +928,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@modelcontextprotocol/sdk@1.30.0':
-    resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
+  '@modelcontextprotocol/sdk@1.32.1':
+    resolution: {integrity: sha512-2DdE+SJDtzLEEWzY1ZjY7Q+VcPhcV1KisD3zI4u0XZyktsjHum1mwbMI+JaulUBi2OZk+KJAi2uPXzxichPkdw==}
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
@@ -5633,7 +5633,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@3.25.76)':
+  '@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@3.25.76)':
     dependencies:
       '@hono/node-server': 2.1.1(hono@4.13.8)
       ajv: 8.20.0
@@ -5655,7 +5655,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.6.5)':
+  '@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5)':
     dependencies:
       '@hono/node-server': 2.1.1(hono@4.13.8)
       ajv: 8.20.0
@@ -5781,13 +5781,13 @@ snapshots:
       - '@faker-js/faker'
       - zod
 
-  '@orval/mcp@8.36.0(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.6.5))(zod@4.6.5)':
+  '@orval/mcp@8.36.0(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(zod@4.6.5)':
     dependencies:
       '@orval/core': 8.36.0
       '@orval/fetch': 8.36.0
       '@orval/zod': 8.36.0(zod@4.6.5)
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(supports-color@10.2.2)(zod@4.6.5)
+      '@modelcontextprotocol/sdk': 1.32.1(supports-color@10.2.2)(zod@4.6.5)
     transitivePeerDependencies:
       - '@faker-js/faker'
       - zod
@@ -9120,7 +9120,7 @@ snapshots:
       string-width: 7.2.0
       strip-ansi: 7.2.0
 
-  orval@8.36.0(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.6.5))(@tanstack/react-query@5.103.2(react@19.2.8))(prettier@3.9.9)(typescript@5.9.3)(zod@4.6.5):
+  orval@8.36.0(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(@tanstack/react-query@5.103.2(react@19.2.8))(prettier@3.9.9)(typescript@5.9.3)(zod@4.6.5):
     dependencies:
       '@commander-js/extra-typings': 15.0.0(commander@15.0.0)
       '@orval/angular': 8.36.0
@@ -9129,7 +9129,7 @@ snapshots:
       '@orval/effect': 8.36.0
       '@orval/fetch': 8.36.0
       '@orval/hono': 8.36.0(typescript@5.9.3)(zod@4.6.5)
-      '@orval/mcp': 8.36.0(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.6.5))(zod@4.6.5)
+      '@orval/mcp': 8.36.0(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(zod@4.6.5)
       '@orval/mock': 8.36.0
       '@orval/pinia-colada': 8.36.0
       '@orval/query': 8.36.0(@tanstack/react-query@5.103.2(react@19.2.8))
@@ -9665,7 +9665,7 @@ snapshots:
       '@babel/plugin-transform-typescript': 7.29.9(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2)
       '@babel/preset-typescript': 7.29.7(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2)
       '@dotenvx/dotenvx': 1.75.1
-      '@modelcontextprotocol/sdk': 1.30.0(supports-color@10.2.2)(zod@3.25.76)
+      '@modelcontextprotocol/sdk': 1.32.1(supports-color@10.2.2)(zod@3.25.76)
       '@types/validate-npm-package-name': 4.0.2
       browserslist: 4.29.0
       cn: 0.2.6

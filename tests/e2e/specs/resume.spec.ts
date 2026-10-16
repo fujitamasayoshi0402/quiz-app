@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { expectNoHorizontalScroll } from "../support/layout";
 import { storageStateOf, tenant } from "../support/users";
 
 /**
@@ -54,7 +55,7 @@ test("模試モードを 1 問でやめ、出題の画面から再開して最�
     await expectNoHorizontalScroll(page);
 
     // 終えたので、出題の画面にはもう出ない
-    await page.getByRole("link", { name: "もう一度" }).click();
+    await page.getByRole("link", { name: "クイズを選ぶ画面に戻る" }).click();
     await expect(page.getByText("E2E 中断と再開")).toBeVisible();
     await expect(page.getByText("中断中のクイズがあります")).toHaveCount(0);
   });
@@ -62,12 +63,4 @@ test("模試モードを 1 問でやめ、出題の画面から再開して最�
 
 async function questionOf(page: Page): Promise<string> {
   return (await page.locator("[data-slot=question]").first().textContent()) ?? "";
-}
-
-/** 開発ガイドライン「画面の幅」。360px で横スクロールを出さない */
-async function expectNoHorizontalScroll(page: Page) {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBe(0);
 }

@@ -1,5 +1,7 @@
 package com.quizapp.quiz.usecase
 
+import com.quizapp.quiz.domain.AnswerTally
+import com.quizapp.quiz.domain.AnsweredQuizzes
 import com.quizapp.quiz.domain.CategoryRepository
 import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.DeletionRepository
@@ -17,7 +19,8 @@ import org.springframework.stereotype.Service
 import java.util.UUID
 
 // 8 つ目は、テナントの上限（ADR-0028）。作成の前に確かめる番人で、ほかの型に混ぜると、確かめていることが見えなくなる。
-// 削除も各ユースケースが持つ形で揃えているため、ずらして減らすことはしない
+// 削除も各ユースケースが持つ形で揃えているため、ずらして減らすことはしない。
+// 9 つ目は、一覧に載せる回答の集計（DEV-158）。answer モジュールの記録で、クイズのリポジトリには混ぜられない
 @Suppress("LongParameterList")
 @Service
 class QuizUseCase(
@@ -28,10 +31,16 @@ class QuizUseCase(
     private val figureRepository: FigureRepository,
     private val outbox: QuizEventOutbox,
     private val capacity: TenantCapacity,
+    private val answeredQuizzes: AnsweredQuizzes,
     private val tenantTransaction: TenantTransaction,
 ) {
-    fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> =
-        tenantTransaction.execute { quizRepository.search(categoryId, difficultyId, status) }
+    /** 回答の集計を添えて返す。集計は、件数によらず 1 本の SQL で読む */
+    fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?, aiGenerated: Boolean?): List<QuizListItem> =
+        tenantTransaction.execute {
+            val quizzes = quizRepository.search(categoryId, difficultyId, status, aiGenerated)
+            val tallies = answeredQuizzes.tally(quizzes.mapNotNull { it.id })
+            quizzes.map { QuizListItem(it, tallies[it.id] ?: AnswerTally.NONE) }
+        }
 
     fun get(id: UUID): Quiz = tenantTransaction.execute {
         quizRepository.findById(id) ?: throw QuizNotFoundException(id)
@@ -78,6 +87,8 @@ class QuizUseCase(
             explanation = explanation,
             choices = choices,
             status = status,
+            // 出典は、AI が作ったときに決まる。直しても公開しても、元にした発表は変わらない（ADR-0031）
+            sourceUrl = before.sourceUrl,
         )
         verifyFigures(quiz)
         quizRepository.save(quiz).also { saved ->
@@ -115,3 +126,5 @@ class QuizUseCase(
 }
 
 class QuizNotFoundException(val id: UUID) : RuntimeException("クイズが見つかりません: $id")
+
+data class QuizListItem(val quiz: Quiz, val answers: AnswerTally)

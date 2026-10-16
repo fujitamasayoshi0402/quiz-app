@@ -225,6 +225,33 @@ class AttemptDeliveryApiTest {
     }
 
     @Test
+    @DisplayName("間違えた問題は、直近の回答が不正解のものだけを出す")
+    fun incorrectFollowsLatestAnswer() {
+        val missed = fixture.quiz(awsCategory, saa, "間違えたままの問題")
+        val fixed = fixture.quiz(awsCategory, saa, "解き直して正解した問題")
+        fixture.quiz(awsCategory, saa, "未回答の問題")
+        answerOnce(missed, correct = false)
+        answerOnce(fixed, correct = false, minutesAgo = 10)
+        answerOnce(fixed, correct = true)
+
+        restart("""{"scope":"incorrect","limit":10}""").andExpect {
+            status { isCreated() }
+            jsonPath("$.quizzes.length()") { value(1) }
+            jsonPath("$.quizzes[0].question") { value("間違えたままの問題") }
+            jsonPath("$.scope") { value("incorrect") }
+        }
+    }
+
+    @Test
+    @DisplayName("間違えた問題が無ければ始められない")
+    fun incorrectFailsWhenNothingMissed() {
+        val only = fixture.quiz(awsCategory, saa, "正解した問題")
+        answerOnce(only)
+
+        restart("""{"scope":"incorrect"}""").andExpect { status { isUnprocessableEntity() } }
+    }
+
+    @Test
     @DisplayName("該当するクイズが無ければ 422")
     fun noQuizIsUnprocessable() {
         start("""{"scope":"all"}""").andExpect {
@@ -264,7 +291,7 @@ class AttemptDeliveryApiTest {
     }
 
     /** 回答履歴を 1 件作る。出題の絞り込みを試すための下ごしらえ。 */
-    private fun answerOnce(quizId: UUID) {
+    private fun answerOnce(quizId: UUID, correct: Boolean = true, minutesAgo: Int = 0) {
         val choiceId = TestPostgres.adminJdbcTemplate.queryForObject(
             "SELECT id FROM quiz.choices WHERE quiz_id = ? ORDER BY sort_order LIMIT 1",
             UUID::class.java,
@@ -281,14 +308,16 @@ class AttemptDeliveryApiTest {
         )
         TestPostgres.adminJdbcTemplate.update(
             """
-            INSERT INTO answer.answers (tenant_id, attempt_id, user_id, quiz_id, choice_id, is_correct)
-            VALUES (?, ?, ?, ?, ?, true)
+            INSERT INTO answer.answers (tenant_id, attempt_id, user_id, quiz_id, choice_id, is_correct, answered_at)
+            VALUES (?, ?, ?, ?, ?, ?, now() - make_interval(mins => ?))
             """,
             tenant.id,
             attemptId,
             user,
             quizId,
             choiceId,
+            correct,
+            minutesAgo,
         )
     }
 }

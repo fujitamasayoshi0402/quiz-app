@@ -29,8 +29,12 @@ tags:
   name: 公開テナント
 - description: カテゴリ配下の難易度を CRUD する。体系はカテゴリごとに決める
   name: 難易度
+- description: テナントからの退会
+  name: 所属
 - description: ログインしている利用者自身の情報
   name: 利用者
+- description: 問題に付ける印。印の付いた問題だけを出題できる（出題対象 `bookmarked`）
+  name: あとで見直す
 - description: 自分の過去の挑戦と、カテゴリ別の正答率
   name: 履歴
 - description: 管理者がクイズを CRUD する。**応答に正解を含む**
@@ -787,7 +791,81 @@ paths:
       required: true
       schema:
         type: string
+  /api/t/{slug}/admin/difficulties:
+    get:
+      description: カテゴリの並び順、レベル、並び順で返す。削除したカテゴリの下にあるものは含まない
+      operationId: listAllDifficulties
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DifficultyResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: すべてのカテゴリの難易度の一覧
+      tags:
+      - 難易度
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
   /api/t/{slug}/admin/figures:
+    get:
+      description: 図ごとに、解説で使っている問題の数を、公開中・下書きとゴミ箱に分けて返す
+      operationId: listFigures
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FigureSummaryResponse"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 解説図の一覧。置いた日時の新しい順
+      tags:
+      - 解説図
     parameters:
     - description: テナントの識別子（URL 用の短い名前）
       in: path
@@ -927,7 +1005,8 @@ paths:
       - 解説図
   /api/t/{slug}/admin/figures/{id}:
     delete:
-      description: 論理削除ではない。発行済みの URL は期限（最長 10 分）まで使える
+      description: 論理削除ではない。発行済みの URL は期限（最長 10 分）まで使える。公開中か下書きの問題が解説で使っていれば、消さずに
+        409 と、使っている問題の問題文（`quizzes`）を返す。ゴミ箱の問題だけが使っている図は消せ、それらの問題はゴミ箱から戻せなくなる
       operationId: deleteFigure
       parameters:
       - in: path
@@ -1268,6 +1347,7 @@ paths:
       - 通知
   /api/t/{slug}/admin/quizzes:
     get:
+      description: 各クイズに、テナントの全員の回答の数（`answerCount`）と、そのうち正解の数（`correctCount`）を添える
       operationId: searchQuizzes
       parameters:
       - in: query
@@ -1287,6 +1367,12 @@ paths:
         required: false
         schema:
           type: string
+      - description: true なら AI が技術ニュースから作ったもの（`sourceUrl` を持つ）だけ、false なら人が作ったものだけ
+        in: query
+        name: aiGenerated
+        required: false
+        schema:
+          type: boolean
       responses:
         "200":
           content:
@@ -1294,7 +1380,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/QuizResponse"
+                  $ref: "#/components/schemas/QuizListItemResponse"
           description: OK
         "401":
           content:
@@ -2027,6 +2113,121 @@ paths:
       summary: 挑戦を終えて結果を取得
       tags:
       - 挑戦
+  /api/t/{slug}/play/bookmarks:
+    get:
+      description: いま出題できるクイズだけを、カテゴリと難易度とともに返す。削除・非公開になったクイズへの印は出さない
+      operationId: listBookmarks
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookmarkList"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 印を付けたクイズ
+      tags:
+      - あとで見直す
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+  /api/t/{slug}/play/bookmarks/{quizId}:
+    delete:
+      description: 付いていなければ何もしない
+      operationId: removeBookmark
+      parameters:
+      - in: path
+        name: quizId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 印を外す
+      tags:
+      - あとで見直す
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
+    put:
+      description: 付いていれば何もしない。いま出題できないクイズは 404
+      operationId: addBookmark
+      parameters:
+      - in: path
+        name: quizId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 印を付ける
+      tags:
+      - あとで見直す
   /api/t/{slug}/play/categories:
     get:
       operationId: listPlayableCategories
@@ -2251,6 +2452,40 @@ paths:
       required: true
       schema:
         type: string
+  /api/t/{slug}/play/membership:
+    delete:
+      operationId: leaveTenant
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: テナントから退会する。そのテナントでの回答の履歴とランキングへの参加も消す。最後の管理者と共有のアカウントは退会できない
+      tags:
+      - 所属
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
   /api/t/{slug}/play/ranking:
     get:
       operationId: getRanking
@@ -2400,6 +2635,11 @@ components:
             \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         isCorrect:
           type: boolean
+        sourceUrl:
+          type:
+          - string
+          - "null"
+          description: AI が技術ニュースから作り、管理者が確かめて公開したクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）
         totalCount:
           type: integer
           format: int32
@@ -2482,12 +2722,27 @@ components:
         answeredCount:
           type: integer
           format: int32
+        categoryId:
+          type:
+          - string
+          - "null"
+          format: uuid
         correctCount:
           type: integer
           format: int32
+        difficultyId:
+          type:
+          - string
+          - "null"
+          format: uuid
         id:
           type: string
           format: uuid
+        level:
+          type:
+          - integer
+          - "null"
+          format: int32
         results:
           type: array
           items:
@@ -2533,6 +2788,31 @@ components:
       - quizzes
       - scope
       - status
+    BookmarkList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookmarkedQuiz"
+      required:
+      - items
+    BookmarkedQuiz:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        difficultyId:
+          type: string
+          format: uuid
+        quizId:
+          type: string
+          format: uuid
+      required:
+      - categoryId
+      - difficultyId
+      - quizId
     CategoryResponse:
       type: object
       properties:
@@ -2812,6 +3092,21 @@ components:
       required:
       - id
       - kind
+    FigureQuizResponse:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+          description: ゴミ箱にある（削除済み）
+        id:
+          type: string
+          format: uuid
+        question:
+          type: string
+      required:
+      - deleted
+      - id
+      - question
     FigureResponse:
       type: object
       properties:
@@ -2828,6 +3123,42 @@ components:
           description: draw.io の原本。描き直すときに draw.io へ読み込ませる
       required:
       - source
+    FigureSummaryResponse:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: 種類。drawio、image、pdf
+          enum:
+          - drawio
+          - image
+          - pdf
+        quizCount:
+          type: integer
+          format: int32
+          description: 解説でこの図を使っている、公開中か下書きの問題の数。1 以上なら消せない
+        quizzes:
+          type: array
+          description: 解説でこの図を使っている問題。公開中・下書きのものが先で、ゴミ箱のもの（`deleted`）が後（DEV-167）
+          items:
+            $ref: "#/components/schemas/FigureQuizResponse"
+        trashedQuizCount:
+          type: integer
+          format: int32
+          description: 解説でこの図を使っている、ゴミ箱の問題の数。消すと、それらの問題はゴミ箱から戻せなくなる
+      required:
+      - createdAt
+      - id
+      - kind
+      - quizCount
+      - quizzes
+      - trashedQuizCount
     FigureUploadResponse:
       type: object
       properties:
@@ -3039,6 +3370,56 @@ components:
       - joined
       - name
       - slug
+    QuizListItemResponse:
+      type: object
+      properties:
+        answerCount:
+          type: integer
+          format: int32
+          description: テナントの全員の回答の数。解き直しはそれぞれ数える
+        categoryId:
+          type: string
+          format: uuid
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChoiceResponse"
+        correctCount:
+          type: integer
+          format: int32
+          description: 回答のうち、正解だった数
+        difficultyId:
+          type: string
+          format: uuid
+        explanation:
+          type: string
+          description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
+            生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
+            の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
+        id:
+          type: string
+          format: uuid
+        question:
+          type: string
+        sourceUrl:
+          type:
+          - string
+          - "null"
+          description: AI が技術ニュースから作ったクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）
+        status:
+          type: string
+      required:
+      - answerCount
+      - categoryId
+      - choices
+      - correctCount
+      - difficultyId
+      - explanation
+      - id
+      - question
+      - status
     QuizResponse:
       type: object
       properties:
@@ -3064,6 +3445,11 @@ components:
           format: uuid
         question:
           type: string
+        sourceUrl:
+          type:
+          - string
+          - "null"
+          description: AI が技術ニュースから作ったクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）
         status:
           type: string
       required:
@@ -3103,6 +3489,11 @@ components:
           - string
           - "null"
           format: uuid
+        sourceUrl:
+          type:
+          - string
+          - "null"
+          description: AI が技術ニュースから作り、管理者が確かめて公開したクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）
       required:
       - choices
       - correctChoiceId

@@ -35,6 +35,7 @@
 | 招待なしで参加できるのは、管理者が公開したテナントだけ。一覧は名前と slug だけを返し、クイズは参加してから読む。非公開のテナントへの参加は、存在しないテナントと同じ 404 | [ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)、`PublicTenantsApiTest` |
 | ログインした人が作るテナントは、作った人が管理者として所属するだけで、ほかのテナントには触れない。非公開に限り、公開への切り替えを API が拒む | [ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)、`TenantCreationApiTest` |
 | 解説図は quiz-service が見せてよいかを決め、期限の短い署名付き URL で配る | [ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md) |
+| dev のサーバーを起こす口（`POST /api/wake`）は quiz-service を通らない。API Gateway が JWT（発行者と web のクライアント）を確かめ、タスクを 1 つ起動するだけで、データに触れない。流量の上限は 1 件/秒 | `modules/quiz-service/wake.tf`、スモークテストの「起こす口」 |
 | 状態を変える要求（POST・PUT・PATCH・DELETE）は、アプリのオリジンから来たものだけを通す。Cookie の `SameSite=Lax` と合わせて 2 枚 | `apps/web/src/proxy.ts`、`isSameOriginRequest` |
 
 残るリスク（受け入れる）: `Origin` も `Sec-Fetch-Site` も付けない要求は通す。ブラウザはどちらかを必ず付けるため、利用者の Cookie を付けて送らせることはできない。スモークテストのような、ブラウザではない呼び出し元のために残している。
@@ -89,8 +90,9 @@ web はセキュリティのヘッダを付けている（開発ガイドライ�
 | SVG はアプリのオリジンから返さない。CloudFront が CSP の `sandbox` と `nosniff` を付けて返す | [ADR-0017](adr/0017-deliver-figures-with-cloudfront-signed-urls.md) |
 | 画像は読み直してから置く（メタデータも落ちる）。種類は申告ではなく中身で決める | `FigureImage` |
 | Slack の通知は、管理者が書いた文字の `<` `>` `&` を書式として読ませない | `SlackMessages` |
+| AI が技術ニュースから作ったクイズは、下書きにしかならない。読むのは AWS の公式の発表だけで、解説は Markdown として表示する | [ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md) |
 
-残るリスク: なし。
+残るリスク（受け入れる）: AI が読む RSS の説明に、AI への指示のような文が紛れ込みうる（プロンプトインジェクション）。出力は下書きにしかならず、管理者が確かめてから公開する（ADR-0031）。
 
 ### A06 安全でない設計
 
@@ -116,10 +118,13 @@ web はセキュリティのヘッダを付けている（開発ガイドライ�
 | 利用者が存在するかを、ログインの応答で答えない（`prevent_user_existence_errors`） | `modules/auth` |
 | アクセストークンの署名、発行者、期限、種類（`token_use`）、発行先のクライアントを確かめる | `AccessTokens` |
 | ログアウトでリフレッシュトークンを失効させる | `apps/web/src/app/auth/logout` |
+| 「デモとして入る」は、同じオリジンからの POST だけを受ける。パスワードは web のサーバーだけが持ち、できることは公開しているデモのアカウントと同じ | [ADR-0029](adr/0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md) |
+| 「デモとして入る」の連打で Cognito の上限を使い切らないよう、取ったトークンを web のサーバーが使い回す。Cognito を呼ぶのはサーバー 1 台につき 1 時間に 1 回ほど | ADR-0029 |
 
 残るリスク（受け入れる）:
 
 - ログアウトしても、発行済みのアクセストークンは期限（1 時間）まで有効。トークンはブラウザに渡らず、web のサーバーの Cookie の中にしかないため、受け入れる
+- デモのセッションは、みんな同じトークンを持つ。共有のリフレッシュトークンを失効させないため、デモのセッションはログアウトしてもトークンが期限まで有効。パスワードを公開しているアカウントなので、受け入れる（ADR-0029）
 - MFA は使わない。パスキーを勧めている。認証を自前の実装に替えるとき（[ADR-0027](adr/0027-design-self-hosted-passkeys-and-keep-cognito.md)）に見直す
 
 ### A08 ソフトウェアとデータの完全性の不備
@@ -131,8 +136,9 @@ web はセキュリティのヘッダを付けている（開発ガイドライ�
 | main と develop への直接の push と force push を禁止し、CI が通らないとマージできない | 開発ガイドライン「Git」 |
 | イベントは共有の型で読み、知らない版は捨てずに DLQ に残す | `libs/quiz-events`、`QuizEventReader` |
 | 図は書き換えない。描き直すと新しい ID になる | 開発ガイドライン「解説図」 |
+| AI が作ったクイズは、取り込みと同じ決まり（選択肢 4 つ、正解 1 つ）で確かめ、元の発表と食い違わないかを AI にも確かめさせてから、下書きとして入れる。元の発表の URL を持つ | [ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md) |
 
-残るリスク: なし。
+残るリスク（受け入れる）: AI の誤りを、確かめる管理者が見落とすと公開される。解く人に、AI が作ったものであることと出典を示す（ADR-0031）。
 
 ### A09 ログとアラートの不備
 

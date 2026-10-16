@@ -4,6 +4,7 @@ import com.quizapp.quiz.domain.DeletedItem
 import com.quizapp.quiz.domain.DeletedItemNotFound
 import com.quizapp.quiz.domain.DeletionImpact
 import com.quizapp.quiz.domain.DeletionRepository
+import com.quizapp.quiz.domain.FigureReferences
 import com.quizapp.quiz.domain.RestoreBlocked
 import com.quizapp.quiz.domain.RestoreObstacle
 import com.quizapp.quiz.domain.Trash
@@ -146,6 +147,15 @@ class DeletionRepositoryImpl(private val jdbc: NamedParameterJdbcTemplate) : Del
 
     override fun restoreCategory(categoryId: UUID) {
         val batch = batchOf("quiz.categories", categoryId)
+        if (batch != null) {
+            requireFiguresOf(
+                "category_id = :id AND deletion_batch_id = :batch",
+                mapOf(
+                    "id" to categoryId,
+                    "batch" to batch,
+                ),
+            )
+        }
 
         val restored = restoring(RestoreObstacle.NAME_TAKEN, "同じ名前のカテゴリがすでにあります") {
             jdbc.update(
@@ -188,6 +198,15 @@ class DeletionRepositoryImpl(private val jdbc: NamedParameterJdbcTemplate) : Del
             "先にカテゴリを復活させてください",
         )
         val batch = batchOf("quiz.difficulties", difficultyId)
+        if (batch != null) {
+            requireFiguresOf(
+                "difficulty_id = :id AND deletion_batch_id = :batch",
+                mapOf(
+                    "id" to difficultyId,
+                    "batch" to batch,
+                ),
+            )
+        }
 
         val restored = restoring(RestoreObstacle.NAME_TAKEN, "同じ名前の難易度がすでにあります") {
             jdbc.update(
@@ -223,6 +242,7 @@ class DeletionRepositoryImpl(private val jdbc: NamedParameterJdbcTemplate) : Del
             quizId,
             "先にカテゴリと難易度を復活させてください",
         )
+        requireFiguresOf("id = :id", mapOf("id" to quizId))
         val restored = jdbc.update(
             """
             UPDATE quiz.quizzes SET deleted_at = NULL, deletion_batch_id = NULL
@@ -231,6 +251,28 @@ class DeletionRepositoryImpl(private val jdbc: NamedParameterJdbcTemplate) : Del
             mapOf("id" to quizId),
         )
         if (restored == 0) throw DeletedItemNotFound(quizId)
+    }
+
+    /**
+     * 戻すクイズ（ゴミ箱にあり、[where] に当たるもの）の解説が指す図が、すべて残っているか（DEV-165）。
+     * 図は、ゴミ箱の問題だけが使っているときに消せる。そのような問題を戻すと、解説がない図を指す
+     */
+    private fun requireFiguresOf(where: String, params: Map<String, Any>) {
+        val referenced = jdbc.queryForList(
+            "SELECT explanation FROM quiz.quizzes WHERE deleted_at IS NOT NULL AND $where",
+            params,
+            String::class.java,
+        ).filterNotNull().flatMap(FigureReferences::findIn).toSet()
+        if (referenced.isEmpty()) return
+
+        val existing = jdbc.queryForList(
+            "SELECT id FROM quiz.figures WHERE id IN (:ids)",
+            mapOf("ids" to referenced),
+            UUID::class.java,
+        ).toSet()
+        if (!existing.containsAll(referenced)) {
+            throw RestoreBlocked(RestoreObstacle.MISSING_FIGURE, "解説が指す図が消されているため、戻せません")
+        }
     }
 
     /** 削除前に消されたものはバッチを持たない。その場合は自分だけを戻す。 */

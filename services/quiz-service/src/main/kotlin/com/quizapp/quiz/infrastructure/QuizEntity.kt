@@ -23,6 +23,8 @@ data class QuizEntity(
     val explanation: String,
     val explanationImageKey: String? = null,
     val status: String,
+    /** 作るときにだけ書く（ADR-0031）。更新では、前の値を引き継ぐ */
+    val sourceUrl: String? = null,
     @MappedCollection(idColumn = "quiz_id", keyColumn = "sort_order")
     val choices: List<ChoiceEntity> = emptyList(),
     @ReadOnlyProperty val createdAt: Instant? = null,

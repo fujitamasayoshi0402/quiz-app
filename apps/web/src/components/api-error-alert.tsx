@@ -1,5 +1,6 @@
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { WakeServerButton } from "@/components/wake-server-button";
 import { ApiError } from "@/lib/api/fetcher";
 
 /**
@@ -8,7 +9,8 @@ import { ApiError } from "@/lib/api/fetcher";
  * - 401 … ログインへ誘導する（セッションが切れた、または更新できなかった）
  * - 400 の入力エラー … バックエンドが項目ごとの理由（`errors`）を返すので、それを並べる
  * - 理由のないエラー … 通信の失敗や、バックエンドに届く前に返った応答。時間をおいて試すよう伝える。
- *   AWS では、夜間にバックエンドを止めている間、API Gateway が 503 を返す（`{"message": ...}` の JSON で、ProblemDetail ではない）。
+ *   AWS では、バックエンドが止まっている間（使われていないとき、夜間）、API Gateway が 500 か 503 を返す（`{"message": ...}` の JSON で、ProblemDetail ではない）。
+ *   そのときは、起動するボタンを出す（DEV-154）
  *   API 全体の流量の上限を超えたときの 429 も、API Gateway が同じ形で返す。利用者ごとの上限の 429 は、バックエンドが理由を付けて返す
  */
 export function ApiErrorAlert({ error }: { error: unknown }) {
@@ -29,11 +31,12 @@ export function ApiErrorAlert({ error }: { error: unknown }) {
         )}
         {!apiError?.problem && (
           <p>
-            {apiError?.status === 503 && "サーバーが止まっているか、起動の途中です。"}
+            {apiError?.serverMayBeStopped && "サーバーが止まっているか、起動の途中です。"}
             {apiError?.status === 429 && "混み合っています。"}
             時間をおいてもう一度お試しください
           </p>
         )}
+        {apiError?.serverMayBeStopped && <WakeServerButton />}
         {apiError?.status === 401 && (
           <a href="/auth/login" className="underline underline-offset-4">
             ログインし直す

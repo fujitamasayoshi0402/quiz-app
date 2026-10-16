@@ -3,6 +3,7 @@ package com.quizapp.quiz.controller
 import com.quizapp.quiz.domain.QuizStatus
 import com.quizapp.quiz.usecase.QuizUseCase
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -30,13 +31,20 @@ import java.util.UUID
 class QuizController(private val useCase: QuizUseCase) {
 
     @GetMapping
-    @Operation(operationId = "searchQuizzes", summary = "クイズを絞り込んで一覧")
+    @Operation(
+        operationId = "searchQuizzes",
+        summary = "クイズを絞り込んで一覧",
+        description = "各クイズに、テナントの全員の回答の数（`answerCount`）と、そのうち正解の数（`correctCount`）を添える",
+    )
     fun search(
         @RequestParam(required = false) categoryId: UUID?,
         @RequestParam(required = false) difficultyId: UUID?,
         @RequestParam(required = false) status: String?,
-    ): List<QuizResponse> =
-        useCase.search(categoryId, difficultyId, status?.let(QuizStatus::from)).map(QuizResponse::from)
+        @Parameter(description = "true なら AI が技術ニュースから作ったもの（`sourceUrl` を持つ）だけ、false なら人が作ったものだけ")
+        @RequestParam(required = false)
+        aiGenerated: Boolean?,
+    ): List<QuizListItemResponse> = useCase.search(categoryId, difficultyId, status?.let(QuizStatus::from), aiGenerated)
+        .map(QuizListItemResponse::from)
 
     @GetMapping("/{id}")
     @Operation(operationId = "getQuiz", summary = "クイズを 1 件取得")

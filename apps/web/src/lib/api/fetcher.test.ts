@@ -31,12 +31,33 @@ describe("apiFetch のエラー", () => {
     expect(error.problem?.title).toBe("認証が必要です");
   });
 
-  // 夜間の停止中は、API Gateway が送り先のないまま 503 を返す。理由のないエラーとして扱い、画面に止まっている旨を出す
-  it("API Gateway が返した JSON は、バックエンドのエラーとして読まない", async () => {
-    respond(503, "application/json", { message: "Service Unavailable" });
+  // 夜間の停止中は、API Gateway が送り先のないまま 500 か 503 を返す。理由のないエラーとして扱い、画面に止まっている旨を出す
+  it.each([
+    [500, "Internal Server Error"],
+    [503, "Service Unavailable"],
+  ])(
+    "API Gateway が返した %i は、バックエンドのエラーとして読まず、止まっているかもしれないとみなす",
+    async (status, message) => {
+      respond(status, "application/json", { message });
 
-    const error = await failure();
-    expect(error.status).toBe(503);
-    expect(error.problem).toBeNull();
+      const error = await failure();
+      expect(error.status).toBe(status);
+      expect(error.problem).toBeNull();
+      expect(error.serverMayBeStopped).toBe(true);
+    },
+  );
+
+  it("バックエンドが返した 500 と 503 は、止まっているとみなさない", async () => {
+    respond(500, "application/problem+json", { title: "サーバー内部エラー", status: 500 });
+    expect((await failure()).serverMayBeStopped).toBe(false);
+
+    respond(503, "application/problem+json", { title: "通知の設定を保存できません", status: 503 });
+    expect((await failure()).serverMayBeStopped).toBe(false);
+  });
+
+  it("手前で返った 504 は、止まっているとみなさない", async () => {
+    respond(504, "application/json", { message: "Endpoint request timed out" });
+
+    expect((await failure()).serverMayBeStopped).toBe(false);
   });
 });

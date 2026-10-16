@@ -26,6 +26,14 @@ import java.util.UUID
 @Tag(name = "解説図", description = "管理者が解説図（draw.io の原本と SVG、画像）を置く")
 class FigureController(private val useCase: FigureUseCase) {
 
+    @GetMapping
+    @Operation(
+        operationId = "listFigures",
+        summary = "解説図の一覧。置いた日時の新しい順",
+        description = "図ごとに、解説で使っている問題の数を、公開中・下書きとゴミ箱に分けて返す",
+    )
+    fun list(): List<FigureSummaryResponse> = useCase.list().map(FigureSummaryResponse::from)
+
     @PostMapping(consumes = [MediaType.APPLICATION_JSON_VALUE])
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
@@ -78,7 +86,9 @@ class FigureController(private val useCase: FigureUseCase) {
     @Operation(
         operationId = "deleteFigure",
         summary = "解説図を消す",
-        description = "論理削除ではない。発行済みの URL は期限（最長 10 分）まで使える",
+        description = "論理削除ではない。発行済みの URL は期限（最長 10 分）まで使える。" +
+            "公開中か下書きの問題が解説で使っていれば、消さずに 409 と、使っている問題の問題文（`quizzes`）を返す。" +
+            "ゴミ箱の問題だけが使っている図は消せ、それらの問題はゴミ箱から戻せなくなる",
     )
     fun delete(@PathVariable id: UUID) = useCase.delete(id)
 }

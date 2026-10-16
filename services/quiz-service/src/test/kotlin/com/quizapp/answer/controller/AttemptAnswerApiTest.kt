@@ -278,6 +278,23 @@ class AttemptAnswerApiTest {
         }
     }
 
+    @Test
+    @DisplayName("結果には出題の範囲が載る。結果画面から同じ範囲で解き直すため")
+    fun resultCarriesRange() {
+        fixture.quiz(category, difficulty, "問題 1")
+        val attempt = start("""{"categoryId":"$category","difficultyId":"$difficulty"}""").andReturn().let {
+            objectMapper.readTree(it.response.contentAsString)
+        }
+
+        mockMvc.post("/api/t/${tenant.slug}/play/attempts/${attempt.id()}/complete") {
+            header("Authorization", TestAuth.bearer(user))
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.categoryId") { value(category.toString()) }
+            jsonPath("$.difficultyId") { value(difficulty.toString()) }
+        }
+    }
+
     // --- 他人の挑戦 -----------------------------------------------------------
 
     @Test

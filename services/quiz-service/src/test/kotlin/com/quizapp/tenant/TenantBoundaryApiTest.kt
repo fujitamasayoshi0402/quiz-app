@@ -202,7 +202,7 @@ class TenantBoundaryApiTest {
     private fun probes(ids: Ids): List<Probe> =
         categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
             figureProbes(ids) + playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids) + historyProbes() +
-            rankingProbes() + notificationProbes() + settingsProbes()
+            rankingProbes() + bookmarkProbes(ids) + notificationProbes() + settingsProbes() + membershipProbes()
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -242,6 +242,7 @@ class TenantBoundaryApiTest {
         val mixed = mapOf("categoryId" to ids.ownCategory, "id" to ids.victimDifficulty)
         val victimParent = mapOf("categoryId" to ids.victimCategory)
         return listOf(
+            Probe(HttpMethod.GET, "/api/t/{slug}/admin/difficulties", "一覧に出ない", status = 200),
             Probe(HttpMethod.GET, base, "", victimParent, status = 404, detail = CATEGORY_NOT_FOUND),
             Probe(HttpMethod.POST, base, "", victimParent, body = body, status = 404, detail = CATEGORY_NOT_FOUND),
             Probe(
@@ -394,6 +395,7 @@ class TenantBoundaryApiTest {
         val base = "/api/t/{slug}/admin/figures"
         val victim = mapOf("id" to ids.victimFigure)
         return listOf(
+            Probe(HttpMethod.GET, base, "victim の図が一覧に出ない", status = 200),
             Probe(HttpMethod.POST, base, "作成は自テナントに入る", body = figureBody("境界テスト"), status = 201),
             Probe(
                 HttpMethod.POST,
@@ -490,6 +492,17 @@ class TenantBoundaryApiTest {
         )
     }
 
+    /** 攻撃者は victim のクイズに印を付けている。それが own に現れず、own から付け外しもできないこと */
+    private fun bookmarkProbes(ids: Ids): List<Probe> {
+        val base = "/api/t/{slug}/play/bookmarks"
+        val victim = mapOf("quizId" to ids.victimQuiz)
+        return listOf(
+            Probe(HttpMethod.GET, base, "victim の印が出ない", status = 200),
+            Probe(HttpMethod.PUT, "$base/{quizId}", "", victim, status = 404, detail = QUIZ_NOT_FOUND),
+            Probe(HttpMethod.DELETE, "$base/{quizId}", "外しても victim の印は残る", victim, status = 204),
+        )
+    }
+
     /** 攻撃者は victim で挑戦を終え、回答も残している。それが own の履歴と正答率に現れないこと */
     private fun historyProbes(): List<Probe> {
         val base = "/api/t/{slug}/play/history"
@@ -537,6 +550,14 @@ class TenantBoundaryApiTest {
             Probe(HttpMethod.DELETE, base, "消しても victim の設定は残る", status = 204),
         )
     }
+
+    /**
+     * 退会しようとしても、victim の所属と履歴は変わらない（ADR-0030）。
+     * 試す人は own の最後の管理者のため、退会は拒まれる。消す範囲は `TenantLeavingApiTest` が確かめる
+     */
+    private fun membershipProbes(): List<Probe> = listOf(
+        Probe(HttpMethod.DELETE, "/api/t/{slug}/play/membership", "victim の所属と履歴は変わらない", status = 409),
+    )
 
     /** own を公開にしても非公開に戻しても、victim の公開設定は変わらない（ADR-0025） */
     private fun settingsProbes(): List<Probe> {
@@ -651,8 +672,8 @@ class TenantBoundaryApiTest {
     }
 
     /**
-     * 攻撃者自身が victim で挑戦を終え、ランキングにも参加している。
-     * 履歴とランキングが own にそれを出さないことの検証に使う
+     * 攻撃者自身が victim で挑戦を終え、ランキングに参加し、解いた問題に印も付けている。
+     * 履歴とランキングと印が own にそれを出さないことの検証に使う
      */
     private fun recordVictimActivity() {
         val finished = startVictimAttempt()
@@ -667,6 +688,10 @@ class TenantBoundaryApiTest {
         mockMvc.post("/api/t/${victimTenant.slug}/play/attempts/$finishedId/complete") {
             header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
         }.andExpect { status { isOk() } }
+
+        mockMvc.put("/api/t/${victimTenant.slug}/play/bookmarks/$quizId") {
+            header("Authorization", TestAuth.bearer(TestAuth.ADMIN))
+        }.andExpect { status { isNoContent() } }
 
         // 上で解いた 1 問で順位が付く
         mockMvc.put("/api/t/${victimTenant.slug}/play/ranking/participation") {
