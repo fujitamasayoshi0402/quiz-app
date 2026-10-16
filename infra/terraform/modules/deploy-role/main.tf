@@ -1,6 +1,7 @@
 # GitHub Actions が dev / prod へのデプロイに使うロール（DEV-48、DEV-134）。環境ごとに 1 つ作る。アクセスキーは発行せず、OIDC で引き受ける。
 #
-# デプロイは、notification-service のコード → イメージの push → マイグレーションの単発タスク → サービスの更新 → web のビルドの順に進む
+# デプロイは、notification-service のコード → イメージの push → マイグレーションの単発タスク → サービスの更新 → news-quiz-drafter のコード（dev だけ）
+# → web のビルドの順に進む
 # （.github/workflows/deploy.yml）。
 # タスク定義と関数の形（環境変数、ロール、CPU など）は Terraform が持ち、CI はイメージやコードだけを差し替える（ADR-0015）。
 # そのため、このロールには Terraform の state も、リソースを作り直す権限も与えない。
@@ -178,13 +179,13 @@ data "aws_iam_policy_document" "deploy" {
     resources = [var.amplify_branch_arn, "${var.amplify_branch_arn}/jobs/*"]
   }
 
-  # ---- notification-service ----
+  # ---- Lambda（notification-service、news-quiz-drafter） ----
 
-  # コードだけを載せ替える（DEV-99）。形を変える UpdateFunctionConfiguration は与えない。ロールや環境変数を書き換えられるため。
+  # コードだけを載せ替える（DEV-99、DEV-163）。形を変える UpdateFunctionConfiguration は与えない。ロールや環境変数を書き換えられるため。
   # GetFunction も与えない。いま載っているコードを取り出せる URL を返す。切り替わりを待つ（aws lambda wait function-updated）のは
   # GetFunctionConfiguration で足りる
   statement {
-    sid = "DeployNotification"
+    sid = "DeployFunctions"
     actions = [
       "lambda:UpdateFunctionCode",
       "lambda:GetFunctionConfiguration",
@@ -193,14 +194,14 @@ data "aws_iam_policy_document" "deploy" {
       # 載せたコミットを読む（deployed-commits.sh）
       "lambda:ListTags",
     ]
-    resources = [var.notification_function_arn]
+    resources = local.function_arns
   }
 
   # 載せたコミットをタグに書く。書けるのは DeployedCommit だけで、Terraform が付けたタグ（Project / Env）は変えられない
   statement {
-    sid       = "RecordNotificationCommit"
+    sid       = "RecordFunctionCommits"
     actions   = ["lambda:TagResource"]
-    resources = [var.notification_function_arn]
+    resources = local.function_arns
 
     condition {
       test     = "ForAllValues:StringEquals"
@@ -214,6 +215,11 @@ resource "aws_iam_role_policy" "deploy" {
   name   = "deploy-quiz-service"
   role   = aws_iam_role.this.id
   policy = data.aws_iam_policy_document.deploy.json
+}
+
+# 下書きを作る関数は dev にだけある。渡されなければ、notification-service だけに絞る
+locals {
+  function_arns = compact([var.notification_function_arn, var.news_quiz_drafter_function_arn])
 }
 
 data "aws_caller_identity" "current" {}

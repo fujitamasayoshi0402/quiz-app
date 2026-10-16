@@ -317,5 +317,6 @@ module "deploy_role" {
 
   amplify_branch_arn = module.web.branch_arn
 
-  notification_function_arn = module.notification_service.function_arn
+  notification_function_arn      = module.notification_service.function_arn
+  news_quiz_drafter_function_arn = module.news_quiz_drafter.function_arn
 }
