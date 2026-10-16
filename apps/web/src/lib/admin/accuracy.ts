@@ -1,18 +1,12 @@
-/**
- * 管理画面のクイズの一覧に出す正答率（DEV-158）。
- *
- * 回答が少ないうちは率を出さない。1 回まちがえただけで 0% と出ると、間違えやすい問題に見えてしまう。
- */
+import { rateOf } from "@/lib/accuracy";
 
-/** 率を出すのに要る回答の数。これより少なければ「回答が少ない」とする */
-export const MIN_ANSWERS = 5;
+/** 管理画面のクイズの一覧に出す正答率（DEV-158）。率の出し方は `lib/accuracy.ts` */
 
 type Counts = { answerCount: number; correctCount: number };
 
-/** 正答率（0〜100 の整数）。回答が少なければ null */
+/** クイズ 1 問の正答率（0〜100 の整数）。回答が少なければ null */
 export function accuracyOf({ answerCount, correctCount }: Counts): number | null {
-  if (answerCount < MIN_ANSWERS) return null;
-  return Math.round((correctCount / answerCount) * 100);
+  return rateOf(answerCount, correctCount);
 }
 
 /**

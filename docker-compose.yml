@@ -101,6 +101,9 @@ services:
       NOTIFICATIONS_SSM_ENDPOINT: http://localstack:4566
       # クイズのイベントは、LocalStack の EventBridge のバスへ送る（ADR-0022）
       EVENTS_ENDPOINT: http://localstack:4566
+      # 利用者ごとの流量の上限（DEV-125）を止める。この一式で流す E2E は、同じ利用者で spec を続けて流し、
+      # 速いマシンでは上限に当たって落ちる。JUnit のテストと同じ扱いで、上限そのものは RateLimitApiTest が見る
+      APP_RATE_LIMIT_ENABLED: "false"
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:

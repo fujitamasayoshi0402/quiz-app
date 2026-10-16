@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,10 +10,10 @@ import { Markdown } from "@/components/markdown";
 import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
 import { AiSourceNote, Eyebrow, Panel, Stat, Verdict } from "@/components/play/parts";
-import { ApiError } from "@/lib/api/fetcher";
-import { completeAttempt, getGetCurrentAttemptQueryKey, useStartAttempt } from "@/lib/api/generated/endpoints";
+import { completeAttempt, getGetCurrentAttemptQueryKey } from "@/lib/api/generated/endpoints";
 import type { AttemptResult, QuizResult } from "@/lib/api/generated/model";
-import { type FeedbackMode, rememberMode } from "@/lib/play/mode";
+import type { FeedbackMode } from "@/lib/play/mode";
+import { useRetryIncorrect } from "@/lib/play/use-retry-incorrect";
 
 /**
  * 結果画面。
@@ -93,44 +92,26 @@ function RetryIncorrect({
   range: Pick<AttemptResult, "categoryId" | "difficultyId" | "level">;
   mode: FeedbackMode;
 }) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const start = useStartAttempt({
-    mutation: {
-      onSuccess: (attempt) => {
-        rememberMode(attempt.id, mode);
-        queryClient.removeQueries({ queryKey: getGetCurrentAttemptQueryKey(slug) });
-        router.push(`/t/${slug}/play/session?attempt=${attempt.id}&mode=${mode}`);
-      },
-    },
-  });
-
-  // 別のタブで始めた挑戦が中断中だと 409 が返る。黙って破棄せず、選ぶ画面で決めてもらう
-  const conflict = start.error instanceof ApiError && start.error.status === 409;
+  const start = useRetryIncorrect(slug, mode);
 
   return (
     <>
-      {conflict ? (
+      {start.conflict ? (
         <p className="text-sm text-muted-foreground">
           中断中のクイズがあります。「クイズを選ぶ画面に戻る」から、再開するか破棄するかを選んでください。
         </p>
       ) : (
-        start.isError && <ApiErrorAlert error={start.error} />
+        start.error && <ApiErrorAlert error={start.error} />
       )}
       <Button
         size="lg"
         className="w-full rounded-full"
         disabled={start.isPending}
         onClick={() =>
-          start.mutate({
-            slug,
-            data: {
-              categoryId: range.categoryId ?? undefined,
-              difficultyId: range.difficultyId ?? undefined,
-              level: range.level ?? undefined,
-              scope: "incorrect",
-              order: "random",
-            },
+          start.retry({
+            categoryId: range.categoryId ?? undefined,
+            difficultyId: range.difficultyId ?? undefined,
+            level: range.level ?? undefined,
           })
         }
       >
