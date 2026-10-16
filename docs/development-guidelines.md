@@ -690,6 +690,17 @@ pnpm --filter mobile start                     # i で iOS のシミュレータ
 - **Expo の SDK は、公開から 7 日たった版を使う**（`minimumReleaseAge`）。SDK と同時に出る React Native の版も同じ。上げるときは、`pnpm --filter mobile exec expo install --check` で SDK が求める版を確かめる
 - React の型（`@types/react`）は web と同じ版にする。Amplify は依存を 1 か所にまとめて入れるため（`nodeLinker: hoisted`）、版が違うと web のビルドが型の食い違いで落ちる
 
+**解説の規則は web と同じ**（DEV-175）。生の HTML は文字として出し、画像は解説図（`figure:`）だけを出す。
+
+- 何を出してよいかは `lib/markdown.ts` が決める。web と同じパーサ（remark と GFM、改行）で構文木にし、出してよいものだけを画面の部品に渡す。
+  部品（`components/markdown.tsx`）は、渡されたものを写すだけにする。性質は `markdown.test.ts` が、web の `markdown.test.tsx` と同じ観点で確かめる
+- リンクにするのは `http:`、`https:`、`mailto:` と図だけ。web はブラウザが相対の URL を解決するが、アプリには解決する先がない
+- **図は、API をトークン付きで呼び、署名付き URL へのリダイレクトをたどって中身を取る**（`followFigure`）。画像の部品はトークンを付けられない
+- **SVG は WebView の中で `<img>` として描く**（`lib/svg.ts`）。draw.io の SVG は HTML のラベルを `foreignObject` で持ち、SVG を自前で描くライブラリでは描けない。
+  WebView の JavaScript は切り、配信のときと同じ CSP を付ける。PNG と JPEG は、React Native の画像の部品で描く
+- 図を押すと、図そのもの（PDF なら PDF）をシステムのブラウザの画面で開く。`HEAD` でリダイレクトをたどり、署名付き URL だけを取る。PDF を開く前に、中身まで落とさない
+- web にあってアプリにないもの: テンポモード、出題対象（間違えた問題など）の選択、あとで見直す印、間違えた問題の解き直し
+
 ### コンテナイメージ
 
 | イメージ | Dockerfile | 備考 |
