@@ -7,7 +7,9 @@ import com.quizapp.quiz.domain.DeliveryScope
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Component
 import java.sql.ResultSet
+import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.UUID
 
@@ -70,4 +72,15 @@ class AttemptHistoryJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) :
         answeredCount = getInt("answered_count"),
         correctCount = getInt("correct_count"),
     )
+
+    override fun countAnswersByDay(userId: UUID, zone: ZoneId): Map<LocalDate, Int> = jdbcTemplate.query(
+        """
+        SELECT (answered_at AT TIME ZONE :zone)::date AS day, count(*) AS answered
+        FROM answer.answers
+        WHERE user_id = :userId
+        GROUP BY day
+        """,
+        mapOf("userId" to userId, "zone" to zone.id),
+    ) { rs, _ -> rs.getObject("day", LocalDate::class.java) to rs.getInt("answered") }
+        .toMap()
 }

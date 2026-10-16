@@ -120,6 +120,14 @@ class TenantLeavingApiTest {
             status { isOk() }
             jsonPath("$.items.length()") { value(0) }
         }
+        // 学習の記録（解いた日）も、回答と一緒に消えている（DEV-179）
+        mockMvc.get("/api/t/${tenant.slug}/play/history/days") {
+            header("Authorization", TestAuth.bearer(user))
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.days.length()") { value(0) }
+            jsonPath("$.streak") { value(0) }
+        }
     }
 
     @Test
