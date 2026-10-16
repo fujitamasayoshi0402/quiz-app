@@ -35,6 +35,7 @@ import {
 } from "@/lib/api/generated/endpoints";
 import { useCatalog } from "@/lib/admin/catalog";
 import { useInvalidateTenant } from "@/lib/admin/invalidate";
+import { type ChoiceAnswers, choiceAnswersOf } from "@/lib/admin/choice-answers";
 import {
   CHOICE_COUNT,
   type QuizFormValues,
@@ -66,6 +67,7 @@ export function EditQuiz({ slug, quizId }: { slug: string; quizId: string }) {
       slug={slug}
       quizId={quizId}
       initial={toQuizForm(quiz.data)}
+      answers={choiceAnswersOf(quiz.data, CHOICE_COUNT)}
       currentStatus={quiz.data.status}
       sourceUrl={quiz.data.sourceUrl}
     />
@@ -86,12 +88,15 @@ function QuizEditor({
   slug,
   quizId,
   initial,
+  answers,
   currentStatus,
   sourceUrl,
 }: {
   slug: string;
   quizId?: string;
   initial: QuizFormValues;
+  /** 選択肢ごとに選ばれた数。編集のときだけある */
+  answers?: ChoiceAnswers;
   currentStatus?: string;
   sourceUrl?: string | null;
 }) {
@@ -220,6 +225,7 @@ function QuizEditor({
           <FieldSet>
             <FieldLegend variant="label">選択肢</FieldLegend>
             <FieldDescription>正解の選択肢を 1 つ選んでください。</FieldDescription>
+            {answers && <AnswersSummary answers={answers} />}
             <Controller
               control={form.control}
               name="correctIndex"
@@ -246,6 +252,7 @@ function QuizEditor({
                           />
                         </div>
                         <FieldError errors={[error]} className="pl-7" />
+                        {answers && answers.total > 0 && <SlotAnswers slot={answers.slots[index]} />}
                       </Field>
                     );
                   })}
@@ -377,6 +384,29 @@ function QuizEditor({
  * AI が公式の技術ニュースから作ったクイズ（ADR-0031）。元の発表と照らして確かめてから公開してもらう。
  * 確かめる段（Bedrock）を通っていても、誤りは 0 にならない
  */
+/**
+ * これまでの回答の数。選択肢の文言を直しても、その欄の選択肢として数え続ける（DEV-170）。
+ * 欄を空にして保存すると、その選択肢への回答は「消した選択肢」に回る
+ */
+function AnswersSummary({ answers }: { answers: ChoiceAnswers }) {
+  if (answers.total === 0) return <p className="text-xs text-muted-foreground">まだ誰も解いていません。</p>;
+  return (
+    <p className="text-xs text-muted-foreground">
+      これまでの回答 {answers.total} 件。各選択肢の下に、選ばれた数を出しています
+      {answers.removed > 0 && `（消した選択肢への回答 ${answers.removed} 件）`}。
+    </p>
+  );
+}
+
+function SlotAnswers({ slot }: { slot: ChoiceAnswers["slots"][number] }) {
+  if (!slot) return null;
+  return (
+    <p className="pl-7 text-xs text-muted-foreground">
+      {slot.count} 回選ばれた{slot.share !== null && `（${slot.share}%）`}
+    </p>
+  );
+}
+
 function AiDraftNotice({ sourceUrl }: { sourceUrl: string }) {
   return (
     <div className="space-y-1.5 rounded-lg border bg-muted/50 p-4 text-sm">

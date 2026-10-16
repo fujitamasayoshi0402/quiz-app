@@ -1526,6 +1526,7 @@ paths:
       tags:
       - クイズ（管理）
     get:
+      description: 各選択肢に、テナントの全員が選んだ回数（`answerCount`）を添える。消した選択肢への回答は `removedChoiceAnswerCount`
       operationId: getQuiz
       parameters:
       - in: path
@@ -1539,7 +1540,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/QuizResponse"
+                $ref: "#/components/schemas/QuizDetailResponse"
           description: OK
         "401":
           content:
@@ -2884,6 +2885,25 @@ components:
       - publishedQuizCount
       - quizCount
       - sortOrder
+    ChoiceDetailResponse:
+      type: object
+      properties:
+        answerCount:
+          type: integer
+          format: int32
+          description: テナントの全員が、この選択肢を選んだ回数
+        body:
+          type: string
+        id:
+          type: string
+          format: uuid
+        isCorrect:
+          type: boolean
+      required:
+      - answerCount
+      - body
+      - id
+      - isCorrect
     ChoiceRequest:
       type: object
       properties:
@@ -2891,6 +2911,13 @@ components:
           type: string
           maxLength: 500
           minLength: 0
+        id:
+          type:
+          - string
+          - "null"
+          format: uuid
+          description: 更新のとき、直す前の選択肢の ID。ID を保ち、選ばれた数を引き継ぐ（DEV-170）。省くか、このクイズにない ID
+            なら新しい選択肢になる。作成と取り込みでは使わない
         isCorrect:
           type: boolean
       required:
@@ -3370,6 +3397,51 @@ components:
       - joined
       - name
       - slug
+    QuizDetailResponse:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChoiceDetailResponse"
+        difficultyId:
+          type: string
+          format: uuid
+        explanation:
+          type: string
+          description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
+            生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
+            の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
+        id:
+          type: string
+          format: uuid
+        question:
+          type: string
+        removedChoiceAnswerCount:
+          type: integer
+          format: int32
+          description: いまはない選択肢（消したもの）を選んだ回答の数
+        sourceUrl:
+          type:
+          - string
+          - "null"
+          description: AI が技術ニュースから作ったクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）
+        status:
+          type: string
+      required:
+      - categoryId
+      - choices
+      - difficultyId
+      - explanation
+      - id
+      - question
+      - removedChoiceAnswerCount
+      - status
     QuizListItemResponse:
       type: object
       properties:

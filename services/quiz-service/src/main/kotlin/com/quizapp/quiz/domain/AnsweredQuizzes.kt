@@ -41,4 +41,10 @@ interface AnsweredQuizzes {
      * 挑戦をまたいだ解き直しは、それぞれ 1 回と数える。
      */
     fun tally(quizIds: List<UUID>): Map<UUID, AnswerTally>
+
+    /**
+     * クイズ 1 問について、選択肢の ID ごとに、**テナントの全員が**選んだ回数を返す（DEV-170）。
+     * いまはない選択肢（消したもの）への回答も含める。選ばれていない選択肢は含めない。
+     */
+    fun countChoices(quizId: UUID): Map<UUID, Int>
 }

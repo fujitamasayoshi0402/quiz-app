@@ -153,6 +153,9 @@ class FakeAnsweredQuizzes : AnsweredQuizzes {
         .filter { (key, _) -> key.second in quizIds }
         .groupBy({ it.key.second }, { it.value })
         .mapValues { (_, results) -> AnswerTally(answered = results.size, correct = results.count { it }) }
+
+    // 選んだ選択肢は覚えていない。選択肢ごとの数は API テストが見る
+    override fun countChoices(quizId: UUID): Map<UUID, Int> = emptyMap()
 }
 
 /**

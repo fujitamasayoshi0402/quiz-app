@@ -47,8 +47,12 @@ class QuizController(private val useCase: QuizUseCase) {
         .map(QuizListItemResponse::from)
 
     @GetMapping("/{id}")
-    @Operation(operationId = "getQuiz", summary = "クイズを 1 件取得")
-    fun get(@PathVariable id: UUID): QuizResponse = QuizResponse.from(useCase.get(id))
+    @Operation(
+        operationId = "getQuiz",
+        summary = "クイズを 1 件取得",
+        description = "各選択肢に、テナントの全員が選んだ回数（`answerCount`）を添える。消した選択肢への回答は `removedChoiceAnswerCount`",
+    )
+    fun get(@PathVariable id: UUID): QuizDetailResponse = QuizDetailResponse.from(useCase.getDetail(id))
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
