@@ -39,13 +39,23 @@
 
 ## 画面
 
-| 出題 | 正誤と解説（学習モード） |
+| デモとして入り、解いて結果を見る（スマホの幅） | AI の下書きを確かめ、直して公開する（管理者） |
 | --- | --- |
-| <img src="docs/images/play-question.png" alt="4 択の問題と選択肢" width="400"> | <img src="docs/images/play-answer.png" alt="選んだ答えの正誤と、Markdown の解説" width="400"> |
+| <img src="docs/images/demo-play.gif" alt="「デモとして入る」を押し、カテゴリを選んで解き、正誤と解説、結果を見る" width="260"> | <img src="docs/images/admin-ai-draft.gif" alt="AI が作った下書きを一覧で絞り込み、元の発表を見ながら解説を書き足して公開する" width="480"> |
 
-| 管理画面（クイズの一覧） | スマホの幅 |
+| 正誤と解説（学習モード） | 履歴とカテゴリ別の正答率 |
 | --- | --- |
-| <img src="docs/images/admin-quizzes.png" alt="カテゴリ・難易度・状態で絞り込めるクイズの一覧" width="400"> | <img src="docs/images/play-mobile.png" alt="幅 390px で表示した出題の画面" width="220"> |
+| <img src="docs/images/play-answer.png" alt="選んだ答えの正誤と、Markdown の解説" width="400"> | <img src="docs/images/history.png" alt="カテゴリごとの正答率と、間違えた問題を解き直すボタン、解いたクイズの一覧" width="400"> |
+
+| 出題（スマホの幅） | テンポモード（縦にスワイプして解く） |
+| --- | --- |
+| <img src="docs/images/play-mobile.png" alt="幅 390px で表示した 4 択の問題" width="220"> | <img src="docs/images/play-tempo.png" alt="選んだその場で正誤が出て、解説の冒頭が見える" width="220"> |
+
+| 管理画面（クイズの一覧。AI が作ったものに印が付く） | AI が作った下書きの編集 |
+| --- | --- |
+| <img src="docs/images/admin-quizzes.png" alt="下書きに絞り込んだクイズの一覧。AI が作ったものに AI の印が付く" width="400"> | <img src="docs/images/admin-ai-draft.png" alt="AI が作ったことと、確かめる観点、元の発表へのリンクが出る編集の画面" width="400"> |
+
+画面は Playwright のスクリプトで撮っています（`pnpm --filter e2e capture`。[開発ガイドライン](docs/development-guidelines.md#readme-の画面)）。
 
 ## 設計上の工夫
 
