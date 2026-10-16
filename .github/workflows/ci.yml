@@ -252,7 +252,7 @@ jobs:
 
       # クイズのパックを流し込むスクリプト（ADR-0034）。依存を持たず、Node が型を消して動かす
       - name: パックの流し込みのテスト
-        run: node --test tools/content/
+        run: node --test 'tools/content/*.test.ts'
 
       # 型チェックと lint では、Server / Client Components の境界の誤りやビルド設定の問題が分からない
       - name: ビルド
