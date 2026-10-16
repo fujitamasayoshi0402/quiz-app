@@ -87,6 +87,8 @@ export * from './startAttemptBody.zod';
 export * from './startAttemptRequest.zod';
 export * from './startFigureUploadBody.zod';
 export * from './startFigureUploadRequest.zod';
+export * from './studyDayCount.zod';
+export * from './studyDays.zod';
 export * from './tenantCreationResponse.zod';
 export * from './tenantSettingsResponse.zod';
 export * from './trash.zod';
