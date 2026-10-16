@@ -33,6 +33,25 @@ export async function apiFetch<T>(url: string, init?: ApiRequestInit): Promise<T
   return (schema ? schema.parse(body) : body) as T;
 }
 
+/**
+ * 解説図の API を呼び、署名付き URL へのリダイレクトをたどる（ADR-0017、ADR-0032）。
+ *
+ * 図の API は、トークンを付けて呼ぶ必要がある。画像の部品はトークンを付けられないため、ここでたどった先を渡す。
+ * `HEAD` は、たどった先の URL だけを知りたいときに使う。PDF（20 MB まで）を開く前に、中身まで落とさない
+ */
+export async function followFigure(path: string, method: "GET" | "HEAD"): Promise<Response> {
+  const token = await accessToken();
+  const response = await fetch(`${config.apiOrigin}${path}`, {
+    method,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    if (response.status === 401 && token) await forgetSession();
+    throw new ApiError(response.status, await readProblem(response));
+  }
+  return response;
+}
+
 /** バックエンドは RFC 9457 の ProblemDetail でエラーを返す。 */
 export type Problem = {
   title?: string;

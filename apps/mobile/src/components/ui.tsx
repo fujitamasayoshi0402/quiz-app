@@ -6,6 +6,7 @@ export const colors = {
   text: "#1f2937",
   muted: "#6b7280",
   border: "#e5e7eb",
+  surface: "#f3f4f6",
   primary: "#2563eb",
   danger: "#b91c1c",
   background: "#ffffff",
@@ -63,9 +64,21 @@ export function ErrorMessage({ error }: { error: unknown }) {
 
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, padding: 16, gap: 16 },
+  scroll: { flex: 1, backgroundColor: colors.background },
+  scrollContent: { padding: 16, paddingBottom: 40, gap: 24 },
+  panel: { gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 16 },
+  notice: {
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#fcd34d",
+    backgroundColor: "#fffbeb",
+    borderRadius: 14,
+    padding: 16,
+  },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 22, fontWeight: "700", color: colors.text },
   text: { fontSize: 15, lineHeight: 22, color: colors.text },
+  question: { fontSize: 19, lineHeight: 28, fontWeight: "700", color: colors.text },
   muted: { fontSize: 13, lineHeight: 20, color: colors.muted },
   error: { fontSize: 14, lineHeight: 20, color: colors.danger },
   button: { borderRadius: 8, backgroundColor: colors.primary, paddingVertical: 12, alignItems: "center" },
@@ -74,4 +87,12 @@ export const styles = StyleSheet.create({
   secondaryLabel: { color: colors.text },
   dimmed: { opacity: 0.6 },
   row: { borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 14 },
+  figure: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 6,
+    backgroundColor: "#ffffff",
+    padding: 8,
+    overflow: "hidden",
+  },
 });
