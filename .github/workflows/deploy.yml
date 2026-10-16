@@ -302,11 +302,14 @@ jobs:
           echo "::add-mask::$TOKEN"
           newman run tests/api/quiz-app.postman_collection.json \
             --env-var "baseUrl=https://${AMPLIFY_BRANCH}.${AMPLIFY_APP_ID}.amplifyapp.com" \
-            --env-var "accessToken=${TOKEN}"
+            --env-var "accessToken=${TOKEN}" \
+            --env-var "wakeEnabled=${WAKE_ENABLED}"
         env:
           AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
           AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
           AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
           SMOKE_USER_EMAIL: smoke@example.com
+          # 起こす口（DEV-154）は、使われなくなったら止める dev にだけある
+          WAKE_ENABLED: ${{ inputs.environment == 'dev' }}
           SMOKE_USER_PASSWORD: ${{ secrets.SMOKE_USER_PASSWORD }}
 

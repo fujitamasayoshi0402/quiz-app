@@ -403,7 +403,7 @@ JaCoCo で計測し、CI のジョブサマリーに出す。**閾値でビル�
 #### スモークテスト
 
 Postman のコレクション（`tests/api/`）を Newman で流し、**デプロイした環境で主要な導線が通るか**を確かめる。
-管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → 解説図（draw.io、画像、PDF）→ 招待 → テナントの境界 → 片付け、の順に 42 本を呼ぶ。
+管理（カテゴリ・難易度・クイズを作る）→ 出題 → 回答 → 結果 → 解説図（draw.io、画像、PDF）→ 招待 → テナントの境界 → 起こす口（dev だけ）→ 片付け、の順に 44 本を呼ぶ。
 画像と PDF は、ブラウザと同じく S3 へ直接上げる（`tests/api/fixtures/`）。
 
 スモークテストの利用者（`smoke@example.com`、Terraform の `modules/auth` が作る）でアクセストークンを取り、`Authorization` に付けて呼ぶ。
@@ -1064,7 +1064,22 @@ TF_VAR_github_access_token=<トークン> terraform apply
   タスクの数は Terraform では無視している。apply しても起動しない
 - 使われていないアラームは、通知につないでいない。ALARM がふつうの状態で、異常ではない。止めたかどうかと理由は、Step Functions のログ（`/aws/vendedlogs/states/quiz-app-dev-quiz-service-idle-stop`）に出る
 
-止まっている間に使うときは、手で起動する。API が使えるまで約 2.5 分かかる（DEV-153 で測った）。使い終わって 30 分たつと、また止まる。
+止まっている間に使うときは、画面の「サーバーを起動する」を押す（DEV-154。`wake.tf`）。止まっているときの案内（`ApiErrorAlert`）の中に出る。
+API が使えるまで約 2.5 分かかる（DEV-153 で測った）。使い終わって 30 分たつと、また止まる。
+
+```
+画面「サーバーを起動する」→ web の proxy（アクセストークンを付ける）→ API Gateway の POST /api/wake
+  → JWT の認可（Cognito。発行者と web のクライアント）→ Step Functions → 止まっていれば ECS の UpdateService（タスク数 1）
+画面は 10 秒おきに /api/me/tenants を読み、バックエンドに届いたら読み込みをやり直す（5 分で諦める）
+```
+
+- タスクが止まっていても届くよう、API Gateway が Step Functions を直接起動する。quiz-service を通らず、Lambda もない
+- **ログインした人なら誰でも起こせる。** 誰でもサインアップできるため、絞っても意味が薄い。起こしても、使われなければ止まる
+- 何度押されても、タスクは 1 つより増えない。流量の上限はほかの API より低い（1 件/秒、バースト 5）
+- 起こす口は dev にだけある。ローカルと prod でボタンを押すと、「起動できませんでした」と出る
+- 電話から起こすとき（DEV-152）も、同じステートマシンを呼ぶ
+
+手で起動するときは、次のコマンドを使う。
 
 ```bash
 aws ecs update-service --cluster quiz-app-dev --service quiz-service --desired-count 1

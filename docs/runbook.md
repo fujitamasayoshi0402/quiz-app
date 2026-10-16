@@ -166,7 +166,8 @@ ECS は、止まったタスクの代わりを自動で起動する。**同じ�
 API Gateway が 500 か 503 を返している（ProblemDetail ではない `{"message": ...}` の形）。送り先のタスクがない。
 アクセスログ（`/aws/apigateway/quiz-app-dev`）では、500 の行の `integrationError` に `No target endpoints found` が入る。
 
-- 使われていない（API への要求が 30 分ない）か、深夜 2:00 を過ぎて止まっている（[ECS](development-guidelines.md#ecsquiz-service)）。使うなら手で起動する。使い終わって 30 分たつと、また止まる
+- 使われていない（API への要求が 30 分ない）か、深夜 2:00 を過ぎて止まっている（[ECS](development-guidelines.md#ecsquiz-service)）。画面の「サーバーを起動する」で起こせる（ログインしていれば誰でも押せる）。手で起動するときは下のコマンド。使い終わって 30 分たつと、また止まる
+- 「サーバーを起動する」で起きないときは、起こす手順のログ（`/aws/vendedlogs/states/quiz-app-dev-quiz-service-wake`）と、API Gateway のアクセスログの `POST /api/wake` の行を見る
 
   ```bash
   aws ecs update-service --cluster quiz-app-dev --service quiz-service --desired-count 1
