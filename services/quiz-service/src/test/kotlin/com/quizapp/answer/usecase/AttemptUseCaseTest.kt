@@ -124,6 +124,7 @@ class AttemptUseCaseTest {
                     isCorrect = true,
                     correctChoiceId = quizzes[1].correct(),
                     explanation = "問題 2 の解説",
+                    sourceUrl = null,
                     answeredCount = 1,
                     totalCount = 3,
                 ),

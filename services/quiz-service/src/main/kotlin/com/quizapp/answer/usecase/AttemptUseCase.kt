@@ -93,6 +93,7 @@ class AttemptUseCase(
             isCorrect = choiceId == key.correctChoiceId,
             correctChoiceId = key.correctChoiceId,
             explanation = key.explanation,
+            sourceUrl = key.sourceUrl,
             answeredCount = repository.findAnswers(attemptId).size,
             totalCount = attempt.quizIds.size,
         )
@@ -171,6 +172,7 @@ class AttemptUseCase(
                 correctChoiceId = key.correctChoiceId,
                 isCorrect = answers[quizId]?.isCorrect ?: false,
                 explanation = key.explanation,
+                sourceUrl = key.sourceUrl,
             )
         }
 
@@ -221,6 +223,8 @@ data class AnswerResult(
     val correctChoiceId: UUID,
     @field:Schema(description = AnswerKey.EXPLANATION_FORMAT)
     val explanation: String,
+    @field:Schema(description = SOURCE_URL_DESCRIPTION)
+    val sourceUrl: String?,
     val answeredCount: Int,
     val totalCount: Int,
 )
@@ -254,7 +258,12 @@ data class QuizResult(
     val isCorrect: Boolean,
     @field:Schema(description = AnswerKey.EXPLANATION_FORMAT)
     val explanation: String,
+    @field:Schema(description = SOURCE_URL_DESCRIPTION)
+    val sourceUrl: String?,
 )
+
+private const val SOURCE_URL_DESCRIPTION =
+    "AI が技術ニュースから作り、管理者が確かめて公開したクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）"
 
 data class AttemptSummary(val id: UUID, val totalCount: Int, val answeredCount: Int)
 

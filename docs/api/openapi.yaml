@@ -1366,6 +1366,12 @@ paths:
         required: false
         schema:
           type: string
+      - description: true なら AI が技術ニュースから作ったもの（`sourceUrl` を持つ）だけ、false なら人が作ったものだけ
+        in: query
+        name: aiGenerated
+        required: false
+        schema:
+          type: boolean
       responses:
         "200":
           content:
@@ -2628,6 +2634,11 @@ components:
             \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         isCorrect:
           type: boolean
+        sourceUrl:
+          type:
+          - string
+          - "null"
+          description: AI が技術ニュースから作り、管理者が確かめて公開したクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）
         totalCount:
           type: integer
           format: int32
@@ -3362,6 +3373,11 @@ components:
           format: uuid
         question:
           type: string
+        sourceUrl:
+          type:
+          - string
+          - "null"
+          description: AI が技術ニュースから作ったクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）
         status:
           type: string
       required:
@@ -3401,6 +3417,11 @@ components:
           - string
           - "null"
           format: uuid
+        sourceUrl:
+          type:
+          - string
+          - "null"
+          description: AI が技術ニュースから作り、管理者が確かめて公開したクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）
       required:
       - choices
       - correctChoiceId

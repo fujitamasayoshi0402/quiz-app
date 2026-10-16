@@ -54,7 +54,15 @@ export function EditQuiz({ slug, quizId }: { slug: string; quizId: string }) {
   const quiz = useGetQuiz(slug, quizId);
   if (quiz.isPending) return <Skeleton className="h-96 w-full" />;
   if (quiz.isError) return <ApiErrorAlert error={quiz.error} />;
-  return <QuizEditor slug={slug} quizId={quizId} initial={toQuizForm(quiz.data)} currentStatus={quiz.data.status} />;
+  return (
+    <QuizEditor
+      slug={slug}
+      quizId={quizId}
+      initial={toQuizForm(quiz.data)}
+      currentStatus={quiz.data.status}
+      sourceUrl={quiz.data.sourceUrl}
+    />
+  );
 }
 
 export function NewQuiz({ slug }: { slug: string }) {
@@ -72,11 +80,13 @@ function QuizEditor({
   quizId,
   initial,
   currentStatus,
+  sourceUrl,
 }: {
   slug: string;
   quizId?: string;
   initial: QuizFormValues;
   currentStatus?: string;
+  sourceUrl?: string | null;
 }) {
   const router = useRouter();
   const catalog = useCatalog(slug);
@@ -125,6 +135,7 @@ function QuizEditor({
           現在の状態 <StatusBadge status={currentStatus} />
         </div>
       )}
+      {sourceUrl && <AiDraftNotice sourceUrl={sourceUrl} />}
 
       <Card>
         <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -328,6 +339,31 @@ function QuizEditor({
         </div>
       </div>
     </form>
+  );
+}
+
+/**
+ * AI が公式の技術ニュースから作ったクイズ（ADR-0031）。元の発表と照らして確かめてから公開してもらう。
+ * 確かめる段（Bedrock）を通っていても、誤りは 0 にならない
+ */
+function AiDraftNotice({ sourceUrl }: { sourceUrl: string }) {
+  return (
+    <div className="space-y-1.5 rounded-lg border bg-muted/50 p-4 text-sm">
+      <p className="font-medium">AI が公式の発表をもとに作ったクイズです</p>
+      <p className="text-muted-foreground">
+        元の発表と照らして、正解が 1
+        つに決まるか、ほかの選択肢が正解になりえないか、解説が正しいかを確かめてから公開してください。
+        公開すると、解く人には、AI が作って管理者が確かめたことと、元の発表へのリンクが示されます。
+      </p>
+      <a
+        href={sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block font-medium underline underline-offset-4"
+      >
+        元の発表を開く
+      </a>
+    </div>
   );
 }
 
