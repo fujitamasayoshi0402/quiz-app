@@ -30,8 +30,8 @@ class QuizUseCase(
     private val capacity: TenantCapacity,
     private val tenantTransaction: TenantTransaction,
 ) {
-    fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> =
-        tenantTransaction.execute { quizRepository.search(categoryId, difficultyId, status) }
+    fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?, aiGenerated: Boolean?): List<Quiz> =
+        tenantTransaction.execute { quizRepository.search(categoryId, difficultyId, status, aiGenerated) }
 
     fun get(id: UUID): Quiz = tenantTransaction.execute {
         quizRepository.findById(id) ?: throw QuizNotFoundException(id)
@@ -78,6 +78,8 @@ class QuizUseCase(
             explanation = explanation,
             choices = choices,
             status = status,
+            // 出典は、AI が作ったときに決まる。直しても公開しても、元にした発表は変わらない（ADR-0031）
+            sourceUrl = before.sourceUrl,
         )
         verifyFigures(quiz)
         quizRepository.save(quiz).also { saved ->

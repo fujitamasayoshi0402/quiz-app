@@ -3,6 +3,7 @@ package com.quizapp.quiz.controller
 import com.quizapp.quiz.domain.QuizStatus
 import com.quizapp.quiz.usecase.QuizUseCase
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -35,8 +36,11 @@ class QuizController(private val useCase: QuizUseCase) {
         @RequestParam(required = false) categoryId: UUID?,
         @RequestParam(required = false) difficultyId: UUID?,
         @RequestParam(required = false) status: String?,
+        @Parameter(description = "true なら AI が技術ニュースから作ったもの（`sourceUrl` を持つ）だけ、false なら人が作ったものだけ")
+        @RequestParam(required = false)
+        aiGenerated: Boolean?,
     ): List<QuizResponse> =
-        useCase.search(categoryId, difficultyId, status?.let(QuizStatus::from)).map(QuizResponse::from)
+        useCase.search(categoryId, difficultyId, status?.let(QuizStatus::from), aiGenerated).map(QuizResponse::from)
 
     @GetMapping("/{id}")
     @Operation(operationId = "getQuiz", summary = "クイズを 1 件取得")

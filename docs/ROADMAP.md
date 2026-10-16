@@ -190,7 +190,7 @@
 - [x] ADR インデックスの整備（テーマ別の索引と、置き換えの関係）
 - [x] ログインした人が、自分のテナントを作って管理の画面を試せる（[ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)）
 - [x] 見に来た人が、ログインの画面を通さずにデモを試せる（[ADR-0029](adr/0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md)）
-- [ ] 公式の技術ニュースから、AI がクイズの下書きを毎日作り、管理者が確かめて公開する（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）
+- [x] 公式の技術ニュースから、AI がクイズの下書きを毎日作り、管理者が確かめて公開する（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）
 - [ ] コストの最終調整
 
 ---

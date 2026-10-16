@@ -13,8 +13,12 @@ import java.util.UUID
 class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository, private val listJdbc: QuizListJdbc) :
     QuizRepository {
 
-    override fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> =
-        listJdbc.search(categoryId, difficultyId, status?.name?.lowercase())
+    override fun search(
+        categoryId: UUID?,
+        difficultyId: UUID?,
+        status: QuizStatus?,
+        aiGenerated: Boolean?,
+    ): List<Quiz> = listJdbc.search(categoryId, difficultyId, status?.name?.lowercase(), aiGenerated)
 
     override fun findById(id: UUID): Quiz? = jdbcRepository.findActiveById(id)?.toDomain()
 

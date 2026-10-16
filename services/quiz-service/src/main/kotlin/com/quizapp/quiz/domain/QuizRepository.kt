@@ -3,8 +3,16 @@ package com.quizapp.quiz.domain
 import java.util.UUID
 
 interface QuizRepository {
-    /** 削除済みを除くクイズを返す。カテゴリと難易度で絞り込める。 */
-    fun search(categoryId: UUID? = null, difficultyId: UUID? = null, status: QuizStatus? = null): List<Quiz>
+    /**
+     * 削除済みを除くクイズを返す。カテゴリ・難易度・状態で絞り込める。
+     * [aiGenerated] は、AI が技術ニュースから作ったもの（[Quiz.sourceUrl] を持つ。ADR-0031）かどうか
+     */
+    fun search(
+        categoryId: UUID? = null,
+        difficultyId: UUID? = null,
+        status: QuizStatus? = null,
+        aiGenerated: Boolean? = null,
+    ): List<Quiz>
 
     fun findById(id: UUID): Quiz?
 

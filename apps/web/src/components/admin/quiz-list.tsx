@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,17 +15,22 @@ import { useCatalog } from "@/lib/admin/catalog";
 /** 「すべて」を表す値。Select は空文字列を値にできない */
 const ALL = "all";
 
-/** クイズ一覧。カテゴリ・難易度・状態で絞り込む（要件定義 A4）。 */
+/** 作った人での絞り込み。AI が技術ニュースから作ったものは、出典の URL を持つ（ADR-0031） */
+const ORIGINS = { ai: true, human: false } as const;
+
+/** クイズ一覧。カテゴリ・難易度・状態・作った人で絞り込む（要件定義 A4、A10）。 */
 export function QuizList({ slug }: { slug: string }) {
   const catalog = useCatalog(slug);
   const [categoryId, setCategoryId] = useState(ALL);
   const [difficultyId, setDifficultyId] = useState(ALL);
   const [status, setStatus] = useState(ALL);
+  const [origin, setOrigin] = useState(ALL);
 
   const quizzes = useSearchQuizzes(slug, {
     categoryId: categoryId === ALL ? undefined : categoryId,
     difficultyId: difficultyId === ALL ? undefined : difficultyId,
     status: status === ALL ? undefined : status,
+    aiGenerated: origin === ALL ? undefined : ORIGINS[origin as keyof typeof ORIGINS],
   });
 
   return (
@@ -73,6 +79,16 @@ export function QuizList({ slug }: { slug: string }) {
             <SelectItem value="draft">下書き</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={origin} onValueChange={setOrigin}>
+          <SelectTrigger className="w-36" aria-label="作った人">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>すべての作成元</SelectItem>
+            <SelectItem value="ai">AI が作ったもの</SelectItem>
+            <SelectItem value="human">人が作ったもの</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="ml-auto flex gap-2">
           <Button asChild variant="outline">
             <Link href={`/t/${slug}/admin/quizzes/import`}>まとめて取り込む</Link>
@@ -118,7 +134,10 @@ export function QuizList({ slug }: { slug: string }) {
                   <TableCell className="hidden sm:table-cell">{catalog.categoryName(quiz.categoryId)}</TableCell>
                   <TableCell className="hidden sm:table-cell">{catalog.difficultyName(quiz.difficultyId)}</TableCell>
                   <TableCell>
-                    <StatusBadge status={quiz.status} />
+                    <div className="flex flex-wrap gap-1">
+                      <StatusBadge status={quiz.status} />
+                      {quiz.sourceUrl && <Badge variant="outline">AI</Badge>}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
