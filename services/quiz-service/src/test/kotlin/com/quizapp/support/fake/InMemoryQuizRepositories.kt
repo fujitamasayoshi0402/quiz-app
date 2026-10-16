@@ -11,10 +11,12 @@ import com.quizapp.quiz.domain.Difficulty
 import com.quizapp.quiz.domain.DifficultyRepository
 import com.quizapp.quiz.domain.FigureKind
 import com.quizapp.quiz.domain.FigureRepository
+import com.quizapp.quiz.domain.FigureRow
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizRepository
 import com.quizapp.quiz.domain.QuizStatus
 import com.quizapp.quiz.domain.Trash
+import java.time.Instant
 import java.util.UUID
 
 /*
@@ -113,6 +115,8 @@ class InMemoryFigureRepository : FigureRepository {
     override fun findExisting(ids: Collection<UUID>): Set<UUID> = ids.filter { it in kinds }.toSet()
 
     override fun delete(id: UUID): Boolean = kinds.remove(id) != null
+
+    override fun list(): List<FigureRow> = kinds.map { (id, kind) -> FigureRow(id, kind, Instant.EPOCH) }
 }
 
 /** 利用者とクイズごとに、最後の回答が正解だったかを覚える */

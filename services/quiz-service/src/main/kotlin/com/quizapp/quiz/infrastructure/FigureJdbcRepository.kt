@@ -2,6 +2,7 @@ package com.quizapp.quiz.infrastructure
 
 import com.quizapp.quiz.domain.FigureKind
 import com.quizapp.quiz.domain.FigureRepository
+import com.quizapp.quiz.domain.FigureRow
 import com.quizapp.tenant.TenantContext
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Component
@@ -39,4 +40,15 @@ class FigureJdbcRepository(private val jdbcTemplate: NamedParameterJdbcTemplate)
 
     override fun delete(id: UUID): Boolean =
         jdbcTemplate.update("DELETE FROM quiz.figures WHERE id = :id", mapOf("id" to id)) > 0
+
+    override fun list(): List<FigureRow> = jdbcTemplate.query(
+        "SELECT id, kind, created_at FROM quiz.figures ORDER BY created_at DESC, id",
+        emptyMap<String, Any>(),
+    ) { rs, _ ->
+        FigureRow(
+            rs.getObject("id", UUID::class.java),
+            FigureKind.valueOf(rs.getString("kind").uppercase()),
+            rs.getTimestamp("created_at").toInstant(),
+        )
+    }
 }

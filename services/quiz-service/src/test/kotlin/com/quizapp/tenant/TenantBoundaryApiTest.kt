@@ -395,6 +395,7 @@ class TenantBoundaryApiTest {
         val base = "/api/t/{slug}/admin/figures"
         val victim = mapOf("id" to ids.victimFigure)
         return listOf(
+            Probe(HttpMethod.GET, base, "victim の図が一覧に出ない", status = 200),
             Probe(HttpMethod.POST, base, "作成は自テナントに入る", body = figureBody("境界テスト"), status = 201),
             Probe(
                 HttpMethod.POST,

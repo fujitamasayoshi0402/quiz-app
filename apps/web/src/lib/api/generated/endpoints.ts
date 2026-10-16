@@ -46,6 +46,7 @@ import {
   FigureDetailResponse,
   FigureResponse,
   FigureSourceResponse,
+  FigureSummaryResponse,
   FigureUploadResponse,
   ImportQuizzesResponse,
   InvitationResponse,
@@ -2233,6 +2234,109 @@ export function useListAllDifficulties<TData = Awaited<ReturnType<typeof listAll
 
 
 
+export const getListFiguresUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/admin/figures`
+}
+
+/**
+ * 図ごとに、解説で使っている問題の数を、公開中・下書きとゴミ箱に分けて返す
+ * @summary 解説図の一覧。置いた日時の新しい順
+ */
+export const listFigures = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<FigureSummaryResponse[]> => {
+
+  return apiFetch<FigureSummaryResponse[]>(getListFiguresUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: zod.array(FigureSummaryResponse)
+  }
+);}
+
+
+
+
+
+export const getListFiguresQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/admin/figures`
+    ] as const;
+    }
+
+
+export const getListFiguresQueryOptions = <TData = Awaited<ReturnType<typeof listFigures>>, TError = ProblemDetail>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFigures>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFiguresQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFigures>>> = ({ signal }) => listFigures(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFigures>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListFiguresQueryResult = NonNullable<Awaited<ReturnType<typeof listFigures>>>
+export type ListFiguresQueryError = ProblemDetail
+
+
+export function useListFigures<TData = Awaited<ReturnType<typeof listFigures>>, TError = ProblemDetail>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFigures>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFigures>>,
+          TError,
+          Awaited<ReturnType<typeof listFigures>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFigures<TData = Awaited<ReturnType<typeof listFigures>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFigures>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFigures>>,
+          TError,
+          Awaited<ReturnType<typeof listFigures>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFigures<TData = Awaited<ReturnType<typeof listFigures>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFigures>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 解説図の一覧。置いた日時の新しい順
+ */
+
+export function useListFigures<TData = Awaited<ReturnType<typeof listFigures>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFigures>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListFiguresQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getCreateFigureUrl = (slug: string,) => {
 
 
@@ -2503,7 +2607,7 @@ export const getDeleteFigureUrl = (slug: string,
 }
 
 /**
- * 論理削除ではない。発行済みの URL は期限（最長 10 分）まで使える
+ * 論理削除ではない。発行済みの URL は期限（最長 10 分）まで使える。公開中か下書きの問題が解説で使っていれば、消さずに 409 と、使っている問題の問題文（`quizzes`）を返す。ゴミ箱の問題だけが使っている図は消せ、それらの問題はゴミ箱から戻せなくなる
  * @summary 解説図を消す
  */
 export const deleteFigure = async (slug: string,

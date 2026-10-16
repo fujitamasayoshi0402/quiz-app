@@ -48,6 +48,7 @@ export * from './difficultyResponse.zod';
 export * from './figureDetailResponse.zod';
 export * from './figureResponse.zod';
 export * from './figureSourceResponse.zod';
+export * from './figureSummaryResponse.zod';
 export * from './figureUploadResponse.zod';
 export * from './getRankingParams.zod';
 export * from './importQuizRequest.zod';
