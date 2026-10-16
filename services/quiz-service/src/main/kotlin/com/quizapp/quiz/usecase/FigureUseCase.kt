@@ -4,6 +4,7 @@ import com.quizapp.quiz.domain.FigureContent
 import com.quizapp.quiz.domain.FigureImage
 import com.quizapp.quiz.domain.FigureKind
 import com.quizapp.quiz.domain.FigurePdf
+import com.quizapp.quiz.domain.FigureQuiz
 import com.quizapp.quiz.domain.FigureRepository
 import com.quizapp.quiz.domain.FigureStore
 import com.quizapp.quiz.domain.FigureUploadStore
@@ -129,7 +130,7 @@ class FigureUseCase(
         val used = usages.usages()
         repository.list().map {
             val usage = used[it.id]
-            FigureSummary(it.id, it.kind, it.createdAt, usage?.liveQuestions?.size ?: 0, usage?.trashedCount ?: 0)
+            FigureSummary(it.id, it.kind, it.createdAt, usage?.live.orEmpty(), usage?.trashed.orEmpty())
         }
     }
 
@@ -142,8 +143,8 @@ class FigureUseCase(
      */
     fun delete(id: UUID) {
         tenantTransaction.executeWithoutResult {
-            val inUse = usages.usages()[id]?.liveQuestions.orEmpty()
-            if (inUse.isNotEmpty()) throw FigureInUseException(id, inUse)
+            val inUse = usages.usages()[id]?.live.orEmpty()
+            if (inUse.isNotEmpty()) throw FigureInUseException(id, inUse.map(FigureQuiz::question))
             if (!repository.delete(id)) throw FigureNotFoundException(id)
         }
         runCatching { store.delete(id) }
@@ -159,13 +160,13 @@ class FigureNotFoundException(val id: UUID) : RuntimeException("図が見つか�
 /** 公開中・下書きの問題が使っているため、消せない。[questions] は使っている問題の問題文 */
 class FigureInUseException(val id: UUID, val questions: List<String>) : RuntimeException("図が使われています: $id")
 
-/** 一覧に出す図。使っている問題の数は、生きているもの（公開中・下書き）とゴミ箱のものを分けて数える */
+/** 一覧に出す図。使っている問題は、生きているもの（公開中・下書き）とゴミ箱のものに分ける */
 data class FigureSummary(
     val id: UUID,
     val kind: FigureKind,
     val createdAt: Instant,
-    val quizCount: Int,
-    val trashedQuizCount: Int,
+    val quizzes: List<FigureQuiz>,
+    val trashedQuizzes: List<FigureQuiz>,
 )
 
 class FigureUploadNotFoundException(val id: UUID) : RuntimeException("上がってきたファイルが見つかりません: $id")

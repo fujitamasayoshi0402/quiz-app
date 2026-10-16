@@ -3092,6 +3092,21 @@ components:
       required:
       - id
       - kind
+    FigureQuizResponse:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+          description: ゴミ箱にある（削除済み）
+        id:
+          type: string
+          format: uuid
+        question:
+          type: string
+      required:
+      - deleted
+      - id
+      - question
     FigureResponse:
       type: object
       properties:
@@ -3128,6 +3143,11 @@ components:
           type: integer
           format: int32
           description: 解説でこの図を使っている、公開中か下書きの問題の数。1 以上なら消せない
+        quizzes:
+          type: array
+          description: 解説でこの図を使っている問題。公開中・下書きのものが先で、ゴミ箱のもの（`deleted`）が後（DEV-167）
+          items:
+            $ref: "#/components/schemas/FigureQuizResponse"
         trashedQuizCount:
           type: integer
           format: int32
@@ -3137,6 +3157,7 @@ components:
       - id
       - kind
       - quizCount
+      - quizzes
       - trashedQuizCount
     FigureUploadResponse:
       type: object

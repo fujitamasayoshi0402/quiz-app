@@ -46,6 +46,7 @@ export * from './deliveredChoice.zod';
 export * from './deliveredQuiz.zod';
 export * from './difficultyResponse.zod';
 export * from './figureDetailResponse.zod';
+export * from './figureQuizResponse.zod';
 export * from './figureResponse.zod';
 export * from './figureSourceResponse.zod';
 export * from './figureSummaryResponse.zod';

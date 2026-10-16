@@ -86,17 +86,35 @@ class FigureDeletionApiTest {
     fun listsFiguresWithUsage() {
         val older = fixture.figure()
         val newer = fixture.figure()
-        quizUsing(older, "公開中の問題")
-        quizUsing(older, "下書きの問題", status = "draft")
-        trash("quizzes/${quizUsing(older, "ゴミ箱の問題")}")
+        val published = quizUsing(older, "公開中の問題")
+        val draft = quizUsing(older, "下書きの問題", status = "draft")
+        val trashed = quizUsing(older, "ゴミ箱の問題")
+        trash("quizzes/$trashed")
 
         val figures = list()
 
         assertThat(figures.ids()).containsExactly(newer.toString(), older.toString())
         assertThat(figures[0]["kind"].asString()).isEqualTo("drawio")
         assertThat(figures[0]["quizCount"].asInt()).isZero()
+        assertThat(figures[0]["quizzes"].size()).isZero()
         assertThat(figures[1]["quizCount"].asInt()).isEqualTo(2)
         assertThat(figures[1]["trashedQuizCount"].asInt()).isEqualTo(1)
+        // 編集画面へのリンクに使う（DEV-167）。公開中・下書きが先で、ゴミ箱のものは印を付けて後に並ぶ
+        val quizzes = figures[1]["quizzes"]
+        assertThat(
+            (0 until quizzes.size()).map {
+                Triple(
+                    quizzes[it]["id"].asString(),
+                    quizzes[it]["question"].asString(),
+                    quizzes[it]["deleted"].asBoolean(),
+                )
+            },
+        )
+            .containsExactly(
+                Triple(published.toString(), "公開中の問題", false),
+                Triple(draft.toString(), "下書きの問題", false),
+                Triple(trashed.toString(), "ゴミ箱の問題", true),
+            )
     }
 
     @Test

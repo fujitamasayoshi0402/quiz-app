@@ -19,6 +19,11 @@ export const FigureSummaryResponse = zod.object({
   "id": zod.uuid(),
   "kind": zod.enum(['drawio', 'image', 'pdf']).describe('種類。drawio、image、pdf'),
   "quizCount": zod.int().describe('解説でこの図を使っている、公開中か下書きの問題の数。1 以上なら消せない'),
+  "quizzes": zod.array(zod.object({
+  "deleted": zod.boolean().describe('ゴミ箱にある（削除済み）'),
+  "id": zod.uuid(),
+  "question": zod.string()
+})).describe('解説でこの図を使っている問題。公開中・下書きのものが先で、ゴミ箱のもの（`deleted`）が後（DEV-167）'),
   "trashedQuizCount": zod.int().describe('解説でこの図を使っている、ゴミ箱の問題の数。消すと、それらの問題はゴミ箱から戻せなくなる')
 })
 
