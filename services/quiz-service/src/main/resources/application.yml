@@ -116,6 +116,8 @@ app:
     # AWS ではタスク定義の環境変数、ローカルでは .env から渡す
     issuer: ${AUTH_ISSUER:}
     client-id: ${AUTH_CLIENT_ID:}
+    # モバイルアプリのクライアント（ADR-0032）。無ければ web のクライアントだけを受け付ける
+    mobile-client-id: ${AUTH_MOBILE_CLIENT_ID:}
   figures:
     # 解説図の置き場所と、配る URL の作り方（ADR-0017、FigureProperties）。
     # 既定値はローカル（LocalStack）向け。AWS ではアプリのタスク定義の環境変数で、S3 の接続先を空にし、CloudFront の設定を入れる

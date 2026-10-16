@@ -17,4 +17,10 @@ data class AuthProperties(
     @field:NotBlank val issuer: String,
     /** トークンを受け取る web のクライアント。Cognito のアクセストークンは `aud` を持たず、`client_id` に入る */
     @field:NotBlank val clientId: String,
-)
+    /** トークンを受け取るモバイルアプリのクライアント（ADR-0032）。空なら web のクライアントだけを受け付ける */
+    val mobileClientId: String = "",
+) {
+    /** トークンを受け付けるクライアント。空の値は入れない。入れると、`client_id` が空のトークンを受け付けてしまう */
+    val acceptedClientIds: Set<String>
+        get() = setOf(clientId, mobileClientId).filterTo(mutableSetOf()) { it.isNotBlank() }
+}

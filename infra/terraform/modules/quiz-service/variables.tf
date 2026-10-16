@@ -51,6 +51,12 @@ variable "auth_client_id" {
   type        = string
 }
 
+variable "auth_mobile_client_id" {
+  description = "トークンを受け取るモバイルアプリのクライアント（ADR-0032）。空なら web のクライアントだけを受け付ける"
+  type        = string
+  default     = ""
+}
+
 # ---- データベース（modules/database） ----
 
 variable "db_endpoint" {
