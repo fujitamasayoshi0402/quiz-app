@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -24,11 +25,12 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   deleteFigure,
   getFigureSource,
+  getListFiguresQueryKey,
+  listFigures,
   useCreateQuiz,
   useDeleteQuiz,
   useGetFigureDetail,
   useGetQuiz,
-  useListFigures,
   useUpdateQuiz,
 } from "@/lib/api/generated/endpoints";
 import { useCatalog } from "@/lib/admin/catalog";
@@ -312,9 +314,9 @@ function QuizEditor({
                   ids={figureIdsIn(explanation)}
                   loading={figures.loading}
                   onRedraw={figures.redraw}
-                  usedElsewhere={removal.usedElsewhere}
+                  blocked={removal.blocked}
                   onRemove={removal.remove}
-                  onRemoveAndDelete={removal.removeAndDelete}
+                  onRemoveAndDelete={(id) => void removal.removeAndDelete(id)}
                 />
                 <PendingFigureDeletions
                   slug={slug}
@@ -480,7 +482,7 @@ function ExplanationFigures({
   ids,
   loading,
   onRedraw,
-  usedElsewhere,
+  blocked,
   onRemove,
   onRemoveAndDelete,
 }: {
@@ -488,7 +490,7 @@ function ExplanationFigures({
   ids: string[];
   loading: string | null;
   onRedraw: (id: string) => void;
-  usedElsewhere: (id: string) => boolean;
+  blocked: string[];
   onRemove: (id: string) => void;
   onRemoveAndDelete: (id: string) => void;
 }) {
@@ -505,7 +507,7 @@ function ExplanationFigures({
             label={`${index + 1} つ目の図`}
             loading={loading}
             onRedraw={onRedraw}
-            usedElsewhere={usedElsewhere(id)}
+            usedElsewhere={blocked.includes(id)}
             onRemove={() => onRemove(id)}
             onRemoveAndDelete={() => onRemoveAndDelete(id)}
           />
@@ -568,20 +570,20 @@ function ExplanationFigure({
       <Button type="button" variant="outline" size="sm" className="w-full" onClick={onRemove}>
         外す
       </Button>
-      {/* ほかの問題も使っている図は消せない（DEV-165）。外すだけにする */}
-      {usedElsewhere ? (
-        <p className="text-center text-xs text-muted-foreground">ほかの問題も使っています</p>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full text-destructive"
-          aria-label={`${label}を外して消す`}
-          onClick={onRemoveAndDelete}
-        >
-          外して消す
-        </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-full text-destructive"
+        aria-label={`${label}を外して消す`}
+        disabled={usedElsewhere}
+        onClick={onRemoveAndDelete}
+      >
+        外して消す
+      </Button>
+      {/* ほかの問題も使っている図は消せない（DEV-165）。押したときに分かったら、解説は変えずに伝える */}
+      {usedElsewhere && (
+        <p className="text-center text-xs text-muted-foreground">ほかの問題も使っているため、消せません</p>
       )}
     </li>
   );
@@ -591,7 +593,9 @@ function ExplanationFigure({
  * 解説から図を外し、保存したときに消す（DEV-168）。保存せずにやめれば、図は残る。
  *
  * **消すのは保存のあと。** 先に消すと、保存しないでやめたときに、保存済みの解説が無い図を指す。
- * ほかの公開中・下書きの問題も使っている図は、消せない（バックエンドも 409 で拒む）。外すだけにする
+ * ほかの公開中・下書きの問題も使っている図は、消せない（バックエンドも 409 で拒む）。
+ * 使っているかは「外して消す」を押したときに図の一覧で確かめる。編集画面を開くたびに取りに行くと、
+ * 利用者ごとの流量の上限（DEV-125）に近づく
  */
 function useFigureRemoval(
   slug: string,
@@ -599,21 +603,33 @@ function useFigureRemoval(
   getValues: (name: "explanation") => string,
   setExplanation: (value: string) => void,
 ) {
-  const figures = useListFigures(slug);
+  const queryClient = useQueryClient();
   const [pending, setPending] = useState<string[]>([]);
+  const [blocked, setBlocked] = useState<string[]>([]);
   const [left, setLeft] = useState<string[]>([]);
 
   const remove = (id: string) => setExplanation(removeFigure(getValues("explanation"), id));
 
+  const usedElsewhere = async (id: string): Promise<boolean> => {
+    const figures = await queryClient.fetchQuery({
+      queryKey: getListFiguresQueryKey(slug),
+      queryFn: () => listFigures(slug),
+    });
+    return (figures.find((figure) => figure.id === id)?.quizzes ?? []).some(
+      (quiz) => !quiz.deleted && quiz.id !== quizId,
+    );
+  };
+
   return {
     pending,
+    blocked,
     left,
-    usedElsewhere: (id: string) =>
-      (figures.data?.find((figure) => figure.id === id)?.quizzes ?? []).some(
-        (quiz) => !quiz.deleted && quiz.id !== quizId,
-      ),
     remove,
-    removeAndDelete: (id: string) => {
+    removeAndDelete: async (id: string) => {
+      if (await usedElsewhere(id)) {
+        setBlocked((current) => (current.includes(id) ? current : [...current, id]));
+        return;
+      }
       remove(id);
       setPending((current) => (current.includes(id) ? current : [...current, id]));
     },
