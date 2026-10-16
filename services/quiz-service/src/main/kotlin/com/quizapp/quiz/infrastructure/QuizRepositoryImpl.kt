@@ -29,13 +29,16 @@ class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository, private
 
     override fun save(quiz: Quiz): Quiz {
         val tenantId = TenantContext.require()
+        val existing = quiz.id?.let {
+            jdbcRepository.findActiveById(it) ?: throw IllegalArgumentException("クイズが見つかりません: $it")
+        }
         // 選択肢は親と同じテナントに属する。複合外部キーの構成要素なので、
         // 値がずれると挿入時に外部キー違反になる
-        val choices = quiz.choices.map {
-            ChoiceEntity(tenantId = tenantId, body = it.body, isCorrect = it.isCorrect)
+        val choices = keptIds(quiz.choices, existing).map { (choice, id) ->
+            ChoiceEntity(id = id, tenantId = tenantId, body = choice.body, isCorrect = choice.isCorrect)
         }
 
-        val entity = if (quiz.id == null) {
+        val entity = if (existing == null) {
             QuizEntity(
                 tenantId = tenantId,
                 categoryId = quiz.categoryId,
@@ -47,8 +50,6 @@ class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository, private
                 choices = choices,
             )
         } else {
-            val existing = jdbcRepository.findActiveById(quiz.id)
-                ?: throw IllegalArgumentException("クイズが見つかりません: ${quiz.id}")
             existing.copy(
                 categoryId = quiz.categoryId,
                 difficultyId = quiz.difficultyId,
@@ -59,6 +60,18 @@ class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository, private
             )
         }
         return jdbcRepository.save(entity).toDomain()
+    }
+
+    /**
+     * 保存しても、選択肢の ID を保つ（DEV-170）。回答は選んだ選択肢の ID で残るため、作り直すと誰が何を選んだかが分からなくなる。
+     *
+     * 引き継ぐのは、**このクイズにいまある選択肢の ID だけ。** ほかのクイズの ID を渡されても使わない。
+     * 同じ ID が 2 度あれば、2 つ目からは新しい ID にする。どちらも、そのまま入れると主キーがぶつかる。
+     * Spring Data JDBC は保存のたびに子を消して入れ直すため、ID を渡せばその ID で入る。
+     */
+    private fun keptIds(choices: List<Choice>, existing: QuizEntity?): List<Pair<Choice, UUID?>> {
+        val available = existing?.choices?.mapNotNull { it.id }.orEmpty().toMutableSet()
+        return choices.map { choice -> choice to choice.id?.takeIf(available::remove) }
     }
 
     private fun QuizEntity.toDomain() = Quiz(

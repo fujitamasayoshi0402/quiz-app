@@ -12,7 +12,7 @@ const question = "日本の首都はどこですか。";
  *
  * カテゴリやクイズは `fixtures.sql` がテストの前に消すので、決まった名前で作れる
  */
-test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、間違えた問題を解き直し、結果と履歴で振り返り、あとで見直す。管理者は回答の数を見る", async ({ browser }) => {
+test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、間違えた問題を解き直し、結果と履歴で振り返り、あとで見直す。管理者は回答の数と選ばれた選択肢を見る", async ({ browser }) => {
   const admin = await (await browser.newContext({ storageState: storageStateOf("admin") })).newPage();
   const member = await (await browser.newContext({ storageState: storageStateOf("member") })).newPage();
 
@@ -162,6 +162,25 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     const row = admin.getByRole("row", { name: new RegExp(question) });
     await expect(row).toContainText("回答が少ない");
     await expect(row).toContainText("4 回答");
+  });
+
+  await test.step("管理者の編集画面に、選択肢ごとに選ばれた数が出る。直して保存しても数は残る", async () => {
+    const expectCounts = async () => {
+      await expect(admin.getByText("これまでの回答 4 件", { exact: false })).toBeVisible();
+      // 大阪を 2 回（間違えた回）、東京を 2 回選んだ。割合は回答が少ないので出さない
+      await expect(admin.getByText("2 回選ばれた", { exact: true })).toHaveCount(2);
+      await expect(admin.getByText("0 回選ばれた", { exact: true })).toHaveCount(2);
+    };
+    await admin.getByRole("link", { name: question }).click();
+    await expectCounts();
+
+    // 選択肢の文言を直しても、その欄の選択肢として数え続ける
+    await admin.getByPlaceholder("選択肢 1").fill("大阪府");
+    await admin.getByRole("button", { name: "公開したまま保存" }).click();
+    await expect(admin).toHaveURL(new RegExp(`/t/${tenant.slug}/admin/quizzes$`));
+    await admin.getByRole("link", { name: question }).click();
+    await expect(admin.getByPlaceholder("選択肢 1")).toHaveValue("大阪府");
+    await expectCounts();
   });
 });
 

@@ -28,6 +28,8 @@ export const QuizFormSchema = z
     difficultyId: z.string().min(1, "難易度を選んでください").pipe(SaveQuizRequestSchema.shape.difficultyId),
     question: SaveQuizRequestSchema.shape.question.trim().min(1, "問題文を入力してください"),
     choices: z.array(z.string().max(saveQuizRequestChoicesItemBodyMax)).length(CHOICE_COUNT),
+    // 欄ごとの、直す前の選択肢の ID。保存しても ID を保ち、選ばれた数を引き継ぐ（DEV-170）。画面には出さない
+    choiceIds: z.array(z.string().nullable()).length(CHOICE_COUNT),
     correctIndex: z
       .number()
       .int()
@@ -67,6 +69,7 @@ export const emptyQuizForm: QuizFormValues = {
   difficultyId: "",
   question: "",
   choices: Array.from({ length: CHOICE_COUNT }, () => ""),
+  choiceIds: Array.from({ length: CHOICE_COUNT }, () => null),
   correctIndex: null,
   explanation: "",
   status: "draft",
@@ -74,12 +77,14 @@ export const emptyQuizForm: QuizFormValues = {
 
 export function toQuizForm(quiz: QuizResponse): QuizFormValues {
   const bodies = quiz.choices.map((choice) => choice.body);
+  const ids = quiz.choices.map((choice) => choice.id);
   const correctIndex = quiz.choices.findIndex((choice) => choice.isCorrect);
   return {
     categoryId: quiz.categoryId,
     difficultyId: quiz.difficultyId,
     question: quiz.question,
     choices: [...bodies, ...Array.from({ length: CHOICE_COUNT - bodies.length }, () => "")],
+    choiceIds: [...ids, ...Array.from({ length: CHOICE_COUNT - ids.length }, () => null)],
     correctIndex: correctIndex === -1 ? null : correctIndex,
     explanation: quiz.explanation,
     status: quiz.status === "published" ? "published" : "draft",
@@ -89,6 +94,9 @@ export function toQuizForm(quiz: QuizResponse): QuizFormValues {
 /**
  * フォームの値を API の形にする。**空欄の選択肢は送らない。**
  * 下書きでは 4 つ埋まっていなくてよいが、バックエンドは空の選択肢そのものを拒むため。
+ *
+ * 欄にもともとあった選択肢の ID を添える。文言を直しても、その欄の選択肢として選ばれた数を引き継ぐ。
+ * 欄を空にして保存すると、その選択肢は消える。
  */
 export function toSaveQuizRequest(form: QuizFormValues): SaveQuizRequest {
   return {
@@ -98,7 +106,11 @@ export function toSaveQuizRequest(form: QuizFormValues): SaveQuizRequest {
     explanation: form.explanation,
     status: form.status,
     choices: form.choices
-      .map((body, index) => ({ body: body.trim(), isCorrect: index === form.correctIndex }))
+      .map((body, index) => ({
+        id: form.choiceIds[index] ?? undefined,
+        body: body.trim(),
+        isCorrect: index === form.correctIndex,
+      }))
       .filter((choice) => choice.body !== ""),
   };
 }

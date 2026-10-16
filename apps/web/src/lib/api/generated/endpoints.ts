@@ -54,6 +54,7 @@ import {
   Participation,
   PlayableCategoryResponse,
   PublicTenantResponse,
+  QuizDetailResponse,
   QuizListItemResponse,
   QuizResponse,
   RankingView,
@@ -3814,18 +3815,19 @@ export const getGetQuizUrl = (slug: string,
 }
 
 /**
+ * 各選択肢に、テナントの全員が選んだ回数（`answerCount`）を添える。消した選択肢への回答は `removedChoiceAnswerCount`
  * @summary クイズを 1 件取得
  */
 export const getQuiz = async (slug: string,
-    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<QuizResponse> => {
+    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<QuizDetailResponse> => {
 
-  return apiFetch<QuizResponse>(getGetQuizUrl(slug,id),
+  return apiFetch<QuizDetailResponse>(getGetQuizUrl(slug,id),
   {
     ...options,
     method: 'GET'
 
     ,
-    schema: QuizResponse
+    schema: QuizDetailResponse
   }
 );}
 
