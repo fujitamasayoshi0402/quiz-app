@@ -121,6 +121,9 @@ vulnerability-scan:
 # バックエンドか画面が変わったときにも流す（e2e ジョブの条件）。ここはそれ以外で E2E に関わるもの
 e2e:
   - 'tests/e2e/**'
+  # テストの前に、デモのテナントへデモのパックを流す（ADR-0034）。パックに誤りがあれば、ここで止まる
+  - 'content/demo/**'
+  - 'tools/content/**'
   - 'docker-compose.yml'
   - 'infra/docker/**'
   - 'pnpm-lock.yaml'

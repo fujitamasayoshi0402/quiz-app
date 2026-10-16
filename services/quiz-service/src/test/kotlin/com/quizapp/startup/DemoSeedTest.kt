@@ -83,8 +83,8 @@ class DemoSeedTest {
     fun seedSkipsQuizzesWhoseChoicesWereReplaced() {
         applySeed()
         // 画面でクイズを編集すると、選択肢は新しい識別子で入れ直される（DEV-104 のデプロイで、dev がこの状態だった）
-        val quiz = "808eab59-8191-526d-8019-0ffb31f67840"
-        val tenant = "7fd43527-dbbf-525e-9f33-f48e4e507fd1"
+        val quiz = "8a0fe98a-5ca7-526d-bc59-143bab566d83"
+        val tenant = "9efd94a0-e517-573b-b46e-0f1ae96fc342"
         TestPostgres.adminJdbcTemplate.update("DELETE FROM quiz.choices WHERE quiz_id = ?::uuid", quiz)
         (1..4).forEach { order ->
             TestPostgres.adminJdbcTemplate.update(
@@ -108,28 +108,103 @@ class DemoSeedTest {
     }
 
     @Test
-    @DisplayName("見本に絞ったときに外したクイズは、すでに入っている DB ではゴミ箱へ移る")
-    fun trimmedQuizzesAreTrashed() {
-        applySeed()
-        // 外したクイズの 1 つ（DEV-164 より前のシードにあったもの）が、dev のように残っている状態を作る
+    @DisplayName("技術のカテゴリは、すでに入っている DB では、配下の難易度とクイズごと 1 回の削除としてゴミ箱へ移る")
+    fun techCategoriesAreTrashedWithChildren() {
+        // dev に残っている状態を作る。DEV-164 で外したクイズも、同じカテゴリの下にある
+        val tenant = "7fd43527-dbbf-525e-9f33-f48e4e507fd1"
+        val category = "63b3c609-bfa5-5db4-bc9a-ec709936969d"
+        val difficulty = "c39ca199-7f94-5d1b-b862-9667de4ba6c9"
+        val quiz = "808eab59-8191-526d-8019-0ffb31f67840"
         val trimmed = "e9d199ac-f69c-57da-841a-aadbdd7ced12"
+        applySeed()
+        insertOldTechRows(tenant, category, difficulty, listOf(quiz, trimmed))
+
+        applySeed()
+        applySeed()
+
+        // アプリでカテゴリを消したときと同じく、カテゴリ・難易度・クイズが同じバッチになり、ゴミ箱からまとめて戻せる
+        val batches = TestPostgres.adminJdbcTemplate.queryForList(
+            """
+            SELECT deletion_batch_id::text FROM quiz.categories
+            WHERE id = '$category' AND deleted_at IS NOT NULL
+            UNION ALL SELECT deletion_batch_id::text FROM quiz.difficulties
+            WHERE id = '$difficulty' AND deleted_at IS NOT NULL
+            UNION ALL SELECT deletion_batch_id::text FROM quiz.quizzes
+            WHERE id = '$quiz' AND deleted_at IS NOT NULL
+            """,
+            String::class.java,
+        )
+        assertThat(batches).hasSize(3)
+        assertThat(batches.distinct()).hasSize(1)
+        // DEV-164 で外したクイズは、それより前の削除のバッチのまま
+        assertThat(
+            count(
+                """
+                SELECT count(*) FROM quiz.quizzes WHERE id = '$trimmed'
+                AND deletion_batch_id = 'a7bc86a8-2965-532e-af48-036fbe9034ce'
+                """,
+            ),
+        ).isEqualTo(1)
+    }
+
+    /** DEV-188 より前のシードが入れた技術のカテゴリ・難易度・クイズを、同じ識別子で作る（消えていれば戻す） */
+    private fun insertOldTechRows(tenant: String, category: String, difficulty: String, quizzes: List<String>) {
         TestPostgres.adminJdbcTemplate.update(
             """
-            INSERT INTO quiz.quizzes (id, tenant_id, category_id, difficulty_id, question, explanation, status)
-            SELECT ?::uuid, q.tenant_id, q.category_id, q.difficulty_id, '外したクイズ', '解説', 'draft'
-            FROM quiz.quizzes q WHERE q.id = '808eab59-8191-526d-8019-0ffb31f67840'
+            INSERT INTO quiz.categories (id, tenant_id, name, sort_order) VALUES (?::uuid, ?::uuid, 'AWS / インフラ', 1)
+            ON CONFLICT (id) DO UPDATE SET deleted_at = NULL, deletion_batch_id = NULL
             """,
-            trimmed,
+            category,
+            tenant,
         )
+        TestPostgres.adminJdbcTemplate.update(
+            """
+            INSERT INTO quiz.difficulties (id, tenant_id, category_id, name, level, sort_order)
+            VALUES (?::uuid, ?::uuid, ?::uuid, 'CLF', 1, 1)
+            ON CONFLICT (id) DO UPDATE SET deleted_at = NULL, deletion_batch_id = NULL
+            """,
+            difficulty,
+            tenant,
+            category,
+        )
+        quizzes.forEach { id ->
+            TestPostgres.adminJdbcTemplate.update(
+                """
+                INSERT INTO quiz.quizzes (id, tenant_id, category_id, difficulty_id, question, explanation, status)
+                VALUES (?::uuid, ?::uuid, ?::uuid, ?::uuid, ?, '解説', 'draft')
+                ON CONFLICT (id) DO UPDATE SET deleted_at = NULL, deletion_batch_id = NULL
+                """,
+                id,
+                tenant,
+                category,
+                difficulty,
+                "外すクイズ $id",
+            )
+        }
+    }
 
-        applySeed()
+    @Test
+    @DisplayName("デモのテナントには、クイズを入れず、AI の受け箱のカテゴリだけを入れる")
+    fun demoTenantHasOnlyTheAiInbox() {
         applySeed()
 
+        // デモのクイズはパック（content/demo/）から API で流し込む（ADR-0034）
+        val categories = TestPostgres.adminJdbcTemplate.queryForList(
+            """
+            SELECT c.name FROM quiz.categories c JOIN core.tenants t ON t.id = c.tenant_id
+            WHERE t.slug = '$DEMO_SLUG' AND c.deleted_at IS NULL
+            """,
+            String::class.java,
+        )
+        assertThat(categories).containsExactly("AWS の最新情報")
         assertThat(
-            count("SELECT count(*) FROM quiz.quizzes WHERE id = '$trimmed' AND deleted_at IS NOT NULL"),
-        ).isEqualTo(1)
-        val kept = "808eab59-8191-526d-8019-0ffb31f67840"
-        assertThat(count("SELECT count(*) FROM quiz.quizzes WHERE id = '$kept' AND deleted_at IS NULL")).isEqualTo(1)
+            count(
+                """
+                SELECT count(*) FROM quiz.quizzes q JOIN core.tenants t ON t.id = q.tenant_id
+                WHERE t.slug = '$DEMO_SLUG' AND q.deleted_at IS NULL AND q.status = 'published'
+                """,
+            ),
+        ).isZero()
     }
 
     @Test
@@ -163,43 +238,6 @@ class DemoSeedTest {
         assertThat(tenants.flatMap(integrityChecks::check)).isEmpty()
         assertThat(count("SELECT count(*) FROM quiz.quizzes WHERE tenant_id IN $SEEDED AND status = 'published'"))
             .isGreaterThan(0)
-    }
-
-    @Test
-    @DisplayName("カテゴリごとに難易度の体系が異なる")
-    fun categoriesHaveTheirOwnDifficultyScales() {
-        applySeed()
-
-        val scales = TestPostgres.adminJdbcTemplate.query(
-            """
-            SELECT c.name AS category, count(d.id) AS levels
-            FROM quiz.categories c JOIN quiz.difficulties d ON d.category_id = c.id
-            WHERE c.tenant_id IN $SEEDED
-            GROUP BY c.name ORDER BY c.name
-            """,
-        ) { rs, _ -> rs.getString("category") to rs.getInt("levels") }
-
-        // 同じ数の難易度が並ぶだけのサンプルだと、体系を分けた設計を示せない
-        assertThat(scales.map { it.second }.distinct()).hasSizeGreaterThan(1)
-    }
-
-    @Test
-    @DisplayName("同じレベルに複数の難易度が並ぶ例が含まれる")
-    fun sameLevelCanHoldMultipleDifficulties() {
-        applySeed()
-
-        // AWS のアソシエイト級（SAA / DVA）。level にユニーク制約を置かなかった理由の実例
-        val duplicated = count(
-            """
-            SELECT count(*) FROM (
-                SELECT category_id, level FROM quiz.difficulties
-                WHERE tenant_id IN $SEEDED
-                GROUP BY category_id, level HAVING count(*) > 1
-            ) AS t
-            """,
-        )
-
-        assertThat(duplicated).isGreaterThan(0)
     }
 
     @Test

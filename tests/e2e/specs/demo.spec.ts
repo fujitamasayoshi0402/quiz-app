@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
  * ログインせずに、共有のデモのアカウントで入る（DEV-151、ADR-0029）。
  *
  * 保存した Cookie は使わない。パスワードは画面では入力せず、web のサーバーが持つ（AUTH_DEMO_USER_*）。
- * デモのテナントとクイズはシード（`R__demo_data.sql`）が入れる。解きかけたクイズは `fixtures.sql` が消す
+ * デモのテナントはシード（`R__demo_data.sql`）、クイズはデモのパック（`global-setup.ts`）が入れる。解きかけたクイズは `fixtures.sql` が消す
  */
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -24,7 +24,7 @@ test("「デモとして入る」でデモのテナントに入り、クイズ�
   });
 
   await test.step("クイズを始めて 1 問答える", async () => {
-    await page.getByText("認証認可", { exact: true }).click();
+    await page.getByText("世界の地理", { exact: true }).click();
     await page.getByRole("button", { name: "始める" }).click();
     await page.getByRole("listitem").first().getByRole("button").click();
     await page.getByRole("button", { name: "回答する" }).click();

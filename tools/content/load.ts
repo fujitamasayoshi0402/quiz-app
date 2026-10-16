@@ -175,10 +175,24 @@ async function findExistingFigures(pack: Pack): Promise<Map<string, string>> {
   for (const figure of await api.figures()) {
     if (found.size === bySource.size) break;
     if (figure.kind !== "drawio") continue;
-    const name = bySource.get(await api.figureSource(figure.id));
+    const source = await sourceOf(figure.id);
+    const name = source === undefined ? undefined : bySource.get(source);
     if (name && !found.has(name)) found.set(name, figure.id);
   }
   return found;
+}
+
+/**
+ * 図の原本。原本が置き場所にない図（404）は、使い回さない。
+ * ローカルの LocalStack は、再起動で S3 の中身が消え、DB の図の行だけが残る
+ */
+async function sourceOf(id: string): Promise<string | undefined> {
+  try {
+    return await api.figureSource(id);
+  } catch (error) {
+    if (error instanceof ApiError && error.problem?.status === 404) return undefined;
+    throw error;
+  }
 }
 
 function neededFigures(quizzes: Quiz[]): string[] {
