@@ -138,8 +138,10 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await expect(member.getByRole("button", { name: "間違えた問題を解き直す" })).toHaveCount(0);
   });
 
-  await test.step("履歴に残り、そこから結果を開き直せる", async () => {
+  await test.step("履歴に残り、そこから結果を開き直せる。学習の記録の今日の欄に、解いた数が出る", async () => {
     await member.getByRole("banner").getByRole("link", { name: "履歴" }).click();
+    // ほかの spec で解いた数も入るため、数は決め打ちにしない。色だけでなく、読み上げの名前でも分かる
+    await expect(member.getByRole("img", { name: /（今日） \d+ 問$/ })).toBeVisible();
     // 解き直した回と、今日の復習で解いた回も並ぶ。最初の回を開く
     const row = member
       .getByRole("link", { name: new RegExp(`${category}・すべての難易度`) })

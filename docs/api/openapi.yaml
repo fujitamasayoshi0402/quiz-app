@@ -37,7 +37,7 @@ tags:
   name: 利用者
 - description: 問題に付ける印。印の付いた問題だけを出題できる（出題対象 `bookmarked`）
   name: あとで見直す
-- description: 自分の過去の挑戦と、カテゴリ別の正答率
+- description: 自分の過去の挑戦と、カテゴリ別の正答率、学習の記録
   name: 履歴
 - description: 管理者がクイズを CRUD する。**応答に正解を含む**
   name: クイズ（管理）
@@ -2455,6 +2455,46 @@ paths:
       required: true
       schema:
         type: string
+  /api/t/{slug}/play/history/days:
+    get:
+      description: 日の区切りは日本時間（利用者のタイムゾーンは持っていない）。終えていない挑戦の回答も数える。日ごとの数は直近 12 週と 1
+        日ぶん。続けて解いた日の数は、今日か昨日まで続いていれば数える
+      operationId: getStudyDays
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyDays"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 学習の記録（日ごとの回答の数と、続けて解いた日の数）
+      tags:
+      - 履歴
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
   /api/t/{slug}/play/membership:
     delete:
       operationId: leaveTenant
@@ -3806,6 +3846,38 @@ components:
       required:
       - contentType
       - size
+    StudyDayCount:
+      type: object
+      properties:
+        count:
+          type: integer
+          format: int32
+        date:
+          type: string
+          format: date
+      required:
+      - count
+      - date
+    StudyDays:
+      type: object
+      properties:
+        days:
+          type: array
+          description: 直近 12 週と 1 日の、回答のあった日と、その日に回答した問題の数。古い順
+          items:
+            $ref: "#/components/schemas/StudyDayCount"
+        streak:
+          type: integer
+          format: int32
+          description: 続けて解いた日の数。今日か昨日まで続いていれば数える。今日まだ解いていなければ、昨日までの数
+        today:
+          type: string
+          format: date
+          description: サーバーが今日とした日。日の区切りは日本時間で固定している
+      required:
+      - days
+      - streak
+      - today
     TenantCreationResponse:
       type: object
       properties:

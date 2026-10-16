@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
 import java.util.UUID
 
@@ -27,7 +28,7 @@ class HistoryUseCaseTest {
 
     private val history = FakeAttemptHistory()
     private val catalog = FakeQuizCatalog()
-    private val useCase = HistoryUseCase(history, catalog, fakeTenantTransaction())
+    private val useCase = HistoryUseCase(history, catalog, Clock.systemUTC(), fakeTenantTransaction())
 
     @BeforeEach
     fun setUp() {

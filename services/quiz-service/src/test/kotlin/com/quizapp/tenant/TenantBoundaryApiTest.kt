@@ -515,6 +515,7 @@ class TenantBoundaryApiTest {
         return listOf(
             Probe(HttpMethod.GET, "$base/attempts", "victim で終えた挑戦が出ない", status = 200),
             Probe(HttpMethod.GET, "$base/categories", "victim の回答とカテゴリが出ない", status = 200),
+            Probe(HttpMethod.GET, "$base/days", "victim で回答した日が数えられない", status = 200),
         )
     }
 
