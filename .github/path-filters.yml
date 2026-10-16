@@ -81,6 +81,13 @@ frontend:
   - '.github/scripts/deployed-commits.sh'
   - '.github/scripts/build-web.sh'
   - '.github/scripts/smoke-token.sh'
+# クイズのパックを流し込むスクリプト（ADR-0034）。CI の frontend ジョブがテストを流す。
+# デプロイには使わない（frontend に入れると、スクリプトを変えただけで web をビルドし直す）
+content:
+  - 'tools/content/**'
+  - '.mise.toml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci.yml'
 # デプロイで、マイグレーションの単発タスクを流すか（DEV-88）。DB に流れるもの（マイグレーションとシード）と、Flyway の設定。
 # ここにないものだけが変わったデプロイでは、流しても何もしないため飛ばす。どれも backend に含まれる
 migration:
