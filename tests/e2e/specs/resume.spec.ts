@@ -59,6 +59,12 @@ test("模試モードを 1 問でやめ、出題の画面から再開して最�
     await expect(page.getByText("E2E 中断と再開")).toBeVisible();
     await expect(page.getByText("中断中のクイズがあります")).toHaveCount(0);
   });
+
+  await test.step("履歴の画面（学習の記録のカレンダーを含む）も、横にはみ出さない", async () => {
+    await page.getByRole("banner").getByRole("link", { name: "履歴" }).click();
+    await expect(page.getByRole("img", { name: /（今日） \d+ 問$/ })).toBeVisible();
+    await expectNoHorizontalScroll(page);
+  });
 });
 
 async function questionOf(page: Page): Promise<string> {

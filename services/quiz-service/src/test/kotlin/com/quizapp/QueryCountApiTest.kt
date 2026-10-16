@@ -62,6 +62,12 @@ class QueryCountApiTest {
         assertThat(countFor(MANY) { it.complete() }).isEqualTo(countFor(FEW) { it.complete() })
     }
 
+    @Test
+    @DisplayName("学習の記録（回答した日を数える）")
+    fun studyDays() {
+        assertThat(countFor(MANY) { it.studyDays() }).isEqualTo(countFor(FEW) { it.studyDays() })
+    }
+
     /** [quizzes] 問を入れたテナントを用意し、[operation] で送った SQL の本数を返す */
     private fun countFor(quizzes: Int, operation: (Scenario) -> Int): Int = operation(Scenario(quizzes))
 
@@ -84,6 +90,24 @@ class QueryCountApiTest {
         }
 
         fun start(): Int = SqlStatementCounter.count { startAttempt() }
+
+        /** 出題したクイズにすべて答え、回答の数をクイズの数にそろえてから数える */
+        fun studyDays(): Int {
+            val attempt = startAttempt()
+            attempt["quizzes"].toList().forEach { quiz ->
+                mockMvc.post("/api/t/${tenant.slug}/play/attempts/${attempt["id"].asString()}/answers") {
+                    contentType = MediaType.APPLICATION_JSON
+                    content =
+                        """{"quizId":"${quiz["id"].asString()}","choiceId":"${quiz["choices"][0]["id"].asString()}"}"""
+                    header("Authorization", TestAuth.bearer(user))
+                }.andExpect { status { isOk() } }
+            }
+            return SqlStatementCounter.count {
+                mockMvc.get("/api/t/${tenant.slug}/play/history/days") {
+                    header("Authorization", TestAuth.bearer(user))
+                }.andExpect { status { isOk() } }
+            }
+        }
 
         fun complete(): Int {
             val attempt = startAttempt()
