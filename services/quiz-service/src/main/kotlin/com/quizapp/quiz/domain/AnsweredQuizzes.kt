@@ -35,6 +35,12 @@ interface AnsweredQuizzes {
     fun filterBookmarked(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID>
 
     /**
+     * 指定ユーザーの「今日の復習」のクイズ ID を返す。次に出す日が今日（日本時間）までのもの（DEV-178）。
+     * 絞り込みの形は [filterAnswered] と同じ。
+     */
+    fun filterDue(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID>
+
+    /**
      * クイズごとに、**テナントの全員の**回答の数と正解の数を返す。回答のないクイズは含めない。
      *
      * ほかの関数と違い、利用者で絞らない。管理者が問題の出来を見るためのもの。

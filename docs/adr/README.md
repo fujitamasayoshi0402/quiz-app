@@ -20,6 +20,7 @@
 | 運用 | [0026](0026-trace-requests-with-micrometer-and-x-ray.md) 分散トレース（Micrometer、X-Ray） |
 | モバイル | [0032](0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) Expo の managed で作り、ログインはシステムのブラウザで開く。API は直接呼ぶ |
 | AI | [0031](0031-draft-quizzes-from-official-tech-news-with-bedrock.md) 公式の技術ニュースから、Bedrock がクイズの下書きを毎日作る |
+| 出題 | [0033](0033-schedule-reviews-with-simplified-sm2.md) 間違えやすい問題を、SM-2 を縮めた式で忘れたころに出す |
 
 ## 置き換えと見直し
 
@@ -69,6 +70,7 @@
 | [0030](0030-let-members-leave-tenant-and-erase-their-history.md) | 所属している人が、自分でテナントから退会できるようにする。退会すると、そのテナントでの回答の履歴を消す | Accepted |
 | [0031](0031-draft-quizzes-from-official-tech-news-with-bedrock.md) | 公式の技術ニュースから、AI（Bedrock）が毎日クイズの下書きを作る。Lambda が S3 に置き、quiz-service が使われたときに取り込む | Accepted |
 | [0032](0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) | モバイルアプリは Expo の managed で作り、ログインはシステムのブラウザで Managed Login を開く。API は直接呼ぶ | Accepted |
+| [0033](0033-schedule-reviews-with-simplified-sm2.md) | 間違えやすい問題を、SM-2 を縮めた式で忘れたころに出す。次に出す日は、回答を受けたときに answer が持つ表に書く | Accepted |
 
 ## 運用ルール
 

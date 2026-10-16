@@ -78,6 +78,7 @@ export * from './receivedInvitationResponse.zod';
 export * from './reorderCategoriesBody.zod';
 export * from './reorderDifficultiesBody.zod';
 export * from './reorderRequest.zod';
+export * from './reviewSummary.zod';
 export * from './saveDifficultyRequest.zod';
 export * from './saveQuizRequest.zod';
 export * from './searchQuizzesParams.zod';
