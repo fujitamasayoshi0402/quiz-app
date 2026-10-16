@@ -24,7 +24,8 @@ export const QuizResult = zod.object({
   "isCorrect": zod.boolean(),
   "question": zod.string(),
   "quizId": zod.uuid(),
-  "selectedChoiceId": zod.uuid().nullish()
+  "selectedChoiceId": zod.uuid().nullish(),
+  "sourceUrl": zod.string().nullish().describe('AI が技術ニュースから作り、管理者が確かめて公開したクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）')
 })
 
 export type QuizResult = zod.input<typeof QuizResult>;

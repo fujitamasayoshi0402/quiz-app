@@ -55,6 +55,8 @@ data class QuizResponse(
     val explanation: String,
     val choices: List<ChoiceResponse>,
     val status: String,
+    @field:Schema(description = SOURCE_URL_DESCRIPTION)
+    val sourceUrl: String?,
 ) {
     companion object {
         fun from(quiz: Quiz) = QuizResponse(
@@ -71,6 +73,9 @@ data class QuizResponse(
                 )
             },
             status = quiz.status.name.lowercase(),
+            sourceUrl = quiz.sourceUrl,
         )
+
+        const val SOURCE_URL_DESCRIPTION = "AI が技術ニュースから作ったクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）"
     }
 }
