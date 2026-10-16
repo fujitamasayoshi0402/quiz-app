@@ -41,6 +41,7 @@ jobs:
       news-quiz-drafter: ${{ steps.filter.outputs.news-quiz-drafter }}
       vulnerability-scan: ${{ steps.filter.outputs.vulnerability-scan }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      mobile: ${{ steps.filter.outputs.mobile }}
       terraform: ${{ steps.filter.outputs.terraform }}
       e2e: ${{ steps.filter.outputs.e2e }}
     steps:
@@ -269,6 +270,59 @@ jobs:
       - name: 脆弱性を調べる（Trivy）
         run: trivy image web:ci
 
+  # モバイルアプリ（ADR-0032）。手元のシミュレータで動かすまでで、ビルドして配ることはしない
+  mobile:
+    name: mobile
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+
+      - name: pnpm ストアの場所を調べる
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: 依存を入れる
+        run: pnpm install --frozen-lockfile --filter mobile
+
+      - name: API クライアントが OpenAPI 定義から作り直されているか
+        run: |
+          pnpm --filter mobile generate:api
+          if [ -n "$(git status --porcelain -- apps/mobile/src/lib/api/generated)" ]; then
+            echo "::error::生成したクライアントが docs/api/openapi.yaml と合っていません。pnpm --filter mobile generate:api を実行してコミットしてください"
+            git status --short -- apps/mobile/src/lib/api/generated
+            exit 1
+          fi
+
+      - name: 整形
+        run: pnpm --filter mobile format:check
+
+      - name: 型チェック
+        run: pnpm --filter mobile typecheck
+
+      - name: lint
+        run: pnpm --filter mobile lint
+
+      - name: 単体テスト
+        run: pnpm --filter mobile test
+
+      # 型チェックでは、Metro がワークスペースの依存を解決できるかが分からない。接続先はダミーでよい
+      - name: バンドルを作る（iOS）
+        env:
+          EXPO_PUBLIC_API_ORIGIN: https://api.example.com
+          EXPO_PUBLIC_AUTH_ISSUER: https://issuer.example.com
+          EXPO_PUBLIC_AUTH_CLIENT_ID: ci
+        run: pnpm --filter mobile exec expo export --platform ios --output-dir "$RUNNER_TEMP/mobile-export"
+
   # 権限まわりの E2E テスト（DEV-77）。docker compose でアプリ一式を起動し、Playwright で画面から確かめる。
   # ログインは dev の Cognito を使う（ADR-0016）。クライアントのシークレットとテストの利用者のパスワードは、リポジトリの secret にある。
   # フォークからの PR には secret が渡らないので動かさない
@@ -463,7 +517,7 @@ jobs:
   ci:
     name: ci
     if: always()
-    needs: [changes, backend, notification, news-quiz-drafter, frontend, e2e, terraform, secrets]
+    needs: [changes, backend, notification, news-quiz-drafter, frontend, mobile, e2e, terraform, secrets]
     runs-on: ubuntu-26.04
     steps:
       - name: 先行ジョブの結果を確かめる

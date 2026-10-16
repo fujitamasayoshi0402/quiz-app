@@ -65,7 +65,8 @@ news-quiz-drafter:
   - '.github/scripts/deployed-commits.sh'
   - '.github/scripts/deploy-lambda.sh'
 frontend:
-  - 'apps/**'
+  # モバイルアプリ（apps/mobile）は含めない。変えても web を載せ直さない
+  - 'apps/web/**'
   - '.dockerignore'
   - 'package.json'
   - 'pnpm-lock.yaml'
@@ -81,6 +82,17 @@ frontend:
   - '.github/scripts/deployed-commits.sh'
   - '.github/scripts/build-web.sh'
   - '.github/scripts/smoke-token.sh'
+# モバイルアプリ（ADR-0032）。CI だけが使う。どこにも載せない
+mobile:
+  - 'apps/mobile/**'
+  - 'package.json'
+  - 'pnpm-lock.yaml'
+  - 'pnpm-workspace.yaml'
+  # 型は OpenAPI 定義から生成するため、定義が変われば作り直しが要る
+  - 'docs/api/**'
+  - '.mise.toml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci.yml'
 # デプロイで、マイグレーションの単発タスクを流すか（DEV-88）。DB に流れるもの（マイグレーションとシード）と、Flyway の設定。
 # ここにないものだけが変わったデプロイでは、流しても何もしないため飛ばす。どれも backend に含まれる
 migration:
