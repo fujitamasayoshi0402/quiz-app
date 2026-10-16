@@ -76,10 +76,16 @@ class InMemoryDifficultyRepository : DifficultyRepository {
 class InMemoryQuizRepository : QuizRepository {
     private val rows = linkedMapOf<UUID, Quiz>()
 
-    override fun search(categoryId: UUID?, difficultyId: UUID?, status: QuizStatus?): List<Quiz> = rows.values.filter {
+    override fun search(
+        categoryId: UUID?,
+        difficultyId: UUID?,
+        status: QuizStatus?,
+        aiGenerated: Boolean?,
+    ): List<Quiz> = rows.values.filter {
         (categoryId == null || it.categoryId == categoryId) &&
             (difficultyId == null || it.difficultyId == difficultyId) &&
-            (status == null || it.status == status)
+            (status == null || it.status == status) &&
+            (aiGenerated == null || (it.sourceUrl != null) == aiGenerated)
     }
 
     override fun findById(id: UUID): Quiz? = rows[id]

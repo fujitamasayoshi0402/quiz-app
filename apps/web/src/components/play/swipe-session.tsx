@@ -10,7 +10,7 @@ import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
 import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
-import { Eyebrow, ProgressLine, Stat, Verdict } from "@/components/play/parts";
+import { AiSourceNote, Eyebrow, ProgressLine, Stat, Verdict } from "@/components/play/parts";
 import { useAnswerQuiz } from "@/lib/api/generated/endpoints";
 import type { AnswerResult, AttemptView, DeliveredQuiz } from "@/lib/api/generated/model";
 import { cn } from "@/lib/utils";
@@ -252,6 +252,7 @@ function QuizCard({
             </SheetHeader>
             <SheetBody>
               <Markdown tenant={slug}>{result.explanation}</Markdown>
+              <AiSourceNote sourceUrl={result.sourceUrl} className="mt-4 border-t pt-3" />
             </SheetBody>
           </SheetContent>
         </Sheet>

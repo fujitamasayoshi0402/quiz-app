@@ -11,7 +11,7 @@ import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
 import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
-import { Eyebrow, Panel, ProgressLine, Verdict } from "@/components/play/parts";
+import { AiSourceNote, Eyebrow, Panel, ProgressLine, Verdict } from "@/components/play/parts";
 import { SwipeSession } from "@/components/play/swipe-session";
 import { ApiError } from "@/lib/api/fetcher";
 import { useAnswerQuiz, useResumeAttempt } from "@/lib/api/generated/endpoints";
@@ -139,6 +139,7 @@ function Explanation({ slug, quizId, result }: { slug: string; quizId: string; r
         <BookmarkToggle slug={slug} quizId={quizId} className="ml-auto" />
       </div>
       <Markdown tenant={slug}>{result.explanation}</Markdown>
+      <AiSourceNote sourceUrl={result.sourceUrl} className="border-t pt-2" />
     </Panel>
   );
 }

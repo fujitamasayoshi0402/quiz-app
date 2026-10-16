@@ -10,7 +10,7 @@ import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
 import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
-import { Eyebrow, Panel, Stat, Verdict } from "@/components/play/parts";
+import { AiSourceNote, Eyebrow, Panel, Stat, Verdict } from "@/components/play/parts";
 import { ApiError } from "@/lib/api/fetcher";
 import { completeAttempt, getGetCurrentAttemptQueryKey, useStartAttempt } from "@/lib/api/generated/endpoints";
 import type { AttemptResult, QuizResult } from "@/lib/api/generated/model";
@@ -159,6 +159,7 @@ function Review({ slug, quiz, number }: { slug: string; quiz: QuizResult; number
       />
       <div className="rounded-xl bg-muted/50 p-4 text-sm">
         <Markdown tenant={slug}>{quiz.explanation}</Markdown>
+        <AiSourceNote sourceUrl={quiz.sourceUrl} className="mt-3 border-t pt-3" />
       </div>
     </Panel>
   );

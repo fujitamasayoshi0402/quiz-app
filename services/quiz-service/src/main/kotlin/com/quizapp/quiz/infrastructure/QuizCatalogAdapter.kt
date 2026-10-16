@@ -44,6 +44,7 @@ class QuizCatalogAdapter(
                 correctChoiceId = requireNotNull(correct.id),
                 choiceIds = quiz.choices.mapNotNull { it.id }.toSet(),
                 explanation = quiz.explanation,
+                sourceUrl = quiz.sourceUrl,
             )
         }.toMap()
 
