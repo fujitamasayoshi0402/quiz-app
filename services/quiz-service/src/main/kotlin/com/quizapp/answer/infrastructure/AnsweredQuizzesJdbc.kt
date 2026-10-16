@@ -1,9 +1,11 @@
 package com.quizapp.answer.infrastructure
 
+import com.quizapp.answer.domain.StudyDay
 import com.quizapp.quiz.domain.AnswerTally
 import com.quizapp.quiz.domain.AnsweredQuizzes
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Component
+import java.time.Clock
 import java.util.UUID
 
 /**
@@ -12,7 +14,8 @@ import java.util.UUID
  * quiz モジュールはこのクラスを知らない。インターフェース越しに使う。
  */
 @Component
-class AnsweredQuizzesJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) : AnsweredQuizzes {
+class AnsweredQuizzesJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate, private val clock: Clock) :
+    AnsweredQuizzes {
 
     override fun filterAnswered(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> {
         if (candidateQuizIds.isEmpty()) return emptySet()
@@ -51,6 +54,19 @@ class AnsweredQuizzesJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) 
         return jdbcTemplate.query(
             "SELECT quiz_id FROM answer.bookmarks WHERE user_id = :userId AND quiz_id IN (:quizIds)",
             mapOf("userId" to userId, "quizIds" to candidateQuizIds),
+        ) { rs, _ -> rs.getObject("quiz_id", UUID::class.java) }
+            .toSet()
+    }
+
+    override fun filterDue(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> {
+        if (candidateQuizIds.isEmpty()) return emptySet()
+
+        return jdbcTemplate.query(
+            """
+            SELECT quiz_id FROM answer.review_schedules
+            WHERE user_id = :userId AND quiz_id IN (:quizIds) AND due_on <= :today
+            """,
+            mapOf("userId" to userId, "quizIds" to candidateQuizIds, "today" to StudyDay.today(clock)),
         ) { rs, _ -> rs.getObject("quiz_id", UUID::class.java) }
             .toSet()
     }

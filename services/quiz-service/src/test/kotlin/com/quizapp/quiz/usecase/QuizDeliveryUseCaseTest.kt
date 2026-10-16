@@ -159,6 +159,17 @@ class QuizDeliveryUseCaseTest {
     }
 
     @Test
+    @DisplayName("今日の復習: 自分の、次に出す日が来たものだけを出す")
+    fun reviewOnly() {
+        val (due, notDue, others) = (1..3).map { save("q$it") }
+        answered.due(user, due)
+        answered.answer(user, notDue)
+        answered.due(UUID.randomUUID(), others)
+
+        assertThat(select(DeliveryScope.REVIEW, limit = 10)).containsExactly(due)
+    }
+
+    @Test
     @DisplayName("再開用の引き直しでは、非公開に戻したクイズを落とす")
     fun findDeliverableExcludesUnpublished() {
         val kept = save("公開のまま")

@@ -26,6 +26,7 @@ import java.util.UUID
 class AttemptUseCase(
     private val repository: AttemptRepository,
     private val catalog: QuizCatalog,
+    private val reviews: ReviewUseCase,
     private val tenantTransaction: TenantTransaction,
 ) {
     /**
@@ -88,6 +89,8 @@ class AttemptUseCase(
                 isCorrect = choiceId == key.correctChoiceId,
             ),
         )
+        // 出題の方式（学習・模試・テンポ）はサーバーが知らない。どの方式の回答でも、次に出す日を決め直す（DEV-178）
+        reviews.record(attempt.userId, quizId, choiceId == key.correctChoiceId)
 
         AnswerResult(
             isCorrect = choiceId == key.correctChoiceId,

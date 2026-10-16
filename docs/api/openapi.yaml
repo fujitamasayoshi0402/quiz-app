@@ -23,6 +23,8 @@ tags:
   name: 出題条件
 - description: 参加を選んだ人だけが載る。期間内に正解したクイズの数で並べる
   name: ランキング
+- description: 間隔反復で、次に出す日が来た問題。解くのは出題対象 `review` で挑戦を始める（ADR-0033）
+  name: 今日の復習
 - description: クイズの追加・更新を知らせる Slack の通知先。設定した URL は返さない
   name: 通知
 - description: 公開テナントの一覧と、招待なしでの参加
@@ -2604,6 +2606,45 @@ paths:
       summary: ランキングに参加する
       tags:
       - ランキング
+  /api/t/{slug}/play/review:
+    get:
+      description: 次に出す日が今日（日本時間）までの、いま出題できる問題の数。0 件なら、次に復習が来る日も返す
+      operationId: getReviewSummary
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewSummary"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 利用者を特定できない
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: 所属はしているが、この操作に必要な権限がない
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: テナントが存在しない、または所属していない
+      summary: 今日の復習の件数
+      tags:
+      - 今日の復習
+    parameters:
+    - description: テナントの識別子（URL 用の短い名前）
+      in: path
+      name: slug
+      required: true
+      schema:
+        type: string
 components:
   schemas:
     AnswerRequest:
@@ -3638,6 +3679,26 @@ components:
             format: uuid
       required:
       - ids
+    ReviewSummary:
+      type: object
+      properties:
+        dueCount:
+          type: integer
+          format: int32
+          description: 今日の復習の問題の数。次に出す日が今日（日本時間）までのもの
+        nextDueOn:
+          type:
+          - string
+          - "null"
+          format: date
+          description: 今日より後で、いちばん早く復習が来る日。復習を待つ問題がなければ null
+        today:
+          type: string
+          format: date
+          description: サーバーが今日とした日（日本時間）。日の区切りは日本時間で固定している
+      required:
+      - dueCount
+      - today
     SaveDifficultyRequest:
       type: object
       properties:

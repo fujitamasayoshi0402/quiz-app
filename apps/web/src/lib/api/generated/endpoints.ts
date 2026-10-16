@@ -59,6 +59,7 @@ import {
   QuizResponse,
   RankingView,
   ReceivedInvitationResponse,
+  ReviewSummary,
   SlackWebhookResponse,
   TenantCreationResponse,
   TenantSettingsResponse,
@@ -6230,3 +6231,100 @@ export const useParticipateInRanking = <TError = ProblemDetail,
       > => {
       return useMutation(getParticipateInRankingMutationOptions(options), queryClient);
     }
+
+export const getGetReviewSummaryUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/review`
+}
+
+/**
+ * 次に出す日が今日（日本時間）までの、いま出題できる問題の数。0 件なら、次に復習が来る日も返す
+ * @summary 今日の復習の件数
+ */
+export const getReviewSummary = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<ReviewSummary> => {
+
+  return apiFetch<ReviewSummary>(getGetReviewSummaryUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: ReviewSummary
+  }
+);}
+
+
+
+
+
+export const getGetReviewSummaryQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/play/review`
+    ] as const;
+    }
+
+
+export const getGetReviewSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getReviewSummary>>, TError = ProblemDetail>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReviewSummaryQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReviewSummary>>> = ({ signal }) => getReviewSummary(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetReviewSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getReviewSummary>>>
+export type GetReviewSummaryQueryError = ProblemDetail
+
+
+export function useGetReviewSummary<TData = Awaited<ReturnType<typeof getReviewSummary>>, TError = ProblemDetail>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReviewSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getReviewSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReviewSummary<TData = Awaited<ReturnType<typeof getReviewSummary>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReviewSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getReviewSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReviewSummary<TData = Awaited<ReturnType<typeof getReviewSummary>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 今日の復習の件数
+ */
+
+export function useGetReviewSummary<TData = Awaited<ReturnType<typeof getReviewSummary>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetReviewSummaryQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}

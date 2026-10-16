@@ -5,6 +5,7 @@ export const SCOPES = [
   { value: "unanswered_only", label: "未回答のみ", hint: "一周したいときに" },
   { value: "incorrect", label: "間違えた問題", hint: "最後に答えたとき不正解だった問題だけ" },
   { value: "bookmarked", label: "あとで見直す問題", hint: "「あとで見直す」を押した問題だけ" },
+  { value: "review", label: "今日の復習", hint: "忘れたころに出す問題。間違えた問題はその日のうちに戻る" },
 ];
 
 export function scopeLabel(value: string): string {

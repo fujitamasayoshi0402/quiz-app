@@ -7,6 +7,7 @@ import com.quizapp.quiz.domain.DeliveredQuiz
 import com.quizapp.quiz.domain.DeliveryCriteria
 import com.quizapp.support.fake.FakeQuizCatalog
 import com.quizapp.support.fake.InMemoryAttemptRepository
+import com.quizapp.support.fake.InMemoryReviewScheduleRepository
 import com.quizapp.support.fake.fakeTenantTransaction
 import com.quizapp.tenant.TenantContext
 import org.assertj.core.api.Assertions.assertThat
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.util.UUID
 
 /**
@@ -28,7 +30,9 @@ class AttemptUseCaseTest {
 
     private val repository = InMemoryAttemptRepository()
     private val catalog = FakeQuizCatalog()
-    private val useCase = AttemptUseCase(repository, catalog, fakeTenantTransaction())
+    private val reviews =
+        ReviewUseCase(InMemoryReviewScheduleRepository(), catalog, Clock.systemUTC(), fakeTenantTransaction())
+    private val useCase = AttemptUseCase(repository, catalog, reviews, fakeTenantTransaction())
 
     private val user = UUID.randomUUID()
 

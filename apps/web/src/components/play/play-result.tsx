@@ -13,7 +13,7 @@ import { AiSourceNote, Eyebrow, Panel, Stat, Verdict } from "@/components/play/p
 import { completeAttempt, getGetCurrentAttemptQueryKey } from "@/lib/api/generated/endpoints";
 import type { AttemptResult, QuizResult } from "@/lib/api/generated/model";
 import type { FeedbackMode } from "@/lib/play/mode";
-import { useRetryIncorrect } from "@/lib/play/use-retry-incorrect";
+import { useRetryIncorrect } from "@/lib/play/use-quick-start";
 
 /**
  * 結果画面。

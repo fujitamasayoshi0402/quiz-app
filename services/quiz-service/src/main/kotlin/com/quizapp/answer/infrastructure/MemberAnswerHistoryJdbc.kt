@@ -30,5 +30,10 @@ class MemberAnswerHistoryJdbc(private val jdbcTemplate: NamedParameterJdbcTempla
             "DELETE FROM answer.bookmarks WHERE tenant_id = :tenantId AND user_id = :userId",
             params,
         )
+        // 間隔反復の、次に出す日も消す（DEV-178）。回答の履歴から決まったもの
+        jdbcTemplate.update(
+            "DELETE FROM answer.review_schedules WHERE tenant_id = :tenantId AND user_id = :userId",
+            params,
+        )
     }
 }

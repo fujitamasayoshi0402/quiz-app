@@ -202,7 +202,8 @@ class TenantBoundaryApiTest {
     private fun probes(ids: Ids): List<Probe> =
         categoryProbes(ids) + difficultyProbes(ids) + quizProbes(ids) + quizImportProbes() + trashProbes(ids) +
             figureProbes(ids) + playCategoryProbes() + attemptProbes(ids) + invitationProbes(ids) + historyProbes() +
-            rankingProbes() + bookmarkProbes(ids) + notificationProbes() + settingsProbes() + membershipProbes()
+            rankingProbes() + bookmarkProbes(ids) + reviewProbes() + notificationProbes() + settingsProbes() +
+            membershipProbes()
 
     private fun categoryProbes(ids: Ids): List<Probe> {
         val base = "/api/t/{slug}/admin/categories"
@@ -502,6 +503,11 @@ class TenantBoundaryApiTest {
             Probe(HttpMethod.DELETE, "$base/{quizId}", "外しても victim の印は残る", victim, status = 204),
         )
     }
+
+    /** 攻撃者は victim で回答を残しており、復習の予定もある。それが own の今日の復習に数えられないこと */
+    private fun reviewProbes(): List<Probe> = listOf(
+        Probe(HttpMethod.GET, "/api/t/{slug}/play/review", "victim の復習の予定が数えられない", status = 200),
+    )
 
     /** 攻撃者は victim で挑戦を終え、回答も残している。それが own の履歴と正答率に現れないこと */
     private fun historyProbes(): List<Probe> {
