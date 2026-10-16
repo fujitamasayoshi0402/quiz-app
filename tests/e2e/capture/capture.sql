@@ -1,7 +1,8 @@
 -- README の画面を撮るためのデータ（DEV-180）。capture/global-setup.ts が、fixtures.sql のあとに流す。何度流しても同じ状態になる。
 --
--- 撮るのはデモのテナント（シードの R__demo_data.sql）。見に来た人が見るものと同じ画面にする。
--- E2E の管理者を、デモのテナントの管理者にもする。シードのデモ管理者は、ローカルではログインできない
+-- 撮るのはデモのテナント（クイズは global-setup.ts がデモのパックから流す）。見に来た人が見るものと同じ画面にする。
+-- E2E の管理者を、デモのテナントの管理者にもする。シードのデモ管理者は、ローカルではログインできない。
+-- E2E では所属を残さない（roles.spec.ts が、管理者の所属が 1 つであることを前提にする）。撮るときだけ足す
 INSERT INTO core.tenant_members (tenant_id, user_id, role)
 SELECT t.id, u.id, 'admin'
 FROM core.users u

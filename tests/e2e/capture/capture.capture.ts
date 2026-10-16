@@ -58,7 +58,7 @@ test("見る人の GIF: デモとして入り、解いて、結果を見る", as
   await expect(page).toHaveURL(/\/t\/demo\/play$/);
   await pause(page);
 
-  await page.getByText("認証認可", { exact: true }).click();
+  await page.getByText("宇宙と天気", { exact: true }).click();
   await pause(page, 600);
   await page.getByText("学習モード").click();
   await pause(page, 600);
@@ -75,7 +75,7 @@ test("スクリーンショット: 見る人の画面", async ({ browser }) => {
   const { page, finish } = await open(browser, { viewport: desktop });
   await enterAsDemo(page);
 
-  await page.getByText("AWS / インフラ", { exact: true }).click();
+  await page.getByText("身近な科学", { exact: true }).click();
   await page.getByText("学習モード").click();
   await start(page);
 
@@ -94,14 +94,14 @@ test("スクリーンショット: スマホの幅（出題とテンポモード
   const { page, finish } = await open(browser, { viewport: mobile });
   await enterAsDemo(page);
 
-  await page.getByText("イベント駆動設計", { exact: true }).click();
+  await page.getByText("日本と世界の歴史", { exact: true }).click();
   await page.getByText("学習モード").click();
   await start(page);
   await expect(page.getByRole("button", { name: "回答する" })).toBeVisible();
   await shoot(page, "play-mobile");
 
   await page.goto("/t/demo/play");
-  await page.getByText("AWS / インフラ", { exact: true }).click();
+  await page.getByText("ことばの由来", { exact: true }).click();
   await page.getByText("テンポモード").click();
   await start(page);
   await page.getByRole("listitem").first().getByRole("button").click();

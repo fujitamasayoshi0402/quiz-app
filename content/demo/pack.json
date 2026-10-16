@@ -26,6 +26,33 @@
         { "name": "ふつう", "level": 2 },
         { "name": "むずかしい", "level": 3 }
       ]
+    },
+    {
+      "name": "日本と世界の歴史",
+      "description": "年表で前後を考える。同じころ、日本と世界で何が起きていたか",
+      "difficulties": [
+        { "name": "やさしい", "level": 1 },
+        { "name": "ふつう", "level": 2 },
+        { "name": "むずかしい", "level": 3 }
+      ]
+    },
+    {
+      "name": "ことばの由来",
+      "description": "漢字の成り立ち、ことわざと慣用句の本来の意味、故事成語",
+      "difficulties": [
+        { "name": "やさしい", "level": 1 },
+        { "name": "ふつう", "level": 2 },
+        { "name": "むずかしい", "level": 3 }
+      ]
+    },
+    {
+      "name": "宇宙と天気",
+      "description": "惑星の大きさと距離、雲の種類、天気図と天気予報の読み方",
+      "difficulties": [
+        { "name": "やさしい", "level": 1 },
+        { "name": "ふつう", "level": 2 },
+        { "name": "むずかしい", "level": 3 }
+      ]
     }
   ]
 }

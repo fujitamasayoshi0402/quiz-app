@@ -10,7 +10,8 @@
 解説は Markdown で書き、draw.io の図・画像・PDF を入れられます。
 ログインにはパスキー（WebAuthn）とパスワードを使えます。
 
-デモ用のデータとして、技術系のクイズ（AWS / インフラ、認証認可、イベント駆動設計、このアプリが使っている技術）を収録しています。
+デモ用のデータとして、図解の多い一般教養のクイズ（世界の地理、身近な科学、図形とひらめき、日本と世界の歴史、ことばの由来、宇宙と天気）を収録しています。
+クイズは図ごと「パック」（[`content/demo/`](content/demo/)）にまとめ、アプリの API で流し込みます（[ADR-0034](docs/adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)）。
 さらに、公式の技術ニュース（AWS の What's New）から AI（Amazon Bedrock）が毎日クイズの下書きを作り、管理者が確かめて公開したものだけが出題されます
 （[ADR-0031](docs/adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）。
 
