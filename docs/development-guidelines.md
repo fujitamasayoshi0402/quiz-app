@@ -788,6 +788,9 @@ dev は `dev` のプロファイルで、デモのシードと両方を入れる
 
 解説の中では、図をファイルの名前で指す（`![代替テキスト](figure:tcp-handshake)`）。名前は小文字・数字・ハイフン。
 
+**draw.io のラベルは、HTML にしない**（スタイルに `html=1` を付けない。改行は `&#xa;`）。HTML のラベルは、SVG に代わりの PNG が入り、1 枚が 150〜250 KB になる。文字のラベルなら 5 KB ほど。
+書き出しは明るい配色に固定し（`--theme light`）、フォントは埋め込まない（`export-svg.sh`）。
+
 ```bash
 tools/content/export-svg.sh <パック>       # .drawio を SVG に書き出す（draw.io のデスクトップのアプリが要る）。SVG も commit する
 
