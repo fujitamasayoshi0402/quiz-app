@@ -77,11 +77,11 @@ export function replaceFigure(text: string, from: string, to: string): string {
 
 /**
  * 本文から、ある図を指している箇所（`![…](figure:<ID>)` と `[…](figure:<ID>)`）を取り除く（DEV-168）。
- * 取り除いて空になった行は消し、空行が 3 つ以上続かないようにする。ほかの図と文は残す
+ * 取り除いて空になった行は消し、空行が 3 つ以上続かないようにする。末尾の図を外したときは、前に残る空行も消す。ほかの図と文は残す
  */
 export function removeFigure(text: string, id: string): string {
   const reference = new RegExp(`!?\\[[^\\]\\n]*\\]\\(figure:${id}\\)`, "gi");
-  return text
+  const removed = text
     .split("\n")
     .flatMap((line) => {
       const rest = line.replace(reference, "");
@@ -90,6 +90,7 @@ export function removeFigure(text: string, id: string): string {
     })
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");
+  return removed === text ? text : removed.replace(/\n+$/, "");
 }
 
 /** draw.io が書き出した SVG（data URI）を文字列に戻す。ラベルの日本語が崩れないよう、UTF-8 として読む */

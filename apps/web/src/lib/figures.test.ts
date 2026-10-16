@@ -73,6 +73,11 @@ describe("本文から図を外す（DEV-168）", () => {
     expect(removeFigure(text, A)).toBe(`![図](figure:${B})\n説明は  を見てください`);
   });
 
+  it("末尾の図を外したときは、前に残る空行も消す", () => {
+    expect(removeFigure(`解説の文\n\n![図](figure:${A})`, A)).toBe("解説の文");
+    expect(removeFigure(`解説の文\n\n![図](figure:${A})\n`, A)).toBe("解説の文");
+  });
+
   it("大文字で書いた ID も外す。指していなければ変えない", () => {
     expect(removeFigure(`![図](figure:${A.toUpperCase()})`, A)).toBe("");
     expect(removeFigure(`![図](figure:${B})`, A)).toBe(`![図](figure:${B})`);
