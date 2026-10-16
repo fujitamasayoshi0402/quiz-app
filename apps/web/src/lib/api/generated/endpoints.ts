@@ -54,6 +54,7 @@ import {
   Participation,
   PlayableCategoryResponse,
   PublicTenantResponse,
+  QuizListItemResponse,
   QuizResponse,
   RankingView,
   ReceivedInvitationResponse,
@@ -3445,18 +3446,19 @@ export const getSearchQuizzesUrl = (slug: string,
 }
 
 /**
+ * 各クイズに、テナントの全員の回答の数（`answerCount`）と、そのうち正解の数（`correctCount`）を添える
  * @summary クイズを絞り込んで一覧
  */
 export const searchQuizzes = async (slug: string,
-    params?: SearchQuizzesParams, options?: Parameters<typeof apiFetch>[1]): Promise<QuizResponse[]> => {
+    params?: SearchQuizzesParams, options?: Parameters<typeof apiFetch>[1]): Promise<QuizListItemResponse[]> => {
 
-  return apiFetch<QuizResponse[]>(getSearchQuizzesUrl(slug,params),
+  return apiFetch<QuizListItemResponse[]>(getSearchQuizzesUrl(slug,params),
   {
     ...options,
     method: 'GET'
 
     ,
-    schema: zod.array(QuizResponse)
+    schema: zod.array(QuizListItemResponse)
   }
 );}
 

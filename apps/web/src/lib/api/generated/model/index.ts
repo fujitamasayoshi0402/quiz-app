@@ -66,6 +66,7 @@ export * from './playableCategoryResponse.zod';
 export * from './playableDifficultyResponse.zod';
 export * from './problemDetail.zod';
 export * from './publicTenantResponse.zod';
+export * from './quizListItemResponse.zod';
 export * from './quizResponse.zod';
 export * from './quizResult.zod';
 export * from './rankingEntry.zod';

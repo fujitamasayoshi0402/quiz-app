@@ -12,7 +12,7 @@ const question = "日本の首都はどこですか。";
  *
  * カテゴリやクイズは `fixtures.sql` がテストの前に消すので、決まった名前で作れる
  */
-test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、間違えた問題を解き直し、結果と履歴で振り返り、あとで見直す", async ({ browser }) => {
+test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、間違えた問題を解き直し、結果と履歴で振り返り、あとで見直す。管理者は回答の数を見る", async ({ browser }) => {
   const admin = await (await browser.newContext({ storageState: storageStateOf("admin") })).newPage();
   const member = await (await browser.newContext({ storageState: storageStateOf("member") })).newPage();
 
@@ -135,6 +135,14 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await expect(bookmark).toHaveAttribute("aria-pressed", "false");
     await member.getByRole("button", { name: "結果を見る" }).click();
     await expect(member.getByText("100%")).toBeVisible();
+  });
+
+  await test.step("管理者のクイズの一覧に、回答の数が出る。少ないうちは正答率を出さない", async () => {
+    await admin.goto(`/t/${tenant.slug}/admin/quizzes`);
+    // 間違えた 1 回、解き直した 1 回、あとで見直すで解いた 1 回
+    const row = admin.getByRole("row", { name: new RegExp(question) });
+    await expect(row).toContainText("回答が少ない");
+    await expect(row).toContainText("3 回答");
   });
 });
 
