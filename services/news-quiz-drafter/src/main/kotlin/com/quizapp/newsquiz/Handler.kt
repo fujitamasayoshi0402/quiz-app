@@ -35,7 +35,7 @@ class Handler : RequestStreamHandler {
 
     override fun handleRequest(input: InputStream, output: OutputStream, context: Context) {
         val log: (String) -> Unit = { context.logger.log(it + "\n") }
-        if (input.readAllBytes().decodeToString().contains("\"check\"")) {
+        if (isCheck(input.readAllBytes().decodeToString())) {
             log("初期化できることを確かめました")
             return
         }
@@ -45,4 +45,14 @@ class Handler : RequestStreamHandler {
 
     private fun env(name: String): String =
         System.getenv(name)?.takeIf { it.isNotBlank() } ?: error("環境変数 $name がありません")
+
+    companion object {
+        /**
+         * デプロイの確認（`{"check":true}`）か。`check` が true のときだけ確かめるだけで終わる。
+         * 文字列に `"check"` が含まれるかで決めると、`{"check":false}` でも Bedrock を呼ばずに終わる
+         */
+        internal fun isCheck(input: String): Boolean =
+            runCatching { DraftJson.readTree(input)["check"]?.let { it.isBoolean && it.booleanValue() } }
+                .getOrNull() == true
+    }
 }
