@@ -97,7 +97,8 @@
 ```
 .
 ├── apps/
-│   └── web/                 # Next.js フロントエンド
+│   ├── web/                 # Next.js フロントエンド
+│   └── mobile/              # Expo（React Native）の一般ユーザー向けアプリ（ADR-0032）
 ├── services/
 │   ├── quiz-service/        # Kotlin + Spring Boot
 │   ├── notification-service/
@@ -216,6 +217,7 @@ pnpm --filter web lint
 | `notification` | notification-service（Lambda）。ktlint / detekt → test（Testcontainers の LocalStack）→ zip のビルド → 脆弱性の検査（Trivy） |
 | `news-quiz-drafter` | 技術ニュースから下書きを作る Lambda。ktlint / detekt → test（Bedrock と RSS と S3 は差し替える）→ zip のビルド → 脆弱性の検査（Trivy） |
 | `frontend` | API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → build → イメージのビルド → 脆弱性の検査（Trivy） |
+| `mobile` | モバイルアプリ。API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → iOS のバンドルを作る。どこにも載せない |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりと出題・管理の流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
@@ -671,6 +673,22 @@ CORS の設定は要らない。中継先は `API_ORIGIN` で変えられる（�
 同じイメージを環境ごとに使い回すため。
 AWS では Amplify Hosting がソースからビルドする。SSR の実行時には環境変数が渡らないため、
 ビルドの中で `.env.production` に書き出す（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）。
+
+### モバイルアプリ
+
+`apps/mobile` は Expo（managed）の一般ユーザー向けアプリ（[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。
+**API Gateway を直接呼ぶ**ため、ローカルの一式ではなく dev につなぐ。ログインも dev の Cognito（アプリ用のクライアント）を使う。
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env   # 値は infra/terraform/envs/dev の terraform output から（.env.example）
+pnpm --filter mobile start                     # i で iOS のシミュレータの Expo Go に開く
+```
+
+- iOS のシミュレータには Xcode が要る。シミュレータに合う版の Expo Go は、Expo の CLI が入れる
+- Expo Go の戻り先は `exp://127.0.0.1:8081/--/auth/callback`。Cognito に登録してあるのはこれと `quizapp://` だけで、**実機の Expo Go からはログインできない**（LAN の IP が戻り先になる）
+- dev の quiz-service が止まっていると（[ECS](#ecsquiz-service)）、API は 500 か 503 を返す。起こしてから使う
+- **Expo の SDK は、公開から 7 日たった版を使う**（`minimumReleaseAge`）。SDK と同時に出る React Native の版も同じ。上げるときは、`pnpm --filter mobile exec expo install --check` で SDK が求める版を確かめる
+- React の型（`@types/react`）は web と同じ版にする。Amplify は依存を 1 か所にまとめて入れるため（`nodeLinker: hoisted`）、版が違うと web のビルドが型の食い違いで落ちる
 
 ### コンテナイメージ
 
