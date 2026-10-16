@@ -1131,7 +1131,7 @@ TF_VAR_github_access_token=<トークン> terraform apply
 `modules/quiz-service` で作る。入口は API Gateway の HTTP API で、ロードバランサーは置かない（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)）。
 
 ```
-インターネット → API Gateway（HTTPS、api.dev.<ドメイン>）→ VPC リンク → quiz-service（Fargate / arm64 / 0.5 vCPU・1 GB）→ Aurora（IAM 認証）
+インターネット → API Gateway（HTTPS、api.dev.<ドメイン>）→ VPC リンク → quiz-service（Fargate Spot / arm64 / 0.25 vCPU・1 GB）→ Aurora（IAM 認証）
 ```
 
 - API Gateway は、ECS が Cloud Map に登録したタスクを引き、VPC リンクから直接送る。ポートまで引けるように SRV レコードで登録している
@@ -1162,6 +1162,12 @@ TF_VAR_github_access_token=<トークン> terraform apply
 - ログは CloudWatch Logs の `/ecs/quiz-app-dev/quiz-service`（`app/` と `migrate/`）。JSON で出し、14 日で消える（[ログ](#ログquiz-service)）
 - タスクには、分散トレースのコレクタ（`otel-collector`、メモリ 128 MB まで）も入る（[分散トレース](#分散トレース)）
 - 起動に失敗したら、前のタスク定義に自動で戻る（デプロイサーキットブレーカー）
+- **dev のサービスは Fargate Spot で動かす**（DEV-182。`fargate_spot`）。prod は Fargate のまま
+  - AWS が容量を取り戻すときは、2 分前に知らせてタスクを止める（`stopCode` は `SpotInterruption`）。サービスが新しいタスクを Spot で起こし、使えるまで API は止まる。
+    タスクの停止のアラームは鳴らない（[アラーム](#アラーム)）
+  - Spot の容量が取れなければ、取れるまで起こせない。Fargate へは逃がさない。続くようなら、サービスの `capacity_provider_strategy` を `FARGATE` に替える（クラスタには両方を結び付けてある）
+  - **マイグレーションの単発タスクは Fargate で流す**（`deploy-quiz-service.sh` の `--launch-type FARGATE`）。途中で止められると、どこまで流れたかが分からなくなる
+  - Fargate と Spot を切り替える apply は、サービスの新しいデプロイを伴う（`force_new_deployment`）。動いているタスク定義のまま入れ替わる
 - **使われなくなったら止める**（DEV-153。`idle_stop.tf`）。API への要求が 30 分ないと、CloudWatch のアラーム（`quiz-app-dev-quiz-service-idle`）が ALARM になり、
   EventBridge から Step Functions がタスクの数を 0 にする。入れ替えの途中（デプロイ）なら止めない。朝に戻すことはせず、使うときに起こす。
   **起動してから 30 分たっていないタスクは、すぐには止めない。** 残りの時間だけ待ち、アラームがまだ ALARM なら止める。
@@ -1173,7 +1179,7 @@ TF_VAR_github_access_token=<トークン> terraform apply
 - 使われていないアラームは、通知につないでいない。ALARM がふつうの状態で、異常ではない。止めたかどうかと理由は、Step Functions のログ（`/aws/vendedlogs/states/quiz-app-dev-quiz-service-idle-stop`）に出る
 
 止まっている間に使うときは、画面の「サーバーを起動する」を押す（DEV-154。`wake.tf`）。止まっているときの案内（`ApiErrorAlert`）の中に出る。
-API が使えるまで約 2.5 分かかる（DEV-153 で測った）。使い終わって 30 分たつと、また止まる。
+API が使えるまで 1.5〜2 分かかる（DEV-182 で、0.25 vCPU の Spot で 2 回測り、85 秒と 122 秒。Spring の起動が 46 秒と 81 秒で、ばらつく）。使い終わって 30 分たつと、また止まる。
 
 ```
 画面「サーバーを起動する」→ web の proxy（アクセストークンを付ける）→ API Gateway の POST /api/wake
@@ -1367,7 +1373,7 @@ fields @timestamp, message, news_quizzes.imported, news_quizzes.discarded
 
 - **API Gateway の 5xx の率は使わない。** 止まっている間は、送り先のタスクがなく 500 か 503 が返る。アプリの 5xx と、API Gateway の 502 / 504 を分けて数え、500 と 503 は数えない。昼にタスクがなくなったことは、タスクの停止で分かる
 - 止まっている Aurora の復帰が 30 秒を超えると、504 が 1 回出て画面が再試行する。5 分で 3 回からにして、これでは鳴らさない
-- タスクの停止は、ECS が自分で止めたもの（デプロイの入れ替え、使われていないときと夜間の停止）とマイグレーションの単発タスクを除く。絞り込みは、本物の EventBridge で確かめた（`aws events test-event-pattern`）
+- タスクの停止は、ECS が自分で止めたもの（デプロイの入れ替え、使われていないときと夜間の停止、dev の Spot の中断）とマイグレーションの単発タスクを除く。絞り込みは、本物の EventBridge で確かめた（`aws events test-event-pattern`）
 - データが無い時間（使われていない、夜間）は、異常とみなさない
 - Outbox の閾値は、拾い直しが動く時間（利用者が DB を使ってから 5 分）より短くする。長いと、測れないうちに拾い直しが止まる
 
@@ -1812,7 +1818,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | web / API / 図 | `dev.<ドメイン>` / `api.dev.<ドメイン>` / `figures.dev.<ドメイン>` | `quiz.<ドメイン>` / `api.quiz.<ドメイン>` / `figures.quiz.<ドメイン>` |
 | VPC | `10.0.0.0/16` | `10.1.0.0/16` |
 | Aurora | 止まるまで 30 分、バックアップ 1 日、削除保護なし | 止まるまで 15 分、バックアップ 7 日、削除保護と最終スナップショット |
-| ECS | 0.5 vCPU / 1 GB。使われなくなったら止める（深夜 2:00 にも止める） | 0.25 vCPU / 1 GB。夜間も止めない。公開までは止めてある |
+| ECS | 0.25 vCPU / 1 GB、Fargate Spot。使われなくなったら止める（深夜 2:00 にも止める） | 0.25 vCPU / 1 GB。夜間も止めない。公開までは止めてある |
 | ログ | 14 日 | 30 日 |
 | 消した図を残す日数 | 7 日 | 14 日 |
 | Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテストだけ |
@@ -1875,6 +1881,10 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
   - 止めるのは、要求が 30 分ないとき。画面を読んだり解説を書いたりしている間に止まらない長さ（Aurora の一時停止と同じ）
   - Lambda は挟まず、Step Functions から ECS の UpdateService を直接呼ぶ。判断は「デプロイの途中なら止めない」「起動したばかりなら待ってから確かめ直す」だけで、コードを書くほどではない
   - 止まっている間にデプロイしたときは、デプロイが起動する。載せたものが動くかを確かめるため
+- dev の ECS タスクは、0.25 vCPU の Fargate Spot で動かす（DEV-182）。止まっても困らないため
+  - 1 時間あたり、0.5 vCPU の Fargate（0.0246 ドル）から、0.25 vCPU の Fargate（0.0145 ドル）、さらに Spot の割引（最大 7 割）で 0.005 ドル前後になる見込み。
+    Spot の単価は公開の価格表（Price List API）に載らない。実際の単価は、請求の使用タイプ `APN1-SpotUsage-Fargate-ARM-*` で確かめる
+  - Spring の起動は 0.5 vCPU の約 45 秒から、46〜81 秒に延びた。起こしてから API が使えるまでは 85〜122 秒（2 回測った）。待つのは、起こしたときとデプロイのときだけ
 
 止めても課金が続くものがある。dev の月額の目安（東京リージョン、1 か月 730 時間）。
 
@@ -1891,7 +1901,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | アラームとダッシュボード（CloudWatch のアラーム 7 つ、メトリクスフィルタのメトリクス 4 つ、ダッシュボード 1 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
-| ECS のタスク（0.5 vCPU / 1 GB、arm64） | 動いている時間だけ。1 時間 0.0246 ドル（常時なら月に約 18 ドル） | 止まる |
+| ECS のタスク（0.25 vCPU / 1 GB、arm64、Fargate Spot） | 動いている時間だけ。Fargate なら 1 時間 0.0145 ドル。Spot は需給で変わり、最大 7 割引（1 時間 0.005 ドル前後の見込み） | 止まる |
 | タスクのパブリック IPv4 | 動いている時間だけ。1 時間 0.005 ドル（常時なら月に約 3.7 ドル） | 止まる |
 | 使われていないときに止める（アラーム、EventBridge、Step Functions） | ほぼ 0。Step Functions は、アラームが鳴ったときに 1 回動くだけ（状態の遷移 1,000 回あたり 0.025 ドル） | 続く |
 | Aurora の ACU | 使った分だけ（1 ACU 時 0.15 ドル） | 一時停止すれば 0 |
@@ -1910,7 +1920,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
   | 合計 | 約 24〜27 ドル | 約 17〜18 ドル |
 
   - **dev と合わせて約 27〜32 ドル。** 予算（月 30 ドル）は変えず、超えた月は予算の通知で気づく。dev が多く起きている月は超えうる
-  - 0.25 vCPU では、起動が遅くなる（dev の 0.5 vCPU で約 45 秒）。起動するのはリリースのときだけで、ヘルスチェックの猶予（180 秒）に収まる
+  - 0.25 vCPU では、起動が遅くなる（Spring の起動は、dev の 0.5 vCPU で約 45 秒、0.25 vCPU で 46〜81 秒）。起動するのはリリースのときだけで、ヘルスチェックの猶予（180 秒）に収まる
   - 採らなかったもの: 予算を上げる（構成で下げられるうちは下げる）、prod も使われなくなったら止める（見に来た人が最初に待つ）、Fargate Spot（止められると、タスクが 1 つのため使えなくなる）
 - **予算は月 30 ドル。** 実績が 85% と 100% を超えたとき、月末の予測が 100% を超えたときにメールで届く
   （`infra/terraform/account`）。通知先は公開リポジトリに載せないため、`terraform.tfvars`（Git の管理外）で渡す

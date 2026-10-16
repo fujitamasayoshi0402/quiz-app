@@ -177,7 +177,7 @@ module "quiz_service" {
   db_name          = local.app_database.database_name
   iam_db_user_arns = local.app_database.iam_db_user_arns
 
-  # 起こすときに Aurora も起こす（DEV-181）。タスクの起動（約 2.5 分）を待つ間に、Aurora の復帰が済む
+  # 起こすときに Aurora も起こす（DEV-181）。タスクの起動（1.5〜2 分）を待つ間に、Aurora の復帰が済む
   wake_database = {
     cluster_arn = local.app_database.cluster_arn
     secret_arn  = local.app_database.master_user_secret_arn
@@ -185,9 +185,11 @@ module "quiz_service" {
 
   image_tag = var.quiz_service_image_tag
 
-  # 0.25 vCPU では Spring Boot の起動に時間がかかり、デプロイのたびに待たされる
-  cpu           = 512
+  # 0.25 vCPU と Fargate Spot（DEV-182）。dev は止まっても困らない。
+  # 起動は遅くなる（Spring の起動は約 45 秒から 46〜81 秒に）が、待つのは起こしたときとデプロイのときだけ
+  cpu           = 256
   memory        = 1024
+  fargate_spot  = true
   desired_count = 1
 
   # ふだんは既定（20 件/秒）。負荷試験の間だけ -var で上げる
