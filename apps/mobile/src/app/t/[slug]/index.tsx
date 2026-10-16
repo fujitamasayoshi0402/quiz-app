@@ -1,10 +1,10 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, Pressable, Text } from "react-native";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
 import { useListMyTenants, useListPlayableCategories } from "@/lib/api/generated/endpoints";
 import { useAuth } from "@/lib/auth/auth-provider";
 
-/** テナントのトップ。出題できるカテゴリと難易度を並べる。選んで解く画面は DEV-175 で足す */
+/** テナントのトップ。出題できるカテゴリと難易度を並べる。カテゴリを押すと、そのカテゴリを選んだ状態で出題の条件を選ぶ */
 export default function TenantHome() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
@@ -26,12 +26,16 @@ export default function TenantHome() {
           keyExtractor={(category) => category.id}
           ListEmptyComponent={<Text style={styles.text}>出題できるクイズがまだありません。</Text>}
           renderItem={({ item }) => (
-            <View style={styles.row}>
+            <Pressable
+              accessibilityRole="link"
+              style={styles.row}
+              onPress={() => router.push({ pathname: "/t/[slug]/play", params: { slug, category: item.id } })}
+            >
               <Text style={styles.text}>{item.name}</Text>
               <Text style={styles.muted}>
                 {item.difficulties.map((d) => d.name).join(" / ")}（{item.quizCount} 問）
               </Text>
-            </View>
+            </Pressable>
           )}
         />
       )}
