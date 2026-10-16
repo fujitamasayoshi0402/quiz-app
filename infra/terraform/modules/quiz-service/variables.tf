@@ -156,6 +156,12 @@ variable "memory" {
   type        = number
 }
 
+variable "fargate_spot" {
+  description = "サービスのタスクを Fargate Spot で動かすか。中断されると、ECS が新しいタスクを起こすまで API が止まる。マイグレーションは Fargate のまま流す"
+  type        = bool
+  default     = false
+}
+
 variable "desired_count" {
   description = "動かすタスクの数。サービスを作るときと、夜間の停止から戻すときに使う"
   type        = number

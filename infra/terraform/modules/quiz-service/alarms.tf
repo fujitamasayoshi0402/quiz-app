@@ -166,6 +166,7 @@ resource "aws_cloudwatch_metric_alarm" "integrity_violations" {
 # 知らせるのは、コンテナが自分で終わった（落ちた、メモリ不足）、起動に失敗した、ヘルスチェックに落ちた、の 3 つ。
 # デプロイの入れ替えと夜間の停止は、ECS が止める（ServiceSchedulerInitiated）。知らせない。
 # マイグレーションの単発タスクは、サービスに属さない（group が違う）。終わるのがふつうなので、知らせない。
+# Spot の中断（SpotInterruption。dev だけ、DEV-182）も知らせない。サービスが新しいタスクを起こす。起こせなければ、そのタスクの失敗として知らせる
 # 落ちては起動し直すことを繰り返すと、そのたびにメールが届く。デプロイの失敗なら、サーキットブレーカーが数回で止める
 
 resource "aws_cloudwatch_event_rule" "task_stopped" {
