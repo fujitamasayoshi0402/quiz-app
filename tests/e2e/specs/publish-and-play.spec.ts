@@ -82,6 +82,25 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await expect(member.getByText(question)).toBeVisible();
   });
 
+  await test.step("履歴のカテゴリ別の正答率から、そのカテゴリの間違えた問題をすぐ解き直せる", async () => {
+    await member.getByRole("banner").getByRole("link", { name: "履歴" }).click();
+    const score = member
+      .getByRole("listitem")
+      .filter({ hasText: category })
+      .filter({ has: member.getByRole("progressbar") });
+    // 1 問しか解いていないので、0% とは出さない
+    await expect(score).toContainText("回答が少ない");
+    await score.getByRole("button", { name: "間違えた 1 問を解き直す" }).click();
+
+    await expect(member.getByText("1 / 1 問")).toBeVisible();
+    await expect(member.getByText(question)).toBeVisible();
+    // もう一度間違え、結果の画面から解き直す（次の段）
+    await member.getByRole("button", { name: "大阪" }).click();
+    await member.getByRole("button", { name: "回答する" }).click();
+    await member.getByRole("button", { name: "結果を見る" }).click();
+    await expect(member.getByText("0 / 1 問")).toBeVisible();
+  });
+
   await test.step("結果から、間違えた問題を同じ範囲ですぐ解き直せる", async () => {
     await member.getByRole("button", { name: "間違えた問題を解き直す" }).click();
 
@@ -139,10 +158,10 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
 
   await test.step("管理者のクイズの一覧に、回答の数が出る。少ないうちは正答率を出さない", async () => {
     await admin.goto(`/t/${tenant.slug}/admin/quizzes`);
-    // 間違えた 1 回、解き直した 1 回、あとで見直すで解いた 1 回
+    // 間違えた 2 回（最初と、履歴から解き直した回）、結果から解き直した 1 回、あとで見直すで解いた 1 回
     const row = admin.getByRole("row", { name: new RegExp(question) });
     await expect(row).toContainText("回答が少ない");
-    await expect(row).toContainText("3 回答");
+    await expect(row).toContainText("4 回答");
   });
 });
 

@@ -1039,7 +1039,7 @@ TF_VAR_github_access_token=<トークン> terraform apply
     HTTP API には WAF も付けられない
   - 認証の後、テナントの所属を確かめる前に数える。超えた要求で、所属を DB に問い合わせない。アクセストークンのない要求（401）は数えず、全体の上限で受ける
   - 数えるのはタスクのメモリ。デプロイの入れ替えの間はタスクが 2 つになり、上限も 2 倍になる。タスクを増やすときは、共有の置き場所（DynamoDB など）に替える
-  - テストでは止めている（`app.rate-limit.enabled`）。上限そのものは `RateLimitApiTest` が、上限を小さくして確かめる
+  - テストと、docker compose の一式（E2E を流す）では止めている（`app.rate-limit.enabled`）。どちらも同じ利用者で要求を続けて送り、上限に当たる。上限そのものは `RateLimitApiTest` が、上限を小さくして確かめる
 - TLS は 1.2 / 1.3（HTTP API で選べるのは `TLS_1_2` のポリシーだけ）。証明書は ACM が DNS 検証で自動更新する
 - アクセスログは CloudWatch Logs の `/aws/apigateway/quiz-app-dev`。**パスは残さない。** 招待を受け入れる API のパスにはトークンが入る
 - **タスクの状態は、コンテナのヘルスチェック（中から `curl` でアクチュエータを叩く）で決まる。** 通るまで Cloud Map で UNHEALTHY のままで、API Gateway は要求を送らない。
