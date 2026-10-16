@@ -497,6 +497,29 @@ terraform output -raw e2e_user_password | gh secret set E2E_USER_PASSWORD --app 
 terraform output -raw demo_user_password | gh secret set DEMO_USER_PASSWORD --app dependabot
 ```
 
+#### README の画面
+
+README の画面（スクリーンショットと GIF）は、Playwright のスクリプトで撮る（DEV-180。`tests/e2e/capture/`）。**画面を変えたら撮り直す。** 手で撮ると、古いまま残る。
+
+```bash
+cd infra/terraform/envs/dev
+export E2E_USER_PASSWORD="$(terraform output -raw e2e_user_password)"
+export AUTH_DEMO_USER_EMAIL=demo@example.com AUTH_DEMO_USER_PASSWORD="$(terraform output -raw demo_user_password)"
+cd -
+
+docker compose up -d --build              # 「デモとして入る」を使うため、デモのアカウントを渡して起動する
+pnpm --filter e2e capture                 # docs/images/ に PNG を書き、tests/e2e/capture/output/ に動画を残す
+tests/e2e/capture/make-gifs.sh            # 動画を GIF にして docs/images/ に置く（ffmpeg が要る）
+```
+
+- E2E と同じく、docker compose で起動した一式に向けて撮る。**E2E の CI では流さない**（設定を `capture.config.ts` に分けている）
+- 撮るのはデモのテナント（シード）。見に来た人が見るものと同じ画面にする。AI の下書きと、E2E の管理者をデモのテナントの管理者にする所属は、`capture/capture.sql` が入れる。何度流しても同じ状態に戻る
+- 見る人の画面は「デモとして入る」で、管理者の画面は E2E の管理者で撮る。ログインは E2E と同じく setup が画面から 1 回だけ行い、撮る側は保存した Cookie だけを使う。パスワードの欄は映らない
+- 動画にはマウスのカーソルが映らないので、押した場所に輪を出す（`capture/support.ts`）
+- パソコンの幅の画面は、中身（中央の 640px）のまわりだけを切り出し、縦は 960px までにする。README で文字が小さくならないように
+- GIF は 1 本 2 MB ほどに収める（幅、コマ数、色数を絞る。`make-gifs.sh`）
+- 撮ったら、映っているものを目で確かめる。メールアドレスは `example.com` のものだけが映る
+
 #### 負荷試験
 
 dev に向けて、[k6](https://k6.io/) で手で流す（DEV-112）。CI では流さない。手順、費用、測った結果は [負荷試験](load-test.md) にある。

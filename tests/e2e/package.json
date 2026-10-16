@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "capture": "playwright test --config capture.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
