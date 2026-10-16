@@ -1,7 +1,8 @@
 /**
  * 流し込みが呼ぶ管理の API（`/api/t/{slug}/admin/...`）。アクセストークンを `Authorization` に付けて、API を直接呼ぶ。
  *
- * 流量の上限（429）と、止まっている API の起動の途中（503）は、`Retry-After` の秒だけ待ってやり直す。
+ * 流量の上限（429）と、アプリが返した 503 は、`Retry-After` の秒だけ待ってやり直す。
+ * API Gateway が返した 500 / 503（タスクが止まっている）は、待たずに、起こすように伝えて止める。
  * 図の作成と一括取り込みは重い操作で、利用者ごとに 1 分 20 件まで（開発ガイドライン「ECS」）
  */
 export type CategorySummary = { id: string; name: string };
@@ -60,6 +61,15 @@ export class Api {
         },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
+      const problem = response.headers.get("Content-Type")?.startsWith("application/problem+json") ?? false;
+      // アプリのエラーは、すべて ProblemDetail で返る。そうでない 500 / 503 は、API Gateway が返したもので、
+      // 送り先のタスクがない（dev は使われなくなると止まる。DEV-153）。待っても起きないので、起こすように伝えて止める
+      if ((response.status === 500 || response.status === 503) && !problem) {
+        throw new Error(
+          "API が止まっているか、起動の途中です。画面の「サーバーを起動する」を押すか、" +
+            "aws ecs update-service --cluster quiz-app-dev --service quiz-service --desired-count 1 で起こしてから、流し直してください",
+        );
+      }
       if ((response.status === 429 || response.status === 503) && attempt < MAX_ATTEMPTS) {
         const seconds = Number(response.headers.get("Retry-After")) || 10;
         console.warn(`  ${response.status} のため、${seconds} 秒待ってやり直します（${method} ${path}）`);
