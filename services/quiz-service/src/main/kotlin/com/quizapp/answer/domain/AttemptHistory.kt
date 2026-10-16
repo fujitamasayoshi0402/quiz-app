@@ -2,6 +2,8 @@ package com.quizapp.answer.domain
 
 import com.quizapp.quiz.domain.DeliveryScope
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeParseException
 import java.util.Base64
 import java.util.UUID
@@ -25,6 +27,12 @@ interface AttemptHistoryQuery {
      * 同じクイズに何度も答えていれば、最後の 1 回だけを見る。
      */
     fun findLatestResults(userId: UUID): Map<UUID, Boolean>
+
+    /**
+     * 回答した問題の数を、日（[zone] の日付）ごとに返す。終えていない挑戦の回答も数える（DEV-179）。
+     * 期間で絞らない。連続日数は、いつから続いているかによるため
+     */
+    fun countAnswersByDay(userId: UUID, zone: ZoneId): Map<LocalDate, Int>
 }
 
 /**

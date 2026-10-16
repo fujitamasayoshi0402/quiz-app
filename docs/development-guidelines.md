@@ -97,7 +97,8 @@
 ```
 .
 ├── apps/
-│   └── web/                 # Next.js フロントエンド
+│   ├── web/                 # Next.js フロントエンド
+│   └── mobile/              # Expo（React Native）の一般ユーザー向けアプリ（ADR-0032）
 ├── services/
 │   ├── quiz-service/        # Kotlin + Spring Boot
 │   ├── notification-service/
@@ -216,6 +217,7 @@ pnpm --filter web lint
 | `notification` | notification-service（Lambda）。ktlint / detekt → test（Testcontainers の LocalStack）→ zip のビルド → 脆弱性の検査（Trivy） |
 | `news-quiz-drafter` | 技術ニュースから下書きを作る Lambda。ktlint / detekt → test（Bedrock と RSS と S3 は差し替える）→ zip のビルド → 脆弱性の検査（Trivy） |
 | `frontend` | API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → build → イメージのビルド → 脆弱性の検査（Trivy） |
+| `mobile` | モバイルアプリ。API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → iOS のバンドルを作る。どこにも載せない |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりと出題・管理の流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
@@ -671,6 +673,22 @@ CORS の設定は要らない。中継先は `API_ORIGIN` で変えられる（�
 同じイメージを環境ごとに使い回すため。
 AWS では Amplify Hosting がソースからビルドする。SSR の実行時には環境変数が渡らないため、
 ビルドの中で `.env.production` に書き出す（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）。
+
+### モバイルアプリ
+
+`apps/mobile` は Expo（managed）の一般ユーザー向けアプリ（[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。
+**API Gateway を直接呼ぶ**ため、ローカルの一式ではなく dev につなぐ。ログインも dev の Cognito（アプリ用のクライアント）を使う。
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env   # 値は infra/terraform/envs/dev の terraform output から（.env.example）
+pnpm --filter mobile start                     # i で iOS のシミュレータの Expo Go に開く
+```
+
+- iOS のシミュレータには Xcode が要る。シミュレータに合う版の Expo Go は、Expo の CLI が入れる
+- Expo Go の戻り先は `exp://127.0.0.1:8081/--/auth/callback`。Cognito に登録してあるのはこれと `quizapp://` だけで、**実機の Expo Go からはログインできない**（LAN の IP が戻り先になる）
+- dev の quiz-service が止まっていると（[ECS](#ecsquiz-service)）、API は 500 か 503 を返す。起こしてから使う
+- **Expo の SDK は、公開から 7 日たった版を使う**（`minimumReleaseAge`）。SDK と同時に出る React Native の版も同じ。上げるときは、`pnpm --filter mobile exec expo install --check` で SDK が求める版を確かめる
+- React の型（`@types/react`）は web と同じ版にする。Amplify は依存を 1 か所にまとめて入れるため（`nodeLinker: hoisted`）、版が違うと web のビルドが型の食い違いで落ちる
 
 ### コンテナイメージ
 
@@ -1138,6 +1156,7 @@ API が使えるまで約 2.5 分かかる（DEV-153 で測った）。使い終
 ```
 画面「サーバーを起動する」→ web の proxy（アクセストークンを付ける）→ API Gateway の POST /api/wake
   → JWT の認可（Cognito。発行者と web のクライアント）→ Step Functions → 止まっていれば ECS の UpdateService（タスク数 1）
+                                                                        と、Aurora に SELECT 1（Data API）を同時に
 画面は 10 秒おきに /api/me/tenants を読み、バックエンドに届いたら読み込みをやり直す（5 分で諦める）
 ```
 
@@ -1146,6 +1165,11 @@ API が使えるまで約 2.5 分かかる（DEV-153 で測った）。使い終
 - 何度押されても、タスクは 1 つより増えない。流量の上限はほかの API より低い（1 件/秒、バースト 5）
 - 起こす口は dev にだけある。ローカルと prod でボタンを押すと、「起動できませんでした」と出る
 - 電話から起こすとき（DEV-152）も、同じステートマシンを呼ぶ
+- **Aurora も一緒に起こす**（DEV-181）。アプリは起動のときに DB へつながないため、起こさないと、タスクが使えるようになってからの最初の要求で、Aurora の復帰（15〜20 秒）を待つ。
+  タスクの起動を待つ間に、復帰が済む
+  - Data API はマスターのシークレットで接続する。ロールが送れる先は dev のクラスタだけで、送る SQL（`SELECT 1`）は定義に固定してあり、外から渡せない
+  - 一時停止中は `DatabaseResumingException` が返るが、復帰は始まる。ほかの失敗でもタスクは起こし、理由は起こす手順のログに残る
+  - デプロイが起こすときは、Aurora を起こさない。マイグレーションがあればそれが起こし、無くてもスモークテストの最初の 1 本が待つだけで、人は待たない
 
 手で起動するときは、次のコマンドを使う。
 

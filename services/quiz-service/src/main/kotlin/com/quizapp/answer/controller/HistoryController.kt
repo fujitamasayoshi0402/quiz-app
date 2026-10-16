@@ -4,6 +4,7 @@ import com.quizapp.answer.domain.AttemptCursor
 import com.quizapp.answer.usecase.AttemptHistoryPage
 import com.quizapp.answer.usecase.CategoryScore
 import com.quizapp.answer.usecase.HistoryUseCase
+import com.quizapp.answer.usecase.StudyDays
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController
  */
 @RestController
 @RequestMapping("/api/t/{slug}/play/history", produces = [MediaType.APPLICATION_JSON_VALUE])
-@Tag(name = "履歴", description = "自分の過去の挑戦と、カテゴリ別の正答率")
+@Tag(name = "履歴", description = "自分の過去の挑戦と、カテゴリ別の正答率、学習の記録")
 class HistoryController(private val useCase: HistoryUseCase) {
 
     @GetMapping("/attempts")
@@ -43,4 +44,13 @@ class HistoryController(private val useCase: HistoryUseCase) {
         description = "いま出題できるクイズへの、最新の回答だけで数える。回答していないカテゴリも含む",
     )
     fun categories(): List<CategoryScore> = useCase.categories()
+
+    @GetMapping("/days")
+    @Operation(
+        operationId = "getStudyDays",
+        summary = "学習の記録（日ごとの回答の数と、続けて解いた日の数）",
+        description = "日の区切りは日本時間（利用者のタイムゾーンは持っていない）。終えていない挑戦の回答も数える。" +
+            "日ごとの数は直近 12 週と 1 日ぶん。続けて解いた日の数は、今日か昨日まで続いていれば数える",
+    )
+    fun days(): StudyDays = useCase.studyDays()
 }

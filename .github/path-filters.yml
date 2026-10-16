@@ -65,7 +65,8 @@ news-quiz-drafter:
   - '.github/scripts/deployed-commits.sh'
   - '.github/scripts/deploy-lambda.sh'
 frontend:
-  - 'apps/**'
+  # モバイルアプリ（apps/mobile）は含めない。変えても web を載せ直さない
+  - 'apps/web/**'
   - '.dockerignore'
   - 'package.json'
   - 'pnpm-lock.yaml'
@@ -85,6 +86,17 @@ frontend:
 # デプロイには使わない（frontend に入れると、スクリプトを変えただけで web をビルドし直す）
 content:
   - 'tools/content/**'
+  - '.mise.toml'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci.yml'
+# モバイルアプリ（ADR-0032）。CI だけが使う。どこにも載せない
+mobile:
+  - 'apps/mobile/**'
+  - 'package.json'
+  - 'pnpm-lock.yaml'
+  - 'pnpm-workspace.yaml'
+  # 型は OpenAPI 定義から生成するため、定義が変われば作り直しが要る
+  - 'docs/api/**'
   - '.mise.toml'
   - '.github/path-filters.yml'
   - '.github/workflows/ci.yml'
