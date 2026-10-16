@@ -20,6 +20,11 @@ output "client_secret" {
   sensitive = true
 }
 
+output "mobile_client_id" {
+  description = "モバイルアプリのクライアント。作らなかったときは空"
+  value       = try(aws_cognito_user_pool_client.mobile[0].id, "")
+}
+
 output "smoke_user_email" {
   value = var.smoke_user_email
 }

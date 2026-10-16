@@ -25,11 +25,12 @@ locals {
     { name = "SPRING_DATASOURCE_USERNAME", value = "quiz_app" },
   ]
 
-  # アクセストークンの発行者と、受け取る web のクライアント（ADR-0016）。無いとアプリが起動しない（AuthProperties）。
+  # アクセストークンの発行者と、受け取る web とモバイルアプリのクライアント（ADR-0016、ADR-0032）。発行者と web のクライアントが無いとアプリが起動しない（AuthProperties）。
   # マイグレーションのタスクも同じアプリとして起動するため、両方に渡す
   auth_environment = [
     { name = "AUTH_CLIENT_ID", value = var.auth_client_id },
     { name = "AUTH_ISSUER", value = var.auth_issuer },
+    { name = "AUTH_MOBILE_CLIENT_ID", value = var.auth_mobile_client_id },
   ]
 
   # 解説図（ADR-0017）。アプリのタスクにだけ渡す。マイグレーションは図に触れない。

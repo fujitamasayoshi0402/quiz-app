@@ -773,7 +773,7 @@ WHERE user_id = '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab';
 ```
 
 バックエンドが確かめるのは、署名（発行者の JWKS）、発行者、期限、アクセストークンであること（`token_use`）、
-web のクライアントに発行されたこと（`client_id`）。Spring Security のリソースサーバーは使わず、JWT の検証の部品だけを使う。
+web かモバイルアプリのクライアントに発行されたこと（`client_id`。[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。Spring Security のリソースサーバーは使わず、JWT の検証の部品だけを使う。
 フィルタが前に立つと、401 の応答がアプリの形（RFC 9457）にならず、認可の判定も二重になるため（`auth/AccessTokens.kt`）。
 
 同じメールアドレスの利用者が、すでに別の Cognito の利用者に結び付いているときは、401 で拒否する（Cognito で利用者を作り直したときなど）。
@@ -957,6 +957,11 @@ README のデモの URL（dev の web）だけは、見に来た人が開くた�
 - 見に来た人が試すための、共有のデモのアカウント（`demo@example.com`）も同じ。**パスワードは公開する前提**で、`terraform output -raw demo_user_password`。web にも渡し、「デモとして入る」で使う（[フロントエンド](#フロントエンド)）。
   README に載せている。パスワードを作り直したら、README も直す。
   `example.com` は誰も受け取れないので、パスワードを忘れた人の手続き（確認コード）で乗っ取られることはない
+- **モバイルアプリ（`apps/mobile`）のクライアントは、web とは別に置く**（[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。シークレットを持たず、PKCE でコードを受ける。
+  戻り先はアプリのスキーム（`quizapp://`）と、Expo Go をシミュレータで動かすときの `exp://127.0.0.1:8081/--/`（`envs/dev` の `mobile_app_url_prefixes`）。空なら作らない（prod）
+  - クライアントの ID は `terraform output -raw auth_mobile_client_id`。アプリのビルドに渡す。バックエンドには、タスク定義の環境変数 `AUTH_MOBILE_CLIENT_ID` で渡る
+  - Managed Login でパスキーを選ばせるため、`ALLOW_USER_AUTH` を許している。シークレットがないので、API からもパスワードの認証を呼べる。できることは Managed Login と変わらない
+  - トークンは端末に置かれ、利用者がスコープ `aws.cognito.signin.user.admin` で自分の属性を書き換えられる。メールアドレスは確認するまで替わらず、バックエンドは確認済みのものしか使わない
 - E2E テストの利用者（`e2e-*@example.com` の 4 人）も同じ。パスワードは全員で共通で、`terraform output -raw e2e_user_password`（[E2E テスト](#e2e-テスト)）
 
 Managed Login の画面は、web をつながなくても開ける。ログインのあとは `redirect_uri` に戻る（開いていなければエラーの画面になるが、ログインはできている）。

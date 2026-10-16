@@ -20,6 +20,7 @@ object TestJwt {
 
     const val ISSUER = "https://issuer.test/pool"
     const val CLIENT_ID = "test-web-client"
+    const val MOBILE_CLIENT_ID = "test-mobile-client"
 
     /** Cognito の GetUser の代わりに、確認済みのメールアドレスをトークンに入れて渡す（[TestAuthConfiguration]） */
     const val EMAIL_CLAIM = "test_email"

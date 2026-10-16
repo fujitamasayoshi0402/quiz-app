@@ -45,6 +45,17 @@ class AccessTokenApiTest {
     private fun newEmail() = "user-${UUID.randomUUID()}@example.test"
 
     @Nested
+    @DisplayName("受け付けるトークン")
+    inner class Accepted {
+        @Test
+        @DisplayName("モバイルアプリのクライアントに発行された（ADR-0032）")
+        fun mobileClient() {
+            myTenants(TestJwt.issue(newSubject(), email = newEmail(), clientId = TestJwt.MOBILE_CLIENT_ID))
+                .andExpect { status { isOk() } }
+        }
+    }
+
+    @Nested
     @DisplayName("受け付けないトークン")
     inner class Rejected {
         @Test
