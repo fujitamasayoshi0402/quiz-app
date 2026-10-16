@@ -6,6 +6,7 @@ import {
   insertFigure,
   insertPdf,
   linkLabelOf,
+  removeFigure,
   replaceFigure,
   svgFromDataUri,
 } from "./figures";
@@ -58,5 +59,22 @@ describe("解説図の参照", () => {
 
     expect(svgFromDataUri(`data:image/svg+xml;base64,${base64}`)).toBe(svg);
     expect(svgFromDataUri(`data:image/svg+xml,${encodeURIComponent(svg)}`)).toBe(svg);
+  });
+});
+
+describe("本文から図を外す（DEV-168）", () => {
+  it("図を出す書き方と、開くリンクの両方を外し、空になった行を消す", () => {
+    const text = `前の文\n\n![名刺](figure:${A})\n[名刺（PDF）](figure:${A})\n\n後の文`;
+    expect(removeFigure(text, A)).toBe("前の文\n\n後の文");
+  });
+
+  it("ほかの図と、同じ行の文は残す", () => {
+    const text = `![図](figure:${B})\n説明は [こちら](figure:${A}) を見てください`;
+    expect(removeFigure(text, A)).toBe(`![図](figure:${B})\n説明は  を見てください`);
+  });
+
+  it("大文字で書いた ID も外す。指していなければ変えない", () => {
+    expect(removeFigure(`![図](figure:${A.toUpperCase()})`, A)).toBe("");
+    expect(removeFigure(`![図](figure:${B})`, A)).toBe(`![図](figure:${B})`);
   });
 });

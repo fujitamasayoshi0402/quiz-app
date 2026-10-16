@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -9,6 +10,7 @@ import { DeleteDialog } from "@/components/admin/delete-dialog";
 import { FigureEditor } from "@/components/admin/figure-editor";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { FigureImage } from "@/components/figure-image";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,11 +22,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  deleteFigure,
   getFigureSource,
   useCreateQuiz,
   useDeleteQuiz,
   useGetFigureDetail,
   useGetQuiz,
+  useListFigures,
   useUpdateQuiz,
 } from "@/lib/api/generated/endpoints";
 import { useCatalog } from "@/lib/admin/catalog";
@@ -46,6 +50,7 @@ import {
   insertFigure,
   insertPdf,
   linkLabelOf,
+  removeFigure,
   replaceFigure,
 } from "@/lib/figures";
 
@@ -107,8 +112,18 @@ function QuizEditor({
   const { ref: registerExplanation, ...explanationField } = form.register("explanation");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const create = useCreateQuiz({ mutation: { onSuccess: toList } });
-  const update = useUpdateQuiz({ mutation: { onSuccess: toList } });
+  const removal = useFigureRemoval(slug, quizId, form.getValues, (value) =>
+    form.setValue("explanation", value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted }),
+  );
+  // 保存したあとに、外して消すことにした図を消す（DEV-168）。消せなかった図があれば、一覧へ戻らずに伝える
+  const finishSave = async () => {
+    const left = await removal.deletePending();
+    if (left.length === 0) await toList();
+    else await invalidate();
+  };
+
+  const create = useCreateQuiz({ mutation: { onSuccess: finishSave } });
+  const update = useUpdateQuiz({ mutation: { onSuccess: finishSave } });
   const remove = useDeleteQuiz({ mutation: { onSuccess: toList } });
   const saving = create.isPending || update.isPending;
   const saveError = create.error ?? update.error ?? remove.error;
@@ -297,6 +312,14 @@ function QuizEditor({
                   ids={figureIdsIn(explanation)}
                   loading={figures.loading}
                   onRedraw={figures.redraw}
+                  usedElsewhere={removal.usedElsewhere}
+                  onRemove={removal.remove}
+                  onRemoveAndDelete={removal.removeAndDelete}
+                />
+                <PendingFigureDeletions
+                  slug={slug}
+                  ids={removal.pending.filter((id) => !figureIdsIn(explanation).includes(id))}
+                  onKeep={removal.keep}
                 />
               </TabsContent>
               <TabsContent value="preview" className="min-h-40 rounded-lg border px-3 py-2">
@@ -320,6 +343,7 @@ function QuizEditor({
       </Card>
 
       {saveError && <ApiErrorAlert error={saveError} />}
+      {removal.left.length > 0 && <FiguresLeftAlert slug={slug} count={removal.left.length} />}
 
       <div className="flex flex-wrap items-center gap-2">
         {quizId && (
@@ -330,10 +354,15 @@ function QuizEditor({
           />
         )}
         <div className="ml-auto flex gap-2">
-          <Button type="button" variant="outline" disabled={saving} onClick={() => save("draft")}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={saving || removal.left.length > 0}
+            onClick={() => save("draft")}
+          >
             下書きとして保存
           </Button>
-          <Button type="button" disabled={saving} onClick={() => save("published")}>
+          <Button type="button" disabled={saving || removal.left.length > 0} onClick={() => save("published")}>
             {currentStatus === "published" ? "公開したまま保存" : "公開する"}
           </Button>
         </div>
@@ -445,17 +474,23 @@ function useExplanationFigures(
   };
 }
 
-/** 解説が指している図の一覧。描き直すときは、ここから選ぶ */
+/** 解説が指している図の一覧。描き直す、外す、外して消すときは、ここから選ぶ */
 function ExplanationFigures({
   slug,
   ids,
   loading,
   onRedraw,
+  usedElsewhere,
+  onRemove,
+  onRemoveAndDelete,
 }: {
   slug: string;
   ids: string[];
   loading: string | null;
   onRedraw: (id: string) => void;
+  usedElsewhere: (id: string) => boolean;
+  onRemove: (id: string) => void;
+  onRemoveAndDelete: (id: string) => void;
 }) {
   if (ids.length === 0) return null;
   return (
@@ -470,6 +505,9 @@ function ExplanationFigures({
             label={`${index + 1} つ目の図`}
             loading={loading}
             onRedraw={onRedraw}
+            usedElsewhere={usedElsewhere(id)}
+            onRemove={() => onRemove(id)}
+            onRemoveAndDelete={() => onRemoveAndDelete(id)}
           />
         ))}
       </ul>
@@ -487,12 +525,18 @@ function ExplanationFigure({
   label,
   loading,
   onRedraw,
+  usedElsewhere,
+  onRemove,
+  onRemoveAndDelete,
 }: {
   slug: string;
   id: string;
   label: string;
   loading: string | null;
   onRedraw: (id: string) => void;
+  usedElsewhere: boolean;
+  onRemove: () => void;
+  onRemoveAndDelete: () => void;
 }) {
   const detail = useGetFigureDetail(slug, id, { query: { staleTime: Infinity, retry: false } });
   return (
@@ -521,6 +565,113 @@ function ExplanationFigure({
         </Button>
       )}
       {detail.data?.kind === "image" && <p className="text-center text-xs text-muted-foreground">画像</p>}
+      <Button type="button" variant="outline" size="sm" className="w-full" onClick={onRemove}>
+        外す
+      </Button>
+      {/* ほかの問題も使っている図は消せない（DEV-165）。外すだけにする */}
+      {usedElsewhere ? (
+        <p className="text-center text-xs text-muted-foreground">ほかの問題も使っています</p>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full text-destructive"
+          aria-label={`${label}を外して消す`}
+          onClick={onRemoveAndDelete}
+        >
+          外して消す
+        </Button>
+      )}
     </li>
+  );
+}
+
+/**
+ * 解説から図を外し、保存したときに消す（DEV-168）。保存せずにやめれば、図は残る。
+ *
+ * **消すのは保存のあと。** 先に消すと、保存しないでやめたときに、保存済みの解説が無い図を指す。
+ * ほかの公開中・下書きの問題も使っている図は、消せない（バックエンドも 409 で拒む）。外すだけにする
+ */
+function useFigureRemoval(
+  slug: string,
+  quizId: string | undefined,
+  getValues: (name: "explanation") => string,
+  setExplanation: (value: string) => void,
+) {
+  const figures = useListFigures(slug);
+  const [pending, setPending] = useState<string[]>([]);
+  const [left, setLeft] = useState<string[]>([]);
+
+  const remove = (id: string) => setExplanation(removeFigure(getValues("explanation"), id));
+
+  return {
+    pending,
+    left,
+    usedElsewhere: (id: string) =>
+      (figures.data?.find((figure) => figure.id === id)?.quizzes ?? []).some(
+        (quiz) => !quiz.deleted && quiz.id !== quizId,
+      ),
+    remove,
+    removeAndDelete: (id: string) => {
+      remove(id);
+      setPending((current) => (current.includes(id) ? current : [...current, id]));
+    },
+    keep: (id: string) => setPending((current) => current.filter((pendingId) => pendingId !== id)),
+    /** 保存のあとに呼ぶ。外したままの図を消し、消せなかった図を返す。解説に戻した図は消さない */
+    deletePending: async (): Promise<string[]> => {
+      const stillUsed = figureIdsIn(getValues("explanation"));
+      const failed: string[] = [];
+      for (const id of pending.filter((pendingId) => !stillUsed.includes(pendingId))) {
+        await deleteFigure(slug, id).catch(() => failed.push(id));
+      }
+      setPending([]);
+      setLeft(failed);
+      return failed;
+    },
+  };
+}
+
+/** 保存したときに消す図。保存の前なら、消さずに残せる */
+function PendingFigureDeletions({ slug, ids, onKeep }: { slug: string; ids: string[]; onKeep: (id: string) => void }) {
+  if (ids.length === 0) return null;
+  return (
+    <div className="space-y-2 rounded-lg border border-dashed p-3">
+      <p className="text-sm">保存すると、次の図を消します。消した図は元に戻せません。</p>
+      <ul className="flex flex-wrap gap-3">
+        {ids.map((id, index) => (
+          <li key={id} className="w-32 space-y-1">
+            <FigureImage
+              src={figurePreviewUrl(slug, id)}
+              alt={`消す図 ${index + 1}`}
+              className="h-24 w-full object-contain opacity-60"
+            />
+            <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => onKeep(id)}>
+              消さずに残す
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** 保存は済んだが、消せなかった図があった。ほかの人が同時に使い始めたときなど */
+function FiguresLeftAlert({ slug, count }: { slug: string; count: number }) {
+  return (
+    <Alert>
+      <AlertTitle>クイズは保存しました。図 {count} 個は消せませんでした</AlertTitle>
+      <AlertDescription>
+        <p>ほかの問題が使い始めたなどの理由で、図を残しました。図のタブで、使っている問題を確かめてください。</p>
+        <div className="flex gap-3">
+          <Link href={`/t/${slug}/admin/figures`} className="underline underline-offset-4">
+            図のタブへ
+          </Link>
+          <Link href={`/t/${slug}/admin/quizzes`} className="underline underline-offset-4">
+            クイズの一覧へ
+          </Link>
+        </div>
+      </AlertDescription>
+    </Alert>
   );
 }
