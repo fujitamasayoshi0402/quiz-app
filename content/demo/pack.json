@@ -1,0 +1,31 @@
+{
+  "categories": [
+    {
+      "name": "世界の地理",
+      "description": "川や国の大きさ、時差、地球の上の位置",
+      "difficulties": [
+        { "name": "やさしい", "level": 1 },
+        { "name": "ふつう", "level": 2 },
+        { "name": "むずかしい", "level": 3 }
+      ]
+    },
+    {
+      "name": "身近な科学",
+      "description": "虹、月、季節、てこと滑車。身の回りの不思議のしくみ",
+      "difficulties": [
+        { "name": "やさしい", "level": 1 },
+        { "name": "ふつう", "level": 2 },
+        { "name": "むずかしい", "level": 3 }
+      ]
+    },
+    {
+      "name": "図形とひらめき",
+      "description": "図を見て考えるパズル。展開図、一筆書き、時計、天秤",
+      "difficulties": [
+        { "name": "やさしい", "level": 1 },
+        { "name": "ふつう", "level": 2 },
+        { "name": "むずかしい", "level": 3 }
+      ]
+    }
+  ]
+}

@@ -13,7 +13,7 @@
  * 作ったものは、作ったそばからログに出す。途中で失敗しても、どこまで入ったかが分かる
  */
 import { parseArgs } from "node:util";
-import { Api, type QuizItem } from "./api.ts";
+import { Api, ApiError, type QuizItem } from "./api.ts";
 import { type Pack, type Quiz, figureNames, quizKey, readPack, resolveFigures, validatePack } from "./pack.ts";
 
 /** 一括取り込みは 1 回 500 問まで */
@@ -129,10 +129,17 @@ for (const name of neededFigures([...toImport, ...toUpdate.map((u) => u.quiz)]))
 
 for (let start = 0; start < toImport.length; start += IMPORT_BATCH) {
   const batch = toImport.slice(start, start + IMPORT_BATCH);
-  const { importedCount } = await api.importQuizzes(
-    batch.map((quiz) => ({ ...quiz, explanation: resolveFigures(quiz.explanation, figureIds) })),
-  );
-  console.log(`  クイズを取り込んだ: ${importedCount} 問`);
+  try {
+    const { importedCount } = await api.importQuizzes(
+      batch.map((quiz) => ({ ...quiz, explanation: resolveFigures(quiz.explanation, figureIds) })),
+    );
+    console.log(`  クイズを取り込んだ: ${importedCount} 問`);
+  } catch (error) {
+    // 取り込みは 1 問でも誤りがあると、どれも入れない。どの問題かを、行の番号ではなく問題文で出す
+    const rows = error instanceof ApiError ? ((error.problem?.rows ?? []) as { index: number; messages: string[] }[]) : [];
+    for (const row of rows) console.error(`  取り込めない: ${batch[row.index]?.question} — ${row.messages.join("、")}`);
+    throw error;
+  }
 }
 
 for (const { quiz, existing } of toUpdate) {

@@ -78,9 +78,28 @@ export class Api {
       }
       if (!response.ok) {
         // 応答は RFC 9457 の ProblemDetail。トークンは含まない
-        throw new Error(`${method} ${path} が ${response.status} で失敗しました: ${await response.text()}`);
+        const text = await response.text();
+        throw new ApiError(`${method} ${path} が ${response.status} で失敗しました: ${text}`, problem ? parse(text) : undefined);
       }
       return (response.status === 204 ? undefined : await response.json()) as T;
     }
+  }
+}
+
+/** API が返したエラー。ProblemDetail なら、中身（取り込めない行など）を持つ */
+export class ApiError extends Error {
+  readonly problem: Record<string, unknown> | undefined;
+
+  constructor(message: string, problem: Record<string, unknown> | undefined) {
+    super(message);
+    this.problem = problem;
+  }
+}
+
+function parse(text: string): Record<string, unknown> | undefined {
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return undefined;
   }
 }
