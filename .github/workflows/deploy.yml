@@ -287,6 +287,35 @@ jobs:
         env:
           AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
 
+      # quiz-service を載せないとき（web だけ）でも、スモークテストは API まで呼ぶ。
+      # dev は使われなくなると止まり（DEV-153）、prod は公開まで止めてある。止まっていれば起こし、API が答えるまで待つ。
+      # 起こしたものは、使われなければまた止まる（prod は手で止める）
+      - name: quiz-service が止まっていれば起こす
+        if: steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true'
+        run: |
+          DESIRED=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --query 'services[0].desiredCount' --output text)
+          if [[ "$DESIRED" != "0" ]]; then
+            echo "quiz-service は動いています"
+            exit 0
+          fi
+          echo "quiz-service が止まっているため、起こします"
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --desired-count 1 --query 'service.desiredCount' --output text
+          # 届くようになると、トークンのない要求に API が 401 を返す。止まっている間は、API Gateway が 500 か 503 を返す
+          url="https://${AMPLIFY_BRANCH}.${AMPLIFY_APP_ID}.amplifyapp.com/api/me/tenants"
+          deadline=$((SECONDS + 600))
+          until [[ "$(curl -s -o /dev/null -w '%{http_code}' "$url")" == "401" ]]; do
+            if (( SECONDS > deadline )); then
+              echo "::error::quiz-service が 10 分たっても答えません"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "quiz-service が答えるようになりました"
+          echo "- quiz-service: 止まっていたため、スモークテストの前に起こした" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
+
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         if: steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true'
         with:
