@@ -793,6 +793,45 @@ dev は `dev` のプロファイルで、デモのシードと両方を入れる
 同じ内容を何度流しても増えない。repeatable マイグレーションは**内容を変えるたびに再実行される**ため、
 識別子を固定して `ON CONFLICT DO NOTHING` で入れている。
 
+### クイズのパック
+
+クイズは、図ごと「パック」にまとめて、アプリの API で流し込む（[ADR-0034](adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)、DEV-186）。
+書き方は[クイズの書き方](content-guide.md)にある。
+
+```
+<パック>/pack.json            カテゴリと難易度
+<パック>/quizzes/*.json        クイズの配列（一括取り込みの JSON と同じ項目）。ファイルの分け方は自由
+<パック>/figures/<名前>.drawio と <名前>.svg
+```
+
+解説の中では、図をファイルの名前で指す（`![代替テキスト](figure:tcp-handshake)`）。名前は小文字・数字・ハイフン。
+
+**draw.io のラベルは、HTML にしない**（スタイルに `html=1` を付けない。改行は `&#xa;`）。HTML のラベルは、SVG に代わりの PNG が入り、1 枚が 150〜250 KB になる。文字のラベルなら 5 KB ほど。
+書き出しは明るい配色に固定し（`--theme light`）、フォントは埋め込まない（`export-svg.sh`）。
+
+```bash
+tools/content/export-svg.sh <パック>       # .drawio を SVG に書き出す（draw.io のデスクトップのアプリが要る）。SVG も commit する
+
+cd infra/terraform/envs/dev
+export ACCESS_TOKEN=$(../../../../tools/content/token.sh <自分のメールアドレス>)   # パスワードを聞かれる。トークンの期限は 1 時間
+cd -
+
+node tools/content/load.ts <パック> --api http://localhost:8080 --tenant <slug> --dry-run   # 何を作るかだけを出す
+node tools/content/load.ts <パック> --api "$(cd infra/terraform/envs/dev && terraform output -raw quiz_service_url)" --tenant <slug>
+```
+
+- **流すのは、そのテナントの管理者。** 自分の Cognito の利用者でトークンを取る（スモークテストと同じ `InitiateAuth`）。パスワードは画面に出さず、トークンはファイルに残さない
+- ローカルの API も、dev の Cognito のトークンを受け付ける。ローカルに流すときも、同じトークンでよい
+- カテゴリと難易度がなければ作る。図は、原本（`.drawio`）が同じ図があれば使い回す
+- **クイズは、カテゴリと問題文が同じものを入れない。** 何度流しても増えない。問題文を直すと、別の問題として入る
+- `--update`: あるクイズのうち、パックと違うもの（解説、選択肢、難易度、状態）をパックのとおりに直す。付けなければ、画面で直したものを上書きしない
+- `--prune`: パックのカテゴリにあって、パックにないクイズを消す（ゴミ箱に入る）
+- 作ったものは、作ったそばからログに出す。途中で止まっても、どこまで入ったかが分かる。流し直せば、残りだけが入る
+- 図の作成と一括取り込みは、利用者ごとの流量の上限（重い操作は 1 分に 20 件）に掛かる。429 が返ると `Retry-After` の秒だけ待ってやり直す
+- **dev のデモのパックを変えたら、マージのあとに手で流す。** デプロイでは流さない（CI に管理者のトークンを持たせないため。ADR-0034）
+- 自分で作ったテナントには、クイズと図の数に上限がある（ADR-0028）。上げるときは [Runbook](runbook.md#テナントの上限を変える)
+- 依存を持たない。Node が型を消してそのまま動かす（`node --test 'tools/content/*.test.ts'` でテストを流す）。コンストラクタの引数でフィールドを作る書き方など、型を消すだけでは動かない書き方は使えない
+
 ### 認証
 
 ログインは Cognito の Managed Login で、パスワードとパスキーを使う（[ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md)）。

@@ -41,6 +41,7 @@ jobs:
       news-quiz-drafter: ${{ steps.filter.outputs.news-quiz-drafter }}
       vulnerability-scan: ${{ steps.filter.outputs.vulnerability-scan }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      content: ${{ steps.filter.outputs.content }}
       mobile: ${{ steps.filter.outputs.mobile }}
       terraform: ${{ steps.filter.outputs.terraform }}
       e2e: ${{ steps.filter.outputs.e2e }}
@@ -203,7 +204,9 @@ jobs:
   frontend:
     name: frontend
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.vulnerability-scan == 'true'
+    if: >-
+      needs.changes.outputs.frontend == 'true' || needs.changes.outputs.content == 'true'
+      || needs.changes.outputs.vulnerability-scan == 'true'
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -247,6 +250,10 @@ jobs:
 
       - name: 単体テスト
         run: pnpm --filter web test
+
+      # クイズのパックを流し込むスクリプト（ADR-0034）。依存を持たず、Node が型を消して動かす
+      - name: パックの流し込みのテスト
+        run: node --test 'tools/content/*.test.ts'
 
       # 型チェックと lint では、Server / Client Components の境界の誤りやビルド設定の問題が分からない
       - name: ビルド
