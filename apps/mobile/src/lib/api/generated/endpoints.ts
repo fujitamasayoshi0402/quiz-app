@@ -61,6 +61,7 @@ import {
   ReceivedInvitationResponse,
   ReviewSummary,
   SlackWebhookResponse,
+  StudyDays,
   TenantCreationResponse,
   TenantSettingsResponse,
   Trash
@@ -5864,6 +5865,109 @@ export function useListCategoryScores<TData = Awaited<ReturnType<typeof listCate
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getListCategoryScoresQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetStudyDaysUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/history/days`
+}
+
+/**
+ * 日の区切りは日本時間（利用者のタイムゾーンは持っていない）。終えていない挑戦の回答も数える。日ごとの数は直近 12 週と 1 日ぶん。続けて解いた日の数は、今日か昨日まで続いていれば数える
+ * @summary 学習の記録（日ごとの回答の数と、続けて解いた日の数）
+ */
+export const getStudyDays = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<StudyDays> => {
+
+  return apiFetch<StudyDays>(getGetStudyDaysUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: StudyDays
+  }
+);}
+
+
+
+
+
+export const getGetStudyDaysQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/play/history/days`
+    ] as const;
+    }
+
+
+export const getGetStudyDaysQueryOptions = <TData = Awaited<ReturnType<typeof getStudyDays>>, TError = ProblemDetail>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudyDaysQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudyDays>>> = ({ signal }) => getStudyDays(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStudyDaysQueryResult = NonNullable<Awaited<ReturnType<typeof getStudyDays>>>
+export type GetStudyDaysQueryError = ProblemDetail
+
+
+export function useGetStudyDays<TData = Awaited<ReturnType<typeof getStudyDays>>, TError = ProblemDetail>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStudyDays>>,
+          TError,
+          Awaited<ReturnType<typeof getStudyDays>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStudyDays<TData = Awaited<ReturnType<typeof getStudyDays>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStudyDays>>,
+          TError,
+          Awaited<ReturnType<typeof getStudyDays>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStudyDays<TData = Awaited<ReturnType<typeof getStudyDays>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 学習の記録（日ごとの回答の数と、続けて解いた日の数）
+ */
+
+export function useGetStudyDays<TData = Awaited<ReturnType<typeof getStudyDays>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStudyDaysQueryOptions(slug,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
