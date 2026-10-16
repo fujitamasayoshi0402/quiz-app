@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const ITEMS = [
   { segment: "quizzes", label: "クイズ" },
   { segment: "categories", label: "カテゴリ" },
+  { segment: "figures", label: "図" },
   { segment: "trash", label: "削除済み" },
   { segment: "invitations", label: "招待" },
   { segment: "notifications", label: "通知" },
