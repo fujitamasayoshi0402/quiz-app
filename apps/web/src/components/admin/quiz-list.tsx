@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { accuracyOf, sortByAccuracy } from "@/lib/admin/accuracy";
 import { useSearchQuizzes } from "@/lib/api/generated/endpoints";
+import type { QuizListItemResponse } from "@/lib/api/generated/model";
 import { useCatalog } from "@/lib/admin/catalog";
 
 /** 「すべて」を表す値。Select は空文字列を値にできない */
@@ -18,13 +20,23 @@ const ALL = "all";
 /** 作った人での絞り込み。AI が技術ニュースから作ったものは、出典の URL を持つ（ADR-0031） */
 const ORIGINS = { ai: true, human: false } as const;
 
-/** クイズ一覧。カテゴリ・難易度・状態・作った人で絞り込む（要件定義 A4、A10）。 */
+/** 正答率は、回答が少なければ率の代わりにそう出す。1 回まちがえただけで 0% と出さない */
+function accuracyLabel(quiz: QuizListItemResponse): string {
+  const accuracy = accuracyOf(quiz);
+  return accuracy === null ? "回答が少ない" : `${accuracy}%`;
+}
+
+/**
+ * クイズ一覧。カテゴリ・難易度・状態・作った人で絞り込む（要件定義 A4、A10）。
+ * 正答率を出し、低い順に並べ替えられる。間違えやすい問題を見つけ、解説や問題文を見直すため（A11）。
+ */
 export function QuizList({ slug }: { slug: string }) {
   const catalog = useCatalog(slug);
   const [categoryId, setCategoryId] = useState(ALL);
   const [difficultyId, setDifficultyId] = useState(ALL);
   const [status, setStatus] = useState(ALL);
   const [origin, setOrigin] = useState(ALL);
+  const [order, setOrder] = useState("registered");
 
   const quizzes = useSearchQuizzes(slug, {
     categoryId: categoryId === ALL ? undefined : categoryId,
@@ -89,6 +101,15 @@ export function QuizList({ slug }: { slug: string }) {
             <SelectItem value="human">人が作ったもの</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={order} onValueChange={setOrder}>
+          <SelectTrigger className="w-40" aria-label="並び">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="registered">登録順</SelectItem>
+            <SelectItem value="accuracy">正答率の低い順</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="ml-auto flex gap-2">
           <Button asChild variant="outline">
             <Link href={`/t/${slug}/admin/quizzes/import`}>まとめて取り込む</Link>
@@ -113,11 +134,12 @@ export function QuizList({ slug }: { slug: string }) {
                 <TableHead>問題文</TableHead>
                 <TableHead className="hidden w-32 sm:table-cell">カテゴリ</TableHead>
                 <TableHead className="hidden w-24 sm:table-cell">難易度</TableHead>
+                <TableHead className="hidden w-28 text-right sm:table-cell">正答率</TableHead>
                 <TableHead className="w-20">状態</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {quizzes.data.map((quiz) => (
+              {(order === "accuracy" ? sortByAccuracy(quizzes.data) : quizzes.data).map((quiz) => (
                 <TableRow key={quiz.id}>
                   <TableCell className="max-w-0">
                     <Link
@@ -128,11 +150,18 @@ export function QuizList({ slug }: { slug: string }) {
                     </Link>
                     {/* 狭い幅ではカテゴリと難易度の列を畳み、問題文の下に出す。列のままだと問題文が数文字しか見えない */}
                     <p className="mt-0.5 truncate text-xs text-muted-foreground sm:hidden">
-                      {catalog.categoryName(quiz.categoryId)}・{catalog.difficultyName(quiz.difficultyId)}
+                      {catalog.categoryName(quiz.categoryId)}・{catalog.difficultyName(quiz.difficultyId)}・
+                      {accuracyOf(quiz) === null ? accuracyLabel(quiz) : `正答率 ${accuracyLabel(quiz)}`}
                     </p>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">{catalog.categoryName(quiz.categoryId)}</TableCell>
                   <TableCell className="hidden sm:table-cell">{catalog.difficultyName(quiz.difficultyId)}</TableCell>
+                  <TableCell className="hidden text-right sm:table-cell">
+                    <span className={accuracyOf(quiz) === null ? "text-xs text-muted-foreground" : undefined}>
+                      {accuracyLabel(quiz)}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">{quiz.answerCount} 回答</span>
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       <StatusBadge status={quiz.status} />

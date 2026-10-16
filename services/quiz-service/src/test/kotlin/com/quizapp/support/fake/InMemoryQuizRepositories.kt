@@ -1,5 +1,6 @@
 package com.quizapp.support.fake
 
+import com.quizapp.quiz.domain.AnswerTally
 import com.quizapp.quiz.domain.AnsweredQuizzes
 import com.quizapp.quiz.domain.Category
 import com.quizapp.quiz.domain.CategoryRepository
@@ -146,6 +147,12 @@ class FakeAnsweredQuizzes : AnsweredQuizzes {
 
     override fun filterBookmarked(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
         candidateQuizIds.filter { (userId to it) in bookmarks }.toSet()
+
+    // 最後の回答しか覚えていないため、利用者ごとに 1 回と数える。解き直しを数えることは API テストが見る
+    override fun tally(quizIds: List<UUID>): Map<UUID, AnswerTally> = lastCorrect.entries
+        .filter { (key, _) -> key.second in quizIds }
+        .groupBy({ it.key.second }, { it.value })
+        .mapValues { (_, results) -> AnswerTally(answered = results.size, correct = results.count { it }) }
 }
 
 /**

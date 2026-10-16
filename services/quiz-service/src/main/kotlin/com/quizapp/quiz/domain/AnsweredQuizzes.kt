@@ -33,4 +33,12 @@ interface AnsweredQuizzes {
      * 印も回答と同じく、利用者がクイズに残した記録として answer モジュールが持つ。
      */
     fun filterBookmarked(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID>
+
+    /**
+     * クイズごとに、**テナントの全員の**回答の数と正解の数を返す。回答のないクイズは含めない。
+     *
+     * ほかの関数と違い、利用者で絞らない。管理者が問題の出来を見るためのもの。
+     * 挑戦をまたいだ解き直しは、それぞれ 1 回と数える。
+     */
+    fun tally(quizIds: List<UUID>): Map<UUID, AnswerTally>
 }

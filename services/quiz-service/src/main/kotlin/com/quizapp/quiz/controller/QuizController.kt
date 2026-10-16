@@ -31,7 +31,11 @@ import java.util.UUID
 class QuizController(private val useCase: QuizUseCase) {
 
     @GetMapping
-    @Operation(operationId = "searchQuizzes", summary = "クイズを絞り込んで一覧")
+    @Operation(
+        operationId = "searchQuizzes",
+        summary = "クイズを絞り込んで一覧",
+        description = "各クイズに、テナントの全員の回答の数（`answerCount`）と、そのうち正解の数（`correctCount`）を添える",
+    )
     fun search(
         @RequestParam(required = false) categoryId: UUID?,
         @RequestParam(required = false) difficultyId: UUID?,
@@ -39,8 +43,8 @@ class QuizController(private val useCase: QuizUseCase) {
         @Parameter(description = "true なら AI が技術ニュースから作ったもの（`sourceUrl` を持つ）だけ、false なら人が作ったものだけ")
         @RequestParam(required = false)
         aiGenerated: Boolean?,
-    ): List<QuizResponse> =
-        useCase.search(categoryId, difficultyId, status?.let(QuizStatus::from), aiGenerated).map(QuizResponse::from)
+    ): List<QuizListItemResponse> = useCase.search(categoryId, difficultyId, status?.let(QuizStatus::from), aiGenerated)
+        .map(QuizListItemResponse::from)
 
     @GetMapping("/{id}")
     @Operation(operationId = "getQuiz", summary = "クイズを 1 件取得")

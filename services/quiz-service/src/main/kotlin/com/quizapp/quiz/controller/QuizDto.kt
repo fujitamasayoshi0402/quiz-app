@@ -3,6 +3,7 @@ package com.quizapp.quiz.controller
 import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizStatus
+import com.quizapp.quiz.usecase.QuizListItem
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
@@ -77,5 +78,45 @@ data class QuizResponse(
         )
 
         const val SOURCE_URL_DESCRIPTION = "AI が技術ニュースから作ったクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）"
+    }
+}
+
+/**
+ * 一覧の 1 件。[QuizResponse] の項目に、回答の集計を足す（DEV-158）。
+ *
+ * 1 件を返す API（取得・作成・更新）には載せない。集計は一覧で問題を見比べるためのもの。
+ * [QuizResponse] に null を許す項目として足すと、どの API で載るのかが定義から読めなくなる。
+ */
+data class QuizListItemResponse(
+    val id: UUID,
+    val categoryId: UUID,
+    val difficultyId: UUID,
+    val question: String,
+    @field:Schema(description = Quiz.EXPLANATION_FORMAT)
+    val explanation: String,
+    val choices: List<ChoiceResponse>,
+    val status: String,
+    @field:Schema(description = QuizResponse.SOURCE_URL_DESCRIPTION)
+    val sourceUrl: String?,
+    @field:Schema(description = "テナントの全員の回答の数。解き直しはそれぞれ数える")
+    val answerCount: Int,
+    @field:Schema(description = "回答のうち、正解だった数")
+    val correctCount: Int,
+) {
+    companion object {
+        fun from(item: QuizListItem) = QuizResponse.from(item.quiz).let {
+            QuizListItemResponse(
+                id = it.id,
+                categoryId = it.categoryId,
+                difficultyId = it.difficultyId,
+                question = it.question,
+                explanation = it.explanation,
+                choices = it.choices,
+                status = it.status,
+                sourceUrl = it.sourceUrl,
+                answerCount = item.answers.answered,
+                correctCount = item.answers.correct,
+            )
+        }
     }
 }

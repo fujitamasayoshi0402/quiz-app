@@ -1347,6 +1347,7 @@ paths:
       - 通知
   /api/t/{slug}/admin/quizzes:
     get:
+      description: 各クイズに、テナントの全員の回答の数（`answerCount`）と、そのうち正解の数（`correctCount`）を添える
       operationId: searchQuizzes
       parameters:
       - in: query
@@ -1379,7 +1380,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/QuizResponse"
+                  $ref: "#/components/schemas/QuizListItemResponse"
           description: OK
         "401":
           content:
@@ -3348,6 +3349,56 @@ components:
       - joined
       - name
       - slug
+    QuizListItemResponse:
+      type: object
+      properties:
+        answerCount:
+          type: integer
+          format: int32
+          description: テナントの全員の回答の数。解き直しはそれぞれ数える
+        categoryId:
+          type: string
+          format: uuid
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChoiceResponse"
+        correctCount:
+          type: integer
+          format: int32
+          description: 回答のうち、正解だった数
+        difficultyId:
+          type: string
+          format: uuid
+        explanation:
+          type: string
+          description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
+            生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字](figure:<図\
+            の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
+        id:
+          type: string
+          format: uuid
+        question:
+          type: string
+        sourceUrl:
+          type:
+          - string
+          - "null"
+          description: AI が技術ニュースから作ったクイズの、元にした発表の URL。人が作ったものは null（ADR-0031）
+        status:
+          type: string
+      required:
+      - answerCount
+      - categoryId
+      - choices
+      - correctCount
+      - difficultyId
+      - explanation
+      - id
+      - question
+      - status
     QuizResponse:
       type: object
       properties:
