@@ -24,9 +24,11 @@ module "database" {
   subnet_ids        = module.network.private_subnet_ids
   security_group_id = module.network.security_group_ids.db
 
-  # min 0 ACU のまま（ADR-0024 の C-1）。止まるまでは 60 分。見に来た人が読んでいる間に止めない
+  # min 0 ACU のまま（ADR-0024 の C-1）。止まるまでは 15 分（DEV-155）。
+  # 起きている間は 0.5 ACU 以上かかり、60 分では 1 人が見に来るたびに 1 時間分を払う。
+  # クイズを解いている間は要求が続くので、15 分でも途中で止まらない。止まったあとの最初の要求は、復帰（約 15 秒）を待つ
   max_capacity             = 2
-  seconds_until_auto_pause = 3600
+  seconds_until_auto_pause = 900
 
   # 気づくのが遅れても戻せるように 7 日。DB の大きさまでのバックアップは無料。
   # 削除保護を付け、消すときは最終スナップショットを取る（modules/database）。誤った apply や destroy で消さない
@@ -138,7 +140,10 @@ module "quiz_service" {
 
   image_tag = var.quiz_service_image_tag
 
-  cpu    = 512
+  # 0.25 vCPU（DEV-155）。常時動かすため、タスクの費用（月に約 18 ドル → 約 10.6 ドル）が予算に効く。
+  # 起動が遅くなる（dev の 0.5 vCPU で約 45 秒）のは、リリースのときだけ。ヘルスチェックの猶予（180 秒）に収まる。
+  # メモリは減らさない。JVM が 1 GB を前提にしている
+  cpu    = 256
   memory = 1024
   # ステートレスで、落ちても ECS が起動し直す。2 つにすると費用が倍になる（ADR-0024）
   desired_count = 1

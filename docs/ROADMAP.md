@@ -172,7 +172,7 @@
 - [x] セキュリティ: 依存脆弱性スキャン（Trivy、Dependabot）、OWASP 観点のレビュー（[セキュリティレビュー](security-review.md)）
 - [x] データ整合性チェック（選択肢が 4 つ揃っているか、正解が 1 つかなど）。決まった時刻のバッチではなく、利用があった日に 1 回流す（Aurora を起こさないため）
 - [x] Runbook / 障害対応手順、バックアップとリストアの実地確認
-- [ ] prod 環境構築とリリース手順の確立
+- [x] prod 環境構築とリリース手順の確立（[開発ガイドライン「prod」](development-guidelines.md#prod)、[リリース](development-guidelines.md#リリース)、[戻す手順](runbook.md#prod-のリリースを戻す)）
 
 **デモできること**: 監視ダッシュボード、自動テスト、運用ドキュメント
 
@@ -191,7 +191,7 @@
 - [x] ログインした人が、自分のテナントを作って管理の画面を試せる（[ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)）
 - [x] 見に来た人が、ログインの画面を通さずにデモを試せる（[ADR-0029](adr/0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md)）
 - [x] 公式の技術ニュースから、AI がクイズの下書きを毎日作り、管理者が確かめて公開する（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）
-- [ ] コストの最終調整
+- [x] コストの最終調整: dev は使われなくなったら止め、画面から起こす。prod は 0.25 vCPU にし、Aurora を 15 分で一時停止させる（[コスト方針](development-guidelines.md#8-コスト方針)）
 
 ---
 
