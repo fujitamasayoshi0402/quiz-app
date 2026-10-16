@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import {
@@ -112,11 +113,35 @@ function FigureItem({
         <p className="font-medium">{KIND_LABELS[figure.kind] ?? figure.kind}</p>
         <p className="text-xs text-muted-foreground">{dateFormat.format(new Date(figure.createdAt))} に置いた</p>
         <p className="text-xs text-muted-foreground">{usageText(figure)}</p>
+        <UsingQuizzes slug={slug} figure={figure} />
       </div>
       <Button variant="destructive" size="sm" disabled={inUse || pending} onClick={onDelete}>
         消す
       </Button>
     </li>
+  );
+}
+
+/**
+ * 図を使っている問題（DEV-167）。公開中・下書きの問題は、解説から外せるよう編集画面へのリンクにする。
+ * 削除済みの問題は編集できないので、リンクにしない
+ */
+function UsingQuizzes({ slug, figure }: { slug: string; figure: FigureSummaryResponse }) {
+  if (figure.quizzes.length === 0) return null;
+  return (
+    <ul className="mt-1 space-y-0.5 text-xs">
+      {figure.quizzes.map((quiz) => (
+        <li key={quiz.id} className="truncate">
+          {quiz.deleted ? (
+            <span className="text-muted-foreground">{quiz.question}（削除済み）</span>
+          ) : (
+            <Link href={`/t/${slug}/admin/quizzes/${quiz.id}`} className="underline underline-offset-4">
+              {quiz.question}
+            </Link>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

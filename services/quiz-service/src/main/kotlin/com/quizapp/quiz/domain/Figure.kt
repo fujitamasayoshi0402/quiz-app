@@ -96,8 +96,11 @@ interface FigureUsages {
     fun usages(): Map<UUID, FigureUsage>
 }
 
-/** 図を指している問題。生きているもの（公開中・下書き）は問題文を、ゴミ箱のものは数だけを持つ */
-data class FigureUsage(val liveQuestions: List<String>, val trashedCount: Int)
+/** 図を指している問題。生きているもの（公開中・下書き）と、ゴミ箱のものに分ける。どちらも問題を作った順 */
+data class FigureUsage(val live: List<FigureQuiz>, val trashed: List<FigureQuiz>)
+
+/** 図を指している問題の、ID と問題文 */
+data class FigureQuiz(val id: UUID, val question: String)
 
 /**
  * 図の本体（原本と SVG）の置き場所。テナントは [FigureRepository] と同じく、要求の文脈から決める。
