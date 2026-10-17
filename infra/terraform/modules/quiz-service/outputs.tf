@@ -63,3 +63,13 @@ output "monitoring" {
     ]
   }
 }
+
+# ---- IPv6 の検証（DEV-183。envs/dev/ipv6_poc.tf）に渡す ----
+
+output "vpc_link_id" {
+  value = aws_apigatewayv2_vpc_link.this.id
+}
+
+output "service_discovery_namespace_id" {
+  value = aws_service_discovery_private_dns_namespace.this.id
+}

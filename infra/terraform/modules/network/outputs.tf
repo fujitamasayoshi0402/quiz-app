@@ -20,3 +20,13 @@ output "security_group_ids" {
     db           = aws_security_group.db.id
   }
 }
+
+output "ipv6_cidr_block" {
+  description = "VPC の IPv6 の CIDR（/56）。ipv6 が false なら null"
+  value       = var.ipv6 ? aws_vpc.this.ipv6_cidr_block : null
+}
+
+output "egress_only_internet_gateway_id" {
+  description = "IPv6 の出口。ipv6 が false なら null"
+  value       = var.ipv6 ? aws_egress_only_internet_gateway.this[0].id : null
+}

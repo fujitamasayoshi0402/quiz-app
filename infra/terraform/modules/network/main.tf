@@ -22,6 +22,9 @@ resource "aws_vpc" "this" {
   enable_dns_support   = true
   enable_dns_hostnames = true
 
+  # IPv6 の CIDR は Amazon が割り当てる（/56）。料金はかからない
+  assign_generated_ipv6_cidr_block = var.ipv6
+
   tags = {
     Name = var.name
   }
@@ -38,6 +41,17 @@ resource "aws_default_security_group" "this" {
 }
 
 resource "aws_internet_gateway" "this" {
+  vpc_id = aws_vpc.this.id
+
+  tags = {
+    Name = var.name
+  }
+}
+
+# IPv6 の出口。外へ出るだけで、外からは入れない。料金はかからない（NAT Gateway と違う）
+resource "aws_egress_only_internet_gateway" "this" {
+  count = var.ipv6 ? 1 : 0
+
   vpc_id = aws_vpc.this.id
 
   tags = {
