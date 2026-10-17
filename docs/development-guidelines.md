@@ -802,10 +802,22 @@ Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SEC
 **シードの利用者のままではログインできない。** 使うときは、自分のメールアドレスを割り当てる（[最初の管理者](#最初の管理者)）。
 
 ほかに、スモークテスト専用のテナント `smoke` と、その管理者が入る（`db/smoke/R__smoke_data.sql`）。
-**デモのシードとは置き場所を分けている**（DEV-133）。prod は `smoke` のプロファイル（`prod,smoke,migrate`）で、これだけを入れる（`application-smoke.yml`）。
-dev は `dev` のプロファイルで、デモのシードと両方を入れる。
+**デモのシードとは置き場所を分けている**（DEV-133）。dev は `dev` のプロファイルで、デモのシードと両方を入れる。
 管理者はメールアドレス（`smoke@example.com`）だけで登録してあり、同じアドレスの Cognito の利用者（Terraform が作る）が最初にログインしたときに結び付く。
 カテゴリやクイズはテストが作って消すため、シードでは入れない。
+
+**デモのテナントの土台は、dev と prod の両方に入れる**（`db/demo/R__demo_base.sql`。DEV-191）。デモのテナント、共有のデモのアカウント、デモのテナントの管理者（運用者）だけを入れる。
+dev だけのもの（2 つ目のテナント、所属の数を試す利用者、AI の受け箱）は `db/seed/R__demo_data.sql` に残す。Flyway の repeatable は説明の順に流れ、土台（demo base）が先に流れる。
+
+| 環境 | プロファイル | 入るもの |
+| --- | --- | --- |
+| dev | `dev,migrate` | デモのシード、デモのテナントの土台、スモークテストのテナント（`application-dev.yml`） |
+| prod | `prod,smoke,demo,migrate` | デモのテナントの土台、スモークテストのテナント（`application-demo.yml`） |
+
+**複数のプロファイルが `spring.flyway.locations` を書くと、後のプロファイルが上書きする**（足し合わされない）。そのため、`demo` のプロファイルは `smoke` の分も持ち、`smoke` より後に並べる。
+
+デモのテナントの管理者（運用者）は、メールアドレスだけで登録してある。同じアドレスで Cognito にサインアップし、最初にログインしたときに結び付く（[最初の管理者](#最初の管理者)）。
+デモのパックは、この管理者のトークンで流す（[クイズのパック](#クイズのパック)）。
 
 **見に来た人が試すための、共有のデモのアカウント**（`demo@example.com`）も入る（DEV-104）。デモのテナントの一般ユーザーで、クイズは変えられない。
 スモークテストの管理者と同じく、メールアドレスだけで登録してあり、同じアドレスの Cognito の利用者（Terraform が作る）が最初にログインしたときに結び付く。
@@ -913,6 +925,7 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 | デモ利用者 | `957d085e-3b87-5fa7-9283-5eb6229216b1` | `demo`（一般ユーザー） |
 | デモ未所属 | `7918a5c2-30ee-56c8-b76c-57c6a79774e3` | なし |
 | デモのアカウント | `0b66aaf5-727d-5da9-bf87-6756dff5b046` | `demo`（一般ユーザー）。Cognito の `demo@example.com` が最初にログインしたときに結び付く |
+| 運用者 | `d3c1f1a2-6b0e-5f4c-9a7d-2e8b5c4f1a90` | `demo`（管理者）。dev と prod の両方に入る（`db/demo`）。同じアドレスの利用者がすでにいれば、その利用者が管理者になる |
 
 #### 招待
 
@@ -1823,8 +1836,9 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | ECS | 0.25 vCPU / 1 GB、Fargate Spot。使われなくなったら止める（深夜 2:00 にも止める） | 0.25 vCPU / 1 GB。夜間も止めない。公開までは止めてある |
 | ログ | 14 日 | 30 日 |
 | 消した図を残す日数 | 7 日 | 14 日 |
-| Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテストだけ |
-| シード | デモとスモークテスト（`dev`） | スモークテストだけ（`prod,smoke`） |
+| Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテスト、デモ |
+| シード | デモ、デモのテナントの土台、スモークテスト（`dev`） | デモのテナントの土台、スモークテスト（`prod,smoke,demo`） |
+| AI の下書き（news-quiz-drafter） | 動かす | 動かさない。デモの「AWS の最新情報」は、prod では作らない |
 | Amplify のブランチ | `develop` | `main` |
 
 - **apply は main から行う。** prod には、リリースしたものと同じ形だけを流す
@@ -1838,7 +1852,9 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 
 - **リリースすると、止めていても 1 つ起動する。** スモークテストで確かめるため、デプロイが起動してから載せる（[デプロイ](#デプロイ)）。公開までは、リリースのあとに 0 に戻す
 - 止めている間、API は API Gateway が 500 を返す（送り先のタスクがない）。web は Amplify にあるので開ける
-- 止めている間も続く費用は、月に 1〜2 ドル（Cloud Map のホストゾーン、Secrets Manager、Aurora のストレージ、ECR のイメージ）。Aurora は使われなければ 60 分で一時停止する
+- 止めている間も続く費用は、月に 1〜2 ドル（Cloud Map のホストゾーン、Secrets Manager、Aurora のストレージ、ECR のイメージ）。Aurora は使われなければ 15 分で一時停止する
+- **デモは、シードが土台（テナント、共有のデモのアカウント、運用者）を入れ、クイズはデモのパックを流して入れる**（DEV-191）。手順は [Runbook](runbook.md#prod-のデモにパックを流す)。
+  共有のデモのアカウントのパスワードは `terraform output -raw demo_user_password`（公開する前提。README に載せる）
 
 #### state のバケットを作り直すとき
 

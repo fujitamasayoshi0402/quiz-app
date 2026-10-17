@@ -16,7 +16,7 @@ import java.sql.DriverManager
 import java.util.UUID
 
 /**
- * デモ用シードの検証。
+ * デモ用シード（dev）と、デモのテナントの土台（dev と prod。DEV-191）の検証。
  *
  * repeatable マイグレーションは**内容を変えるたびに再実行される**ため、
  * 二度流しても壊れないことがそのまま要件になる。
@@ -47,9 +47,13 @@ class DemoSeedTest {
         private const val SEEDED = "(SELECT id FROM core.tenants WHERE slug IN ('demo', 'geo-club'))"
     }
 
+    /** デモのテナントの土台（dev と prod）と、dev のシード。Flyway と同じく、土台を先に流す */
+    private val base = ClassPathResource("db/demo/R__demo_base.sql")
     private val seed = ClassPathResource("db/seed/R__demo_data.sql")
 
-    private fun applySeed() = ResourceDatabasePopulator(seed).execute(TestPostgres.adminJdbcTemplate.dataSource!!)
+    private fun applyBase() = ResourceDatabasePopulator(base).execute(TestPostgres.adminJdbcTemplate.dataSource!!)
+
+    private fun applySeed() = ResourceDatabasePopulator(base, seed).execute(TestPostgres.adminJdbcTemplate.dataSource!!)
 
     private fun count(sql: String): Int = TestPostgres.adminJdbcTemplate.queryForObject(sql, Int::class.java) ?: 0
 
@@ -216,6 +220,7 @@ class DemoSeedTest {
         // Flyway と同じく、全体を 1 つのトランザクションで流す
         DriverManager.getConnection(TestPostgres.container.jdbcUrl, "quiz_app", "quiz_app").use { connection ->
             connection.autoCommit = false
+            ScriptUtils.executeSqlScript(connection, base)
             ScriptUtils.executeSqlScript(connection, seed)
             connection.commit()
         }
@@ -241,6 +246,36 @@ class DemoSeedTest {
     }
 
     @Test
+    @DisplayName("土台だけ（prod）では、デモのテナントに共有のデモのアカウントと運用者だけが所属し、dev の利用者とテナントは入らない")
+    fun baseAloneHasDemoTenantWithoutDevFixtures() {
+        // prod は db/demo だけを流す（application-demo.yml）。DB はほかのテストと共有のため、土台が入れる行だけを見る
+        applyBase()
+        applyBase()
+
+        val memberships = TestPostgres.adminJdbcTemplate.query(
+            """
+            SELECT u.email, m.role FROM core.tenant_members m
+            JOIN core.users u ON u.id = m.user_id
+            JOIN core.tenants t ON t.id = m.tenant_id
+            WHERE t.slug = '$DEMO_SLUG' AND m.deleted_at IS NULL AND u.email IS NOT NULL
+            """,
+        ) { rs, _ -> rs.getString("email") to rs.getString("role") }
+        assertThat(memberships).contains("demo@example.com" to "member", "max3max7.0402@gmail.com" to "admin")
+        // アドレスは一意。二度流しても、運用者は 1 人のまま
+        assertThat(count("SELECT count(*) FROM core.users WHERE lower(email) = 'max3max7.0402@gmail.com'")).isEqualTo(1)
+        // 土台は、クイズとカテゴリを入れない。デモのパックを流し込む
+        assertThat(
+            count(
+                """
+                SELECT count(*) FROM quiz.categories c JOIN core.tenants t ON t.id = c.tenant_id
+                WHERE t.slug = '$DEMO_SLUG' AND c.id NOT IN ('2f6c1b8e-4d0a-5c3e-9b7f-a1e2d3c4b5a6')
+                AND c.deleted_at IS NULL
+                """,
+            ),
+        ).isZero()
+    }
+
+    @Test
     @DisplayName("デモの管理者と一般ユーザーが所属している")
     fun demoMembersExist() {
         applySeed()
@@ -259,6 +294,7 @@ class DemoSeedTest {
             "demo-admin" to "admin",
             "demo-member" to "member",
             "demo@example.com" to "member",
+            "max3max7.0402@gmail.com" to "admin",
         )
     }
 

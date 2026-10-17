@@ -1,5 +1,6 @@
 package com.quizapp.startup
 
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName
@@ -46,6 +47,18 @@ class SeedDataGuardTest {
             .getObject()!!
             .getProperty("spring.flyway.locations")
 
+        assertThatCode { SeedDataGuard(environment("prod", locations)).verify() }.doesNotThrowAnyException()
+    }
+
+    @Test
+    @DisplayName("本番プロファイルでも、スモークテストのテナントとデモのテナントの土台（demo）なら起動する")
+    fun productionWithDemoBaseStarts() {
+        // prod は prod,smoke,demo で流す。demo のプロファイルが locations を上書きし、db/smoke と db/demo を入れる（DEV-191）
+        val locations = YamlPropertiesFactoryBean().apply { setResources(ClassPathResource("application-demo.yml")) }
+            .getObject()!!
+            .getProperty("spring.flyway.locations")
+
+        assertThat(locations).contains("db/smoke", "db/demo").doesNotContain("db/seed")
         assertThatCode { SeedDataGuard(environment("prod", locations)).verify() }.doesNotThrowAnyException()
     }
 

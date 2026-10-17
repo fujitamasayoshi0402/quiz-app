@@ -86,6 +86,16 @@ output "smoke_user_password" {
   sensitive = true
 }
 
+output "demo_user_email" {
+  value = module.auth.demo_user_email
+}
+
+# デモのアカウントのパスワード。見に来た人に公開する（README）
+output "demo_user_password" {
+  value     = module.auth.demo_user_password
+  sensitive = true
+}
+
 # 関数のコードを載せ替えるときと、送れなかったものを見るときに使う。開発ガイドラインの「通知（notification-service）」を参照
 output "notification_function_name" {
   value = module.notification_service.function_name

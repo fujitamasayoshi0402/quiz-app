@@ -10,9 +10,9 @@
 -- デモのクイズは、ここではなくパック（content/demo/）に書き、API で流し込む（ADR-0034）。
 
 -- テナントと利用者 ------------------------------------------------------------
--- 2 つ目のテナントは、テナントの選択と、テナントごとにロールが違うことを見せるためにある
+-- デモのテナントと、共有のデモのアカウント、運用者の管理者は、prod にも入れる土台（db/demo/R__demo_base.sql。DEV-191）にある。
+-- ここは dev だけのもの。2 つ目のテナントは、テナントの選択と、テナントごとにロールが違うことを見せるためにある
 INSERT INTO core.tenants (id, slug, name) VALUES
-    ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', 'demo', 'デモ'),
     ('9efd94a0-e517-573b-b46e-0f1ae96fc342', 'geo-club', '地理の勉強会')
     ON CONFLICT (id) DO NOTHING;
 
@@ -32,21 +32,6 @@ INSERT INTO core.tenant_members (tenant_id, user_id, role) VALUES
     ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', '957d085e-3b87-5fa7-9283-5eb6229216b1', 'member'),
     ('9efd94a0-e517-573b-b46e-0f1ae96fc342', '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab',  'member')
     ON CONFLICT DO NOTHING;
-
--- 見に来た人が試すための、共有のデモのアカウント（DEV-104）。デモのテナントの一般ユーザーで、クイズは変えられない。
--- メールアドレスだけで登録しておき、同じアドレスの Cognito の利用者（Terraform の modules/auth が作る）が
--- 最初にログインしたときに結び付く（R__smoke_data.sql と同じ）
-INSERT INTO core.users (id, external_id, email, display_name) VALUES
-    ('0b66aaf5-727d-5da9-bf87-6756dff5b046', NULL, 'demo@example.com', 'デモの見学者')
-    ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO core.tenant_members (tenant_id, user_id, role) VALUES
-    ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', '0b66aaf5-727d-5da9-bf87-6756dff5b046', 'member')
-    ON CONFLICT DO NOTHING;
-
--- パスワードを公開している共有のアカウントなので、テナントは作れない（ADR-0028）。
--- 作れると、最初の 1 人が数の上限を使い切り、ほかの人が書いたものを全員が見る
-UPDATE core.users SET shared = true WHERE id = '0b66aaf5-727d-5da9-bf87-6756dff5b046' AND NOT shared;
 
 -- テナント配下の行は、テナントを決めてから入れる --------------------------------
 -- quiz 配下のテーブルは FORCE ROW LEVEL SECURITY で、所有者（マイグレーションを流す quiz）にもポリシーが効く。
