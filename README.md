@@ -9,6 +9,7 @@
 所属したテナントからは、自分で退会できます。退会すると、そのテナントでの回答の履歴も消えます（[ADR-0030](docs/adr/0030-let-members-leave-tenant-and-erase-their-history.md)）。
 解説は Markdown で書き、draw.io の図・画像・PDF を入れられます。
 ログインにはパスキー（WebAuthn）とパスワードを使えます。
+一般ユーザー向けには、同じ API を使うモバイルアプリ（Expo）もあります。出題と回答、解説（図を含む）、履歴、続きから解くことができます（[ADR-0032](docs/adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。
 
 デモ用のデータとして、図解の多い一般教養のクイズ（世界の地理、身近な科学、図形とひらめき、日本と世界の歴史、ことばの由来、宇宙と天気）を収録しています。
 クイズは図ごと「パック」（[`content/demo/`](content/demo/)）にまとめ、アプリの API で流し込みます（[ADR-0034](docs/adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)）。
@@ -139,6 +140,7 @@ flowchart LR
 | バックエンド | Kotlin 2.3 + Spring Boot 4.1 (Java 21)、Spring Data JDBC、Flyway | [ADR-0002](docs/adr/0002-use-kotlin-and-spring-boot.md)、[ADR-0008](docs/adr/0008-use-spring-boot-4.md)、[ADR-0009](docs/adr/0009-use-spring-data-jdbc.md) |
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui、TanStack Query、Zod | [ADR-0003](docs/adr/0003-use-nextjs-for-frontend.md) |
 | DB | Aurora PostgreSQL Serverless v2 (min 0 ACU)。アプリとマイグレーションは IAM 認証で接続 | [ADR-0014](docs/adr/0014-connect-to-aurora-with-iam-auth.md) |
+| モバイル | React Native (Expo)、Expo Router、TanStack Query、Zod。ログインはシステムのブラウザで Managed Login を開く | [ADR-0032](docs/adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) |
 | 認証 | Amazon Cognito（Managed Login、パスキー + パスワード） | [ADR-0016](docs/adr/0016-authenticate-with-cognito-managed-login.md) |
 | 実行基盤 | ECS Fargate + API Gateway（HTTP API）、Amplify Hosting（フロント） | [ADR-0012](docs/adr/0012-serve-frontend-on-amplify-hosting.md)、[ADR-0019](docs/adr/0019-expose-api-through-api-gateway-http-api.md) |
 | ファイル | S3 + CloudFront（署名付き URL） | [ADR-0017](docs/adr/0017-deliver-figures-with-cloudfront-signed-urls.md) |
