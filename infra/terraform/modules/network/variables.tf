@@ -8,12 +8,6 @@ variable "cidr_block" {
   type        = string
 }
 
-variable "ipv6" {
-  description = "VPC に Amazon の IPv6 の CIDR（/56）を付け、IPv6 の出口（Egress-only インターネットゲートウェイ）を置くか（DEV-183）"
-  type        = bool
-  default     = false
-}
-
 variable "azs" {
   description = "サブネットを置く AZ。Aurora が 2 つ以上を要求する。順番がサブネットの CIDR を決めるため、並べ替えない"
   type        = list(string)

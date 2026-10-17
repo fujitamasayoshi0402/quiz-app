@@ -133,3 +133,42 @@ ADR-0012 は Amplify Hosting に決まったため、次のように読み替え
   quiz-service は ALB で公開し、スタブ認証の間は web の proxy だけが知る秘密のヘッダを ALB で確かめる（ADR-0012）。組み替えは DEV-45 で行う
 - 検証事項の「web から quiz-service への経路」は要らなくなる。
   代わりに、quiz-service のタスクへの受信を ALB からだけに限れていることを DEV-45 で確かめる
+
+## 追記: IPv6 だけで動かす案を試し、見送った（DEV-183）
+
+パブリック IPv4 は 1 時間 0.005 ドルかかり、prod で常に動かすと月 約 3.7 ドルになる。
+ECS が IPv6 だけのサブネットでの実行に対応したため、quiz-service のタスクを IPv6 だけにして、パブリック IPv4 をなくせるかを dev で試した。
+**決定（D）は変わらない。** タスクはパブリックサブネットに置き、パブリック IPv4 を付けたままにする。
+
+### 試したこと
+
+dev の VPC に IPv6 の CIDR と Egress-only インターネットゲートウェイを足し、IPv6 だけのサブネットに nginx のタスクを置いた。
+API Gateway の HTTP API から、VPC リンク経由でそのタスクに届くかを、2 通りで確かめた。
+
+- A: いまの VPC リンク（IPv4 だけのプライベートサブネット）
+- B: dual-stack のサブネットに新しく置いた VPC リンク
+
+### 分かったこと
+
+| 項目 | 結果 |
+| --- | --- |
+| ECR からイメージを取る | 届く。dualstack の URI（`<アカウント>.dkr-ecr.<リージョン>.on.aws`）を使う |
+| `public.ecr.aws` のイメージ（コレクタ） | `public.ecr.aws` は IPv6 のアドレスを返さない。ECR のプルスルーキャッシュで自前の ECR に写し、dualstack の URI で取れた |
+| awslogs でログを送る | 届く |
+| CloudWatch Logs、EventBridge、SSM、STS、S3、X-Ray の API | dualstack のホスト名（`*.api.aws`、`s3.dualstack.*`）だけが IPv6 のアドレスを返す。アプリと SDK で dualstack を有効にする必要がある（DNS で確かめた。タスクからは呼んでいない） |
+| Cognito（JWKS、GetUser） | いまのホスト名（`cognito-idp.<リージョン>.amazonaws.com`）が IPv6 のアドレスを返す |
+| Aurora | IPv6 で受けるには、クラスタを dual-stack にする必要がある（試していない） |
+| **API Gateway の VPC リンク → IPv6 だけのタスク** | **届かない。** A・B とも 500 で、API Gateway のログは `No target endpoints found for integration`。Cloud Map のインスタンスは HEALTHY で、`AWS_INSTANCE_IPV6` と `AWS_INSTANCE_PORT` を持っていた。HTTP API の Cloud Map との連携は、IPv4 のアドレス（`AWS_INSTANCE_IPV4`）のない送り先を選ばない |
+
+### 見送った理由
+
+API Gateway からタスクへ届かなければ、ほかが揃っても使えない。届かせる方法はあるが、どれも節約額（月 約 3.7 ドル）より高い。
+
+- dualstack のロードバランサー（ALB / NLB）を間に置く: 月 16 ドル以上。ロードバランサーをやめた理由（ADR-0019）に戻る
+- dual-stack にして、パブリック IPv4 だけを外す: dual-stack のタスクは、起動のとき（ECR、SSM、Secrets Manager）に IPv4 の出口が要る（ECS のドキュメント）。NAT Gateway か VPC Endpoint が要り、A・B の費用に戻る
+
+prod にも広げない。
+
+### 見直すとき
+
+HTTP API の Cloud Map との連携が IPv6 の送り先に対応したら、試し直す。そのときは上の表のとおり、ECR の URI、コレクタのイメージ、SDK の dualstack、Aurora の dual-stack も合わせて替える。

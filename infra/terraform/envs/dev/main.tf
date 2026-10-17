@@ -9,9 +9,6 @@ module "network" {
   name       = "quiz-app-dev"
   cidr_block = "10.0.0.0/16"
   azs        = ["ap-northeast-1a", "ap-northeast-1c"]
-
-  # IPv6 だけでタスクを動かせるかを試す（DEV-183。ipv6_poc.tf）
-  ipv6 = true
 }
 
 module "database" {

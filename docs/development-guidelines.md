@@ -1852,6 +1852,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 - NAT Gateway も VPC Endpoint も使わず、ECS のタスクをパブリックサブネットに置く（[ADR-0013](adr/0013-run-ecs-tasks-in-public-subnets.md)）
   - どちらもタスクを止めても課金が続き、Endpoint は必要な本数 × AZ 数で NAT Gateway より高くなる
   - タスクへの受信は SecurityGroup の参照だけで許し、CIDR では開けない。外からの入口は API Gateway の VPC リンクだけ
+  - タスクを IPv6 だけで動かし、パブリック IPv4（1 時間 0.005 ドル）をなくす案は、試して見送った（DEV-183。ADR-0013 の追記）。API Gateway の VPC リンクが、IPv6 だけのタスクに届かない
 - Aurora Serverless v2 は **min 0 ACU**（自動一時停止）を採用。一時停止中はストレージ料金のみ
   - 前提: PostgreSQL 16.3 以降 / 無活動時間は 5 分〜24 時間で設定可（dev は 30 分）/ 復帰に約 15 秒
   - **dev は、最後の接続が切れてから 30 分で一時停止する**（DEV-89）。以前は 5 分で、画面を読んだり解説を書いたりしている間に止まり、
