@@ -1,5 +1,6 @@
-# スモークテストのテナントと利用者だけを入れる（DEV-133）。prod は prod,smoke,migrate で流す。
-# デモのシード（db/seed）は入れない。dev は application-dev.yml が両方を入れる
+# スモークテストのテナントと利用者だけを入れる（DEV-133）。
+# デモのシード（db/seed）は入れない。dev は application-dev.yml が両方を入れる。
+# prod は prod,smoke,demo,migrate で流し、demo のプロファイル（application-demo.yml）がこの locations を上書きする（smoke の分も持つ）
 spring:
   flyway:
     locations: classpath:db/migration,classpath:db/smoke
