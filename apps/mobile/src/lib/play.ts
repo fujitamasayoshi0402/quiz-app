@@ -66,3 +66,27 @@ export type FeedbackMode = "learn" | "exam";
 export function parseMode(value: string | string[] | undefined): FeedbackMode {
   return value === "exam" ? "exam" : "learn";
 }
+
+/** 覚えておく挑戦の数。中断中の挑戦はテナントごとに 1 つなので、古いものは要らない */
+const REMEMBERED = 20;
+
+/** 挑戦ごとの方式の控えに、[attemptId] の方式を足す。新しいものを後ろに置き、古いものから捨てる */
+export function rememberMode(
+  modes: Record<string, FeedbackMode>,
+  attemptId: string,
+  mode: FeedbackMode,
+): Record<string, FeedbackMode> {
+  const entries = Object.entries(modes).filter(([id]) => id !== attemptId);
+  return Object.fromEntries([...entries, [attemptId, mode]].slice(-REMEMBERED));
+}
+
+/** 端末から読んだ控えを確かめる。壊れていれば、無かったことにする */
+export function parseModes(raw: string | null): Record<string, FeedbackMode> {
+  try {
+    const value: unknown = raw ? JSON.parse(raw) : {};
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+    return Object.fromEntries(Object.entries(value).map(([id, mode]) => [id, parseMode(String(mode))]));
+  } catch {
+    return {};
+  }
+}

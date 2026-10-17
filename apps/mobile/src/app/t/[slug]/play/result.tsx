@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { Markdown } from "@/components/markdown";
@@ -16,9 +16,11 @@ import { parseMode } from "@/lib/play";
  * **学習モードでは間違えた問題だけ、模試モードでは全問の解説を出す。** 模試モードは、ここが唯一の振り返りの場になる
  */
 export default function PlayResult() {
-  const params = useLocalSearchParams<{ slug: string; attempt: string; mode?: string }>();
+  const params = useLocalSearchParams<{ slug: string; attempt: string; mode?: string; from?: string }>();
   const { slug } = params;
   const mode = parseMode(params.mode);
+  // 履歴から開いたときは、履歴へ戻る。解き終えたときは、終わった回答の画面へは戻らせない
+  const fromHistory = params.from === "history";
   const router = useRouter();
   const queryClient = useQueryClient();
   const result = useQuery({
@@ -50,6 +52,7 @@ export default function PlayResult() {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      {fromHistory && <Stack.Screen options={{ headerBackVisible: true, gestureEnabled: true }} />}
       <View style={{ flexDirection: "row", gap: 12 }}>
         <Stat label="正答率" value={`${rate}%`} />
         <Stat label="正解" value={`${correctCount} / ${totalCount} 問`} />
@@ -67,10 +70,14 @@ export default function PlayResult() {
         )}
       </View>
 
-      <Button
-        label="クイズを選ぶ画面に戻る"
-        onPress={() => router.dismissTo({ pathname: "/t/[slug]/play", params: { slug } })}
-      />
+      {fromHistory ? (
+        <Button label="履歴に戻る" onPress={() => router.back()} />
+      ) : (
+        <Button
+          label="クイズを選ぶ画面に戻る"
+          onPress={() => router.dismissTo({ pathname: "/t/[slug]/play", params: { slug } })}
+        />
+      )}
     </ScrollView>
   );
 }

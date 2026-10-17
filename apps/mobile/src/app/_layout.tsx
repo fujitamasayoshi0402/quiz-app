@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerBackTitle: "戻る" }}>
           <Stack.Screen name="index" options={{ title: "Quiz" }} />
           <Stack.Screen name="t/[slug]/index" options={{ title: "" }} />
+          <Stack.Screen name="t/[slug]/history" options={{ title: "履歴" }} />
           <Stack.Screen name="t/[slug]/play/index" options={{ title: "クイズを選ぶ" }} />
           <Stack.Screen name="t/[slug]/play/session" options={{ title: "" }} />
           {/* 結果から回答の画面へは戻らせない。戻ると、終わった挑戦の画面が出る */}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlayableCategoryResponse } from "@/lib/api/generated/model";
-import { parseMode, rangeOptions, toCriteria } from "./play";
+import { parseMode, parseModes, rangeOptions, rememberMode, toCriteria } from "./play";
 
 const difficulty = (id: string, level: number, quizCount = 1) => ({ id, level, name: id.toUpperCase(), quizCount });
 
@@ -42,5 +42,30 @@ describe("parseMode", () => {
     [undefined, "learn"],
   ] as const)("%s は %s", (value, expected) => {
     expect(parseMode(value)).toBe(expected);
+  });
+});
+
+describe("rememberMode", () => {
+  it("挑戦ごとに方式を覚える。同じ挑戦は上書きする", () => {
+    expect(rememberMode({ a: "learn", b: "exam" }, "a", "exam")).toEqual({ b: "exam", a: "exam" });
+  });
+
+  it("20 件を超えたら、古いものから捨てる", () => {
+    const modes = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`a${i}`, "learn" as const]));
+    const remembered = rememberMode(modes, "new", "exam");
+
+    expect(Object.keys(remembered)).toHaveLength(20);
+    expect(remembered).not.toHaveProperty("a0");
+    expect(remembered.new).toBe("exam");
+  });
+});
+
+describe("parseModes", () => {
+  it.each([null, "", "not json", "[]", "1"])("読めないもの（%j）は、空にする", (raw) => {
+    expect(parseModes(raw)).toEqual({});
+  });
+
+  it("知らない方式は、学習モードにする", () => {
+    expect(parseModes('{"a":"exam","b":"swipe"}')).toEqual({ a: "exam", b: "learn" });
   });
 });

@@ -1,10 +1,14 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { FlatList, Pressable, Text } from "react-native";
+import { FlatList, Pressable, Text, View } from "react-native";
+import { ResumeCard } from "@/components/resume-card";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
 import { useListMyTenants, useListPlayableCategories } from "@/lib/api/generated/endpoints";
 import { useAuth } from "@/lib/auth/auth-provider";
 
-/** テナントのトップ。出題できるカテゴリと難易度を並べる。カテゴリを押すと、そのカテゴリを選んだ状態で出題の条件を選ぶ */
+/**
+ * テナントのトップ。中断中の挑戦があれば先に出し、出題できるカテゴリと難易度を並べる。
+ * カテゴリを押すと、そのカテゴリを選んだ状態で出題の条件を選ぶ
+ */
 export default function TenantHome() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
@@ -24,6 +28,16 @@ export default function TenantHome() {
         <FlatList
           data={categories.data}
           keyExtractor={(category) => category.id}
+          ListHeaderComponent={
+            <View style={{ gap: 12, paddingBottom: 8 }}>
+              <ResumeCard slug={slug} />
+              <Button
+                label="履歴を見る"
+                variant="secondary"
+                onPress={() => router.push({ pathname: "/t/[slug]/history", params: { slug } })}
+              />
+            </View>
+          }
           ListEmptyComponent={<Text style={styles.text}>出題できるクイズがまだありません。</Text>}
           renderItem={({ item }) => (
             <Pressable
