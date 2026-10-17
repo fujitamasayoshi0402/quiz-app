@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { OptionGroup } from "@/components/play";
+import { ResumeCard } from "@/components/resume-card";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
 import { ApiError } from "@/lib/api/fetcher";
 import {
@@ -11,6 +12,7 @@ import {
   useStartAttempt,
 } from "@/lib/api/generated/endpoints";
 import { type FeedbackMode, type Option, parseMode, rangeOptions, toCriteria } from "@/lib/play";
+import { saveMode } from "@/lib/play-mode";
 
 const ORDERS: Option[] = [
   { value: "random", label: "ランダム" },
@@ -49,7 +51,8 @@ export default function PlaySetup() {
 
   const start = useStartAttempt({
     mutation: {
-      onSuccess: (attempt) => {
+      onSuccess: async (attempt) => {
+        await saveMode(attempt.id, mode);
         queryClient.removeQueries({ queryKey: getGetCurrentAttemptQueryKey(slug) });
         router.push({ pathname: "/t/[slug]/play/session", params: { slug, attempt: attempt.id, mode } });
       },
@@ -97,6 +100,7 @@ export default function PlaySetup() {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ResumeCard slug={slug} />
       <Section title="カテゴリ">
         <OptionGroup
           value={categoryId}
