@@ -74,7 +74,7 @@ A11 の正答率は、テナントの全員の回答から数えます。解き�
 テナントは**パスで識別**します（[ADR-0006](adr/0006-row-level-multi-tenancy.md)）。
 
 ```
-/                                     テナント選択（所属一覧）
+/                                     ログインしていなければ、アプリの説明と入口（デモとして入る、管理を試す。Phase 7）。ログインしていれば、テナント選択（所属一覧）
 /login                                ログイン（Cognito の画面へ移る）。デモとして入る（Phase 7）
 /invitations/{token}                  招待の受け入れ
 /tenants                              公開テナントの一覧（Phase 7）
@@ -543,7 +543,7 @@ sequenceDiagram
 
 ## デモとして入る（Phase 7）
 
-見に来た人は、ログインの画面の「デモとして入る」を押すだけで、共有のデモのアカウントとして入れます（[ADR-0029](adr/0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md)）。
+見に来た人は、トップ（`/`）かログインの画面の「デモとして入る」を押すだけで、共有のデモのアカウントとして入れます（[ADR-0029](adr/0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md)）。
 メールアドレスとパスワードを打ち込む必要はありません。
 
 | 項目 | 扱い |

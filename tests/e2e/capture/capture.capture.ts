@@ -15,7 +15,7 @@ test.describe.configure({ mode: "serial" });
 const AI_QUESTION = "Amazon ECS の新しいメトリクス LiveTaskCount は、何を数えますか。";
 
 async function enterAsDemo(page: Page) {
-  await page.goto("/login");
+  await page.goto("/");
   await page.getByRole("button", { name: "デモとして入る" }).click();
   await expect(page).toHaveURL(/\/t\/demo\/play$/);
 }
@@ -52,7 +52,7 @@ async function solveAll(page: Page, { pick = (i: number) => i % 2, wait = 1_500 
 
 test("見る人の GIF: デモとして入り、解いて、結果を見る", async ({ browser }) => {
   const { page, finish } = await open(browser, { viewport: mobile, video: "demo-play" });
-  await page.goto("/login");
+  await page.goto("/");
   await pause(page);
   await page.getByRole("button", { name: "デモとして入る" }).click();
   await expect(page).toHaveURL(/\/t\/demo\/play$/);
