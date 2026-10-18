@@ -151,8 +151,9 @@ module "quiz_service" {
   # 夜間も止めない。見に来る時間を選べない（ADR-0024）
   nightly_stop = null
 
-  # デモのシードは入れない（SeedDataGuard が止める）。スモークテストのテナントだけを入れる（application-smoke.yml）
-  spring_profiles = ["prod", "smoke"]
+  # dev のデモのシード（db/seed）は入れない（SeedDataGuard が止める）。スモークテストのテナント（application-smoke.yml）と、
+  # デモのテナントの土台（application-demo.yml。DEV-191）を入れる。demo は smoke より後に並べる（locations を上書きするため、smoke の分も持つ）
+  spring_profiles = ["prod", "smoke", "demo"]
 
   alarm_topic_arn = module.alarms.topic_arn
   runbook_url     = local.runbook_url
@@ -198,7 +199,11 @@ module "auth" {
   # スモークテスト（tests/api）の利用者。シード（db/smoke）が同じアドレスでスモークテストのテナントの管理者を用意している
   smoke_user_email = "smoke@example.com"
 
-  # デモのアカウント、E2E、負荷試験の利用者は作らない。公開のときのデモは Phase 7 で用意する（ADR-0024）
+  # 見に来た人が試すための、共有のデモのアカウント（DEV-191）。シード（db/demo）が同じアドレスでデモのテナントの一般ユーザーを用意している。
+  # パスワードは公開する（README）
+  demo_user_email = "demo@example.com"
+
+  # E2E、負荷試験の利用者は作らない
 
   deletion_protection = true
 }
@@ -224,6 +229,12 @@ module "web" {
     issuer        = module.auth.issuer
     client_id     = module.auth.client_id
     client_secret = module.auth.client_secret
+  }
+
+  # 「デモとして入る」（ADR-0029）。パスワードは公開している（README）。web のサーバーだけが持ち、ブラウザには渡さない
+  demo_user = {
+    email    = module.auth.demo_user_email
+    password = module.auth.demo_user_password
   }
 
   github_access_token = var.github_access_token
