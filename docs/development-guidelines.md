@@ -513,7 +513,7 @@ export AUTH_DEMO_USER_EMAIL=demo@example.com AUTH_DEMO_USER_PASSWORD="$(terrafor
 cd -
 
 docker compose up -d --build              # 「デモとして入る」を使うため、デモのアカウントを渡して起動する
-pnpm --filter e2e capture                 # docs/images/ に PNG を書き、tests/e2e/capture/output/ に動画を残す
+pnpm --filter e2e capture                 # docs/images/ に PNG を書き（web のトップに出す 3 枚は apps/web/src/assets/screenshots/ にも）、tests/e2e/capture/output/ に動画を残す
 tests/e2e/capture/make-gifs.sh            # 動画を GIF にして docs/images/ に置く（ffmpeg が要る）
 ```
 
@@ -958,7 +958,9 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 - ログインが要る画面（`/t/...`、`/invitations/...`）を未ログインで開くと、proxy が**開こうとしたパスとクエリ**を戻り先にしてログインへ移す。
   レイアウトは開いているパスを知らないため、そこで戻り先を決めると、テナントのトップにしか戻せない
 
-`/` は所属テナントの数で出し分ける（0 件: 招待を受けていない旨と、公開テナントの一覧（`/tenants`）への案内 / 1 件: そのテナントへ / 2 件以上: 選択画面）。
+`/` は、ログインしていなければアプリの説明と 2 つの入口（「デモとして入る」と、アカウントを作ってテナントの作成へ向かう「管理を試す」）を出す（DEV-193。`components/landing/landing.tsx`）。
+画面の例の画像は README と同じもので、撮影のスクリプトが `apps/web/src/assets/screenshots/` にも写す（[README の画面](#readme-の画面)）。
+ログインしていれば、所属テナントの数で出し分ける（0 件: 招待を受けていない旨と、公開テナントの一覧（`/tenants`）への案内 / 1 件: そのテナントへ / 2 件以上: 選択画面）。
 所属の一覧はブラウザから取る。サーバーで取ると、proxy 以外でもトークンを付けることになる。
 
 **管理画面は、入口で管理者かどうかを見る**（`components/admin/admin-guard.tsx`）。管理者でなければ中身を描かず、案内を 1 つ出す。

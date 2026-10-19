@@ -1,4 +1,5 @@
 import { AlertCircle } from "lucide-react";
+import { DemoSignInForm } from "@/components/auth/demo-sign-in-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,12 +47,7 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* ルートハンドラへ POST する。セッションの Cookie を作って、トップへ移す */}
-            <form action="/auth/demo" method="post">
-              <Button type="submit" className="w-full">
-                デモとして入る
-              </Button>
-            </form>
+            <DemoSignInForm />
           </CardContent>
         </Card>
       )}

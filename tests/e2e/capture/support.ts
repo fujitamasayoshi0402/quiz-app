@@ -1,10 +1,14 @@
-import { mkdirSync } from "node:fs";
+import { copyFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { type Role, storageStateOf } from "../support/users";
 
 /** README から読む画像の置き場所 */
 export const imagesDir = path.resolve(__dirname, "../../../docs/images");
+
+/** web のトップに出す画面の例（`apps/web/src/components/landing/landing.tsx`） */
+const landingDir = path.resolve(__dirname, "../../../apps/web/src/assets/screenshots");
+const landingScreenshots = new Set(["play-answer", "history", "admin-quizzes"]);
 
 /** GIF にする前の動画の置き場所（make-gifs.sh が読む）。コミットしない */
 export const videosDir = path.join(__dirname, "output", "videos");
@@ -70,6 +74,7 @@ export const pause = (page: Page, ms = 1_200) => page.waitForTimeout(ms);
  * 画面ごと撮ると左右と下が余白になって、README では文字が小さくなる。縦に長い画面は、上から `maxHeight` までにする
  */
 export async function shoot(page: Page, name: string, { maxHeight = 960 } = {}) {
+  const file = path.join(imagesDir, `${name}.png`);
   await page.waitForLoadState("networkidle");
   await page.waitForTimeout(500);
   const margin = 24;
@@ -89,9 +94,11 @@ export async function shoot(page: Page, name: string, { maxHeight = 960 } = {}) 
   const left = Math.max(0, Math.floor(content.left) - margin);
   const right = Math.min(content.width, Math.ceil(content.right) + margin);
   await page.screenshot({
-    path: path.join(imagesDir, `${name}.png`),
+    path: file,
     fullPage: true,
     clip: { x: left, y: 0, width: right - left, height: Math.min(Math.ceil(content.bottom) + margin, maxHeight) },
     animations: "disabled",
   });
+  // web のトップ（DEV-193）の画面の例にも使う。web のビルドからは docs/ が見えないため写す
+  if (landingScreenshots.has(name)) copyFileSync(file, path.join(landingDir, `${name}.png`));
 }

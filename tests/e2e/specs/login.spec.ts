@@ -15,7 +15,7 @@ test("未ログインで開いた画面に、ログインのあとで戻る。�
   await expect(page.getByRole("banner").getByText(users.admin)).toBeVisible();
 
   await page.getByRole("button", { name: "ログアウト" }).click();
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("link", { name: "アカウントを作って始める" })).toBeVisible();
 
   await page.goto(`/t/${tenant.slug}/play`);
   await expect(page).toHaveURL(/\/login\?returnTo=/);

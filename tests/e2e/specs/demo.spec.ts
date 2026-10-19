@@ -11,9 +11,9 @@ test.use({ storageState: { cookies: [], origins: [] } });
 const DEMO_EMAIL = "demo@example.com";
 
 test("「デモとして入る」でデモのテナントに入り、クイズを解いて、ログアウトする", async ({ page }) => {
-  await test.step("トップを開くとログインの画面になり、デモの入口がある", async () => {
+  await test.step("トップを開くと、アプリの説明とデモの入口がある", async () => {
     await page.goto("/");
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("heading", { name: "Quiz", level: 1 })).toBeVisible();
     await expect(page.getByText("回答の履歴とランキングは、見た人どうしで共有されます", { exact: false })).toBeVisible();
   });
 
@@ -31,12 +31,22 @@ test("「デモとして入る」でデモのテナントに入り、クイズ�
     await expect(page.getByText(/^(正解|不正解)$/)).toBeVisible();
   });
 
-  await test.step("ログアウトすると、ログインの画面に戻る", async () => {
+  await test.step("ログアウトすると、トップに戻る", async () => {
     await page.getByRole("button", { name: "ログアウト" }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("button", { name: "デモとして入る" })).toBeVisible();
     await page.goto("/t/demo/play");
     await expect(page).toHaveURL(/\/login\?returnTo=/);
   });
+});
+
+test("トップの「管理を試す」から、ログインを経てテナントの作成へ向かう", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "アカウントを作って始める" }).click();
+  await expect(page).toHaveURL(/\/login\?returnTo=%2Ftenants%2Fnew$/);
+  await expect(page.getByRole("link", { name: "ログイン / アカウントを作る" })).toHaveAttribute(
+    "href",
+    "/auth/login?returnTo=%2Ftenants%2Fnew",
+  );
 });
 
 test("招待のリンクから来たときは、デモの入口を出さない", async ({ page }) => {
