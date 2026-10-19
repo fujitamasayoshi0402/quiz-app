@@ -4,7 +4,8 @@
   "scripts": {
     "test": "playwright test",
     "typecheck": "tsc --noEmit",
-    "capture": "playwright test --config capture.config.ts"
+    "capture": "playwright test --config capture.config.ts",
+    "web-images": "node capture/web-images.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

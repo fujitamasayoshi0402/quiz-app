@@ -515,6 +515,7 @@ cd -
 docker compose up -d --build              # 「デモとして入る」を使うため、デモのアカウントを渡して起動する
 pnpm --filter e2e capture                 # docs/images/ に PNG を書き（web のトップに出す 3 枚は apps/web/src/assets/screenshots/ にも）、tests/e2e/capture/output/ に動画を残す
 tests/e2e/capture/make-gifs.sh            # 動画を GIF にして docs/images/ に置く（ffmpeg が要る）
+pnpm --filter e2e web-images              # リンクを共有したときのカード（OGP）と、favicon・Apple のアイコンを作り直す（DEV-194）
 ```
 
 - E2E と同じく、docker compose で起動した一式に向けて撮る。**E2E の CI では流さない**（設定を `capture.config.ts` に分けている）
@@ -960,6 +961,8 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 
 `/` は、ログインしていなければアプリの説明と 2 つの入口（「デモとして入る」と、アカウントを作ってテナントの作成へ向かう「管理を試す」）を出す（DEV-193。`components/landing/landing.tsx`）。
 画面の例の画像は README と同じもので、撮影のスクリプトが `apps/web/src/assets/screenshots/` にも写す（[README の画面](#readme-の画面)）。
+リンクを共有したときのカード（OGP、Twitter）とアイコンは、ルートのレイアウトの metadata と `src/app/` の画像で出す（DEV-194）。**すべての画面で同じもの**を出し、ログインが要る画面を貼られても、取りに来た側はログインの画面へ移されて中身は出ない。
+カードの画像は絶対 URL が要るため、`metadataBase` を要求のヘッダから決める（`originOf`。ログインの戻り先と同じ決め方）。画像は `pnpm --filter e2e web-images` で、README の画面の画像と `icon.svg` から作る。
 ログインしていれば、所属テナントの数で出し分ける（0 件: 招待を受けていない旨と、公開テナントの一覧（`/tenants`）への案内 / 1 件: そのテナントへ / 2 件以上: 選択画面）。
 所属の一覧はブラウザから取る。サーバーで取ると、proxy 以外でもトークンを付けることになる。
 

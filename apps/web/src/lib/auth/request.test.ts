@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSameOriginRequest, safeReturnTo } from "./request";
+import { isSameOriginRequest, originOf, safeReturnTo } from "./request";
 
 describe("safeReturnTo", () => {
   it("アプリの中のパスは、クエリとともにそのまま返す", () => {
@@ -26,6 +26,21 @@ describe("safeReturnTo", () => {
     ]) {
       expect(safeReturnTo(value)).toBe("/");
     }
+  });
+});
+
+describe("originOf", () => {
+  it("転送のヘッダを、Host より優先する", () => {
+    const headers = new Headers({
+      host: "internal:3000",
+      "x-forwarded-host": "dev.example.com, proxy.internal",
+      "x-forwarded-proto": "https",
+    });
+    expect(originOf(headers)).toBe("https://dev.example.com");
+  });
+
+  it("転送のヘッダがなければ、Host と http を使う", () => {
+    expect(originOf(new Headers({ host: "localhost:3000" }))).toBe("http://localhost:3000");
   });
 });
 
