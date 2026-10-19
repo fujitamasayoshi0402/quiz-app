@@ -353,7 +353,12 @@ jobs:
             exit 0
           fi
           echo "quiz-service が止まっているため、起こします"
-          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --desired-count 1 --query 'service.desiredCount' --output text
+          # デプロイのロールは、アプリのタスク定義を指定したときだけ UpdateService を許す（modules/deploy-role）。
+          # いま動かしているタスク定義をそのまま渡し、台数だけを変える（DEV-201）
+          TASK_DEFINITION=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --query 'services[0].taskDefinition' --output text)
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$TASK_DEFINITION" \
+            --desired-count 1 --query 'service.desiredCount' --output text
           # 届くようになると、トークンのない要求に API が 401 を返す。止まっている間は、API Gateway が 500 か 503 を返す
           url="https://${AMPLIFY_BRANCH}.${AMPLIFY_APP_ID}.amplifyapp.com/api/me/tenants"
           deadline=$((SECONDS + 600))
