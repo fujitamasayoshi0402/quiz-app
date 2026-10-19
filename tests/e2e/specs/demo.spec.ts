@@ -23,6 +23,15 @@ test("「デモとして入る」でデモのテナントに入り、クイズ�
     await expect(page.getByRole("banner").getByText(DEMO_EMAIL)).toBeVisible();
   });
 
+  await test.step("カテゴリごとに、代表の図と、問題数・所要時間の目安が出る（DEV-197）", async () => {
+    const category = page.locator("label", { hasText: "世界の地理" });
+    await expect(category.getByText(/\d+ 問・約 \d+ 分/)).toBeVisible();
+    // 図は API から署名付き URL へ送られ、別のドメインから届く。読み込めたこと（CSP に止められていないこと）まで見る
+    const cover = category.locator("img");
+    await expect(cover).toBeVisible();
+    await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  });
+
   await test.step("クイズを始めて 1 問答える", async () => {
     await page.getByText("世界の地理", { exact: true }).click();
     await page.getByRole("button", { name: "始める" }).click();

@@ -27,12 +27,14 @@ class PlayCategoryController(private val useCase: PlayableCategoryUseCase) {
     fun list(): List<PlayableCategoryResponse> = useCase.list().map(PlayableCategoryResponse::from)
 }
 
+/** [coverFigureId] は代表の図。画面は `/play/figures/{id}/preview` で縮小して出す。図を使う問題がなければ null（DEV-197） */
 data class PlayableCategoryResponse(
     val id: UUID,
     val name: String,
     val description: String?,
     val quizCount: Int,
     val difficulties: List<PlayableDifficultyResponse>,
+    val coverFigureId: UUID?,
 ) {
     companion object {
         fun from(category: PlayableCategory) = PlayableCategoryResponse(
@@ -41,6 +43,7 @@ data class PlayableCategoryResponse(
             description = category.description,
             quizCount = category.quizCount,
             difficulties = category.difficulties.map(PlayableDifficultyResponse::from),
+            coverFigureId = category.coverFigureId,
         )
     }
 }
