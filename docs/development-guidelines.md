@@ -688,6 +688,14 @@ cp apps/mobile/.env.example apps/mobile/.env   # 値は infra/terraform/envs/dev
 pnpm --filter mobile start                     # i で iOS のシミュレータの Expo Go に開く
 ```
 
+**ログインするときは、アプリを `exp://127.0.0.1:8081` で開く。** 既定では Mac の LAN の IP で開き、ログインの戻り先が Cognito に登録したものと合わない。
+`--localhost` は使えない。Metro が IPv6 の `[::1]` でしか待たず、シミュレータから `127.0.0.1` につながらない。
+
+```bash
+EXPO_PACKAGER_PROXY_URL=http://127.0.0.1:8081 pnpm --filter mobile start   # アプリに渡す URL を 127.0.0.1 にする
+xcrun simctl openurl booted exp://127.0.0.1:8081                           # シミュレータの Expo Go で開く
+```
+
 - iOS のシミュレータには Xcode が要る。シミュレータに合う版の Expo Go は、Expo の CLI が入れる
 - Expo Go の戻り先は `exp://127.0.0.1:8081/--/auth/callback`。Cognito に登録してあるのはこれと `quizapp://` だけで、**実機の Expo Go からはログインできない**（LAN の IP が戻り先になる）
 - dev の quiz-service が止まっていると（[ECS](#ecsquiz-service)）、API は 500 か 503 を返す。起こしてから使う
