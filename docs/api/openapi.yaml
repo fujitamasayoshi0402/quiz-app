@@ -3400,6 +3400,11 @@ components:
     PlayableCategoryResponse:
       type: object
       properties:
+        coverFigureId:
+          type:
+          - string
+          - "null"
+          format: uuid
         description:
           type:
           - string

@@ -15,6 +15,7 @@
 import * as zod from 'zod';
 
 export const PlayableCategoryResponse = zod.object({
+  "coverFigureId": zod.uuid().nullish(),
   "description": zod.string().nullish(),
   "difficulties": zod.array(zod.object({
   "description": zod.string().nullish(),

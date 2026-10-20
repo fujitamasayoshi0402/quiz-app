@@ -122,7 +122,16 @@ export function PlaySetup({ slug }: { slug: string }) {
           options={categories.data.map((c) => ({
             value: c.id,
             label: c.name,
-            hint: c.description ? `${c.description}・${c.quizCount} 問` : `${c.quizCount} 問`,
+            // 問題数と所要時間は、説明とは別の行にする。続けて書くと、狭い幅で数の途中から折り返す
+            hint: (
+              <>
+                {c.description && <span className="block">{c.description}</span>}
+                <span className="block">
+                  {c.quizCount} 問・約 {estimateMinutes(c.quizCount)} 分
+                </span>
+              </>
+            ),
+            media: c.coverFigureId ? <CoverFigure slug={slug} figureId={c.coverFigureId} /> : undefined,
           }))}
         />
       </Section>
@@ -177,6 +186,35 @@ export function PlaySetup({ slug }: { slug: string }) {
         </>
       )}
     </div>
+  );
+}
+
+/** 所要時間の目安に使う、1 問あたりの秒数。読んで選び、解説をざっと見る時間 */
+const SECONDS_PER_QUIZ = 30;
+
+/** すべて解いたときの目安（分）。1 分に満たなくても 1 分と出す */
+function estimateMinutes(quizCount: number) {
+  return Math.max(1, Math.ceil((quizCount * SECONDS_PER_QUIZ) / 60));
+}
+
+/**
+ * カテゴリの代表の図（DEV-197）。どんなクイズかを、名前と説明より先に伝える。
+ * 名前が同じラベルにあるので、読み上げには出さない。取れなければ何も出さない
+ */
+function CoverFigure({ slug, figureId }: { slug: string; figureId: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <span className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white p-1">
+      {/* eslint-disable-next-line @next/next/no-img-element -- 署名付き URL へ送られる。Next.js の画像の最適化は通さない */}
+      <img
+        src={`/api/t/${slug}/play/figures/${figureId}/preview`}
+        alt=""
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="max-h-full max-w-full object-contain"
+      />
+    </span>
   );
 }
 
