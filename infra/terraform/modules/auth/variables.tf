@@ -11,6 +11,15 @@ variable "app_origins" {
   type        = list(string)
 }
 
+variable "mobile_app_url_prefixes" {
+  description = <<-EOT
+    モバイルアプリ（apps/mobile）の戻り先の接頭辞（例: quizapp://、exp://127.0.0.1:8081/--/）。空ならアプリのクライアントを作らない（ADR-0032）。
+    コールバックは <接頭辞>auth/callback、ログアウトのあとは <接頭辞>auth/logout に戻る
+  EOT
+  type        = list(string)
+  default     = []
+}
+
 variable "smoke_user_email" {
   description = "スモークテストが使う利用者のメールアドレス。null なら作らない"
   type        = string

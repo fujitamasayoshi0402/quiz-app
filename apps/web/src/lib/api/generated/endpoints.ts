@@ -54,11 +54,14 @@ import {
   Participation,
   PlayableCategoryResponse,
   PublicTenantResponse,
+  QuizDetailResponse,
   QuizListItemResponse,
   QuizResponse,
   RankingView,
   ReceivedInvitationResponse,
+  ReviewSummary,
   SlackWebhookResponse,
+  StudyDays,
   TenantCreationResponse,
   TenantSettingsResponse,
   Trash
@@ -3814,18 +3817,19 @@ export const getGetQuizUrl = (slug: string,
 }
 
 /**
+ * 各選択肢に、テナントの全員が選んだ回数（`answerCount`）を添える。消した選択肢への回答は `removedChoiceAnswerCount`
  * @summary クイズを 1 件取得
  */
 export const getQuiz = async (slug: string,
-    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<QuizResponse> => {
+    id: string, options?: Parameters<typeof apiFetch>[1]): Promise<QuizDetailResponse> => {
 
-  return apiFetch<QuizResponse>(getGetQuizUrl(slug,id),
+  return apiFetch<QuizDetailResponse>(getGetQuizUrl(slug,id),
   {
     ...options,
     method: 'GET'
 
     ,
-    schema: QuizResponse
+    schema: QuizDetailResponse
   }
 );}
 
@@ -5873,6 +5877,109 @@ export function useListCategoryScores<TData = Awaited<ReturnType<typeof listCate
 
 
 
+export const getGetStudyDaysUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/history/days`
+}
+
+/**
+ * 日の区切りは日本時間（利用者のタイムゾーンは持っていない）。終えていない挑戦の回答も数える。日ごとの数は直近 12 週と 1 日ぶん。続けて解いた日の数は、今日か昨日まで続いていれば数える
+ * @summary 学習の記録（日ごとの回答の数と、続けて解いた日の数）
+ */
+export const getStudyDays = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<StudyDays> => {
+
+  return apiFetch<StudyDays>(getGetStudyDaysUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: StudyDays
+  }
+);}
+
+
+
+
+
+export const getGetStudyDaysQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/play/history/days`
+    ] as const;
+    }
+
+
+export const getGetStudyDaysQueryOptions = <TData = Awaited<ReturnType<typeof getStudyDays>>, TError = ProblemDetail>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudyDaysQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudyDays>>> = ({ signal }) => getStudyDays(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStudyDaysQueryResult = NonNullable<Awaited<ReturnType<typeof getStudyDays>>>
+export type GetStudyDaysQueryError = ProblemDetail
+
+
+export function useGetStudyDays<TData = Awaited<ReturnType<typeof getStudyDays>>, TError = ProblemDetail>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStudyDays>>,
+          TError,
+          Awaited<ReturnType<typeof getStudyDays>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStudyDays<TData = Awaited<ReturnType<typeof getStudyDays>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStudyDays>>,
+          TError,
+          Awaited<ReturnType<typeof getStudyDays>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStudyDays<TData = Awaited<ReturnType<typeof getStudyDays>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 学習の記録（日ごとの回答の数と、続けて解いた日の数）
+ */
+
+export function useGetStudyDays<TData = Awaited<ReturnType<typeof getStudyDays>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudyDays>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStudyDaysQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getLeaveTenantUrl = (slug: string,) => {
 
 
@@ -6228,3 +6335,100 @@ export const useParticipateInRanking = <TError = ProblemDetail,
       > => {
       return useMutation(getParticipateInRankingMutationOptions(options), queryClient);
     }
+
+export const getGetReviewSummaryUrl = (slug: string,) => {
+
+
+
+
+  return `/api/t/${slug}/play/review`
+}
+
+/**
+ * 次に出す日が今日（日本時間）までの、いま出題できる問題の数。0 件なら、次に復習が来る日も返す
+ * @summary 今日の復習の件数
+ */
+export const getReviewSummary = async (slug: string, options?: Parameters<typeof apiFetch>[1]): Promise<ReviewSummary> => {
+
+  return apiFetch<ReviewSummary>(getGetReviewSummaryUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+    ,
+    schema: ReviewSummary
+  }
+);}
+
+
+
+
+
+export const getGetReviewSummaryQueryKey = (slug: string,) => {
+    return [
+    `/api/t/${slug}/play/review`
+    ] as const;
+    }
+
+
+export const getGetReviewSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getReviewSummary>>, TError = ProblemDetail>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReviewSummaryQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReviewSummary>>> = ({ signal }) => getReviewSummary(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetReviewSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getReviewSummary>>>
+export type GetReviewSummaryQueryError = ProblemDetail
+
+
+export function useGetReviewSummary<TData = Awaited<ReturnType<typeof getReviewSummary>>, TError = ProblemDetail>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReviewSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getReviewSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReviewSummary<TData = Awaited<ReturnType<typeof getReviewSummary>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReviewSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getReviewSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReviewSummary<TData = Awaited<ReturnType<typeof getReviewSummary>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 今日の復習の件数
+ */
+
+export function useGetReviewSummary<TData = Awaited<ReturnType<typeof getReviewSummary>>, TError = ProblemDetail>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReviewSummary>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetReviewSummaryQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}

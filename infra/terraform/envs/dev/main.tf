@@ -148,8 +148,9 @@ module "quiz_service" {
   vpc_link_subnet_ids        = module.network.private_subnet_ids
   vpc_link_security_group_id = module.network.security_group_ids.vpc_link
 
-  auth_issuer    = module.auth.issuer
-  auth_client_id = module.auth.client_id
+  auth_issuer           = module.auth.issuer
+  auth_client_id        = module.auth.client_id
+  auth_mobile_client_id = module.auth.mobile_client_id
 
   figures = {
     bucket_name               = module.figures.bucket_name
@@ -176,11 +177,19 @@ module "quiz_service" {
   db_name          = local.app_database.database_name
   iam_db_user_arns = local.app_database.iam_db_user_arns
 
+  # 起こすときに Aurora も起こす（DEV-181）。タスクの起動（1.5〜2 分）を待つ間に、Aurora の復帰が済む
+  wake_database = {
+    cluster_arn = local.app_database.cluster_arn
+    secret_arn  = local.app_database.master_user_secret_arn
+  }
+
   image_tag = var.quiz_service_image_tag
 
-  # 0.25 vCPU では Spring Boot の起動に時間がかかり、デプロイのたびに待たされる
-  cpu           = 512
+  # 0.25 vCPU と Fargate Spot（DEV-182）。dev は止まっても困らない。
+  # 起動は遅くなる（Spring の起動は約 45 秒から 46〜81 秒に）が、待つのは起こしたときとデプロイのときだけ
+  cpu           = 256
   memory        = 1024
+  fargate_spot  = true
   desired_count = 1
 
   # ふだんは既定（20 件/秒）。負荷試験の間だけ -var で上げる
@@ -242,6 +251,12 @@ module "auth" {
   app_origins = [
     "https://dev.${var.domain_name}",
     "http://localhost:3000",
+  ]
+
+  # モバイルアプリ（apps/mobile）の戻り先（ADR-0032）。開発用のビルドはアプリのスキーム、Expo Go はシミュレータの Metro
+  mobile_app_url_prefixes = [
+    "quizapp://",
+    "exp://127.0.0.1:8081/--/",
   ]
 
   # スモークテスト（tests/api）の利用者。シードが同じアドレスでスモークテストのテナントの管理者を用意している

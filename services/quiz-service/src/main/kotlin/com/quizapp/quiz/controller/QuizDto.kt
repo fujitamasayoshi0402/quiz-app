@@ -3,6 +3,7 @@ package com.quizapp.quiz.controller
 import com.quizapp.quiz.domain.Choice
 import com.quizapp.quiz.domain.Quiz
 import com.quizapp.quiz.domain.QuizStatus
+import com.quizapp.quiz.usecase.QuizDetail
 import com.quizapp.quiz.usecase.QuizListItem
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
@@ -11,6 +12,11 @@ import jakarta.validation.constraints.Size
 import java.util.UUID
 
 data class ChoiceRequest(
+    @field:Schema(
+        description = "更新のとき、直す前の選択肢の ID。ID を保ち、選ばれた数を引き継ぐ（DEV-170）。" +
+            "省くか、このクイズにない ID なら新しい選択肢になる。作成と取り込みでは使わない",
+    )
+    val id: UUID? = null,
     @field:NotBlank(message = "選択肢の本文を入力してください")
     @field:Size(max = Choice.MAX_BODY_LENGTH, message = "選択肢は {max} 文字以内で入力してください")
     val body: String,
@@ -19,7 +25,7 @@ data class ChoiceRequest(
     @get:Schema(name = "isCorrect")
     val isCorrect: Boolean = false,
 ) {
-    fun toDomain() = Choice(body = body, isCorrect = isCorrect)
+    fun toDomain() = Choice(id = id, body = body, isCorrect = isCorrect)
 }
 
 data class SaveQuizRequest(
@@ -120,3 +126,53 @@ data class QuizListItemResponse(
         }
     }
 }
+
+/**
+ * 1 件の取得。[QuizResponse] の項目に、選択肢ごとの回答の数を足す（DEV-170）。
+ *
+ * 作成と更新の応答には載せない。編集画面が、どの誤答に引っかかっているかを見るためのもの。
+ */
+data class QuizDetailResponse(
+    val id: UUID,
+    val categoryId: UUID,
+    val difficultyId: UUID,
+    val question: String,
+    @field:Schema(description = Quiz.EXPLANATION_FORMAT)
+    val explanation: String,
+    val choices: List<ChoiceDetailResponse>,
+    val status: String,
+    @field:Schema(description = QuizResponse.SOURCE_URL_DESCRIPTION)
+    val sourceUrl: String?,
+    @field:Schema(description = "いまはない選択肢（消したもの）を選んだ回答の数")
+    val removedChoiceAnswerCount: Int,
+) {
+    companion object {
+        fun from(detail: QuizDetail) = QuizResponse.from(detail.quiz).let { quiz ->
+            QuizDetailResponse(
+                id = quiz.id,
+                categoryId = quiz.categoryId,
+                difficultyId = quiz.difficultyId,
+                question = quiz.question,
+                explanation = quiz.explanation,
+                choices = quiz.choices.map {
+                    ChoiceDetailResponse(it.id, it.body, it.isCorrect, detail.choiceCounts[it.id] ?: 0)
+                },
+                status = quiz.status,
+                sourceUrl = quiz.sourceUrl,
+                removedChoiceAnswerCount = detail.choiceCounts.filterKeys { id -> quiz.choices.none { it.id == id } }
+                    .values.sum(),
+            )
+        }
+    }
+}
+
+data class ChoiceDetailResponse(
+    val id: UUID,
+    val body: String,
+    // Kotlin の `isCorrect` は Java の getter 規約では `correct` と読まれる。
+    // Jackson は Kotlin のプロパティ名で出すため、明示しないと定義と実際の JSON がずれる
+    @get:Schema(name = "isCorrect")
+    val isCorrect: Boolean,
+    @field:Schema(description = "テナントの全員が、この選択肢を選んだ回数")
+    val answerCount: Int,
+)

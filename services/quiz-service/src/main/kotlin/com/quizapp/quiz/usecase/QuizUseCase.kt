@@ -46,6 +46,12 @@ class QuizUseCase(
         quizRepository.findById(id) ?: throw QuizNotFoundException(id)
     }
 
+    /** 選択肢ごとの回答の数を添えて返す（DEV-170） */
+    fun getDetail(id: UUID): QuizDetail = tenantTransaction.execute {
+        val quiz = quizRepository.findById(id) ?: throw QuizNotFoundException(id)
+        QuizDetail(quiz, answeredQuizzes.countChoices(id))
+    }
+
     fun create(
         categoryId: UUID,
         difficultyId: UUID,
@@ -128,3 +134,6 @@ class QuizUseCase(
 class QuizNotFoundException(val id: UUID) : RuntimeException("クイズが見つかりません: $id")
 
 data class QuizListItem(val quiz: Quiz, val answers: AnswerTally)
+
+/** [choiceCounts] は選択肢の ID ごとの回答の数。いまはない選択肢への回答も含む */
+data class QuizDetail(val quiz: Quiz, val choiceCounts: Map<UUID, Int>)

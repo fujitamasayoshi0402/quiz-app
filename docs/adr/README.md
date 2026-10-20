@@ -18,7 +18,10 @@
 | インフラ | [0011](0011-terraform-state-and-environments.md) tfstate と環境の分け方 / [0012](0012-serve-frontend-on-amplify-hosting.md) フロントは Amplify Hosting / [0013](0013-run-ecs-tasks-in-public-subnets.md) タスクはパブリックサブネット（NAT なし） / [0014](0014-connect-to-aurora-with-iam-auth.md) Aurora へ IAM 認証 |
 | デプロイとリリース | [0015](0015-deploy-by-registering-task-definitions-from-ci.md) CI がタスク定義を登録する / [0024](0024-run-prod-in-same-account-and-launch-at-release.md) prod は同じアカウント、公開のときから動かす |
 | 運用 | [0026](0026-trace-requests-with-micrometer-and-x-ray.md) 分散トレース（Micrometer、X-Ray） |
+| モバイル | [0032](0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) Expo の managed で作り、ログインはシステムのブラウザで開く。API は直接呼ぶ |
 | AI | [0031](0031-draft-quizzes-from-official-tech-news-with-bedrock.md) 公式の技術ニュースから、Bedrock がクイズの下書きを毎日作る |
+| 出題 | [0033](0033-schedule-reviews-with-simplified-sm2.md) 間違えやすい問題を、SM-2 を縮めた式で忘れたころに出す |
+| コンテンツ | [0034](0034-keep-quiz-content-as-packs-and-load-through-api.md) クイズの中身は図ごとパックにまとめ、API で流し込む |
 
 ## 置き換えと見直し
 
@@ -67,6 +70,9 @@
 | [0029](0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md) | 見に来た人は、ログインの画面を通さずに共有のデモのアカウントで入れる。web のサーバーがトークンを取って使い回す | Accepted |
 | [0030](0030-let-members-leave-tenant-and-erase-their-history.md) | 所属している人が、自分でテナントから退会できるようにする。退会すると、そのテナントでの回答の履歴を消す | Accepted |
 | [0031](0031-draft-quizzes-from-official-tech-news-with-bedrock.md) | 公式の技術ニュースから、AI（Bedrock）が毎日クイズの下書きを作る。Lambda が S3 に置き、quiz-service が使われたときに取り込む | Accepted |
+| [0032](0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) | モバイルアプリは Expo の managed で作り、ログインはシステムのブラウザで Managed Login を開く。API は直接呼ぶ | Accepted |
+| [0033](0033-schedule-reviews-with-simplified-sm2.md) | 間違えやすい問題を、SM-2 を縮めた式で忘れたころに出す。次に出す日は、回答を受けたときに answer が持つ表に書く | Accepted |
+| [0034](0034-keep-quiz-content-as-packs-and-load-through-api.md) | クイズの中身は図ごと「パック」にまとめ、アプリの API で流し込む。デモのパックはリポジトリに、自分の題材は非公開の場所に置く | Accepted |
 
 ## 運用ルール
 

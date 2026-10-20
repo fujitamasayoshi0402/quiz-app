@@ -51,6 +51,12 @@ variable "auth_client_id" {
   type        = string
 }
 
+variable "auth_mobile_client_id" {
+  description = "トークンを受け取るモバイルアプリのクライアント（ADR-0032）。空なら web のクライアントだけを受け付ける"
+  type        = string
+  default     = ""
+}
+
 # ---- データベース（modules/database） ----
 
 variable "db_endpoint" {
@@ -71,6 +77,18 @@ variable "iam_db_user_arns" {
     app     = string
     migrate = string
   })
+}
+
+variable "wake_database" {
+  description = <<-EOT
+    タスクを起こすとき（wake.tf）に、一緒に起こす Aurora。Data API で SELECT 1 を送る。
+    secret_arn は Data API が使う認証情報（マスターのシークレット）。null なら Aurora は起こさない
+  EOT
+  type = object({
+    cluster_arn = string
+    secret_arn  = string
+  })
+  default = null
 }
 
 # ---- 解説図（modules/figures） ----
@@ -136,6 +154,12 @@ variable "cpu" {
 variable "memory" {
   description = "タスクのメモリ（MiB）。ヒープはその 75%（Dockerfile の MaxRAMPercentage）"
   type        = number
+}
+
+variable "fargate_spot" {
+  description = "サービスのタスクを Fargate Spot で動かすか。中断されると、ECS が新しいタスクを起こすまで API が止まる。マイグレーションは Fargate のまま流す"
+  type        = bool
+  default     = false
 }
 
 variable "desired_count" {

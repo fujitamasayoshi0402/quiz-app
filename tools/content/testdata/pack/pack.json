@@ -1,0 +1,9 @@
+{
+  "categories": [
+    {
+      "name": "見本",
+      "description": "流し込みのテストに使うパック",
+      "difficulties": [{ "name": "やさしい", "level": 1 }]
+    }
+  ]
+}

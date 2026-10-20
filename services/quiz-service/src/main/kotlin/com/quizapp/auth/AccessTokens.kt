@@ -34,11 +34,14 @@ object AccessTokens {
      *
      * - 発行者と有効期限
      * - **アクセストークンであること**（`token_use`）。Cognito の ID トークンも同じ鍵で署名されている
-     * - **この web のクライアントに発行されたこと**（`client_id`）。同じ User Pool の別のクライアントのトークンを受け付けない
+     * - **web かモバイルアプリのクライアントに発行されたこと**（`client_id`。ADR-0032）。同じ User Pool のほかのクライアントのトークンを受け付けない
      */
-    fun validator(properties: AuthProperties): OAuth2TokenValidator<Jwt> = DelegatingOAuth2TokenValidator(
-        JwtValidators.createDefaultWithIssuer(properties.issuer),
-        JwtClaimValidator<String>("token_use") { it == "access" },
-        JwtClaimValidator<String>("client_id") { it == properties.clientId },
-    )
+    fun validator(properties: AuthProperties): OAuth2TokenValidator<Jwt> {
+        val clientIds = properties.acceptedClientIds
+        return DelegatingOAuth2TokenValidator(
+            JwtValidators.createDefaultWithIssuer(properties.issuer),
+            JwtClaimValidator<String>("token_use") { it == "access" },
+            JwtClaimValidator<String>("client_id") { it in clientIds },
+        )
+    }
 }

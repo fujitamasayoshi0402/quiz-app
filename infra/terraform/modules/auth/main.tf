@@ -137,6 +137,55 @@ resource "aws_cognito_managed_login_branding" "web" {
   use_cognito_provided_values = true
 }
 
+# ---- モバイルアプリのクライアント（ADR-0032） ----
+
+resource "aws_cognito_user_pool_client" "mobile" {
+  count = length(var.mobile_app_url_prefixes) > 0 ? 1 : 0
+
+  name         = "${var.name}-mobile"
+  user_pool_id = aws_cognito_user_pool.this.id
+
+  # アプリの中身は取り出して読めるため、シークレットを持たせない。コードの横取りは PKCE で防ぐ
+  generate_secret = false
+
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_flows                  = ["code"]
+  supported_identity_providers         = ["COGNITO"]
+
+  # web と同じ。aws.cognito.signin.user.admin は、バックエンドが確認済みのメールアドレスを取るのに要る。
+  # トークンは端末に置かれ、利用者が自分の属性を書き換えられる。メールアドレスは確認するまで替わらない（ADR-0032）
+  allowed_oauth_scopes = ["openid", "email", "aws.cognito.signin.user.admin"]
+
+  callback_urls = [for prefix in var.mobile_app_url_prefixes : "${prefix}auth/callback"]
+  logout_urls   = [for prefix in var.mobile_app_url_prefixes : "${prefix}auth/logout"]
+
+  # Managed Login でパスキーとパスワードを選ばせるには、USER_AUTH が要る。
+  # シークレットがないので、この許可で API からもパスワードの認証を呼べる。できることは Managed Login と変わらない
+  explicit_auth_flows = ["ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
+
+  prevent_user_existence_errors = "ENABLED"
+  enable_token_revocation       = true
+
+  access_token_validity  = 60
+  id_token_validity      = 60
+  refresh_token_validity = 30
+  token_validity_units {
+    access_token  = "minutes"
+    id_token      = "minutes"
+    refresh_token = "days"
+  }
+}
+
+# Managed Login の画面の見た目は、クライアントごとに要る。web と同じく既定のもの
+resource "aws_cognito_managed_login_branding" "mobile" {
+  count = length(aws_cognito_user_pool_client.mobile)
+
+  user_pool_id = aws_cognito_user_pool.this.id
+  client_id    = aws_cognito_user_pool_client.mobile[0].id
+
+  use_cognito_provided_values = true
+}
+
 # ---- スモークテストの利用者 ----
 # デプロイの最後のスモークテスト（tests/api）が、この利用者でトークンを取る。
 # アプリの側は、同じメールアドレスで事前に登録した利用者（シードの R__smoke_data.sql）に、最初のログインで結び付く。

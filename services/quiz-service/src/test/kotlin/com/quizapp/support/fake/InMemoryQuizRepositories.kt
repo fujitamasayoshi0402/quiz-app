@@ -148,11 +148,24 @@ class FakeAnsweredQuizzes : AnsweredQuizzes {
     override fun filterBookmarked(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
         candidateQuizIds.filter { (userId to it) in bookmarks }.toSet()
 
+    private val due = mutableSetOf<Pair<UUID, UUID>>()
+
+    /** 今日の復習に入れる。次に出す日の決め方は ReviewScheduleTest、SQL は API テストが見る */
+    fun due(userId: UUID, quizId: UUID) {
+        due += userId to quizId
+    }
+
+    override fun filterDue(userId: UUID, candidateQuizIds: List<UUID>): Set<UUID> =
+        candidateQuizIds.filter { (userId to it) in due }.toSet()
+
     // 最後の回答しか覚えていないため、利用者ごとに 1 回と数える。解き直しを数えることは API テストが見る
     override fun tally(quizIds: List<UUID>): Map<UUID, AnswerTally> = lastCorrect.entries
         .filter { (key, _) -> key.second in quizIds }
         .groupBy({ it.key.second }, { it.value })
         .mapValues { (_, results) -> AnswerTally(answered = results.size, correct = results.count { it }) }
+
+    // 選んだ選択肢は覚えていない。選択肢ごとの数は API テストが見る
+    override fun countChoices(quizId: UUID): Map<UUID, Int> = emptyMap()
 }
 
 /**

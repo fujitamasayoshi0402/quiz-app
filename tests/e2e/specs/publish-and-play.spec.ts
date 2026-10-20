@@ -12,7 +12,7 @@ const question = "日本の首都はどこですか。";
  *
  * カテゴリやクイズは `fixtures.sql` がテストの前に消すので、決まった名前で作れる
  */
-test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、間違えた問題を解き直し、結果と履歴で振り返り、あとで見直す。管理者は回答の数を見る", async ({ browser }) => {
+test("管理者が公開したクイズを、一般ユーザーが学習モードで解き、間違えた問題を解き直し、結果と履歴で振り返り、あとで見直す。今日の復習に出る。管理者は回答の数と選ばれた選択肢を見る", async ({ browser }) => {
   const admin = await (await browser.newContext({ storageState: storageStateOf("admin") })).newPage();
   const member = await (await browser.newContext({ storageState: storageStateOf("member") })).newPage();
 
@@ -101,6 +101,23 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await expect(member.getByText("0 / 1 問")).toBeVisible();
   });
 
+  await test.step("間違えた問題は今日の復習に出て、出題対象「今日の復習」で解ける", async () => {
+    await member.getByRole("banner").getByRole("link", { name: "解く" }).click();
+    // ほかの spec で間違えた問題も数えるため、件数は決め打ちにしない
+    await expect(member.getByText(/^今日の復習 \d+ 問$/)).toBeVisible();
+    await member.getByText(category).click();
+    await member.getByText("今日の復習", { exact: true }).click();
+    await member.getByRole("button", { name: "始める" }).click();
+
+    await expect(member.getByText("1 / 1 問")).toBeVisible();
+    await expect(member.getByText(question)).toBeVisible();
+    // もう一度間違え、結果の画面から解き直す（次の段）
+    await member.getByRole("button", { name: "大阪" }).click();
+    await member.getByRole("button", { name: "回答する" }).click();
+    await member.getByRole("button", { name: "結果を見る" }).click();
+    await expect(member.getByText("0 / 1 問")).toBeVisible();
+  });
+
   await test.step("結果から、間違えた問題を同じ範囲ですぐ解き直せる", async () => {
     await member.getByRole("button", { name: "間違えた問題を解き直す" }).click();
 
@@ -121,12 +138,14 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await expect(member.getByRole("button", { name: "間違えた問題を解き直す" })).toHaveCount(0);
   });
 
-  await test.step("履歴に残り、そこから結果を開き直せる", async () => {
+  await test.step("履歴に残り、そこから結果を開き直せる。学習の記録の今日の欄に、解いた数が出る", async () => {
     await member.getByRole("banner").getByRole("link", { name: "履歴" }).click();
-    // 解き直した回も並ぶ。最初の回を開く
+    // ほかの spec で解いた数も入るため、数は決め打ちにしない。色だけでなく、読み上げの名前でも分かる
+    await expect(member.getByRole("img", { name: /（今日） \d+ 問$/ })).toBeVisible();
+    // 解き直した回と、今日の復習で解いた回も並ぶ。最初の回を開く
     const row = member
       .getByRole("link", { name: new RegExp(`${category}・すべての難易度`) })
-      .filter({ hasNotText: "間違えた問題" });
+      .filter({ hasNotText: /間違えた問題|今日の復習/ });
     await expect(row).toContainText("0 / 1");
 
     await row.click();
@@ -156,12 +175,40 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await expect(member.getByText("100%")).toBeVisible();
   });
 
-  await test.step("管理者のクイズの一覧に、回答の数が出る。少ないうちは正答率を出さない", async () => {
+  await test.step("正解した問題は、今日の復習から外れる", async () => {
+    await member.goto(`/t/${tenant.slug}/play`);
+    await member.getByText(category).click();
+    await member.getByText("今日の復習", { exact: true }).click();
+    await member.getByRole("button", { name: "始める" }).click();
+    await expect(member.getByText("条件に合うクイズがありません", { exact: false })).toBeVisible();
+  });
+
+  await test.step("管理者のクイズの一覧に、回答の数と正答率が出る", async () => {
     await admin.goto(`/t/${tenant.slug}/admin/quizzes`);
-    // 間違えた 2 回（最初と、履歴から解き直した回）、結果から解き直した 1 回、あとで見直すで解いた 1 回
+    // 間違えた 3 回（最初、履歴から解き直した回、今日の復習）、正解した 2 回（結果から解き直した回、あとで見直す）
     const row = admin.getByRole("row", { name: new RegExp(question) });
-    await expect(row).toContainText("回答が少ない");
-    await expect(row).toContainText("4 回答");
+    await expect(row).toContainText("40%");
+    await expect(row).toContainText("5 回答");
+  });
+
+  await test.step("管理者の編集画面に、選択肢ごとに選ばれた数が出る。直して保存しても数は残る", async () => {
+    const expectCounts = async () => {
+      await expect(admin.getByText("これまでの回答 5 件", { exact: false })).toBeVisible();
+      // 大阪を 3 回（間違えた回）、東京を 2 回選んだ
+      await expect(admin.getByText("3 回選ばれた（60%）", { exact: true })).toBeVisible();
+      await expect(admin.getByText("2 回選ばれた（40%）", { exact: true })).toBeVisible();
+      await expect(admin.getByText("0 回選ばれた（0%）", { exact: true })).toHaveCount(2);
+    };
+    await admin.getByRole("link", { name: question }).click();
+    await expectCounts();
+
+    // 選択肢の文言を直しても、その欄の選択肢として数え続ける
+    await admin.getByPlaceholder("選択肢 1").fill("大阪府");
+    await admin.getByRole("button", { name: "公開したまま保存" }).click();
+    await expect(admin).toHaveURL(new RegExp(`/t/${tenant.slug}/admin/quizzes$`));
+    await admin.getByRole("link", { name: question }).click();
+    await expect(admin.getByPlaceholder("選択肢 1")).toHaveValue("大阪府");
+    await expectCounts();
   });
 });
 

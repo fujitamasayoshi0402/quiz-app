@@ -2,3 +2,4 @@
 .auth/
 test-results/
 playwright-report/
+capture/output/

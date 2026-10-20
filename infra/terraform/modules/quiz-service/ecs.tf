@@ -25,11 +25,12 @@ locals {
     { name = "SPRING_DATASOURCE_USERNAME", value = "quiz_app" },
   ]
 
-  # アクセストークンの発行者と、受け取る web のクライアント（ADR-0016）。無いとアプリが起動しない（AuthProperties）。
+  # アクセストークンの発行者と、受け取る web とモバイルアプリのクライアント（ADR-0016、ADR-0032）。発行者と web のクライアントが無いとアプリが起動しない（AuthProperties）。
   # マイグレーションのタスクも同じアプリとして起動するため、両方に渡す
   auth_environment = [
     { name = "AUTH_CLIENT_ID", value = var.auth_client_id },
     { name = "AUTH_ISSUER", value = var.auth_issuer },
+    { name = "AUTH_MOBILE_CLIENT_ID", value = var.auth_mobile_client_id },
   ]
 
   # 解説図（ADR-0017）。アプリのタスクにだけ渡す。マイグレーションは図に触れない。
@@ -105,6 +106,15 @@ resource "aws_ecs_cluster" "this" {
     name  = "containerInsights"
     value = "disabled"
   }
+}
+
+# Fargate Spot を使うとき（DEV-182）。サービスが使えるよう、クラスタに結び付ける。
+# FARGATE も並べておく。Spot の容量が取れない日が続いたら、サービスの設定だけで Fargate へ戻せる
+resource "aws_ecs_cluster_capacity_providers" "this" {
+  count = var.fargate_spot ? 1 : 0
+
+  cluster_name       = aws_ecs_cluster.this.name
+  capacity_providers = ["FARGATE", "FARGATE_SPOT"]
 }
 
 resource "aws_cloudwatch_log_group" "quiz_service" {
@@ -209,7 +219,21 @@ resource "aws_ecs_service" "app" {
   cluster         = aws_ecs_cluster.this.id
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+  launch_type     = var.fargate_spot ? null : "FARGATE"
+
+  # Spot は、AWS が容量を取り戻すときに 2 分前の知らせで止める（stopCode は SpotInterruption）。
+  # サービスが新しいタスクを Spot で起こす。容量がなければ、取れるまで起こせない。Fargate へは逃がさない（dev だけのため）
+  # Fargate から Spot へ切り替えるには、新しいデプロイが要る。動いているタスク定義のまま入れ替わる（task_definition は無視している）。
+  # 付けたままにすると、サービスのほかの変更でも入れ替わる。そのため Spot のときだけにする。Fargate へ戻すときは、その apply の間だけ true にする
+  force_new_deployment = var.fargate_spot ? true : null
+
+  dynamic "capacity_provider_strategy" {
+    for_each = var.fargate_spot ? [1] : []
+    content {
+      capacity_provider = "FARGATE_SPOT"
+      weight            = 1
+    }
+  }
 
   network_configuration {
     subnets          = var.public_subnet_ids
@@ -241,6 +265,8 @@ resource "aws_ecs_service" "app" {
   lifecycle {
     ignore_changes = [task_definition, desired_count]
   }
+
+  depends_on = [aws_ecs_cluster_capacity_providers.this]
 }
 
 # ---- migrate ----

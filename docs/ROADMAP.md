@@ -197,9 +197,11 @@
 
 ## Phase 8: モバイル展開（構想）
 
-- [ ] React Native (Expo) によるユーザー向けアプリ
-- [ ] ネイティブのパスキー対応
-- [ ] API は既存をそのまま利用し、EAS Build で配信
+- [x] ADR: 作り方、ログイン、パスキー、API の呼び方、解説の表示、配り方（[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）
+- [ ] React Native (Expo) によるユーザー向けアプリ（ログイン、出題と回答、解説、履歴と再開）
+- [ ] パスキー: システムのブラウザで開く Managed Login の中で、web で登録したものを使う。OS のパスキーの API は、RP ID が Cognito のドメインのため使えない（ADR-0032）
+- [ ] API は既存をそのまま利用し、アプリ用のクライアントのトークンで直接呼ぶ
+- 配るのは、シミュレータ、Expo Go、開発用のビルドまで。ストアへの公開は、prod を公開するときに決める（費用と手続きは ADR-0032）
 
 ---
 

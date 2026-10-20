@@ -7,8 +7,19 @@ import type { NextRequest } from "next/server";
  * 認証基盤は、登録したオリジン（dev.<ドメイン>、localhost）以外への戻りを拒む。
  */
 export function appOrigin(request: NextRequest): string {
-  const host = firstOf(request.headers.get("x-forwarded-host")) ?? request.headers.get("host") ?? request.nextUrl.host;
-  const protocol = firstOf(request.headers.get("x-forwarded-proto")) ?? request.nextUrl.protocol.replace(":", "");
+  return originOf(request.headers, { host: request.nextUrl.host, protocol: request.nextUrl.protocol.replace(":", "") });
+}
+
+/**
+ * 要求のヘッダから、利用者から見たオリジンを決める。`appOrigin` と同じ決め方で、要求のオブジェクトがないところ（画面の metadata）でも使う。
+ * ヘッダにないときは `fallback`、それもなければ http とみなす（localhost）
+ */
+export function originOf(
+  headers: Pick<Headers, "get">,
+  fallback: { host: string; protocol: string } = { host: "localhost", protocol: "http" },
+): string {
+  const host = firstOf(headers.get("x-forwarded-host")) ?? headers.get("host") ?? fallback.host;
+  const protocol = firstOf(headers.get("x-forwarded-proto")) ?? fallback.protocol;
   return `${protocol}://${host}`;
 }
 

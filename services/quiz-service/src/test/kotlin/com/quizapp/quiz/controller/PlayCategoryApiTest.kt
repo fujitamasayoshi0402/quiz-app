@@ -100,6 +100,38 @@ class PlayCategoryApiTest {
         list().andExpect { jsonPath("$.length()") { value(0) } }
     }
 
+    @Test
+    @DisplayName("代表の図は、易しい難易度から登録順に見て、最初に図を指している問題の最初の図")
+    fun picksCoverFigureFromEasiestQuiz() {
+        val science = fixture.category("身近な科学")
+        val easy = fixture.difficulty(science, "やさしい", 1)
+        val hard = fixture.difficulty(science, "むずかしい", 3)
+        val hardFigure = fixture.figure()
+        val first = fixture.figure()
+        val second = fixture.figure()
+        // 難しい問題を先に登録しても、易しい難易度の問題が優先される
+        fixture.quiz(science, hard, "難しい問題", explanation = "![図](figure:$hardFigure)")
+        fixture.quiz(science, easy, "図のない問題")
+        fixture.quiz(science, easy, "図のある問題", explanation = "![1](figure:$first)\n\n![2](figure:$second)")
+        fixture.quiz(science, easy, "後から登録した問題", explanation = "![図](figure:$second)")
+
+        list().andExpect { jsonPath("$[0].coverFigureId") { value(first.toString()) } }
+    }
+
+    @Test
+    @DisplayName("下書きの問題の図は代表にしない。図を使う公開済みの問題がなければ null")
+    fun skipsDraftFigures() {
+        val science = fixture.category("身近な科学")
+        val easy = fixture.difficulty(science, "やさしい", 1)
+        fixture.quiz(science, easy, "下書き", status = "draft", explanation = "![図](figure:${fixture.figure()})")
+        fixture.quiz(science, easy, "図のない問題")
+
+        list().andExpect {
+            jsonPath("$[0].name") { value("身近な科学") }
+            jsonPath("$[0].coverFigureId") { doesNotExist() }
+        }
+    }
+
     private fun list() = mockMvc.get("/api/t/${tenant.slug}/play/categories") {
         // 一般ユーザーが使う API なので、管理者ではない利用者で呼ぶ
         header("Authorization", TestAuth.bearer(TestAuth.MEMBER))

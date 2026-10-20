@@ -97,7 +97,8 @@
 ```
 .
 ├── apps/
-│   └── web/                 # Next.js フロントエンド
+│   ├── web/                 # Next.js フロントエンド
+│   └── mobile/              # Expo（React Native）の一般ユーザー向けアプリ（ADR-0032）
 ├── services/
 │   ├── quiz-service/        # Kotlin + Spring Boot
 │   ├── notification-service/
@@ -216,6 +217,7 @@ pnpm --filter web lint
 | `notification` | notification-service（Lambda）。ktlint / detekt → test（Testcontainers の LocalStack）→ zip のビルド → 脆弱性の検査（Trivy） |
 | `news-quiz-drafter` | 技術ニュースから下書きを作る Lambda。ktlint / detekt → test（Bedrock と RSS と S3 は差し替える）→ zip のビルド → 脆弱性の検査（Trivy） |
 | `frontend` | API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → build → イメージのビルド → 脆弱性の検査（Trivy） |
+| `mobile` | モバイルアプリ。API クライアントの作り直しに差が出ないか → 整形 → 型チェック → lint → 単体テスト → iOS のバンドルを作る。どこにも載せない |
 | `terraform` | `terraform fmt -check` → 各ルートモジュールの `validate`。AWS には触れない |
 | `e2e` | docker compose の定義からイメージを作ってアプリ一式を起動し、Playwright で権限まわりと出題・管理の流れを画面から確かめる（[E2E テスト](#e2e-テスト)） |
 | `secrets` | gitleaks で履歴から secret を探す。パスで出し分けず、常に走る |
@@ -468,6 +470,9 @@ pnpm test:e2e
 - 流していないもの: draw.io で図を描く（`embed.diagrams.net` の画面に依存する）、まとめて取り込む（読み取りの規則は JUnit が見る。画面はファイルを選ぶだけ）
 - 招待される人の所属は、テストの前に外す。何度流しても、同じ状態から始まる
 - 「デモとして入る」のテストは、共有のデモのアカウント（シードの利用者）で解く。解きかけたクイズは、テストの前に消す（`fixtures.sql`）。ローカルで流すときは、`.env` に `AUTH_DEMO_USER_*` を入れる
+- **デモのクイズは、テストの前にデモのパックを流して入れる**（`support/demo-pack.ts`。[ADR-0034](adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)）。シードはデモのクイズを入れない。
+  E2E の管理者のトークンを Cognito から取り（`.env` か環境変数の `AUTH_ISSUER`・`AUTH_CLIENT_ID`・`AUTH_CLIENT_SECRET` と `E2E_USER_PASSWORD`）、流す間だけデモのテナントの管理者にする。
+  所属を残すと所属が 2 つになり、「所属が 1 つならテナントへ直接移る」のテストが前提を失う。画面の撮影は、撮るときに所属を足す（`capture.sql`）
 - 公開テナントに参加するテストは、終わったら未所属の人の所属を外し、テナントを非公開に戻す（`afterAll`）。ほかのテストが、未所属のまま・非公開のままであることを前提にしている
 - テナントを作るテストは、終わったら未所属の人が作ったテナントを消す（`afterAll`。論理削除）。途中で止まって残っても、`fixtures.sql` がテストの前に消す
 - テスト同士が状態を共有する（招待を受け入れると所属が増える）ため、並列にせず、やり直しもしない
@@ -496,6 +501,30 @@ terraform output -raw auth_client_secret | gh secret set AUTH_CLIENT_SECRET --ap
 terraform output -raw e2e_user_password | gh secret set E2E_USER_PASSWORD --app dependabot
 terraform output -raw demo_user_password | gh secret set DEMO_USER_PASSWORD --app dependabot
 ```
+
+#### README の画面
+
+README の画面（スクリーンショットと GIF）は、Playwright のスクリプトで撮る（DEV-180。`tests/e2e/capture/`）。**画面を変えたら撮り直す。** 手で撮ると、古いまま残る。
+
+```bash
+cd infra/terraform/envs/dev
+export E2E_USER_PASSWORD="$(terraform output -raw e2e_user_password)"
+export AUTH_DEMO_USER_EMAIL=demo@example.com AUTH_DEMO_USER_PASSWORD="$(terraform output -raw demo_user_password)"
+cd -
+
+docker compose up -d --build              # 「デモとして入る」を使うため、デモのアカウントを渡して起動する
+pnpm --filter e2e capture                 # docs/images/ に PNG を書き（web のトップに出す 3 枚は apps/web/src/assets/screenshots/ にも）、tests/e2e/capture/output/ に動画を残す
+tests/e2e/capture/make-gifs.sh            # 動画を GIF にして docs/images/ に置く（ffmpeg が要る）
+pnpm --filter e2e web-images              # リンクを共有したときのカード（OGP）と、favicon・Apple のアイコンを作り直す（DEV-194）
+```
+
+- E2E と同じく、docker compose で起動した一式に向けて撮る。**E2E の CI では流さない**（設定を `capture.config.ts` に分けている）
+- 撮るのはデモのテナント（シード）。見に来た人が見るものと同じ画面にする。AI の下書きと、E2E の管理者をデモのテナントの管理者にする所属は、`capture/capture.sql` が入れる。何度流しても同じ状態に戻る
+- 見る人の画面は「デモとして入る」で、管理者の画面は E2E の管理者で撮る。ログインは E2E と同じく setup が画面から 1 回だけ行い、撮る側は保存した Cookie だけを使う。パスワードの欄は映らない
+- 動画にはマウスのカーソルが映らないので、押した場所に輪を出す（`capture/support.ts`）
+- パソコンの幅の画面は、中身（中央の 640px）のまわりだけを切り出し、縦は 960px までにする。README で文字が小さくならないように
+- GIF は 1 本 2 MB ほどに収める（幅、コマ数、色数を絞る。`make-gifs.sh`）
+- 撮ったら、映っているものを目で確かめる。メールアドレスは `example.com` のものだけが映る
 
 #### 負荷試験
 
@@ -593,6 +622,7 @@ UPDATE_EVENT_SAMPLES=true ./gradlew :services:quiz-service:test --tests '*QuizEv
 - 技術選定・設計判断は必ず [ADR](adr/) に残す。運用ルールは [docs/adr/README.md](adr/README.md) を参照
 - 記録対象は「後から変更するのが高くつく決定」に限定する。ライブラリの細かな選択は対象外
 - セキュリティの対策と残るリスクは、[セキュリティレビュー](security-review.md)に OWASP Top 10 の観点ごとにまとめている。認証や公開の範囲を変えたら、該当する観点を見直す
+- クイズの中身（デモのテナントと、自分で作ったテナント）は、[クイズの書き方](content-guide.md)に従って書く。置き場所と流し込み方は [ADR-0034](adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)
 
 ## 7. ローカル開発
 
@@ -647,6 +677,35 @@ CORS の設定は要らない。中継先は `API_ORIGIN` で変えられる（�
 同じイメージを環境ごとに使い回すため。
 AWS では Amplify Hosting がソースからビルドする。SSR の実行時には環境変数が渡らないため、
 ビルドの中で `.env.production` に書き出す（[ADR-0012](adr/0012-serve-frontend-on-amplify-hosting.md)）。
+
+### モバイルアプリ
+
+`apps/mobile` は Expo（managed）の一般ユーザー向けアプリ（[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。
+**API Gateway を直接呼ぶ**ため、ローカルの一式ではなく dev につなぐ。ログインも dev の Cognito（アプリ用のクライアント）を使う。
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env   # 値は infra/terraform/envs/dev の terraform output から（.env.example）
+pnpm --filter mobile start                     # i で iOS のシミュレータの Expo Go に開く
+```
+
+- iOS のシミュレータには Xcode が要る。シミュレータに合う版の Expo Go は、Expo の CLI が入れる
+- Expo Go の戻り先は `exp://127.0.0.1:8081/--/auth/callback`。Cognito に登録してあるのはこれと `quizapp://` だけで、**実機の Expo Go からはログインできない**（LAN の IP が戻り先になる）
+- dev の quiz-service が止まっていると（[ECS](#ecsquiz-service)）、API は 500 か 503 を返す。起こしてから使う
+- **Expo の SDK は、公開から 7 日たった版を使う**（`minimumReleaseAge`）。SDK と同時に出る React Native の版も同じ。上げるときは、`pnpm --filter mobile exec expo install --check` で SDK が求める版を確かめる
+- React の型（`@types/react`）は web と同じ版にする。Amplify は依存を 1 か所にまとめて入れるため（`nodeLinker: hoisted`）、版が違うと web のビルドが型の食い違いで落ちる
+
+**解説の規則は web と同じ**（DEV-175）。生の HTML は文字として出し、画像は解説図（`figure:`）だけを出す。
+
+- 何を出してよいかは `lib/markdown.ts` が決める。web と同じパーサ（remark と GFM、改行）で構文木にし、出してよいものだけを画面の部品に渡す。
+  部品（`components/markdown.tsx`）は、渡されたものを写すだけにする。性質は `markdown.test.ts` が、web の `markdown.test.tsx` と同じ観点で確かめる
+- リンクにするのは `http:`、`https:`、`mailto:` と図だけ。web はブラウザが相対の URL を解決するが、アプリには解決する先がない
+- **図は、API をトークン付きで呼び、署名付き URL へのリダイレクトをたどって中身を取る**（`followFigure`）。画像の部品はトークンを付けられない
+- **SVG は WebView の中で `<img>` として描く**（`lib/svg.ts`）。draw.io の SVG は HTML のラベルを `foreignObject` で持ち、SVG を自前で描くライブラリでは描けない。
+  WebView の JavaScript は切り、配信のときと同じ CSP を付ける。PNG と JPEG は、React Native の画像の部品で描く
+- 図を押すと、図そのもの（PDF なら PDF）をシステムのブラウザの画面で開く。`HEAD` でリダイレクトをたどり、署名付き URL だけを取る。PDF を開く前に、中身まで落とさない
+- 中断した挑戦は、テナントのトップと出題の条件の画面から続きを解ける。web で始めたものも出る（DEV-176）。
+  方式（学習 / 模試）はサーバーに保存しないため、アプリで始めた挑戦に限り、端末（`expo-secure-store`）に覚える。ほかは学習モードで再開する
+- web にあってアプリにないもの: テンポモード、出題対象（間違えた問題など）の選択、あとで見直す印、間違えた問題の解き直し、学習の記録（連続日数とカレンダー）、ランキング
 
 ### コンテナイメージ
 
@@ -729,19 +788,37 @@ Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SEC
 
 | 種類 | `demo`（デモ） | `geo-club`（地理の勉強会） |
 | --- | --- | --- |
-| カテゴリ | AWS / インフラ、認証認可、イベント駆動設計、Web アプリの技術スタック、AWS の最新情報（AI の下書きの入れ先。シードではクイズを入れない） | 世界の首都 |
-| 難易度 | カテゴリごとに体系が異なる。AWS は同じレベルに SAA / DVA が並ぶ | 1 つ |
-| クイズ | 公開 11 問（各カテゴリの見本）、下書き 1 問。解説は Markdown（箇条書き・表・コード） | 公開 3 問 |
+| カテゴリ | AWS の最新情報（AI の下書きの入れ先。シードではクイズを入れない） | 世界の首都 |
+| 難易度 | 1 つ（ニュース） | 1 つ |
+| クイズ | なし。**デモのクイズは、デモのパック（`content/demo/`）から流す**（[クイズのパック](#クイズのパック)） | 公開 3 問 |
+
+デモのパックは、一般教養と図解のクイズ（世界の地理、身近な科学、図形とひらめき、日本と世界の歴史、ことばの由来、宇宙と天気）。
+6 カテゴリ・42 問で、どのカテゴリにも図の入った問題がある。難易度はどれも「やさしい / ふつう / むずかしい」。
+ローカルでは、E2E（と画面の撮影）を流すと、テストの前にデモのテナントへ流れる。手で流すときは [クイズのパック](#クイズのパック) の手順で流す。
+
+以前のシードが入れた技術のカテゴリ（AWS / インフラ、認証認可、イベント駆動設計、Web アプリの技術スタック）は、すでに入っている DB では、配下の難易度とクイズごとゴミ箱へ移す（DEV-188）。
 
 2 つ目のテナントは、テナントの選択と、テナントごとにロールが違うことを見せるためにある。
 利用者は所属の数が 0 / 1 / 2 の 3 人で、`/` の出し分けをすべて試せる（[最初の管理者](#最初の管理者)の表）。
 **シードの利用者のままではログインできない。** 使うときは、自分のメールアドレスを割り当てる（[最初の管理者](#最初の管理者)）。
 
 ほかに、スモークテスト専用のテナント `smoke` と、その管理者が入る（`db/smoke/R__smoke_data.sql`）。
-**デモのシードとは置き場所を分けている**（DEV-133）。prod は `smoke` のプロファイル（`prod,smoke,migrate`）で、これだけを入れる（`application-smoke.yml`）。
-dev は `dev` のプロファイルで、デモのシードと両方を入れる。
+**デモのシードとは置き場所を分けている**（DEV-133）。dev は `dev` のプロファイルで、デモのシードと両方を入れる。
 管理者はメールアドレス（`smoke@example.com`）だけで登録してあり、同じアドレスの Cognito の利用者（Terraform が作る）が最初にログインしたときに結び付く。
 カテゴリやクイズはテストが作って消すため、シードでは入れない。
+
+**デモのテナントの土台は、dev と prod の両方に入れる**（`db/demo/R__demo_base.sql`。DEV-191）。デモのテナント、共有のデモのアカウント、デモのテナントの管理者（運用者）だけを入れる。
+dev だけのもの（2 つ目のテナント、所属の数を試す利用者、AI の受け箱）は `db/seed/R__demo_data.sql` に残す。Flyway の repeatable は説明の順に流れ、土台（demo base）が先に流れる。
+
+| 環境 | プロファイル | 入るもの |
+| --- | --- | --- |
+| dev | `dev,migrate` | デモのシード、デモのテナントの土台、スモークテストのテナント（`application-dev.yml`） |
+| prod | `prod,smoke,demo,migrate` | デモのテナントの土台、スモークテストのテナント（`application-demo.yml`） |
+
+**複数のプロファイルが `spring.flyway.locations` を書くと、後のプロファイルが上書きする**（足し合わされない）。そのため、`demo` のプロファイルは `smoke` の分も持ち、`smoke` より後に並べる。
+
+デモのテナントの管理者（運用者）は、メールアドレスだけで登録してある。同じアドレスで Cognito にサインアップし、最初にログインしたときに結び付く（[最初の管理者](#最初の管理者)）。
+デモのパックは、この管理者のトークンで流す（[クイズのパック](#クイズのパック)）。
 
 **見に来た人が試すための、共有のデモのアカウント**（`demo@example.com`）も入る（DEV-104）。デモのテナントの一般ユーザーで、クイズは変えられない。
 スモークテストの管理者と同じく、メールアドレスだけで登録してあり、同じアドレスの Cognito の利用者（Terraform が作る）が最初にログインしたときに結び付く。
@@ -750,6 +827,47 @@ dev は `dev` のプロファイルで、デモのシードと両方を入れる
 
 同じ内容を何度流しても増えない。repeatable マイグレーションは**内容を変えるたびに再実行される**ため、
 識別子を固定して `ON CONFLICT DO NOTHING` で入れている。
+
+### クイズのパック
+
+クイズは、図ごと「パック」にまとめて、アプリの API で流し込む（[ADR-0034](adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)、DEV-186）。
+書き方は[クイズの書き方](content-guide.md)にある。
+
+```
+<パック>/pack.json            カテゴリと難易度
+<パック>/quizzes/*.json        クイズの配列（一括取り込みの JSON と同じ項目）。ファイルの分け方は自由
+<パック>/figures/<名前>.drawio と <名前>.svg
+```
+
+解説の中では、図をファイルの名前で指す（`![代替テキスト](figure:tcp-handshake)`）。名前は小文字・数字・ハイフン。
+
+**draw.io のラベルは、HTML にしない**（スタイルに `html=1` を付けない。改行は `&#xa;`）。HTML のラベルは、SVG に代わりの PNG が入り、1 枚が 150〜250 KB になる。文字のラベルなら 5 KB ほど。
+書き出しは明るい配色に固定し（`--theme light`）、フォントは埋め込まない（`export-svg.sh`）。
+
+```bash
+tools/content/export-svg.sh <パック>       # .drawio を SVG に書き出す（draw.io のデスクトップのアプリが要る）。SVG も commit する
+
+cd infra/terraform/envs/dev
+export ACCESS_TOKEN=$(../../../../tools/content/token.sh <自分のメールアドレス>)   # パスワードを聞かれる。トークンの期限は 1 時間
+cd -
+
+node tools/content/load.ts <パック> --api http://localhost:8080 --tenant <slug> --dry-run   # 何を作るかだけを出す
+node tools/content/load.ts <パック> --api "$(cd infra/terraform/envs/dev && terraform output -raw quiz_service_url)" --tenant <slug>
+```
+
+- **流すのは、そのテナントの管理者。** 自分の Cognito の利用者でトークンを取る（スモークテストと同じ `InitiateAuth`）。パスワードは画面に出さず、トークンはファイルに残さない
+- ローカルの API も、dev の Cognito のトークンを受け付ける。ローカルに流すときも、同じトークンでよい
+- カテゴリと難易度がなければ作る。図は、原本（`.drawio`）が同じ図があれば使い回す
+- **クイズは、カテゴリと問題文が同じものを入れない。** 何度流しても増えない。問題文を直すと、別の問題として入る
+- `--update`: あるクイズのうち、パックと違うもの（解説、選択肢、難易度、状態）をパックのとおりに直す。付けなければ、画面で直したものを上書きしない
+- `--prune`: パックのカテゴリにあって、パックにないクイズを消す（ゴミ箱に入る）
+- 作ったものは、作ったそばからログに出す。途中で止まっても、どこまで入ったかが分かる。流し直せば、残りだけが入る
+- 図の作成と一括取り込みは、利用者ごとの流量の上限（重い操作は 1 分に 20 件）に掛かる。429 が返ると `Retry-After` の秒だけ待ってやり直す
+- **dev のデモのパックを変えたら、マージのあとに手で流す。** デプロイでは流さない（CI に管理者のトークンを持たせないため。ADR-0034）。
+  デモは見に来た人が見るものなので、`--update --prune` を付けて、パックと同じ状態にする
+- E2E と画面の撮影は、テストの前に、ローカルのデモのテナントへデモのパックを流す（`tests/e2e/support/demo-pack.ts`）。パックに誤りがあれば、ここで止まる
+- 自分で作ったテナントには、クイズと図の数に上限がある（ADR-0028）。上げるときは [Runbook](runbook.md#テナントの上限を変える)
+- 依存を持たない。Node が型を消してそのまま動かす（`node --test 'tools/content/*.test.ts'` でテストを流す）。コンストラクタの引数でフィールドを作る書き方など、型を消すだけでは動かない書き方は使えない
 
 ### 認証
 
@@ -773,7 +891,7 @@ WHERE user_id = '67d6db5a-9721-5d2e-b6ca-c39b2a9ba1ab';
 ```
 
 バックエンドが確かめるのは、署名（発行者の JWKS）、発行者、期限、アクセストークンであること（`token_use`）、
-web のクライアントに発行されたこと（`client_id`）。Spring Security のリソースサーバーは使わず、JWT の検証の部品だけを使う。
+web かモバイルアプリのクライアントに発行されたこと（`client_id`。[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。Spring Security のリソースサーバーは使わず、JWT の検証の部品だけを使う。
 フィルタが前に立つと、401 の応答がアプリの形（RFC 9457）にならず、認可の判定も二重になるため（`auth/AccessTokens.kt`）。
 
 同じメールアドレスの利用者が、すでに別の Cognito の利用者に結び付いているときは、401 で拒否する（Cognito で利用者を作り直したときなど）。
@@ -808,6 +926,7 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 | デモ利用者 | `957d085e-3b87-5fa7-9283-5eb6229216b1` | `demo`（一般ユーザー） |
 | デモ未所属 | `7918a5c2-30ee-56c8-b76c-57c6a79774e3` | なし |
 | デモのアカウント | `0b66aaf5-727d-5da9-bf87-6756dff5b046` | `demo`（一般ユーザー）。Cognito の `demo@example.com` が最初にログインしたときに結び付く |
+| 運用者 | `d3c1f1a2-6b0e-5f4c-9a7d-2e8b5c4f1a90` | `demo`（管理者）。dev と prod の両方に入る（`db/demo`）。同じアドレスの利用者がすでにいれば、その利用者が管理者になる |
 
 #### 招待
 
@@ -840,7 +959,11 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 - ログインが要る画面（`/t/...`、`/invitations/...`）を未ログインで開くと、proxy が**開こうとしたパスとクエリ**を戻り先にしてログインへ移す。
   レイアウトは開いているパスを知らないため、そこで戻り先を決めると、テナントのトップにしか戻せない
 
-`/` は所属テナントの数で出し分ける（0 件: 招待を受けていない旨と、公開テナントの一覧（`/tenants`）への案内 / 1 件: そのテナントへ / 2 件以上: 選択画面）。
+`/` は、ログインしていなければアプリの説明と 2 つの入口（「デモとして入る」と、アカウントを作ってテナントの作成へ向かう「管理を試す」）を出す（DEV-193。`components/landing/landing.tsx`）。
+画面の例の画像は README と同じもので、撮影のスクリプトが `apps/web/src/assets/screenshots/` にも写す（[README の画面](#readme-の画面)）。
+リンクを共有したときのカード（OGP、Twitter）とアイコンは、ルートのレイアウトの metadata と `src/app/` の画像で出す（DEV-194）。**すべての画面で同じもの**を出し、ログインが要る画面を貼られても、取りに来た側はログインの画面へ移されて中身は出ない。
+カードの画像は絶対 URL が要るため、`metadataBase` を要求のヘッダから決める（`originOf`。ログインの戻り先と同じ決め方）。画像は `pnpm --filter e2e web-images` で、README の画面の画像と `icon.svg` から作る。
+ログインしていれば、所属テナントの数で出し分ける（0 件: 招待を受けていない旨と、公開テナントの一覧（`/tenants`）への案内 / 1 件: そのテナントへ / 2 件以上: 選択画面）。
 所属の一覧はブラウザから取る。サーバーで取ると、proxy 以外でもトークンを付けることになる。
 
 **管理画面は、入口で管理者かどうかを見る**（`components/admin/admin-guard.tsx`）。管理者でなければ中身を描かず、案内を 1 つ出す。
@@ -957,6 +1080,11 @@ README のデモの URL（dev の web）だけは、見に来た人が開くた�
 - 見に来た人が試すための、共有のデモのアカウント（`demo@example.com`）も同じ。**パスワードは公開する前提**で、`terraform output -raw demo_user_password`。web にも渡し、「デモとして入る」で使う（[フロントエンド](#フロントエンド)）。
   README に載せている。パスワードを作り直したら、README も直す。
   `example.com` は誰も受け取れないので、パスワードを忘れた人の手続き（確認コード）で乗っ取られることはない
+- **モバイルアプリ（`apps/mobile`）のクライアントは、web とは別に置く**（[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。シークレットを持たず、PKCE でコードを受ける。
+  戻り先はアプリのスキーム（`quizapp://`）と、Expo Go をシミュレータで動かすときの `exp://127.0.0.1:8081/--/`（`envs/dev` の `mobile_app_url_prefixes`）。空なら作らない（prod）
+  - クライアントの ID は `terraform output -raw auth_mobile_client_id`。アプリのビルドに渡す。バックエンドには、タスク定義の環境変数 `AUTH_MOBILE_CLIENT_ID` で渡る
+  - Managed Login でパスキーを選ばせるため、`ALLOW_USER_AUTH` を許している。シークレットがないので、API からもパスワードの認証を呼べる。できることは Managed Login と変わらない
+  - トークンは端末に置かれ、利用者がスコープ `aws.cognito.signin.user.admin` で自分の属性を書き換えられる。メールアドレスは確認するまで替わらず、バックエンドは確認済みのものしか使わない
 - E2E テストの利用者（`e2e-*@example.com` の 4 人）も同じ。パスワードは全員で共通で、`terraform output -raw e2e_user_password`（[E2E テスト](#e2e-テスト)）
 
 Managed Login の画面は、web をつながなくても開ける。ログインのあとは `redirect_uri` に戻る（開いていなければエラーの画面になるが、ログインはできている）。
@@ -1023,7 +1151,7 @@ TF_VAR_github_access_token=<トークン> terraform apply
 `modules/quiz-service` で作る。入口は API Gateway の HTTP API で、ロードバランサーは置かない（[ADR-0019](adr/0019-expose-api-through-api-gateway-http-api.md)）。
 
 ```
-インターネット → API Gateway（HTTPS、api.dev.<ドメイン>）→ VPC リンク → quiz-service（Fargate / arm64 / 0.5 vCPU・1 GB）→ Aurora（IAM 認証）
+インターネット → API Gateway（HTTPS、api.dev.<ドメイン>）→ VPC リンク → quiz-service（Fargate Spot / arm64 / 0.25 vCPU・1 GB）→ Aurora（IAM 認証）
 ```
 
 - API Gateway は、ECS が Cloud Map に登録したタスクを引き、VPC リンクから直接送る。ポートまで引けるように SRV レコードで登録している
@@ -1054,6 +1182,12 @@ TF_VAR_github_access_token=<トークン> terraform apply
 - ログは CloudWatch Logs の `/ecs/quiz-app-dev/quiz-service`（`app/` と `migrate/`）。JSON で出し、14 日で消える（[ログ](#ログquiz-service)）
 - タスクには、分散トレースのコレクタ（`otel-collector`、メモリ 128 MB まで）も入る（[分散トレース](#分散トレース)）
 - 起動に失敗したら、前のタスク定義に自動で戻る（デプロイサーキットブレーカー）
+- **dev のサービスは Fargate Spot で動かす**（DEV-182。`fargate_spot`）。prod は Fargate のまま
+  - AWS が容量を取り戻すときは、2 分前に知らせてタスクを止める（`stopCode` は `SpotInterruption`）。サービスが新しいタスクを Spot で起こし、使えるまで API は止まる。
+    タスクの停止のアラームは鳴らない（[アラーム](#アラーム)）
+  - Spot の容量が取れなければ、取れるまで起こせない。Fargate へは逃がさない。続くようなら、サービスの `capacity_provider_strategy` を `FARGATE` に替える（クラスタには両方を結び付けてある）
+  - **マイグレーションの単発タスクは Fargate で流す**（`deploy-quiz-service.sh` の `--launch-type FARGATE`）。途中で止められると、どこまで流れたかが分からなくなる
+  - Fargate と Spot を切り替える apply は、サービスの新しいデプロイを伴う（`force_new_deployment`）。動いているタスク定義のまま入れ替わる
 - **使われなくなったら止める**（DEV-153。`idle_stop.tf`）。API への要求が 30 分ないと、CloudWatch のアラーム（`quiz-app-dev-quiz-service-idle`）が ALARM になり、
   EventBridge から Step Functions がタスクの数を 0 にする。入れ替えの途中（デプロイ）なら止めない。朝に戻すことはせず、使うときに起こす。
   **起動してから 30 分たっていないタスクは、すぐには止めない。** 残りの時間だけ待ち、アラームがまだ ALARM なら止める。
@@ -1065,11 +1199,12 @@ TF_VAR_github_access_token=<トークン> terraform apply
 - 使われていないアラームは、通知につないでいない。ALARM がふつうの状態で、異常ではない。止めたかどうかと理由は、Step Functions のログ（`/aws/vendedlogs/states/quiz-app-dev-quiz-service-idle-stop`）に出る
 
 止まっている間に使うときは、画面の「サーバーを起動する」を押す（DEV-154。`wake.tf`）。止まっているときの案内（`ApiErrorAlert`）の中に出る。
-API が使えるまで約 2.5 分かかる（DEV-153 で測った）。使い終わって 30 分たつと、また止まる。
+API が使えるまで 1.5〜2 分かかる（DEV-182 で、0.25 vCPU の Spot で 2 回測り、85 秒と 122 秒。Spring の起動が 46 秒と 81 秒で、ばらつく）。使い終わって 30 分たつと、また止まる。
 
 ```
 画面「サーバーを起動する」→ web の proxy（アクセストークンを付ける）→ API Gateway の POST /api/wake
   → JWT の認可（Cognito。発行者と web のクライアント）→ Step Functions → 止まっていれば ECS の UpdateService（タスク数 1）
+                                                                        と、Aurora に SELECT 1（Data API）を同時に
 画面は 10 秒おきに /api/me/tenants を読み、バックエンドに届いたら読み込みをやり直す（5 分で諦める）
 ```
 
@@ -1078,6 +1213,11 @@ API が使えるまで約 2.5 分かかる（DEV-153 で測った）。使い終
 - 何度押されても、タスクは 1 つより増えない。流量の上限はほかの API より低い（1 件/秒、バースト 5）
 - 起こす口は dev にだけある。ローカルと prod でボタンを押すと、「起動できませんでした」と出る
 - 電話から起こすとき（DEV-152）も、同じステートマシンを呼ぶ
+- **Aurora も一緒に起こす**（DEV-181）。アプリは起動のときに DB へつながないため、起こさないと、タスクが使えるようになってからの最初の要求で、Aurora の復帰（15〜20 秒）を待つ。
+  タスクの起動を待つ間に、復帰が済む
+  - Data API はマスターのシークレットで接続する。ロールが送れる先は dev のクラスタだけで、送る SQL（`SELECT 1`）は定義に固定してあり、外から渡せない
+  - 一時停止中は `DatabaseResumingException` が返るが、復帰は始まる。ほかの失敗でもタスクは起こし、理由は起こす手順のログに残る
+  - デプロイが起こすときは、Aurora を起こさない。マイグレーションがあればそれが起こし、無くてもスモークテストの最初の 1 本が待つだけで、人は待たない
 
 手で起動するときは、次のコマンドを使う。
 
@@ -1253,7 +1393,7 @@ fields @timestamp, message, news_quizzes.imported, news_quizzes.discarded
 
 - **API Gateway の 5xx の率は使わない。** 止まっている間は、送り先のタスクがなく 500 か 503 が返る。アプリの 5xx と、API Gateway の 502 / 504 を分けて数え、500 と 503 は数えない。昼にタスクがなくなったことは、タスクの停止で分かる
 - 止まっている Aurora の復帰が 30 秒を超えると、504 が 1 回出て画面が再試行する。5 分で 3 回からにして、これでは鳴らさない
-- タスクの停止は、ECS が自分で止めたもの（デプロイの入れ替え、使われていないときと夜間の停止）とマイグレーションの単発タスクを除く。絞り込みは、本物の EventBridge で確かめた（`aws events test-event-pattern`）
+- タスクの停止は、ECS が自分で止めたもの（デプロイの入れ替え、使われていないときと夜間の停止、dev の Spot の中断）とマイグレーションの単発タスクを除く。絞り込みは、本物の EventBridge で確かめた（`aws events test-event-pattern`）
 - データが無い時間（使われていない、夜間）は、異常とみなさない
 - Outbox の閾値は、拾い直しが動く時間（利用者が DB を使ってから 5 分）より短くする。長いと、測れないうちに拾い直しが止まる
 
@@ -1698,11 +1838,12 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | web / API / 図 | `dev.<ドメイン>` / `api.dev.<ドメイン>` / `figures.dev.<ドメイン>` | `quiz.<ドメイン>` / `api.quiz.<ドメイン>` / `figures.quiz.<ドメイン>` |
 | VPC | `10.0.0.0/16` | `10.1.0.0/16` |
 | Aurora | 止まるまで 30 分、バックアップ 1 日、削除保護なし | 止まるまで 15 分、バックアップ 7 日、削除保護と最終スナップショット |
-| ECS | 0.5 vCPU / 1 GB。使われなくなったら止める（深夜 2:00 にも止める） | 0.25 vCPU / 1 GB。夜間も止めない。公開までは止めてある |
+| ECS | 0.25 vCPU / 1 GB、Fargate Spot。使われなくなったら止める（深夜 2:00 にも止める） | 0.25 vCPU / 1 GB。夜間も止めない。公開までは止めてある |
 | ログ | 14 日 | 30 日 |
 | 消した図を残す日数 | 7 日 | 14 日 |
-| Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテストだけ |
-| シード | デモとスモークテスト（`dev`） | スモークテストだけ（`prod,smoke`） |
+| Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテスト、デモ |
+| シード | デモ、デモのテナントの土台、スモークテスト（`dev`） | デモのテナントの土台、スモークテスト（`prod,smoke,demo`） |
+| AI の下書き（news-quiz-drafter） | 動かす | 動かさない。デモの「AWS の最新情報」は、prod では作らない |
 | Amplify のブランチ | `develop` | `main` |
 
 - **apply は main から行う。** prod には、リリースしたものと同じ形だけを流す
@@ -1716,7 +1857,9 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 
 - **リリースすると、止めていても 1 つ起動する。** スモークテストで確かめるため、デプロイが起動してから載せる（[デプロイ](#デプロイ)）。公開までは、リリースのあとに 0 に戻す
 - 止めている間、API は API Gateway が 500 を返す（送り先のタスクがない）。web は Amplify にあるので開ける
-- 止めている間も続く費用は、月に 1〜2 ドル（Cloud Map のホストゾーン、Secrets Manager、Aurora のストレージ、ECR のイメージ）。Aurora は使われなければ 60 分で一時停止する
+- 止めている間も続く費用は、月に 1〜2 ドル（Cloud Map のホストゾーン、Secrets Manager、Aurora のストレージ、ECR のイメージ）。Aurora は使われなければ 15 分で一時停止する
+- **デモは、シードが土台（テナント、共有のデモのアカウント、運用者）を入れ、クイズはデモのパックを流して入れる**（DEV-191）。手順は [Runbook](runbook.md#prod-のデモにパックを流す)。
+  共有のデモのアカウントのパスワードは `terraform output -raw demo_user_password`（公開する前提。README に載せる）
 
 #### state のバケットを作り直すとき
 
@@ -1732,6 +1875,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 - NAT Gateway も VPC Endpoint も使わず、ECS のタスクをパブリックサブネットに置く（[ADR-0013](adr/0013-run-ecs-tasks-in-public-subnets.md)）
   - どちらもタスクを止めても課金が続き、Endpoint は必要な本数 × AZ 数で NAT Gateway より高くなる
   - タスクへの受信は SecurityGroup の参照だけで許し、CIDR では開けない。外からの入口は API Gateway の VPC リンクだけ
+  - タスクを IPv6 だけで動かし、パブリック IPv4（1 時間 0.005 ドル）をなくす案は、試して見送った（DEV-183。ADR-0013 の追記）。API Gateway の VPC リンクが、IPv6 だけのタスクに届かない
 - Aurora Serverless v2 は **min 0 ACU**（自動一時停止）を採用。一時停止中はストレージ料金のみ
   - 前提: PostgreSQL 16.3 以降 / 無活動時間は 5 分〜24 時間で設定可（dev は 30 分）/ 復帰に約 15 秒
   - **dev は、最後の接続が切れてから 30 分で一時停止する**（DEV-89）。以前は 5 分で、画面を読んだり解説を書いたりしている間に止まり、
@@ -1761,6 +1905,10 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
   - 止めるのは、要求が 30 分ないとき。画面を読んだり解説を書いたりしている間に止まらない長さ（Aurora の一時停止と同じ）
   - Lambda は挟まず、Step Functions から ECS の UpdateService を直接呼ぶ。判断は「デプロイの途中なら止めない」「起動したばかりなら待ってから確かめ直す」だけで、コードを書くほどではない
   - 止まっている間にデプロイしたときは、デプロイが起動する。載せたものが動くかを確かめるため
+- dev の ECS タスクは、0.25 vCPU の Fargate Spot で動かす（DEV-182）。止まっても困らないため
+  - 1 時間あたり、0.5 vCPU の Fargate（0.0246 ドル）から、0.25 vCPU の Fargate（0.0145 ドル）、さらに Spot の割引（最大 7 割）で 0.005 ドル前後になる見込み。
+    Spot の単価は公開の価格表（Price List API）に載らない。実際の単価は、請求の使用タイプ `APN1-SpotUsage-Fargate-ARM-*` で確かめる
+  - Spring の起動は 0.5 vCPU の約 45 秒から、46〜81 秒に延びた。起こしてから API が使えるまでは 85〜122 秒（2 回測った）。待つのは、起こしたときとデプロイのときだけ
 
 止めても課金が続くものがある。dev の月額の目安（東京リージョン、1 か月 730 時間）。
 
@@ -1777,7 +1925,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | アラームとダッシュボード（CloudWatch のアラーム 7 つ、メトリクスフィルタのメトリクス 4 つ、ダッシュボード 1 つ、SNS） | ほぼ 0。アラーム 10 個とメトリクス 10 個までは無料枠。超えるとアラーム 1 つ 0.1 ドル、メトリクス 1 つ 0.3 ドル | 続く |
 | Route 53 のホストゾーン | 0.5 ドル。このアプリ以外のレコードと共有 | 続く |
 | Aurora のストレージ、ECR のイメージ | GB あたり 0.12 ドル / 0.10 ドル。どちらも数 GB 以下 | 続く |
-| ECS のタスク（0.5 vCPU / 1 GB、arm64） | 動いている時間だけ。1 時間 0.0246 ドル（常時なら月に約 18 ドル） | 止まる |
+| ECS のタスク（0.25 vCPU / 1 GB、arm64、Fargate Spot） | 動いている時間だけ。Fargate なら 1 時間 0.0145 ドル。Spot は需給で変わり、最大 7 割引（1 時間 0.005 ドル前後の見込み） | 止まる |
 | タスクのパブリック IPv4 | 動いている時間だけ。1 時間 0.005 ドル（常時なら月に約 3.7 ドル） | 止まる |
 | 使われていないときに止める（アラーム、EventBridge、Step Functions） | ほぼ 0。Step Functions は、アラームが鳴ったときに 1 回動くだけ（状態の遷移 1,000 回あたり 0.025 ドル） | 続く |
 | Aurora の ACU | 使った分だけ（1 ACU 時 0.15 ドル） | 一時停止すれば 0 |
@@ -1796,7 +1944,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
   | 合計 | 約 24〜27 ドル | 約 17〜18 ドル |
 
   - **dev と合わせて約 27〜32 ドル。** 予算（月 30 ドル）は変えず、超えた月は予算の通知で気づく。dev が多く起きている月は超えうる
-  - 0.25 vCPU では、起動が遅くなる（dev の 0.5 vCPU で約 45 秒）。起動するのはリリースのときだけで、ヘルスチェックの猶予（180 秒）に収まる
+  - 0.25 vCPU では、起動が遅くなる（Spring の起動は、dev の 0.5 vCPU で約 45 秒、0.25 vCPU で 46〜81 秒）。起動するのはリリースのときだけで、ヘルスチェックの猶予（180 秒）に収まる
   - 採らなかったもの: 予算を上げる（構成で下げられるうちは下げる）、prod も使われなくなったら止める（見に来た人が最初に待つ）、Fargate Spot（止められると、タスクが 1 つのため使えなくなる）
 - **予算は月 30 ドル。** 実績が 85% と 100% を超えたとき、月末の予測が 100% を超えたときにメールで届く
   （`infra/terraform/account`）。通知先は公開リポジトリに載せないため、`terraform.tfvars`（Git の管理外）で渡す

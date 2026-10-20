@@ -1,0 +1,8 @@
+# デモのテナントの土台（db/demo）を入れる（DEV-191）。prod は prod,smoke,demo,migrate で流す。
+# dev のデモのシード（db/seed）は入れない。dev は application-dev.yml が db/demo も入れる。
+#
+# 複数のプロファイルが locations を書くと、後のプロファイルが上書きする（足し合わされない）。
+# smoke より後に並べ、スモークテストのテナント（db/smoke）もここに書く
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/smoke,classpath:db/demo

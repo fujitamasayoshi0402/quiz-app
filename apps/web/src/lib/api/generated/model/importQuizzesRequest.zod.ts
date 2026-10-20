@@ -25,6 +25,7 @@ export const ImportQuizzesRequest = zod.object({
   "category": zod.string(),
   "choices": zod.array(zod.object({
   "body": zod.string().min(importQuizzesRequestQuizzesItemChoicesItemBodyMin).max(importQuizzesRequestQuizzesItemChoicesItemBodyMax),
+  "id": zod.uuid().nullish().describe('更新のとき、直す前の選択肢の ID。ID を保ち、選ばれた数を引き継ぐ（DEV-170）。省くか、このクイズにない ID なら新しい選択肢になる。作成と取り込みでは使わない'),
   "isCorrect": zod.boolean().optional()
 })).optional(),
   "difficulty": zod.string(),

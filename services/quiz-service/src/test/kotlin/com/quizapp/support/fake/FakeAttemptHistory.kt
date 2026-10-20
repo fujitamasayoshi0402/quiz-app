@@ -5,6 +5,8 @@ import com.quizapp.answer.domain.AttemptHistoryQuery
 import com.quizapp.answer.domain.CompletedAttempt
 import com.quizapp.quiz.domain.DeliveryScope
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 
 /**
@@ -46,6 +48,11 @@ class FakeAttemptHistory : AttemptHistoryQuery {
         .take(limit)
 
     override fun findLatestResults(userId: UUID): Map<UUID, Boolean> = latestResults.toMap()
+
+    /** 日ごとの回答の数。日の区切りは API テストが見る */
+    val answersByDay = mutableMapOf<LocalDate, Int>()
+
+    override fun countAnswersByDay(userId: UUID, zone: ZoneId): Map<LocalDate, Int> = answersByDay.toMap()
 
     private companion object {
         const val TOTAL_COUNT = 10

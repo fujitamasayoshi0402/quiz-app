@@ -52,6 +52,7 @@ SELECT id AS tenant_id FROM core.tenants WHERE slug = 'e2e' \gset
 DELETE FROM answer.attempts WHERE tenant_id = :'tenant_id';
 DELETE FROM answer.ranking_entries WHERE tenant_id = :'tenant_id';
 DELETE FROM answer.bookmarks WHERE tenant_id = :'tenant_id';
+DELETE FROM answer.review_schedules WHERE tenant_id = :'tenant_id';
 DELETE FROM quiz.quizzes WHERE tenant_id = :'tenant_id';
 DELETE FROM quiz.difficulties WHERE tenant_id = :'tenant_id';
 DELETE FROM quiz.categories WHERE tenant_id = :'tenant_id';

@@ -9,8 +9,10 @@
 所属したテナントからは、自分で退会できます。退会すると、そのテナントでの回答の履歴も消えます（[ADR-0030](docs/adr/0030-let-members-leave-tenant-and-erase-their-history.md)）。
 解説は Markdown で書き、draw.io の図・画像・PDF を入れられます。
 ログインにはパスキー（WebAuthn）とパスワードを使えます。
+一般ユーザー向けには、同じ API を使うモバイルアプリ（Expo）もあります。出題と回答、解説（図を含む）、履歴、続きから解くことができます（[ADR-0032](docs/adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。
 
-デモ用のデータとして、技術系のクイズ（AWS / インフラ、認証認可、イベント駆動設計、このアプリが使っている技術）を収録しています。
+デモ用のデータとして、図解の多い一般教養のクイズ（世界の地理、身近な科学、図形とひらめき、日本と世界の歴史、ことばの由来、宇宙と天気）を収録しています。
+クイズは図ごと「パック」（[`content/demo/`](content/demo/)）にまとめ、アプリの API で流し込みます（[ADR-0034](docs/adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)）。
 さらに、公式の技術ニュース（AWS の What's New）から AI（Amazon Bedrock）が毎日クイズの下書きを作り、管理者が確かめて公開したものだけが出題されます
 （[ADR-0031](docs/adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）。
 
@@ -18,7 +20,7 @@
 
 ## デモ
 
-**https://dev.portfolio-masayoshi.click** で、デモのテナントのクイズを解けます。ログインの画面の「**デモとして入る**」を押すと、アカウントを作らずに共有のアカウントで入れます。
+**https://dev.portfolio-masayoshi.click** で、デモのテナントのクイズを解けます。トップの「**デモとして入る**」を押すと、アカウントを作らずに共有のアカウントで入れます。
 
 ログインの画面（Amazon Cognito）から入るときは、次の共有のアカウントを使ってください。
 
@@ -28,7 +30,7 @@
 
 - カテゴリと難易度を選んで解き、正誤と解説、結果、回答の履歴、カテゴリごとの正答率、ランキングを見られます。途中でやめたクイズは続きから解けます
 - 「AWS の最新情報」のカテゴリには、AI が公式の発表から作り、管理者が確かめて公開した問題が入ります。解説の下に、そのことと元の発表へのリンクが出ます
-- 共有のアカウントです。回答の履歴とランキングは、見た人同士で共有されます
+- 共有のアカウントです。回答の履歴とランキング、今日の復習（忘れたころに出る問題）は、見た人同士で共有されます
 - 共有のアカウントは一般ユーザーのため、クイズの管理はできません。管理を試すときは、ログインの画面で自分のアカウントを作り（メールアドレスの確認があります）、
   「自分のテナントを作る」から、自分が管理者のテナントを作ってください。カテゴリ・難易度・クイズを作り、解説に draw.io の図や画像・PDF を入れ、招待のリンクを作れます。
   テナントは 1 人 1 つで、クイズは 100 問、図は 50 個までです
@@ -39,13 +41,23 @@
 
 ## 画面
 
-| 出題 | 正誤と解説（学習モード） |
+| デモとして入り、解いて結果を見る（スマホの幅） | AI の下書きを確かめ、直して公開する（管理者） |
 | --- | --- |
-| <img src="docs/images/play-question.png" alt="4 択の問題と選択肢" width="400"> | <img src="docs/images/play-answer.png" alt="選んだ答えの正誤と、Markdown の解説" width="400"> |
+| <img src="docs/images/demo-play.gif" alt="「デモとして入る」を押し、カテゴリを選んで解き、正誤と解説、結果を見る" width="260"> | <img src="docs/images/admin-ai-draft.gif" alt="AI が作った下書きを一覧で絞り込み、元の発表を見ながら解説を書き足して公開する" width="480"> |
 
-| 管理画面（クイズの一覧） | スマホの幅 |
+| 正誤と解説（学習モード） | 履歴とカテゴリ別の正答率 |
 | --- | --- |
-| <img src="docs/images/admin-quizzes.png" alt="カテゴリ・難易度・状態で絞り込めるクイズの一覧" width="400"> | <img src="docs/images/play-mobile.png" alt="幅 390px で表示した出題の画面" width="220"> |
+| <img src="docs/images/play-answer.png" alt="選んだ答えの正誤と、Markdown の解説" width="400"> | <img src="docs/images/history.png" alt="カテゴリごとの正答率と、間違えた問題を解き直すボタン、解いたクイズの一覧" width="400"> |
+
+| 出題（スマホの幅） | テンポモード（縦にスワイプして解く） |
+| --- | --- |
+| <img src="docs/images/play-mobile.png" alt="幅 390px で表示した 4 択の問題" width="220"> | <img src="docs/images/play-tempo.png" alt="選んだその場で正誤が出て、解説の冒頭が見える" width="220"> |
+
+| 管理画面（クイズの一覧。AI が作ったものに印が付く） | AI が作った下書きの編集 |
+| --- | --- |
+| <img src="docs/images/admin-quizzes.png" alt="下書きに絞り込んだクイズの一覧。AI が作ったものに AI の印が付く" width="400"> | <img src="docs/images/admin-ai-draft.png" alt="AI が作ったことと、確かめる観点、元の発表へのリンクが出る編集の画面" width="400"> |
+
+画面は Playwright のスクリプトで撮っています（`pnpm --filter e2e capture`。[開発ガイドライン](docs/development-guidelines.md#readme-の画面)）。
 
 ## 設計上の工夫
 
@@ -128,6 +140,7 @@ flowchart LR
 | バックエンド | Kotlin 2.3 + Spring Boot 4.1 (Java 21)、Spring Data JDBC、Flyway | [ADR-0002](docs/adr/0002-use-kotlin-and-spring-boot.md)、[ADR-0008](docs/adr/0008-use-spring-boot-4.md)、[ADR-0009](docs/adr/0009-use-spring-data-jdbc.md) |
 | フロントエンド | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui、TanStack Query、Zod | [ADR-0003](docs/adr/0003-use-nextjs-for-frontend.md) |
 | DB | Aurora PostgreSQL Serverless v2 (min 0 ACU)。アプリとマイグレーションは IAM 認証で接続 | [ADR-0014](docs/adr/0014-connect-to-aurora-with-iam-auth.md) |
+| モバイル | React Native (Expo)、Expo Router、TanStack Query、Zod。ログインはシステムのブラウザで Managed Login を開く | [ADR-0032](docs/adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) |
 | 認証 | Amazon Cognito（Managed Login、パスキー + パスワード） | [ADR-0016](docs/adr/0016-authenticate-with-cognito-managed-login.md) |
 | 実行基盤 | ECS Fargate + API Gateway（HTTP API）、Amplify Hosting（フロント） | [ADR-0012](docs/adr/0012-serve-frontend-on-amplify-hosting.md)、[ADR-0019](docs/adr/0019-expose-api-through-api-gateway-http-api.md) |
 | ファイル | S3 + CloudFront（署名付き URL） | [ADR-0017](docs/adr/0017-deliver-figures-with-cloudfront-signed-urls.md) |

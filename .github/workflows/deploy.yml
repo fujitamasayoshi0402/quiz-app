@@ -242,7 +242,7 @@ jobs:
 
       # ---- Lambda の zip を作る道具 ----
 
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
         if: steps.plan.outputs.notification == 'true' || steps.plan.outputs.drafter == 'true'
         with:
           install_args: java
@@ -353,7 +353,12 @@ jobs:
             exit 0
           fi
           echo "quiz-service が止まっているため、起こします"
-          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --desired-count 1 --query 'service.desiredCount' --output text
+          # デプロイのロールは、アプリのタスク定義を指定したときだけ UpdateService を許す（modules/deploy-role）。
+          # いま動かしているタスク定義をそのまま渡し、台数だけを変える（DEV-201）
+          TASK_DEFINITION=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --query 'services[0].taskDefinition' --output text)
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$TASK_DEFINITION" \
+            --desired-count 1 --query 'service.desiredCount' --output text
           # 届くようになると、トークンのない要求に API が 401 を返す。止まっている間は、API Gateway が 500 か 503 を返す
           url="https://${AMPLIFY_BRANCH}.${AMPLIFY_APP_ID}.amplifyapp.com/api/me/tenants"
           deadline=$((SECONDS + 600))
@@ -369,7 +374,7 @@ jobs:
         env:
           AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
 
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
         if: steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true'
         with:
           install_args: node npm:newman

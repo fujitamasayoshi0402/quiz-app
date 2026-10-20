@@ -70,7 +70,7 @@ class TenantLeavingApiTest {
     }
 
     @Test
-    @DisplayName("退会すると所属が外れ、そのテナントでの履歴とランキングへの参加と印が消える。ほかの人と、ほかのテナントの履歴は残る")
+    @DisplayName("退会すると所属が外れ、そのテナントでの履歴とランキングへの参加と印と復習の予定が消える。ほかの人と、ほかのテナントの履歴は残る")
     fun leaves() {
         solve(tenant, user)
         participate(tenant, user, "退会する人")
@@ -93,12 +93,15 @@ class TenantLeavingApiTest {
         assertThat(rows("answer.answers", tenant, user)).isZero()
         assertThat(rows("answer.ranking_entries", tenant, user)).isZero()
         assertThat(rows("answer.bookmarks", tenant, user)).isZero()
+        assertThat(rows("answer.review_schedules", tenant, user)).isZero()
         assertThat(rows("answer.attempts", tenant, neighbor)).isEqualTo(1)
         assertThat(rows("answer.ranking_entries", tenant, neighbor)).isEqualTo(1)
         assertThat(rows("answer.bookmarks", tenant, neighbor)).isEqualTo(1)
+        assertThat(rows("answer.review_schedules", tenant, neighbor)).isEqualTo(1)
         assertThat(rows("answer.attempts", other, user)).isEqualTo(1)
         assertThat(rows("answer.ranking_entries", other, user)).isEqualTo(1)
         assertThat(rows("answer.bookmarks", other, user)).isEqualTo(1)
+        assertThat(rows("answer.review_schedules", other, user)).isEqualTo(1)
     }
 
     @Test
@@ -116,6 +119,14 @@ class TenantLeavingApiTest {
         }.andExpect {
             status { isOk() }
             jsonPath("$.items.length()") { value(0) }
+        }
+        // 学習の記録（解いた日）も、回答と一緒に消えている（DEV-179）
+        mockMvc.get("/api/t/${tenant.slug}/play/history/days") {
+            header("Authorization", TestAuth.bearer(user))
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.days.length()") { value(0) }
+            jsonPath("$.streak") { value(0) }
         }
     }
 

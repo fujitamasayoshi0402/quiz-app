@@ -37,12 +37,19 @@ enum class DeliveryScope {
      * 印は本人が外すまで残る。正解しても外さない。正解したが自信がない問題にも付けるため。
      */
     BOOKMARKED,
+
+    /**
+     * 今日の復習（DEV-178）。次に出す日が今日までの問題だけを出す。尽きたらそこで終了する。
+     *
+     * 次に出す日は、回答のたびに正誤で決まる（間隔反復。ADR-0033）。間違えた問題は、その日のうちに戻ってくる。
+     */
+    REVIEW,
     ;
 
     companion object {
         fun from(value: String): DeliveryScope = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
             ?: throw IllegalArgumentException(
-                "出題対象は all / unanswered / unanswered_only / incorrect / bookmarked を指定してください: $value",
+                "出題対象は all / unanswered / unanswered_only / incorrect / bookmarked / review を指定してください: $value",
             )
     }
 }

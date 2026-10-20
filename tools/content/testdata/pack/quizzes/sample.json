@@ -1,0 +1,15 @@
+[
+  {
+    "category": "見本",
+    "difficulty": "やさしい",
+    "question": "1 週間は何日ですか。",
+    "choices": [
+      { "body": "5 日", "isCorrect": false },
+      { "body": "6 日", "isCorrect": false },
+      { "body": "7 日", "isCorrect": true },
+      { "body": "8 日", "isCorrect": false }
+    ],
+    "explanation": "7 日です。\n\n![1 週間の並び](figure:week)\n\n[図を開く](figure:week)",
+    "status": "published"
+  }
+]

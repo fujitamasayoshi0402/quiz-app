@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useListCategoryScores } from "@/lib/api/generated/endpoints";
 import type { CategoryScore } from "@/lib/api/generated/model";
 import { rateOf } from "@/lib/accuracy";
-import { useRetryIncorrect } from "@/lib/play/use-retry-incorrect";
+import { useRetryIncorrect } from "@/lib/play/use-quick-start";
 
 /**
  * カテゴリ別の正答率。

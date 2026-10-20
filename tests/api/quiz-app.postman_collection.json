@@ -34,8 +34,8 @@
     },
     {
       "key": "otherCategoryId",
-      "value": "63b3c609-bfa5-5db4-bc9a-ec709936969d",
-      "description": "demo のカテゴリ（AWS / インフラ）。smoke からは見えないはず"
+      "value": "2f6c1b8e-4d0a-5c3e-9b7f-a1e2d3c4b5a6",
+      "description": "demo のカテゴリ（AWS の最新情報。シードが入れる）。smoke からは見えないはず"
     }
   ],
   "item": [

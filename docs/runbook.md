@@ -359,6 +359,56 @@ dev で測った時間（DEV-117。戻せる最も新しい時刻を指定）。
 
 失うデータ（RPO の目安）は、使っている間は 5 分ほど。一時停止している間は 0。
 
+## テナントの上限を変える
+
+利用者が画面から作ったテナントには、クイズと図の数に上限がある（クイズ 100、図 50。[ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)）。
+運用者が使うテナントで足りなくなったときだけ、`core.tenants` の 1 行を Data API で書き換える（[ADR-0034](adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)）。
+**ほかの利用者のテナントの上限は変えない。** 空（`NULL`）にすると上限がなくなる。
+
+- いま: `my-quiz`（dev）をクイズ 300、図 300 にしてある（DEV-186）。ADR-0034 は上限を外すとしたが、上限は残して 300 にした
+
+```bash
+cd infra/terraform/envs/dev
+ARN=$(terraform output -raw database_cluster_arn); SECRET=$(terraform output -raw database_master_user_secret_arn)
+sql() { aws rds-data execute-statement --resource-arn "$ARN" --secret-arn "$SECRET" --database quiz --sql "$1" --query records; }
+
+sql "SELECT slug, quiz_limit, figure_limit FROM core.tenants WHERE slug = '<slug>' AND deleted_at IS NULL"   # 前
+sql "UPDATE core.tenants SET quiz_limit = 300, figure_limit = 300 WHERE slug = '<slug>' AND deleted_at IS NULL"
+sql "SELECT slug, quiz_limit, figure_limit FROM core.tenants WHERE slug = '<slug>' AND deleted_at IS NULL"   # 後
+```
+
+- `core.tenants` には行レベルセキュリティがない。Data API はマスターとして流れるので、`WHERE` を必ず付け、書き換える前と後に同じ行を読む
+- 書き換えた行の数（`numberOfRecordsUpdated`）が 1 であることを確かめる
+- アプリは要求のたびに上限を読む。デプロイは要らない
+
+## prod のデモにパックを流す
+
+prod のデモのクイズは、シードではなくデモのパック（`content/demo/`）から流す（[ADR-0034](adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)、DEV-191）。
+シードは、デモのテナントと、デモのテナントの管理者（運用者）をメールアドレスだけで登録している（`db/demo/R__demo_base.sql`）。
+デモのパックを変えたリリースのあとと、prod を作り直したあとに流す。
+
+前提
+
+- シードの入ったリリースが prod に載っている（マイグレーションが `prod,smoke,demo` で流れた）
+- 運用者が、シードのアドレスで **prod の** Cognito にサインアップし、prod の web に一度ログインしている（利用者が結び付く）。dev とは User Pool が別
+- quiz-service が動いている。公開の前で止めているなら、流す間だけ動かす（[prod](development-guidelines.md#prod)）
+
+```bash
+aws sso login --profile quiz-app-admin
+export AWS_PROFILE=quiz-app-admin
+cd ~/worktrees/my-project/main/infra/terraform/envs/prod    # prod は main から
+export ACCESS_TOKEN=$(../../../../tools/content/token.sh <運用者のメールアドレス>)   # パスワードを聞かれる。期限は 1 時間
+API=$(terraform output -raw quiz_service_url)
+cd ../../../..
+
+node tools/content/load.ts content/demo --api "$API" --tenant demo --update --prune --dry-run   # 作る・直す・消すものを確かめる
+node tools/content/load.ts content/demo --api "$API" --tenant demo --update --prune
+```
+
+- `token.sh` は、いる場所の Terraform の出力から web のクライアントを読む。`envs/prod` で流すと prod の Cognito のトークンになる
+- `--update --prune` で、パックと同じ状態にする。消すのはパックのカテゴリの中のクイズだけ
+- 確かめ方: prod の web で「デモとして入る」を押し、6 カテゴリが出て、解説の図が出る
+
 ## Terraform
 
 - **apply は、最新の develop から流す。** 古いブランチや worktree から流すと、先に入った別の変更が消える
