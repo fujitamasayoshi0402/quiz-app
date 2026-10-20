@@ -30,6 +30,7 @@ const LIMITS: Option[] = [
 const MODES: Option[] = [
   { value: "learn", label: "学習モード", hint: "1 問ごとに正誤と解説を見る" },
   { value: "exam", label: "模試モード", hint: "最後にまとめて答え合わせする" },
+  { value: "swipe", label: "テンポモード", hint: "縦にスワイプして次々に解く" },
 ];
 
 /**

@@ -58,13 +58,13 @@ export function toCriteria(categoryId: string, range: Range) {
  *
  * - learn … 学習モード。1 問ごとに正誤と解説を出す（既定）
  * - exam  … 模試モード。回答中は正誤を伏せ、結果画面でまとめて振り返る
- *
- * web のテンポモード（スワイプ）は、アプリにはまだない
+ * - swipe … テンポモード（DEV-203、web は DEV-75）。縦にスワイプして次々に解く。選んだらその場で正誤が分かり、解説は短く出す。
+ *           答えずにスワイプした問題は未回答のまま残り、結果画面に出る
  */
-export type FeedbackMode = "learn" | "exam";
+export type FeedbackMode = "learn" | "exam" | "swipe";
 
 export function parseMode(value: string | string[] | undefined): FeedbackMode {
-  return value === "exam" ? "exam" : "learn";
+  return value === "exam" || value === "swipe" ? value : "learn";
 }
 
 /** 覚えておく挑戦の数。中断中の挑戦はテナントごとに 1 つなので、古いものは要らない */
