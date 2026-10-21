@@ -39,6 +39,8 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
 
   const answeredCount = alreadyAnswered + Object.values(answers).filter((a) => a.result).length;
   const correctCount = Object.values(answers).filter((a) => a.result?.isCorrect).length;
+  // 最後に答えた問題だけでなく、前のページで送信中の回答も待つ
+  const pendingCount = Object.values(answers).filter((a) => !a.result && a.error === undefined).length;
 
   const choose = (quiz: DeliveredQuiz, choiceId: string) => {
     const previous = answers[quiz.id];
@@ -88,6 +90,7 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
                   answeredCount={answeredCount}
                   correctCount={correctCount}
                   total={total}
+                  pendingCount={pendingCount}
                   onResult={() =>
                     router.replace({
                       pathname: "/t/[slug]/play/result",
@@ -204,11 +207,13 @@ function Finished({
   answeredCount,
   correctCount,
   total,
+  pendingCount,
   onResult,
 }: {
   answeredCount: number;
   correctCount: number;
   total: number;
+  pendingCount: number;
   onResult: () => void;
 }) {
   return (
@@ -227,11 +232,15 @@ function Finished({
           <Text style={styles.title}>{correctCount}</Text>
         </View>
       </View>
-      {answeredCount < total && (
+      {pendingCount === 0 && answeredCount < total && (
         <Text style={styles.muted}>飛ばした {total - answeredCount} 問は、未回答として結果に出ます</Text>
       )}
       <View style={{ alignSelf: "stretch" }}>
-        <Button label="結果を見る" onPress={onResult} />
+        <Button
+          label={pendingCount > 0 ? `回答を送信しています（残り ${pendingCount} 問）…` : "結果を見る"}
+          onPress={onResult}
+          disabled={pendingCount > 0}
+        />
       </View>
     </View>
   );
