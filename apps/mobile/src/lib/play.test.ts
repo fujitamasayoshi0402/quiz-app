@@ -38,7 +38,8 @@ describe("parseMode", () => {
   it.each([
     ["exam", "exam"],
     ["learn", "learn"],
-    ["swipe", "learn"],
+    ["swipe", "swipe"],
+    ["tempo", "learn"],
     [undefined, "learn"],
   ] as const)("%s は %s", (value, expected) => {
     expect(parseMode(value)).toBe(expected);
@@ -66,6 +67,6 @@ describe("parseModes", () => {
   });
 
   it("知らない方式は、学習モードにする", () => {
-    expect(parseModes('{"a":"exam","b":"swipe"}')).toEqual({ a: "exam", b: "learn" });
+    expect(parseModes('{"a":"exam","b":"swipe","c":"tempo"}')).toEqual({ a: "exam", b: "swipe", c: "learn" });
   });
 });

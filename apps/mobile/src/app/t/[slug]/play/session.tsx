@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { Markdown } from "@/components/markdown";
 import { ChoiceList, Eyebrow, SourceNote, Verdict } from "@/components/play";
+import { SwipeSession } from "@/components/swipe-session";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
 import { ApiError } from "@/lib/api/fetcher";
 import { useAnswerQuiz, useResumeAttempt } from "@/lib/api/generated/endpoints";
@@ -26,7 +27,11 @@ export default function PlaySession() {
       </Screen>
     );
   }
-  return <Session slug={params.slug} attempt={attempt.data} mode={parseMode(params.mode)} />;
+  const mode = parseMode(params.mode);
+  if (mode === "swipe" && attempt.data.status === "in_progress") {
+    return <SwipeSession slug={params.slug} attempt={attempt.data} />;
+  }
+  return <Session slug={params.slug} attempt={attempt.data} mode={mode} />;
 }
 
 function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; mode: FeedbackMode }) {
