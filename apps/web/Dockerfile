@@ -6,7 +6,7 @@
 # バックエンドの場所は実行時に API_ORIGIN で渡す。ビルドには埋め込まない。
 
 # Node.js のバージョンは .mise.toml と揃える
-FROM node:22.23.3-bookworm-slim AS base
+FROM node:22.23.4-bookworm-slim AS base
 # pnpm はルートの package.json の packageManager に従う
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     NEXT_TELEMETRY_DISABLED=1
@@ -26,7 +26,7 @@ COPY apps/web apps/web
 RUN pnpm --filter web build
 
 # --- 実行 --------------------------------------------------------------------
-FROM node:22.23.3-bookworm-slim
+FROM node:22.23.4-bookworm-slim
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
