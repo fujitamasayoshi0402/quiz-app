@@ -1,6 +1,6 @@
 # Runbook
 
-異常に気づいたときに、何を見て、どう戻すか。対象は dev 環境（prod は DEV-119 で作る）。
+異常に気づいたときに、何を見て、どう戻すか。対象は dev 環境。prod も同じ手順で、名前の `dev` を `prod` に読み替える。
 仕組みの説明は[開発ガイドライン](development-guidelines.md)にあり、ここでは手順だけを書く。
 
 コマンドは、リポジトリのルートから次を済ませた前提で書く。
@@ -408,6 +408,30 @@ node tools/content/load.ts content/demo --api "$API" --tenant demo --update --pr
 - `token.sh` は、いる場所の Terraform の出力から web のクライアントを読む。`envs/prod` で流すと prod の Cognito のトークンになる
 - `--update --prune` で、パックと同じ状態にする。消すのはパックのカテゴリの中のクイズだけ
 - 確かめ方: prod の web で「デモとして入る」を押し、6 カテゴリが出て、解説の図が出る
+
+## prod の公開前の点検
+
+prod を公開する前（タスクの数を 1 にする前）に確かめる（DEV-192）。prod を作り直したときも、同じ一覧で確かめる。
+コマンドは `envs/prod` で流す。読むだけで、何も変えない。
+
+| 点検 | 確かめ方 | 満たす状態 |
+| --- | --- | --- |
+| 最新のリリースでスモークテストが通る | GitHub Actions の `deploy-prod` の「スモークテスト」 | 成功 |
+| アラームのメールの購読が有効 | `aws sns list-subscriptions --query "Subscriptions[?ends_with(TopicArn, 'quiz-app-prod-alarms')].SubscriptionArn"` | `PendingConfirmation` ではない |
+| 予算の通知 | `aws budgets describe-notifications-for-budget --account-id <アカウント> --budget-name <予算の名前>` | 実績 85% と 100%、予測 100% の 3 つ |
+| データを戻せる | `aws rds describe-db-clusters --db-cluster-identifier quiz-app-prod --query 'DBClusters[0].[DeletionProtection,BackupRetentionPeriod]'` | 削除保護あり、保持 7 日。最終スナップショットは Terraform（`skip_final_snapshot = false`）。戻し方は [Aurora のデータを戻す](#aurora-のデータを戻す)。実際には戻さない |
+| 外から届く範囲（[セキュリティレビュー](security-review.md)の A02） | `curl -s -o /dev/null -w '%{http_code}' <URL>` | API の `/actuator/health`・`/swagger-ui.html`・`/v3/api-docs` が 404、解説図の CDN に署名なしで 403、バケットに直接 403。API Gateway の既定のエンドポイントは閉じている（`DisableExecuteApiEndpoint`） |
+| 画面のヘッダ | `curl -sI https://quiz.<ドメイン>/` | HSTS、`nosniff`、`X-Frame-Options`、CSP の `img-src` に `figures.quiz.<ドメイン>`、`connect-src` に prod のバケット。`X-Powered-By` がない |
+| 見に来た人の導線 | prod の web で手で操作する | 「デモとして入る」で 6 カテゴリが出て、解説の図が出る。自分のアカウントで「自分のテナントを作る」ができ、クイズを作って解ける。公開テナントの一覧（`/tenants`）が開ける（prod には公開テナントがないため、空の一覧が出る） |
+
+公開する。
+
+```bash
+aws ecs update-service --cluster quiz-app-prod --service quiz-service --desired-count 1 --query 'service.desiredCount'
+```
+
+- 公開したら、README のデモの URL とデモのアカウントを prod のものにする。デモのアカウントのパスワードは `terraform output -raw demo_user_password`
+- 公開してから 1 週間は、ダッシュボードの `quiz-app-prod` で、Aurora の復帰による待ち（タスクの p95）と 5xx を見る（[ADR-0024](adr/0024-run-prod-in-same-account-and-launch-at-release.md) の緩和策）
 
 ## Terraform
 
