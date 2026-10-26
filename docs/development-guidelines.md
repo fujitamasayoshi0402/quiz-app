@@ -688,6 +688,14 @@ cp apps/mobile/.env.example apps/mobile/.env   # 値は infra/terraform/envs/dev
 pnpm --filter mobile start                     # i で iOS のシミュレータの Expo Go に開く
 ```
 
+**ログインするときは、アプリを `exp://127.0.0.1:8081` で開く。** 既定では Mac の LAN の IP で開き、ログインの戻り先が Cognito に登録したものと合わない。
+`--localhost` は使えない。Metro が IPv6 の `[::1]` でしか待たず、シミュレータから `127.0.0.1` につながらない。
+
+```bash
+EXPO_PACKAGER_PROXY_URL=http://127.0.0.1:8081 pnpm --filter mobile start   # アプリに渡す URL を 127.0.0.1 にする
+xcrun simctl openurl booted exp://127.0.0.1:8081                           # シミュレータの Expo Go で開く
+```
+
 - iOS のシミュレータには Xcode が要る。シミュレータに合う版の Expo Go は、Expo の CLI が入れる
 - Expo Go の戻り先は `exp://127.0.0.1:8081/--/auth/callback`。Cognito に登録してあるのはこれと `quizapp://` だけで、**実機の Expo Go からはログインできない**（LAN の IP が戻り先になる）
 - dev の quiz-service が止まっていると（[ECS](#ecsquiz-service)）、API は 500 か 503 を返す。起こしてから使う
@@ -703,9 +711,11 @@ pnpm --filter mobile start                     # i で iOS のシミュレータ
 - **SVG は WebView の中で `<img>` として描く**（`lib/svg.ts`）。draw.io の SVG は HTML のラベルを `foreignObject` で持ち、SVG を自前で描くライブラリでは描けない。
   WebView の JavaScript は切り、配信のときと同じ CSP を付ける。PNG と JPEG は、React Native の画像の部品で描く
 - 図を押すと、図そのもの（PDF なら PDF）をシステムのブラウザの画面で開く。`HEAD` でリダイレクトをたどり、署名付き URL だけを取る。PDF を開く前に、中身まで落とさない
+- テンポモードは、`FlatList` を 1 画面ずつ止まる設定（`pagingEnabled`）で縦に並べる（DEV-203）。指の動きは自分で組まない。
+  1 画面に収まらない問題は、ページの中で送る。送りきったあとに次のページへは移らないため、「次へ」のボタンを置く
 - 中断した挑戦は、テナントのトップと出題の条件の画面から続きを解ける。web で始めたものも出る（DEV-176）。
-  方式（学習 / 模試）はサーバーに保存しないため、アプリで始めた挑戦に限り、端末（`expo-secure-store`）に覚える。ほかは学習モードで再開する
-- web にあってアプリにないもの: テンポモード、出題対象（間違えた問題など）の選択、あとで見直す印、間違えた問題の解き直し、学習の記録（連続日数とカレンダー）、ランキング
+  方式（学習 / 模試 / テンポ）はサーバーに保存しないため、アプリで始めた挑戦に限り、端末（`expo-secure-store`）に覚える。ほかは学習モードで再開する
+- web にあってアプリにないもの: 出題対象（間違えた問題など）の選択、あとで見直す印、間違えた問題の解き直し、学習の記録（連続日数とカレンダー）、ランキング
 
 ### コンテナイメージ
 
