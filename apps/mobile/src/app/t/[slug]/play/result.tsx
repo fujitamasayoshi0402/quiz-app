@@ -2,9 +2,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { ABANDONED, AttemptEnded } from "@/components/attempt-ended";
 import { Markdown } from "@/components/markdown";
 import { ChoiceList, Eyebrow, SourceNote, Verdict } from "@/components/play";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
+import { ApiError } from "@/lib/api/fetcher";
 import { completeAttempt, getGetCurrentAttemptQueryKey } from "@/lib/api/generated/endpoints";
 import type { QuizResult } from "@/lib/api/generated/model";
 import { parseMode } from "@/lib/play";
@@ -35,6 +37,10 @@ export default function PlayResult() {
   }, [result.isSuccess, queryClient, slug]);
 
   if (result.isPending) return <Loading />;
+  // 破棄した挑戦には結果がない（DEV-204）。読み込み直しても変わらない
+  if (result.error instanceof ApiError && result.error.status === 409) {
+    return <AttemptEnded slug={slug} message={ABANDONED} />;
+  }
   if (result.isError) {
     return (
       <Screen>

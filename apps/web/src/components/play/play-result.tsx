@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
+import { ABANDONED, AttemptEnded } from "@/components/play/attempt-ended";
 import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
 import { AiSourceNote, Eyebrow, Panel, Stat, Verdict } from "@/components/play/parts";
+import { ApiError } from "@/lib/api/fetcher";
 import { completeAttempt, getGetCurrentAttemptQueryKey } from "@/lib/api/generated/endpoints";
 import type { AttemptResult, QuizResult } from "@/lib/api/generated/model";
 import type { FeedbackMode } from "@/lib/play/mode";
@@ -36,6 +38,9 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
   }, [result.isSuccess, queryClient, slug]);
 
   if (result.isPending) return <Skeleton className="h-80 w-full rounded-2xl" />;
+  // 破棄した挑戦には結果がない（DEV-204）。読み込み直しても変わらない
+  if (result.error instanceof ApiError && result.error.status === 409)
+    return <AttemptEnded slug={slug} message={ABANDONED} />;
   if (result.isError) return <ApiErrorAlert error={result.error} />;
 
   const { totalCount, answeredCount, correctCount, results } = result.data;

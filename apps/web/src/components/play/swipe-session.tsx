@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
+import { AttemptEnded, ENDED_ELSEWHERE } from "@/components/play/attempt-ended";
 import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
 import { AiSourceNote, Eyebrow, ProgressLine, Stat, Verdict } from "@/components/play/parts";
 import { useAnswerQuiz } from "@/lib/api/generated/endpoints";
 import type { AnswerResult, AttemptView, DeliveredQuiz } from "@/lib/api/generated/model";
+import { useEndedElsewhere } from "@/lib/play/use-ended-elsewhere";
 import { cn } from "@/lib/utils";
 
 type Answered = { choiceId: string; result?: AnswerResult; error?: unknown };
@@ -39,6 +41,7 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
   const [current, setCurrent] = useState(0);
   const sections = useRef<(HTMLElement | null)[]>([]);
   const answer = useAnswerQuiz();
+  const { ended, check } = useEndedElsewhere(slug, attempt.id);
 
   const answeredCount = alreadyAnswered + Object.values(answers).filter((a) => a.result).length;
   const total = attempt.quizzes.length;
@@ -58,9 +61,12 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
       answer
         .mutateAsync({ slug, attemptId: attempt.id, data: { quizId: quiz.id, choiceId } })
         .then((result) => setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId, result } })))
-        .catch((error: unknown) => setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId, error } })));
+        .catch((error: unknown) => {
+          setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId, error } }));
+          void check(error);
+        });
     },
-    [answer, answers, attempt.id, slug],
+    [answer, answers, attempt.id, check, slug],
   );
 
   // 画面の中央に来た問題を「いまの問題」にする
@@ -106,6 +112,16 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
   }, [choose, current, quizzes, scrollTo]);
 
   const correctCount = Object.values(answers).filter((a) => a.result?.isCorrect).length;
+
+  if (ended) {
+    return (
+      <div className="fixed inset-0 z-40 flex items-center bg-background px-5">
+        <div className="mx-auto w-full max-w-xl">
+          <AttemptEnded slug={slug} message={ENDED_ELSEWHERE} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-40 bg-linear-to-b from-background via-background to-muted/70">
