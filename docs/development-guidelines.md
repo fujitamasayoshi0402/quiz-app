@@ -1072,7 +1072,7 @@ aws rds-data execute-statement \
 
 Route 53 に登録済みのドメインを使う。**ドメイン名は Terraform のコードに書かず、`terraform.tfvars` の `domain_name` に置く**
 （Git の管理外。書き方は `terraform.tfvars.example`）。
-README のデモの URL（dev の web）だけは、見に来た人が開くために書いている。ドメインを替えたら、README も直す。
+README のデモの URL（prod の web）だけは、見に来た人が開くために書いている。ドメインを替えたら、README も直す。
 
 | 環境 | web | API | 解説図 |
 | --- | --- | --- | --- |
@@ -1855,7 +1855,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | web / API / 図 | `dev.<ドメイン>` / `api.dev.<ドメイン>` / `figures.dev.<ドメイン>` | `quiz.<ドメイン>` / `api.quiz.<ドメイン>` / `figures.quiz.<ドメイン>` |
 | VPC | `10.0.0.0/16` | `10.1.0.0/16` |
 | Aurora | 止まるまで 30 分、バックアップ 1 日、削除保護なし | 止まるまで 15 分、バックアップ 7 日、削除保護と最終スナップショット |
-| ECS | 0.25 vCPU / 1 GB、Fargate Spot。使われなくなったら止める（深夜 2:00 にも止める） | 0.25 vCPU / 1 GB。夜間も止めない。公開までは止めてある |
+| ECS | 0.25 vCPU / 1 GB、Fargate Spot。使われなくなったら止める（深夜 2:00 にも止める） | 0.25 vCPU / 1 GB。夜間も止めない |
 | ログ | 14 日 | 30 日 |
 | 消した図を残す日数 | 7 日 | 14 日 |
 | Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテスト、デモ |
@@ -1865,14 +1865,15 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 
 - **apply は main から行う。** prod には、リリースしたものと同じ形だけを流す
 - `terraform.tfvars` は dev と同じ項目（`domain_name`、`quiz_service_image_tag`、`alarm_email`）。書き方は `envs/prod/terraform.tfvars.example`
-- **公開までは、quiz-service のタスクの数を 0 にしてある**（ADR-0024 の B-1、DEV-135）。タスクの数は Terraform が無視するため、CLI で変える
+- **公開してからは、quiz-service のタスクを 1 つ動かし続ける**（DEV-192）。公開までは 0 にしていた（ADR-0024 の B-1、DEV-135）。タスクの数は Terraform が無視するため、CLI で変える。
+  公開の前に確かめたことは、Runbook の「[prod の公開前の点検](runbook.md#prod-の公開前の点検)」にある。作り直したときも同じ一覧で確かめる
 
   ```bash
   aws ecs update-service --cluster quiz-app-prod --service quiz-service --desired-count 0   # 止める
   aws ecs update-service --cluster quiz-app-prod --service quiz-service --desired-count 1   # 動かす
   ```
 
-- **リリースすると、止めていても 1 つ起動する。** スモークテストで確かめるため、デプロイが起動してから載せる（[デプロイ](#デプロイ)）。公開までは、リリースのあとに 0 に戻す
+- **リリースすると、止めていても 1 つ起動する。** スモークテストで確かめるため、デプロイが起動してから載せる（[デプロイ](#デプロイ)）
 - 止めている間、API は API Gateway が 500 を返す（送り先のタスクがない）。web は Amplify にあるので開ける
 - 止めている間も続く費用は、月に 1〜2 ドル（Cloud Map のホストゾーン、Secrets Manager、Aurora のストレージ、ECR のイメージ）。Aurora は使われなければ 15 分で一時停止する
 - **デモは、シードが土台（テナント、共有のデモのアカウント、運用者）を入れ、クイズはデモのパックを流して入れる**（DEV-191）。手順は [Runbook](runbook.md#prod-のデモにパックを流す)。

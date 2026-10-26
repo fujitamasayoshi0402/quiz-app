@@ -183,7 +183,7 @@
 **ゴール: 初見の第三者が 3 分でアーキテクチャと設計意図を把握できる状態**
 
 - [x] README: 概要 / 画面 / アーキテクチャ図（Mermaid）/ 技術選定の記録 / 設計上の工夫
-- [x] README: デモ URL（dev の URL と、デモ用アカウント。prod を公開したら差し替える）
+- [x] README: デモ URL（prod の URL と、デモ用アカウント）
 - [x] アーキテクチャ図（C4 の Context / Container）を draw.io で作成（`docs/architecture/`）
 - [x] デモ用アカウントの用意（`demo@example.com`。デモのテナントの一般ユーザー）
 - [x] テナントの公開設定（`public`）と、公開テナントを見つけて招待なしで参加する導線（[ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)。時期を決めていなかったものから移した）
@@ -191,6 +191,7 @@
 - [x] ログインした人が、自分のテナントを作って管理の画面を試せる（[ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)）
 - [x] 見に来た人が、ログインの画面を通さずにデモを試せる（[ADR-0029](adr/0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md)）
 - [x] 公式の技術ニュースから、AI がクイズの下書きを毎日作り、管理者が確かめて公開する（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）
+- [x] prod の公開前の点検と公開（[Runbook](runbook.md#prod-の公開前の点検)）
 - [x] コストの最終調整: dev は使われなくなったら止め、画面から起こす。prod は 0.25 vCPU にし、Aurora を 15 分で一時停止させる（[コスト方針](development-guidelines.md#8-コスト方針)）
 
 ---
