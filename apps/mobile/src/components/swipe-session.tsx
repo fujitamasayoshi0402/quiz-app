@@ -1,11 +1,13 @@
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { FlatList, Modal, Pressable, ScrollView, Text, View, type ViewToken } from "react-native";
+import { AttemptEnded, ENDED_ELSEWHERE } from "@/components/attempt-ended";
 import { Markdown } from "@/components/markdown";
 import { ChoiceList, Eyebrow, SourceNote, Verdict } from "@/components/play";
 import { Button, ErrorMessage, colors, styles } from "@/components/ui";
 import { useAnswerQuiz } from "@/lib/api/generated/endpoints";
 import type { AnswerResult, AttemptView, DeliveredQuiz } from "@/lib/api/generated/model";
+import { useEndedElsewhere } from "@/lib/use-ended-elsewhere";
 
 type Answered = { choiceId: string; result?: AnswerResult; error?: unknown };
 
@@ -36,6 +38,7 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
   // 1 ページの高さ。画面の大きさは端末ごとに違うため、並べる前に測る
   const [pageHeight, setPageHeight] = useState(0);
   const answer = useAnswerQuiz();
+  const endedElsewhere = useEndedElsewhere(slug, attempt.id);
 
   const answeredCount = alreadyAnswered + Object.values(answers).filter((a) => a.result).length;
   const correctCount = Object.values(answers).filter((a) => a.result?.isCorrect).length;
@@ -50,7 +53,10 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
     answer
       .mutateAsync({ slug, attemptId: attempt.id, data: { quizId: quiz.id, choiceId } })
       .then((result) => setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId, result } })))
-      .catch((error: unknown) => setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId, error } })));
+      .catch((error: unknown) => {
+        setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId, error } }));
+        void endedElsewhere.check(error);
+      });
   };
 
   const scrollTo = (index: number) => list.current?.scrollToIndex({ index, animated: true });
@@ -66,6 +72,8 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
     (_: unknown, index: number) => ({ length: pageHeight, offset: pageHeight * index, index }),
     [pageHeight],
   );
+
+  if (endedElsewhere.ended) return <AttemptEnded slug={slug} message={ENDED_ELSEWHERE} />;
 
   return (
     <View

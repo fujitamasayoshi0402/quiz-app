@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Markdown } from "@/components/markdown";
+import { ABANDONED, AttemptEnded, ENDED_ELSEWHERE } from "@/components/play/attempt-ended";
 import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
 import { AiSourceNote, Eyebrow, Panel, ProgressLine, Verdict } from "@/components/play/parts";
@@ -17,6 +18,7 @@ import { ApiError } from "@/lib/api/fetcher";
 import { useAnswerQuiz, useResumeAttempt } from "@/lib/api/generated/endpoints";
 import type { AnswerResult, AttemptView } from "@/lib/api/generated/model";
 import type { FeedbackMode } from "@/lib/play/mode";
+import { useEndedElsewhere } from "@/lib/play/use-ended-elsewhere";
 
 /**
  * 回答画面。挑戦をサーバーから読み直して始めるため、再読み込みや別端末からの再開でも同じ位置に戻る。
@@ -43,6 +45,7 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
   const [feedback, setFeedback] = useState<AnswerResult | null>(null);
 
   const answer = useAnswerQuiz();
+  const endedElsewhere = useEndedElsewhere(slug, attempt.id);
 
   const total = attempt.quizzes.length;
   const current = attempt.quizzes.find((quiz) => !done.has(quiz.id));
@@ -64,10 +67,13 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
       {
         // 学習モードはその場で答え合わせをする。模試モードは正誤を伏せて次へ進む
         onSuccess: (result) => (mode === "learn" ? setFeedback(result) : advance(current.id)),
+        onError: (error) => void endedElsewhere.check(error),
       },
     );
   };
 
+  if (endedElsewhere.ended) return <AttemptEnded slug={slug} message={ENDED_ELSEWHERE} />;
+  if (attempt.status === "abandoned") return <AttemptEnded slug={slug} message={ABANDONED} />;
   if (attempt.status !== "in_progress" || !current) {
     return (
       <Panel className="space-y-4">
@@ -79,8 +85,9 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
     );
   }
 
-  // 出題後に削除・非公開になったクイズ（409）は、答えられないので飛ばせるようにする
-  const unanswerable = answer.error instanceof ApiError && answer.error.status === 409;
+  // 出題後に削除・非公開になったクイズ（409）は、答えられないので飛ばせるようにする。
+  // 挑戦が別の画面で終わった 409 と分けるまでは出さない
+  const unanswerable = answer.error instanceof ApiError && answer.error.status === 409 && !endedElsewhere.checking;
 
   return (
     <div className="space-y-6">
