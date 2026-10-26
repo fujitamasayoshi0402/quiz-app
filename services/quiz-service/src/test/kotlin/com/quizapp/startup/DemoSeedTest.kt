@@ -260,7 +260,7 @@ class DemoSeedTest {
             WHERE t.slug = '$DEMO_SLUG' AND m.deleted_at IS NULL AND u.email IS NOT NULL
             """,
         ) { rs, _ -> rs.getString("email") to rs.getString("role") }
-        assertThat(memberships).contains("demo@example.com" to "member", "max3max7.0402@gmail.com" to "admin")
+        assertThat(memberships).contains("demo@example.com" to "viewer", "max3max7.0402@gmail.com" to "admin")
         // アドレスは一意。二度流しても、運用者は 1 人のまま
         assertThat(count("SELECT count(*) FROM core.users WHERE lower(email) = 'max3max7.0402@gmail.com'")).isEqualTo(1)
         // 土台は、クイズとカテゴリを入れない。デモのパックを流し込む
@@ -273,6 +273,31 @@ class DemoSeedTest {
                 """,
             ),
         ).isZero()
+    }
+
+    @Test
+    @DisplayName("一般ユーザーとして入っていたデモのアカウントは、見学者に替わる")
+    fun demoAccountBecomesViewer() {
+        // 見学者のロール（ADR-0035）より前に流した DB では、デモのアカウントが一般ユーザーで所属している
+        applyBase()
+        TestPostgres.adminJdbcTemplate.update(
+            """
+            UPDATE core.tenant_members SET role = 'member'
+            WHERE user_id = (SELECT id FROM core.users WHERE email = 'demo@example.com')
+            """,
+        )
+
+        applyBase()
+
+        assertThat(
+            TestPostgres.adminJdbcTemplate.queryForObject(
+                """
+                SELECT m.role FROM core.tenant_members m JOIN core.users u ON u.id = m.user_id
+                WHERE u.email = 'demo@example.com' AND m.deleted_at IS NULL
+                """,
+                String::class.java,
+            ),
+        ).isEqualTo("viewer")
     }
 
     @Test
@@ -293,18 +318,18 @@ class DemoSeedTest {
         assertThat(roles).containsExactlyInAnyOrder(
             "demo-admin" to "admin",
             "demo-member" to "member",
-            "demo@example.com" to "member",
+            "demo@example.com" to "viewer",
             "max3max7.0402@gmail.com" to "admin",
         )
     }
 
     @Test
-    @DisplayName("デモのアカウントは、メールアドレスだけで登録し、デモのテナントにだけ一般ユーザーとして所属する")
-    fun demoAccountIsLinkableMemberOfDemoOnly() {
+    @DisplayName("デモのアカウントは、メールアドレスだけで登録し、デモのテナントにだけ見学者として所属する")
+    fun demoAccountIsLinkableViewerOfDemoOnly() {
         applySeed()
 
         // external_id がないので、同じアドレスの Cognito の利用者が最初にログインしたときに結び付く（DEV-104）。
-        // 所属が 1 つなので、ログインするとデモのテナントへそのまま移る。一般ユーザーなので、クイズは変えられない
+        // 所属が 1 つなので、ログインするとデモのテナントへそのまま移る。見学者なので、クイズは変えられない（ADR-0035）
         val memberships = TestPostgres.adminJdbcTemplate.query(
             """
             SELECT u.external_id, t.slug, m.role FROM core.users u
@@ -314,7 +339,7 @@ class DemoSeedTest {
             """,
         ) { rs, _ -> Triple(rs.getString("external_id"), rs.getString("slug"), rs.getString("role")) }
 
-        assertThat(memberships).containsExactly(Triple(null, DEMO_SLUG, "member"))
+        assertThat(memberships).containsExactly(Triple(null, DEMO_SLUG, "viewer"))
     }
 
     @Test

@@ -43,7 +43,7 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
           <CardHeader>
             <CardTitle>デモを試す</CardTitle>
             <CardDescription>
-              アカウントを作らずに、デモのテナントのクイズを解けます。共有のアカウントのため、回答の履歴とランキングは、見た人どうしで共有されます。
+              アカウントを作らずに、デモのテナントのクイズを解けます。管理画面も、見るだけなら開けます。共有のアカウントのため、回答の履歴とランキングは、見た人どうしで共有されます。
             </CardDescription>
           </CardHeader>
           <CardContent>

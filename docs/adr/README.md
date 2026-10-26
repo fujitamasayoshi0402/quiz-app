@@ -11,7 +11,7 @@
 | 進め方 | [0001](0001-record-architecture-decisions.md) ADR を残す / [0004](0004-split-services-incrementally.md) サービスは段階的に分ける / [0023](0023-keep-answer-as-module-in-quiz-service.md) 回答・採点はモジュールのまま分けない |
 | 技術スタック | [0002](0002-use-kotlin-and-spring-boot.md) Kotlin + Spring Boot / [0008](0008-use-spring-boot-4.md) Spring Boot 4 / [0009](0009-use-spring-data-jdbc.md) Spring Data JDBC / [0003](0003-use-nextjs-for-frontend.md) Next.js |
 | テナントとデータ | [0006](0006-row-level-multi-tenancy.md) 行単位のマルチテナント（RLS） / [0007](0007-soft-delete-master-data.md) マスタデータの論理削除 / [0025](0025-let-signed-in-users-join-public-tenants.md) 公開テナントへの参加 / [0028](0028-let-signed-in-users-create-their-own-tenant.md) 自分のテナントを作る / [0030](0030-let-members-leave-tenant-and-erase-their-history.md) テナントからの退会と履歴の削除 |
-| 認証 | [0016](0016-authenticate-with-cognito-managed-login.md) Cognito の Managed Login、利用者の ID を切り離す / [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) パスキーの自前実装の設計。いまは Cognito を使い続ける / [0029](0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md) ログインの画面を通さずにデモのアカウントで入る |
+| 認証 | [0016](0016-authenticate-with-cognito-managed-login.md) Cognito の Managed Login、利用者の ID を切り離す / [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) パスキーの自前実装の設計。いまは Cognito を使い続ける / [0029](0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md) ログインの画面を通さずにデモのアカウントで入る / [0035](0035-let-shared-demo-account-view-admin-screens-read-only.md) デモのアカウントは見学者として管理画面を読める |
 | API | [0010](0010-generate-openapi-from-code.md) OpenAPI をコードから生成する / [0019](0019-expose-api-through-api-gateway-http-api.md) 入口は API Gateway（HTTP API） |
 | 解説と解説図 | [0018](0018-write-explanations-in-markdown-and-render-on-screen.md) 解説は Markdown / [0017](0017-deliver-figures-with-cloudfront-signed-urls.md) 図は CloudFront の署名付き URL で配る / [0020](0020-reference-figures-from-explanations-and-add-images-and-pdfs.md) 画像と PDF、`figure:` で指す / [0021](0021-render-first-page-of-pdfs-as-images.md) PDF の 1 ページ目を画像にする |
 | イベントと通知 | [0022](0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md) Outbox から EventBridge、テナントごとの Slack へ |
@@ -73,6 +73,7 @@
 | [0032](0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) | モバイルアプリは Expo の managed で作り、ログインはシステムのブラウザで Managed Login を開く。API は直接呼ぶ | Accepted |
 | [0033](0033-schedule-reviews-with-simplified-sm2.md) | 間違えやすい問題を、SM-2 を縮めた式で忘れたころに出す。次に出す日は、回答を受けたときに answer が持つ表に書く | Accepted |
 | [0034](0034-keep-quiz-content-as-packs-and-load-through-api.md) | クイズの中身は図ごと「パック」にまとめ、アプリの API で流し込む。デモのパックはリポジトリに、自分の題材は非公開の場所に置く | Accepted |
+| [0035](0035-let-shared-demo-account-view-admin-screens-read-only.md) | 共有のデモのアカウントに「見学者」のロールを与え、管理画面を読むだけで使えるようにする。読ませる管理の API には印を付け、変更は断る | Accepted |
 
 ## 運用ルール
 

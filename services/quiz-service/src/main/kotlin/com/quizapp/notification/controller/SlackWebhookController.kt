@@ -1,5 +1,6 @@
 package com.quizapp.notification.controller
 
+import com.quizapp.auth.VisibleToViewers
 import com.quizapp.notification.domain.SlackWebhookUrl
 import com.quizapp.notification.usecase.SlackWebhookUseCase
 import io.swagger.v3.oas.annotations.Operation
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController
 class SlackWebhookController(private val useCase: SlackWebhookUseCase) {
 
     @GetMapping
+    @VisibleToViewers
     @Operation(operationId = "getSlackWebhook", summary = "Slack の通知先を設定したかどうか")
     fun get(): SlackWebhookResponse = SlackWebhookResponse.from(useCase.find())
 

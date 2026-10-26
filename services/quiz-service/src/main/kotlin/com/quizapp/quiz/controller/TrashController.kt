@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.auth.VisibleToViewers
 import com.quizapp.quiz.domain.Trash
 import com.quizapp.quiz.usecase.TrashUseCase
 import io.swagger.v3.oas.annotations.Operation
@@ -27,6 +28,7 @@ class TrashController(private val useCase: TrashUseCase) {
 
     @Operation(operationId = "listTrash", summary = "削除済みの一覧")
     @GetMapping
+    @VisibleToViewers
     fun list(): Trash = useCase.list()
 
     @Operation(

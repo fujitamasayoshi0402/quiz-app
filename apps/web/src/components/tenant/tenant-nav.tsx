@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useListMyTenants } from "@/lib/api/generated/endpoints";
-import { roleLabel } from "@/lib/auth/roles";
+import { canOpenAdmin, roleLabel } from "@/lib/auth/roles";
 import { LeaveTenantDialog } from "./leave-tenant-dialog";
 
 /**
@@ -86,7 +86,7 @@ export function TenantNav({ slug }: { slug: string }) {
           <span className="sm:hidden">順位</span>
           <span className="hidden sm:inline">ランキング</span>
         </Link>
-        {current?.role === "admin" && (
+        {current && canOpenAdmin(current.role) && (
           <Link href={`/t/${slug}/admin`} className="py-2 text-muted-foreground hover:text-foreground">
             管理
           </Link>

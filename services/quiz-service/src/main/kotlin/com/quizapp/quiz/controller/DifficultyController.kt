@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.auth.VisibleToViewers
 import com.quizapp.quiz.domain.DeletionImpact
 import com.quizapp.quiz.usecase.DifficultyUseCase
 import io.swagger.v3.oas.annotations.Operation
@@ -33,11 +34,13 @@ import java.util.UUID
 class DifficultyController(private val useCase: DifficultyUseCase) {
 
     @GetMapping
+    @VisibleToViewers
     @Operation(operationId = "listDifficulties", summary = "難易度一覧")
     fun list(@PathVariable categoryId: UUID): List<DifficultyResponse> =
         useCase.list(categoryId).map(DifficultyResponse::from)
 
     @GetMapping("/{id}")
+    @VisibleToViewers
     @Operation(operationId = "getDifficulty", summary = "難易度を 1 件取得")
     fun get(@PathVariable categoryId: UUID, @PathVariable id: UUID): DifficultyResponse =
         DifficultyResponse.from(useCase.get(categoryId, id))
@@ -78,6 +81,7 @@ class DifficultyController(private val useCase: DifficultyUseCase) {
         useCase.reorder(categoryId, request.ids)
 
     @GetMapping("/{id}/deletion-impact")
+    @VisibleToViewers
     @Operation(operationId = "difficultyDeletionImpact", summary = "削除したときに巻き込む範囲")
     fun deletionImpact(@PathVariable categoryId: UUID, @PathVariable id: UUID): DeletionImpact =
         useCase.deletionImpact(categoryId, id)
