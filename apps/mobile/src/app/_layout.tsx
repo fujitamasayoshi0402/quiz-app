@@ -3,8 +3,11 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
+import { Text } from "react-native";
+import { styles } from "@/components/ui";
 import { ApiError } from "@/lib/api/fetcher";
 import { AuthProvider, useAuth } from "@/lib/auth/auth-provider";
+import { EnvironmentProvider, useEnvironment } from "@/lib/environment-provider";
 
 // ログインの画面から戻ったときに、開いていたブラウザの画面を閉じる
 WebBrowser.maybeCompleteAuthSession();
@@ -22,18 +25,33 @@ function Queries({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
-/** ログインの状態が変わると、取ったものを捨てる。残すと、前の利用者の応答が次の利用者の画面に出る（web と同じ） */
+/**
+ * ログインの状態か、つなぐ先が変わると、取ったものを捨てる。残すと、前の利用者の応答が次の利用者の画面に出る（web と同じ）。
+ * つなぐ先が替わると、同じ URL の応答でも別の環境のものになる（DEV-208）
+ */
 function SignedInQueries({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
-  return <Queries key={status}>{children}</Queries>;
+  const { environment } = useEnvironment();
+  return <Queries key={`${environment.name}:${status}`}>{children}</Queries>;
 }
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
+    <EnvironmentProvider>
+      <EnvironmentScoped />
+    </EnvironmentProvider>
+  );
+}
+
+/** つなぐ先が替わったら、ログインの状態から作り直す。つなげる先が 2 つあれば、いまのつなぐ先をヘッダーの右に出す */
+function EnvironmentScoped() {
+  const { environment, environments } = useEnvironment();
+  const headerRight = environments.length > 1 ? () => <Text style={styles.muted}>{environment.name}</Text> : undefined;
+  return (
+    <AuthProvider key={environment.name}>
       <SignedInQueries>
         <StatusBar style="dark" />
-        <Stack screenOptions={{ headerBackTitle: "戻る" }}>
+        <Stack screenOptions={{ headerBackTitle: "戻る", headerRight }}>
           <Stack.Screen name="index" options={{ title: "Quiz" }} />
           <Stack.Screen name="t/[slug]/index" options={{ title: "" }} />
           <Stack.Screen name="t/[slug]/history" options={{ title: "履歴" }} />

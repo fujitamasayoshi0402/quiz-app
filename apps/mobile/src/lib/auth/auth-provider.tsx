@@ -1,6 +1,6 @@
 import * as AuthSession from "expo-auth-session";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { config } from "@/lib/config";
+import { useEnvironment } from "@/lib/environment-provider";
 import { completeSignIn, loadSession, onSessionChange, redirectUri, scopes, signOut } from "./client";
 import type { Session } from "./session";
 
@@ -17,21 +17,24 @@ type Auth = {
 const AuthContext = createContext<Auth | null>(null);
 
 /**
- * ログインの状態を画面に配る。ログインは、システムのブラウザで Managed Login を開き、PKCE でコードを受ける（ADR-0032）
+ * ログインの状態を画面に配る。ログインは、システムのブラウザで Managed Login を開き、PKCE でコードを受ける（ADR-0032）。
+ *
+ * いまのつなぐ先のログインの状態を配る。つなぐ先が替わったら、作り直す（`key` に名前を渡す。DEV-208）
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const discovery = AuthSession.useAutoDiscovery(config.authIssuer);
+  const { environment } = useEnvironment();
+  const discovery = AuthSession.useAutoDiscovery(environment.authIssuer);
   const [request, , promptAsync] = AuthSession.useAuthRequest(
-    { clientId: config.authClientId, redirectUri, scopes, usePKCE: true },
+    { clientId: environment.authClientId, redirectUri, scopes, usePKCE: true },
     discovery,
   );
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void loadSession().then(setSession);
+    void loadSession(environment).then(setSession);
     return onSessionChange(setSession);
-  }, []);
+  }, [environment]);
 
   const signIn = useCallback(async () => {
     if (!request?.codeVerifier) return;
@@ -39,14 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await promptAsync();
     if (result.type === "success") {
       try {
-        await completeSignIn(result.params.code, request.codeVerifier);
+        await completeSignIn(environment, result.params.code, request.codeVerifier);
       } catch {
         setError("ログインできませんでした。もう一度お試しください");
       }
     } else if (result.type === "error") {
       setError("ログインできませんでした。もう一度お試しください");
     }
-  }, [request, promptAsync]);
+  }, [environment, request, promptAsync]);
 
   const status = session === undefined ? "loading" : session ? "signedIn" : "signedOut";
   return <AuthContext value={{ status, ready: request !== null, error, signIn, signOut }}>{children}</AuthContext>;

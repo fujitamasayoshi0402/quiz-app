@@ -66,6 +66,11 @@ output "auth_client_id" {
   value = module.auth.client_id
 }
 
+output "auth_mobile_client_id" {
+  description = "モバイルアプリのクライアント（ADR-0032、DEV-208）。アプリのビルドに渡す。シークレットはない"
+  value       = module.auth.mobile_client_id
+}
+
 output "auth_managed_login_url" {
   description = "Managed Login の画面。手で確かめるときは、ここに /login?client_id=...&response_type=code&redirect_uri=... を付けて開く"
   value       = module.auth.managed_login_url

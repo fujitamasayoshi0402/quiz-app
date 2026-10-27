@@ -687,12 +687,20 @@ AWS では Amplify Hosting がソースからビルドする。SSR の実行時�
 ### モバイルアプリ
 
 `apps/mobile` は Expo（managed）の一般ユーザー向けアプリ（[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。
-**API Gateway を直接呼ぶ**ため、ローカルの一式ではなく dev につなぐ。ログインも dev の Cognito（アプリ用のクライアント）を使う。
+**API Gateway を直接呼ぶ**ため、ローカルの一式ではなく dev か prod につなぐ。ログインも、つなぐ先の Cognito（アプリ用のクライアント）を使う。
 
 ```bash
-cp apps/mobile/.env.example apps/mobile/.env   # 値は infra/terraform/envs/dev の terraform output から（.env.example）
+cp apps/mobile/.env.example apps/mobile/.env   # 値は infra/terraform/envs/<環境> の terraform output から（.env.example）
 pnpm --filter mobile start                     # i で iOS のシミュレータの Expo Go に開く
 ```
+
+**つなぐ先は、アプリの中で切り替えられる**（DEV-208）。`.env` に dev と prod の両方を入れたときだけ、ログインの画面とテナントの画面に切り替えのボタンが出て、ヘッダーの右にいまのつなぐ先が出る。片方だけなら、その環境に固定する。
+
+- 選んだつなぐ先は端末に覚える。まだ選んでいなければ prod につなぐ（止まらないので待たない）
+- **ログインの状態は、つなぐ先ごとに持つ。** User Pool が違うので、トークンを持ち越さない。切り替えて戻れば、前のログインのまま入れる
+- 切り替えると、取った応答を捨て、最初の画面から始め直す。テナントはつなぐ先ごとに別
+- 呼んでいる途中で切り替わっても、始めたつなぐ先のトークンで呼び、そのつなぐ先の状態だけを書き換える（`lib/auth/client.ts`）
+- prod の Cognito は、アプリのスキーム（`quizapp://`）からしかログインさせない。Expo Go でつなぐのは dev だけ
 
 **ログインするときは、アプリを `exp://127.0.0.1:8081` で開く。** 既定では Mac の LAN の IP で開き、ログインの戻り先が Cognito に登録したものと合わない。
 `--localhost` は使えない。Metro が IPv6 の `[::1]` でしか待たず、シミュレータから `127.0.0.1` につながらない。
@@ -1107,7 +1115,8 @@ README のデモの URL（prod の web）だけは、見に来た人が開くた
   README に載せている。パスワードを作り直したら、README も直す。
   `example.com` は誰も受け取れないので、パスワードを忘れた人の手続き（確認コード）で乗っ取られることはない
 - **モバイルアプリ（`apps/mobile`）のクライアントは、web とは別に置く**（[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。シークレットを持たず、PKCE でコードを受ける。
-  戻り先はアプリのスキーム（`quizapp://`）と、Expo Go をシミュレータで動かすときの `exp://127.0.0.1:8081/--/`（`envs/dev` の `mobile_app_url_prefixes`）。空なら作らない（prod）
+  戻り先はアプリのスキーム（`quizapp://`）と、Expo Go をシミュレータで動かすときの `exp://127.0.0.1:8081/--/`（`envs/dev` の `mobile_app_url_prefixes`）。空なら作らない。
+  prod は `quizapp://` だけ（DEV-208）。自分の端末に入れたビルドから、dev と切り替えてつなぐ
   - クライアントの ID は `terraform output -raw auth_mobile_client_id`。アプリのビルドに渡す。バックエンドには、タスク定義の環境変数 `AUTH_MOBILE_CLIENT_ID` で渡る
   - Managed Login でパスキーを選ばせるため、`ALLOW_USER_AUTH` を許している。シークレットがないので、API からもパスワードの認証を呼べる。できることは Managed Login と変わらない
   - トークンは端末に置かれ、利用者がスコープ `aws.cognito.signin.user.admin` で自分の属性を書き換えられる。メールアドレスは確認するまで替わらず、バックエンドは確認済みのものしか使わない
@@ -1868,6 +1877,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | ログ | 14 日 | 30 日 |
 | 消した図を残す日数 | 7 日 | 14 日 |
 | Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテスト、デモ |
+| モバイルアプリの戻り先 | `quizapp://` と Expo Go（シミュレータ） | `quizapp://` だけ（DEV-208） |
 | シード | デモ、デモのテナントの土台、スモークテスト（`dev`） | デモのテナントの土台、スモークテスト（`prod,smoke,demo`） |
 | AI の下書き（news-quiz-drafter） | 動かす | 動かさない。デモの「AWS の最新情報」は、prod では作らない |
 | Amplify のブランチ | `develop` | `main` |
