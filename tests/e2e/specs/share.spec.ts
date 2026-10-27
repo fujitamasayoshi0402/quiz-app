@@ -29,12 +29,22 @@ test("結果画面で共有のリンクを作り、ログインしていない�
     await expect(page.getByRole("heading", { name: "結果" })).toBeVisible();
   });
 
-  await test.step("「結果を共有する」で、共有のリンクが出る", async () => {
+  await test.step("「結果を共有する」で、共有のリンクとカードの画像が出る", async () => {
     await page.getByRole("button", { name: "結果を共有する" }).click();
     const link = page.getByRole("textbox", { name: "共有のリンク" });
     await expect(link).toHaveValue(/\/share\/[\w.-]+$/);
     url = await link.inputValue();
+
+    const preview = page.getByRole("img", { name: "結果のカード（正答率と正解の数）" });
+    await expect(preview).toBeVisible();
+    expect(await preview.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1200);
     await expectNoHorizontalScroll(page);
+  });
+
+  await test.step("「画像を保存」で、カードの画像を PNG で保存できる", async () => {
+    const download = page.waitForEvent("download");
+    await page.getByRole("link", { name: "画像を保存" }).click();
+    expect((await download).suggestedFilename()).toBe("quiz-result.png");
   });
 
   await test.step("ログインしていない人が開くと、カテゴリと正答率が出て、アプリへの入口がある", async () => {
