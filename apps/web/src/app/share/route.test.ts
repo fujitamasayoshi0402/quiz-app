@@ -49,17 +49,13 @@ function stubApi(completed: () => Response = () => Response.json(result)) {
   return fetch;
 }
 
-async function post(body: unknown, { expiresAt = Date.now() / 1000 + 3600, signedIn = true } = {}) {
+async function post(body: unknown, { expiresAt = Date.now() / 1000 + 3600, signedIn = true, authorization = "" } = {}) {
   const { POST, writeSession } = await load();
   const jar = cookieJar();
   if (signedIn) await writeSession(jar, { accessToken: "access", expiresAt }, { sub: "someone" }, false);
-  return POST(
-    new NextRequest("http://localhost:3000/share", {
-      method: "POST",
-      headers: { cookie: jar.header(), "content-type": "application/json" },
-      body: JSON.stringify(body),
-    }),
-  );
+  const headers: Record<string, string> = { cookie: jar.header(), "content-type": "application/json" };
+  if (authorization) headers.authorization = authorization;
+  return POST(new NextRequest("http://localhost:3000/share", { method: "POST", headers, body: JSON.stringify(body) }));
 }
 
 describe("POST /share", () => {
@@ -116,6 +112,25 @@ describe("POST /share", () => {
 
     expect((await post({ slug, attemptId }, { signedIn: false })).status).toBe(401);
     expect((await post({ slug, attemptId }, { expiresAt: Date.now() / 1000 - 1 })).status).toBe(401);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("モバイルは、Authorization のトークンで完了 API を呼ぶ（web のセッションを持たない）", async () => {
+    const fetch = stubApi();
+
+    const response = await post({ slug, attemptId }, { signedIn: false, authorization: "Bearer mobile-access" });
+
+    expect(response.status).toBe(200);
+    expect(fetch.mock.calls[0][1]).toMatchObject({ headers: { authorization: "Bearer mobile-access" } });
+  });
+
+  it("Bearer の形でないものは、トークンとして使わない", async () => {
+    const fetch = stubApi();
+
+    expect((await post({ slug, attemptId }, { signedIn: false, authorization: "Basic dXNlcjpwYXNz" })).status).toBe(
+      401,
+    );
+    expect((await post({ slug, attemptId }, { signedIn: false, authorization: "Bearer a b" })).status).toBe(401);
     expect(fetch).not.toHaveBeenCalled();
   });
 

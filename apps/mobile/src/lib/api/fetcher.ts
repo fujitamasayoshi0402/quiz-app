@@ -81,7 +81,7 @@ export class ApiError extends Error {
 }
 
 /** バックエンドのエラーだけを読む。API Gateway が返す応答（`{"message": ...}`）は ProblemDetail ではない */
-async function readProblem(response: Response): Promise<Problem | null> {
+export async function readProblem(response: Response): Promise<Problem | null> {
   if (!response.headers.get("content-type")?.startsWith("application/problem+json")) {
     return null;
   }
