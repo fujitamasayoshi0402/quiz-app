@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.auth.VisibleToViewers
 import com.quizapp.quiz.domain.QuizStatus
 import com.quizapp.quiz.usecase.QuizUseCase
 import io.swagger.v3.oas.annotations.Operation
@@ -31,6 +32,7 @@ import java.util.UUID
 class QuizController(private val useCase: QuizUseCase) {
 
     @GetMapping
+    @VisibleToViewers
     @Operation(
         operationId = "searchQuizzes",
         summary = "クイズを絞り込んで一覧",
@@ -47,6 +49,7 @@ class QuizController(private val useCase: QuizUseCase) {
         .map(QuizListItemResponse::from)
 
     @GetMapping("/{id}")
+    @VisibleToViewers
     @Operation(
         operationId = "getQuiz",
         summary = "クイズを 1 件取得",

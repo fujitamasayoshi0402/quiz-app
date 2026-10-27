@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Check, Copy } from "lucide-react";
+import { useViewing } from "@/components/admin/admin-guard";
 import { ApiErrorAlert } from "@/components/api-error-alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -158,10 +159,19 @@ function CreatedInvitation({ created, onClose }: { created: CreatedInvitationRes
 
 /** 受け入れを待っている招待。受け入れられたものは所属になり、ここからは消える */
 function OpenInvitations({ slug }: { slug: string }) {
-  const invitations = useListInvitations(slug);
+  // 見学者には一覧を見せない。招待した人のメールアドレスが載る（ADR-0035）。バックエンドも 403 を返す
+  const viewing = useViewing();
+  const invitations = useListInvitations(slug, { query: { enabled: !viewing } });
   const invalidate = useInvalidateTenant(slug);
   const revoke = useRevokeInvitation({ mutation: { onSuccess: () => invalidate() } });
 
+  if (viewing) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        招待の一覧には招待した人のメールアドレスが載るため、見学では出しません。
+      </p>
+    );
+  }
   if (invitations.isPending) return <Skeleton className="h-40 w-full" />;
   if (invitations.isError) return <ApiErrorAlert error={invitations.error} />;
   if (invitations.data.length === 0) {

@@ -9,6 +9,12 @@ enum class TenantRole {
 
     /** クイズに回答できる */
     MEMBER,
+
+    /**
+     * クイズに回答でき、管理画面を読める。変更はできない（ADR-0035）。
+     * 共有のデモのアカウントが、デモのテナントで持つ。読める管理の API は [VisibleToViewers] を付けたものだけ
+     */
+    VIEWER,
     ;
 
     companion object {
@@ -61,3 +67,10 @@ class TenantAccessDeniedException : RuntimeException("このテナントには�
 
 /** 所属はしているが、管理者ではない。テナントの存在は既知なので 403 で返す。 */
 class AdminRoleRequiredException : RuntimeException("この操作には管理者の権限が必要です")
+
+/**
+ * 見学者が、管理の API で変更しようとした、または見学者に見せない API を読もうとした（ADR-0035）。
+ *
+ * [AdminRoleRequiredException] と分けるのは、画面に出す文を変えるため。見学者には、管理を試す方法を伝える
+ */
+class ViewerNotAllowedException(val reading: Boolean) : RuntimeException("見学では使えない操作です")

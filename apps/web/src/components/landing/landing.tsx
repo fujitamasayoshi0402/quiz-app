@@ -46,7 +46,7 @@ export function Landing({ demo }: { demo: boolean }) {
             <CardHeader>
               <CardTitle>デモとして入る</CardTitle>
               <CardDescription>
-                アカウントを作らずに、デモのクイズ（世界の地理、身近な科学など）を解けます。共有のアカウントのため、回答の履歴とランキングは、見た人どうしで共有されます。
+                アカウントを作らずに、デモのクイズ（世界の地理、身近な科学など）を解けます。管理画面も、見るだけなら開けます。共有のアカウントのため、回答の履歴とランキングは、見た人どうしで共有されます。
               </CardDescription>
             </CardHeader>
             <CardContent className="mt-auto">

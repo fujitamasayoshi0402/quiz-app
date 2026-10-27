@@ -31,6 +31,7 @@
 | 所属していないテナントには 404、所属していて権限がなければ 403。認証の前にテナントの有無を答えない | `AuthorizationApiTest` |
 | ロールと所属はトークンではなく DB から引く。所属を外せば次の要求から効く | [ADR-0016](adr/0016-authenticate-with-cognito-managed-login.md) |
 | 管理 API と出題 API は URL を分け、出題 API は正解を返さない | 開発ガイドライン「API の URL」 |
+| 見学者（共有のデモのアカウント）は、管理の API のうち印（`@VisibleToViewers`）を付けた GET だけを使え、変更はできない。印のない API は既定で閉じ、人のメールアドレスを返す招待の一覧は見せない。正解が見えることは受け入れている | [ADR-0035](adr/0035-let-shared-demo-account-view-admin-screens-read-only.md)、`ViewerAccessApiTest` |
 | 招待は、ログインした人の確認済みのメールアドレスが一致しなければ受け入れられない。DB にはトークンのハッシュだけを持つ | `Invitation` |
 | 招待なしで参加できるのは、管理者が公開したテナントだけ。一覧は名前と slug だけを返し、クイズは参加してから読む。非公開のテナントへの参加は、存在しないテナントと同じ 404 | [ADR-0025](adr/0025-let-signed-in-users-join-public-tenants.md)、`PublicTenantsApiTest` |
 | ログインした人が作るテナントは、作った人が管理者として所属するだけで、ほかのテナントには触れない。非公開に限り、公開への切り替えを API が拒む | [ADR-0028](adr/0028-let-signed-in-users-create-their-own-tenant.md)、`TenantCreationApiTest` |
