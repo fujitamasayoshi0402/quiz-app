@@ -11,7 +11,8 @@ INSERT INTO core.tenants (id, slug, name) VALUES
     ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', 'demo', 'デモ')
     ON CONFLICT (id) DO NOTHING;
 
--- 見に来た人が試すための、共有のデモのアカウント（DEV-104）。デモのテナントの一般ユーザーで、クイズは変えられない。
+-- 見に来た人が試すための、共有のデモのアカウント（DEV-104）。デモのテナントの見学者で、クイズを解けて、管理画面を読める。
+-- クイズは変えられない（ADR-0035）。
 -- メールアドレスだけで登録しておき、同じアドレスの Cognito の利用者（Terraform の modules/auth が作る）が
 -- 最初にログインしたときに結び付く（R__smoke_data.sql と同じ）
 INSERT INTO core.users (id, external_id, email, display_name) VALUES
@@ -19,8 +20,13 @@ INSERT INTO core.users (id, external_id, email, display_name) VALUES
     ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO core.tenant_members (tenant_id, user_id, role) VALUES
-    ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', '0b66aaf5-727d-5da9-bf87-6756dff5b046', 'member')
+    ('7fd43527-dbbf-525e-9f33-f48e4e507fd1', '0b66aaf5-727d-5da9-bf87-6756dff5b046', 'viewer')
     ON CONFLICT DO NOTHING;
+
+-- 見学者のロールより前に入れた所属は、一般ユーザーのまま残っている。見学者に替える
+UPDATE core.tenant_members SET role = 'viewer', updated_at = now()
+WHERE tenant_id = '7fd43527-dbbf-525e-9f33-f48e4e507fd1' AND user_id = '0b66aaf5-727d-5da9-bf87-6756dff5b046'
+    AND role = 'member' AND deleted_at IS NULL;
 
 -- パスワードを公開している共有のアカウントなので、テナントは作れない（ADR-0028）。
 -- 作れると、最初の 1 人が数の上限を使い切り、ほかの人が書いたものを全員が見る

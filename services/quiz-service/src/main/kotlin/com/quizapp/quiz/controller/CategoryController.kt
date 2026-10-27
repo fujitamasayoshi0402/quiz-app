@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.auth.VisibleToViewers
 import com.quizapp.quiz.domain.DeletionImpact
 import com.quizapp.quiz.usecase.CategoryUseCase
 import io.swagger.v3.oas.annotations.Operation
@@ -30,10 +31,12 @@ import java.util.UUID
 class CategoryController(private val useCase: CategoryUseCase) {
 
     @GetMapping
+    @VisibleToViewers
     @Operation(operationId = "listCategories", summary = "カテゴリ一覧", description = "並び順に返す。クイズの数を添える")
     fun list(): List<CategorySummaryResponse> = useCase.list().map(CategorySummaryResponse::from)
 
     @GetMapping("/{id}")
+    @VisibleToViewers
     @Operation(operationId = "getCategory", summary = "カテゴリを 1 件取得")
     fun get(@PathVariable id: UUID): CategoryResponse = CategoryResponse.from(useCase.get(id))
 
@@ -60,6 +63,7 @@ class CategoryController(private val useCase: CategoryUseCase) {
     fun reorder(@RequestBody request: ReorderRequest) = useCase.reorder(request.ids)
 
     @GetMapping("/{id}/deletion-impact")
+    @VisibleToViewers
     @Operation(
         operationId = "categoryDeletionImpact",
         summary = "削除したときに巻き込む範囲",

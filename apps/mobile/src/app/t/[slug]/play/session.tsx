@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { ABANDONED, AttemptEnded, ENDED_ELSEWHERE } from "@/components/attempt-ended";
 import { Markdown } from "@/components/markdown";
 import { ChoiceList, Eyebrow, SourceNote, Verdict } from "@/components/play";
 import { SwipeSession } from "@/components/swipe-session";
@@ -9,6 +10,7 @@ import { ApiError } from "@/lib/api/fetcher";
 import { useAnswerQuiz, useResumeAttempt } from "@/lib/api/generated/endpoints";
 import type { AnswerResult, AttemptView } from "@/lib/api/generated/model";
 import { type FeedbackMode, parseMode } from "@/lib/play";
+import { useEndedElsewhere } from "@/lib/use-ended-elsewhere";
 
 /**
  * 回答画面（web の `PlaySession`）。挑戦をサーバーから読み直して始めるため、別の端末で始めた挑戦でも同じ位置に戻る。
@@ -42,6 +44,7 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
   const [feedback, setFeedback] = useState<AnswerResult | null>(null);
 
   const answer = useAnswerQuiz();
+  const endedElsewhere = useEndedElsewhere(slug, attempt.id);
 
   const total = attempt.quizzes.length;
   const current = attempt.quizzes.find((quiz) => !done.has(quiz.id));
@@ -66,10 +69,13 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
       {
         // 学習モードはその場で答え合わせをする。模試モードは正誤を伏せて次へ進む
         onSuccess: (result) => (mode === "learn" ? setFeedback(result) : advance(current.id)),
+        onError: (error) => void endedElsewhere.check(error),
       },
     );
   };
 
+  if (endedElsewhere.ended) return <AttemptEnded slug={slug} message={ENDED_ELSEWHERE} />;
+  if (attempt.status === "abandoned") return <AttemptEnded slug={slug} message={ABANDONED} />;
   if (attempt.status !== "in_progress" || !current) {
     return (
       <Screen>
@@ -79,8 +85,9 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
     );
   }
 
-  // 出題後に削除・非公開になったクイズ（409）は、答えられないので飛ばせるようにする
-  const unanswerable = answer.error instanceof ApiError && answer.error.status === 409;
+  // 出題後に削除・非公開になったクイズ（409）は、答えられないので飛ばせるようにする。
+  // 挑戦が別の画面で終わった 409 と分けるまでは出さない
+  const unanswerable = answer.error instanceof ApiError && answer.error.status === 409 && !endedElsewhere.checking;
 
   return (
     <ScrollView ref={scroll} style={styles.scroll} contentContainerStyle={styles.scrollContent}>

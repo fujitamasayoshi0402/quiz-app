@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.auth.VisibleToViewers
 import com.quizapp.quiz.usecase.DifficultyUseCase
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController
 class AllDifficultiesController(private val useCase: DifficultyUseCase) {
 
     @GetMapping
+    @VisibleToViewers
     @Operation(
         operationId = "listAllDifficulties",
         summary = "すべてのカテゴリの難易度の一覧",

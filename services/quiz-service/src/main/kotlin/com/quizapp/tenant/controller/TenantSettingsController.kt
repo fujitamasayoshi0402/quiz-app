@@ -1,5 +1,6 @@
 package com.quizapp.tenant.controller
 
+import com.quizapp.auth.VisibleToViewers
 import com.quizapp.tenant.domain.TenantSettings
 import com.quizapp.tenant.domain.TenantVisibility
 import com.quizapp.tenant.usecase.TenantSettingsUseCase
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController
 class TenantSettingsController(private val useCase: TenantSettingsUseCase) {
 
     @GetMapping
+    @VisibleToViewers
     @Operation(operationId = "getTenantSettings", summary = "テナントの設定")
     fun get(): TenantSettingsResponse = TenantSettingsResponse.from(useCase.find())
 

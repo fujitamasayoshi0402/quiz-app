@@ -4,6 +4,7 @@ import com.quizapp.tenant.TenantContext
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.stereotype.Component
+import org.springframework.web.method.HandlerMethod
 import org.springframework.web.servlet.HandlerInterceptor
 import org.springframework.web.servlet.HandlerMapping
 
@@ -12,7 +13,7 @@ import org.springframework.web.servlet.HandlerMapping
  *
  * | パス | 必要な条件 |
  * | --- | --- |
- * | `/api/t/{slug}/admin/` 配下 | 管理者として所属していること |
+ * | `/api/t/{slug}/admin/` 配下 | 管理者として所属していること。見学者は、[VisibleToViewers] を付けた GET だけ |
  * | `/api/t/{slug}/` 配下のその他 | 所属していること |
  *
  * **既定が「所属が必要」**になっている。テナント配下にエンドポイントを足したとき、
@@ -36,13 +37,25 @@ class TenantAccessInterceptor(private val memberships: TenantMemberships) : Hand
         val userId = UserContext.require()
         val role = memberships.findRole(tenantId, userId) ?: throw TenantAccessDeniedException()
 
-        if (isAdminRoute(request) && role != TenantRole.ADMIN) {
-            throw AdminRoleRequiredException()
-        }
+        if (isAdminRoute(request)) checkAdminAccess(role, request, handler)
 
         // 以降のロール判定でもう一度 DB を引かずに済むよう、解決した結果を載せる
         UserContext.set(CurrentUser(userId, role))
         return true
+    }
+
+    private fun checkAdminAccess(role: TenantRole, request: HttpServletRequest, handler: Any) {
+        when (role) {
+            TenantRole.ADMIN -> Unit
+
+            TenantRole.MEMBER -> throw AdminRoleRequiredException()
+
+            TenantRole.VIEWER -> {
+                val reading = request.method == "GET" || request.method == "HEAD"
+                val visible = handler is HandlerMethod && handler.hasMethodAnnotation(VisibleToViewers::class.java)
+                if (!reading || !visible) throw ViewerNotAllowedException(reading)
+            }
+        }
     }
 
     /**

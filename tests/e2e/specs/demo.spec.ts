@@ -48,6 +48,28 @@ test("「デモとして入る」でデモのテナントに入り、クイズ�
   });
 });
 
+test("デモのアカウントで管理画面を見学できる。保存しても変わらず、招待の一覧は出ない（DEV-196）", async ({ page }) => {
+  await test.step("デモとして入り、ヘッダの「管理」から管理画面を開く", async () => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "デモとして入る" }).click();
+    await expect(page).toHaveURL(/\/t\/demo\/play$/);
+    await page.getByRole("link", { name: "管理", exact: true }).click();
+    await expect(page).toHaveURL(/\/t\/demo\/admin\/quizzes$/);
+    await expect(page.getByText("見学中です")).toBeVisible();
+  });
+
+  await test.step("クイズを開いて保存すると、見学では変更できないと出る", async () => {
+    await page.getByRole("table").getByRole("link").first().click();
+    await page.getByRole("button", { name: "公開したまま保存" }).click();
+    await expect(page.getByText("見学では変更できません")).toBeVisible();
+  });
+
+  await test.step("招待の画面では、一覧の代わりに理由を出す", async () => {
+    await page.getByRole("link", { name: "招待", exact: true }).click();
+    await expect(page.getByText("見学では出しません", { exact: false })).toBeVisible();
+  });
+});
+
 test("トップの「管理を試す」から、ログインを経てテナントの作成へ向かう", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "アカウントを作って始める" }).click();

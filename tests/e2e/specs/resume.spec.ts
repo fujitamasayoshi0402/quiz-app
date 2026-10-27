@@ -67,6 +67,49 @@ test("模試モードを 1 問でやめ、出題の画面から再開して最�
   });
 });
 
+/**
+ * 解いている途中に、別のタブで同じ挑戦を破棄する（DEV-204）。中断中の挑戦は 1 人 1 つなので、アプリと web の間でも起きる。
+ *
+ * 回答も完了も 409 になる。出題後に消えたクイズの 409 と取り違えて、終わった挑戦を最後まで進めさせない
+ */
+test("解いている途中に別のタブで破棄すると、終わった旨と戻り口が出る", async ({ page, context }) => {
+  let query = "";
+
+  await test.step("学習モードで始める", async () => {
+    await page.goto(`/t/${tenant.slug}/play`);
+    await page.getByText("E2E 中断と再開").click();
+    await page.getByText("学習モード").click();
+    await page.getByRole("button", { name: "始める" }).click();
+    await expect(page.getByText("1 / 2 問")).toBeVisible();
+    query = new URL(page.url()).search.replace(/^\?/, "");
+  });
+
+  await test.step("別のタブで、中断中のクイズを破棄する", async () => {
+    const other = await context.newPage();
+    await other.goto(`/t/${tenant.slug}/play`);
+    await expect(other.getByText("中断中のクイズがあります")).toBeVisible();
+    await other.getByRole("button", { name: "破棄する" }).click();
+    await expect(other.getByText("中断中のクイズがあります")).toHaveCount(0);
+    await other.close();
+  });
+
+  await test.step("元のタブで答えると、次の問題へは進めず、戻り口だけが出る", async () => {
+    await page.getByRole("listitem").first().getByRole("button").click();
+    await page.getByRole("button", { name: "回答する" }).click();
+    await expect(page.getByText("このクイズは別の画面で終了しました")).toBeVisible();
+    await expect(page.getByRole("button", { name: "次の問題へ" })).toHaveCount(0);
+    await expectNoHorizontalScroll(page);
+  });
+
+  await test.step("破棄した挑戦の結果を開くと、結果がない旨と戻り口が出る", async () => {
+    await page.goto(`/t/${tenant.slug}/play/result?${query}`);
+    await expect(page.getByText("このクイズは破棄されたため、結果はありません")).toBeVisible();
+    await page.getByRole("link", { name: "クイズを選ぶ画面に戻る" }).click();
+    await expect(page.getByText("E2E 中断と再開")).toBeVisible();
+    await expect(page.getByText("中断中のクイズがあります")).toHaveCount(0);
+  });
+});
+
 async function questionOf(page: Page): Promise<string> {
   return (await page.locator("[data-slot=question]").first().textContent()) ?? "";
 }

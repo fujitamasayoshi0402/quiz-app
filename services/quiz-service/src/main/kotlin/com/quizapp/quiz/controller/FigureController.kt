@@ -1,5 +1,6 @@
 package com.quizapp.quiz.controller
 
+import com.quizapp.auth.VisibleToViewers
 import com.quizapp.quiz.usecase.FigureUseCase
 import com.quizapp.ratelimit.HeavyOperation
 import io.swagger.v3.oas.annotations.Operation
@@ -27,6 +28,7 @@ import java.util.UUID
 class FigureController(private val useCase: FigureUseCase) {
 
     @GetMapping
+    @VisibleToViewers
     @Operation(
         operationId = "listFigures",
         summary = "解説図の一覧。置いた日時の新しい順",
@@ -73,11 +75,13 @@ class FigureController(private val useCase: FigureUseCase) {
         FigureDetailResponse(id, useCase.completeUpload(id).name.lowercase())
 
     @GetMapping("/{id}")
+    @VisibleToViewers
     @Operation(operationId = "getFigureDetail", summary = "解説図の種類を取得")
     fun detail(@PathVariable id: UUID): FigureDetailResponse =
         FigureDetailResponse(id, useCase.kind(id).name.lowercase())
 
     @GetMapping("/{id}/source")
+    @VisibleToViewers
     @Operation(operationId = "getFigureSource", summary = "解説図の原本（draw.io）を取得")
     fun source(@PathVariable id: UUID): FigureSourceResponse = FigureSourceResponse(useCase.source(id))
 
