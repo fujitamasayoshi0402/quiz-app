@@ -687,12 +687,20 @@ AWS では Amplify Hosting がソースからビルドする。SSR の実行時�
 ### モバイルアプリ
 
 `apps/mobile` は Expo（managed）の一般ユーザー向けアプリ（[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。
-**API Gateway を直接呼ぶ**ため、ローカルの一式ではなく dev につなぐ。ログインも dev の Cognito（アプリ用のクライアント）を使う。
+**API Gateway を直接呼ぶ**ため、ローカルの一式ではなく dev か prod につなぐ。ログインも、つなぐ先の Cognito（アプリ用のクライアント）を使う。
 
 ```bash
-cp apps/mobile/.env.example apps/mobile/.env   # 値は infra/terraform/envs/dev の terraform output から（.env.example）
+cp apps/mobile/.env.example apps/mobile/.env   # 値は infra/terraform/envs/<環境> の terraform output から（.env.example）
 pnpm --filter mobile start                     # i で iOS のシミュレータの Expo Go に開く
 ```
+
+**つなぐ先は、アプリの中で切り替えられる**（DEV-208）。`.env` に dev と prod の両方を入れたときだけ、ログインの画面とテナントの画面に切り替えのボタンが出て、ヘッダーの右にいまのつなぐ先が出る。片方だけなら、その環境に固定する。
+
+- 選んだつなぐ先は端末に覚える。まだ選んでいなければ prod につなぐ（止まらないので待たない）
+- **ログインの状態は、つなぐ先ごとに持つ。** User Pool が違うので、トークンを持ち越さない。切り替えて戻れば、前のログインのまま入れる
+- 切り替えると、取った応答を捨て、最初の画面から始め直す。テナントはつなぐ先ごとに別
+- 呼んでいる途中で切り替わっても、始めたつなぐ先のトークンで呼び、そのつなぐ先の状態だけを書き換える（`lib/auth/client.ts`）
+- prod の Cognito は、アプリのスキーム（`quizapp://`）からしかログインさせない。Expo Go でつなぐのは dev だけ
 
 **ログインするときは、アプリを `exp://127.0.0.1:8081` で開く。** 既定では Mac の LAN の IP で開き、ログインの戻り先が Cognito に登録したものと合わない。
 `--localhost` は使えない。Metro が IPv6 の `[::1]` でしか待たず、シミュレータから `127.0.0.1` につながらない。
@@ -984,8 +992,17 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
 
 `/` は、ログインしていなければアプリの説明と 2 つの入口（「デモとして入る」と、アカウントを作ってテナントの作成へ向かう「管理を試す」）を出す（DEV-193。`components/landing/landing.tsx`）。
 画面の例の画像は README と同じもので、撮影のスクリプトが `apps/web/src/assets/screenshots/` にも写す（[README の画面](#readme-の画面)）。
-リンクを共有したときのカード（OGP、Twitter）とアイコンは、ルートのレイアウトの metadata と `src/app/` の画像で出す（DEV-194）。**すべての画面で同じもの**を出し、ログインが要る画面を貼られても、取りに来た側はログインの画面へ移されて中身は出ない。
+リンクを共有したときのカード（OGP、Twitter）とアイコンは、ルートのレイアウトの metadata と `src/app/` の画像で出す（DEV-194）。共有した結果のほかは**すべての画面で同じもの**を出し、ログインが要る画面を貼られても、取りに来た側はログインの画面へ移されて中身は出ない。
 カードの画像は絶対 URL が要るため、`metadataBase` を要求のヘッダから決める（`originOf`。ログインの戻り先と同じ決め方）。画像は `pnpm --filter e2e web-images` で、README の画面の画像と `icon.svg` から作る。
+
+**共有した結果（`/share/<トークン>`）だけは、画面ごとのカードを出す**（DEV-207）。結果画面の「結果を共有する」で、web のサーバー（`app/share/route.ts`）がリンクを作る。
+
+- 中身（範囲の名前、正解数、問題数）は、暗号化してリンクのトークンに入れる（`lib/share/token.ts`）。サーバーは何も保存せず、期限も付けない。
+  鍵はセッションと同じ秘密から別の用途として導くので、`AUTH_SESSION_SECRET` を入れ替えると、それまでの共有のリンクは読めなくなる
+- **点数は、ログインしている利用者のトークンで完了 API から取る。** 画面から送られた点数は使わない。
+  proxy のほかにトークンを付けてバックエンドを呼ぶ、数少ない場所になる（ほかはデモの DB を起こす `lib/auth/demo-warm-up.ts`）。期限が切れていれば呼ばずに 401 を返し、画面の読み込み直し（proxy の更新）に任せる
+- `/share/<トークン>` はログインなしで開ける。利用者とテナントは出さず、検索にも載せない（`noindex`）
+- カードの画像は `ImageResponse` で描く（`lib/share/card-image.tsx`）。日本語のフォントは、描く文字だけを Google Fonts から取る（`lib/share/font.ts`）。取れなければ、数字と英字だけのカードにする
 ログインしていれば、所属テナントの数で出し分ける（0 件: 招待を受けていない旨と、公開テナントの一覧（`/tenants`）への案内 / 1 件: そのテナントへ / 2 件以上: 選択画面）。
 所属の一覧はブラウザから取る。サーバーで取ると、proxy 以外でもトークンを付けることになる。
 
@@ -1107,7 +1124,8 @@ README のデモの URL（prod の web）だけは、見に来た人が開くた
   README に載せている。パスワードを作り直したら、README も直す。
   `example.com` は誰も受け取れないので、パスワードを忘れた人の手続き（確認コード）で乗っ取られることはない
 - **モバイルアプリ（`apps/mobile`）のクライアントは、web とは別に置く**（[ADR-0032](adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。シークレットを持たず、PKCE でコードを受ける。
-  戻り先はアプリのスキーム（`quizapp://`）と、Expo Go をシミュレータで動かすときの `exp://127.0.0.1:8081/--/`（`envs/dev` の `mobile_app_url_prefixes`）。空なら作らない（prod）
+  戻り先はアプリのスキーム（`quizapp://`）と、Expo Go をシミュレータで動かすときの `exp://127.0.0.1:8081/--/`（`envs/dev` の `mobile_app_url_prefixes`）。空なら作らない。
+  prod は `quizapp://` だけ（DEV-208）。自分の端末に入れたビルドから、dev と切り替えてつなぐ
   - クライアントの ID は `terraform output -raw auth_mobile_client_id`。アプリのビルドに渡す。バックエンドには、タスク定義の環境変数 `AUTH_MOBILE_CLIENT_ID` で渡る
   - Managed Login でパスキーを選ばせるため、`ALLOW_USER_AUTH` を許している。シークレットがないので、API からもパスワードの認証を呼べる。できることは Managed Login と変わらない
   - トークンは端末に置かれ、利用者がスコープ `aws.cognito.signin.user.admin` で自分の属性を書き換えられる。メールアドレスは確認するまで替わらず、バックエンドは確認済みのものしか使わない
@@ -1237,6 +1255,8 @@ API が使えるまで 1.5〜2 分かかる（DEV-182 で、0.25 vCPU の Spot �
 - タスクが止まっていても届くよう、API Gateway が Step Functions を直接起動する。quiz-service を通らず、Lambda もない
 - **ログインした人なら誰でも起こせる。** 誰でもサインアップできるため、絞っても意味が薄い。起こしても、使われなければ止まる
 - 何度押されても、タスクは 1 つより増えない。流量の上限はほかの API より低い（1 件/秒、バースト 5）
+- **押したあとは、5 分の間ボタンを出さず、起動中を出す**（DEV-211。`lib/wake.ts`）。頼んだ時刻をブラウザ（`localStorage`）に覚え、読み込み直したときと別のタブでは、起こさずに続きを待つ。同じ画面に並んだ案内も、起動中を共有する。
+  別の端末や別の人が起こしたことは分からないが、そこで押しても害はない（サーバーに起動中かを問い合わせる口は足さない）
 - 起こす口は dev にだけある。ローカルと prod でボタンを押すと、「起動できませんでした」と出る
 - 電話から起こすとき（DEV-152）も、同じステートマシンを呼ぶ
 - **Aurora も一緒に起こす**（DEV-181）。アプリは起動のときに DB へつながないため、起こさないと、タスクが使えるようになってからの最初の要求で、Aurora の復帰（15〜20 秒）を待つ。
@@ -1868,6 +1888,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
 | ログ | 14 日 | 30 日 |
 | 消した図を残す日数 | 7 日 | 14 日 |
 | Cognito の利用者 | スモークテスト、デモ、E2E、負荷試験 | スモークテスト、デモ |
+| モバイルアプリの戻り先 | `quizapp://` と Expo Go（シミュレータ） | `quizapp://` だけ（DEV-208） |
 | シード | デモ、デモのテナントの土台、スモークテスト（`dev`） | デモのテナントの土台、スモークテスト（`prod,smoke,demo`） |
 | AI の下書き（news-quiz-drafter） | 動かす | 動かさない。デモの「AWS の最新情報」は、prod では作らない |
 | Amplify のブランチ | `develop` | `main` |

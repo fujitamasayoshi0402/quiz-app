@@ -11,6 +11,7 @@ import { ABANDONED, AttemptEnded } from "@/components/play/attempt-ended";
 import { BookmarkToggle } from "@/components/play/bookmark-toggle";
 import { ChoiceList } from "@/components/play/choice-list";
 import { AiSourceNote, Eyebrow, Panel, Stat, Verdict } from "@/components/play/parts";
+import { ShareResult } from "@/components/play/share-result";
 import { ApiError } from "@/lib/api/fetcher";
 import { completeAttempt, getGetCurrentAttemptQueryKey } from "@/lib/api/generated/endpoints";
 import type { AttemptResult, QuizResult } from "@/lib/api/generated/model";
@@ -74,6 +75,7 @@ export function PlayResult({ slug, attemptId, mode }: { slug: string; attemptId:
 
       <div className="space-y-3">
         {missedCount > 0 && <RetryIncorrect slug={slug} range={result.data} mode={mode} />}
+        <ShareResult slug={slug} attemptId={attemptId} />
         <Button asChild size="lg" variant={missedCount > 0 ? "outline" : "default"} className="w-full rounded-full">
           <Link href={`/t/${slug}/play`}>クイズを選ぶ画面に戻る</Link>
         </Button>

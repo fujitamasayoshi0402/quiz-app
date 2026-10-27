@@ -1,6 +1,6 @@
 import type { ZodType } from "zod";
 import { accessToken, forgetSession } from "@/lib/auth/client";
-import { config } from "@/lib/config";
+import { currentEnvironment } from "@/lib/current-environment";
 
 /**
  * 生成されたクライアントが渡すオプション。`schema` は応答の Zod スキーマで、orval が操作ごとに埋める。
@@ -15,14 +15,16 @@ export type ApiRequestInit = RequestInit & { schema?: ZodType };
  */
 export async function apiFetch<T>(url: string, init?: ApiRequestInit): Promise<T> {
   const { schema, ...requestInit } = init ?? {};
-  const token = await accessToken();
+  // 呼び終えるまでに切り替わっても、始めたつなぐ先のトークンで呼び、そのつなぐ先のログインの状態だけを捨てる（DEV-208）
+  const environment = currentEnvironment();
+  const token = await accessToken(environment);
   const headers = new Headers(requestInit.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const response = await fetch(`${config.apiOrigin}${url}`, { ...requestInit, headers });
+  const response = await fetch(`${environment.apiOrigin}${url}`, { ...requestInit, headers });
   if (!response.ok) {
     // トークンを付けたのに断られた。失効しているので、ログインし直してもらう
-    if (response.status === 401 && token) await forgetSession();
+    if (response.status === 401 && token) await forgetSession(environment);
     throw new ApiError(response.status, await readProblem(response));
   }
   // 本文のない応答は null にする。TanStack Query は undefined をデータとして受け付けない
@@ -40,13 +42,14 @@ export async function apiFetch<T>(url: string, init?: ApiRequestInit): Promise<T
  * `HEAD` は、たどった先の URL だけを知りたいときに使う。PDF（20 MB まで）を開く前に、中身まで落とさない
  */
 export async function followFigure(path: string, method: "GET" | "HEAD"): Promise<Response> {
-  const token = await accessToken();
-  const response = await fetch(`${config.apiOrigin}${path}`, {
+  const environment = currentEnvironment();
+  const token = await accessToken(environment);
+  const response = await fetch(`${environment.apiOrigin}${path}`, {
     method,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!response.ok) {
-    if (response.status === 401 && token) await forgetSession();
+    if (response.status === 401 && token) await forgetSession(environment);
     throw new ApiError(response.status, await readProblem(response));
   }
   return response;

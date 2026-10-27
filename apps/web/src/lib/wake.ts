@@ -5,6 +5,7 @@
  * （`infra/terraform/modules/quiz-service/wake.tf`）。起きるまで 2〜3 分かかるため、届くようになるまで間をおいて確かめる。
  *
  * 画面に止まっている旨の案内がいくつ並んでも、起こして待つのは 1 回にする。
+ * 頼んだ時刻はブラウザに覚え、読み込み直したときや別のタブでは、起こさずに続きを待つ（DEV-211）。
  */
 
 /** 起こして待った結果 */
@@ -43,32 +44,119 @@ export async function waitForBackend({ probe, intervalMs, timeoutMs }: WaitOptio
   return false;
 }
 
+/** 起動を頼んだ時刻（エポックミリ秒）を置くキー。読み込み直したときや別のタブでも、起動中と分かるようにする（DEV-211） */
+export const WAKE_REQUESTED_KEY = "wake-requested-at";
+
+type WakeStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+type WakeOptions = Partial<WaitOptions> & {
+  request?: () => Promise<Pick<Response, "ok">>;
+  storage?: WakeStorage | null;
+  /** 使えるようになったときに 1 回だけ呼ぶ。画面に案内がいくつ並んでも、読み込み直すのは 1 回にする */
+  onReady?: () => unknown;
+};
+
+const DEFAULT_TIMEOUT_MS = 5 * 60_000;
+
 let inflight: Promise<WakeResult> | null = null;
+const startListeners = new Set<(wake: Promise<WakeResult>) => void>();
+
+/** 起こして待つのが始まったら知らせる。同じ画面に並んだ案内が、どれから押されても起動中を出せるように */
+export function onWakeStarted(listener: (wake: Promise<WakeResult>) => void): () => void {
+  startListeners.add(listener);
+  return () => startListeners.delete(listener);
+}
+
+function start(run: () => Promise<WakeResult>, storage: WakeStorage | null): Promise<WakeResult> {
+  if (inflight) return inflight;
+  const wake = run().finally(() => {
+    inflight = null;
+    forget(storage);
+  });
+  inflight = wake;
+  for (const listener of startListeners) listener(wake);
+  return wake;
+}
 
 /**
  * 起こして、使えるようになるまで待つ。待っている間に呼ばれたら、同じ結果を返す。
  *
  * 起こす口がない環境（ローカル、prod）では、`/api/wake` がバックエンドに届かないか 404 になり、`failed` を返す
  */
-export function wakeBackend(
-  options: Partial<WaitOptions> & { request?: () => Promise<Pick<Response, "ok">> } = {},
-): Promise<WakeResult> {
-  inflight ??= run(options).finally(() => {
-    inflight = null;
-  });
-  return inflight;
+export function wakeBackend(options: WakeOptions = {}): Promise<WakeResult> {
+  const storage = options.storage === undefined ? browserStorage() : options.storage;
+  return start(() => run(options, storage), storage);
 }
 
-async function run({
-  request = () => fetch("/api/wake", { method: "POST" }),
-  probe = () => fetch(PROBE_PATH),
-  intervalMs = 10_000,
-  timeoutMs = 5 * 60_000,
-}: Partial<WaitOptions> & { request?: () => Promise<Pick<Response, "ok">> }): Promise<WakeResult> {
+/**
+ * 前に頼んだ起動がまだ続いていれば、起こさずに続きを待つ。続いていなければ null。
+ *
+ * 読み込み直す前や別のタブで頼んだものは、頼んだ時刻から数えて待つ。時刻を過ぎていれば、起動はもう済んだか、失敗している
+ */
+export function resumeWake(options: WakeOptions = {}): Promise<WakeResult> | null {
+  if (inflight) return inflight;
+  const storage = options.storage === undefined ? browserStorage() : options.storage;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const remainingMs = remainingOf(storage, timeoutMs);
+  if (remainingMs <= 0) return null;
+  return start(() => wait({ ...options, timeoutMs: remainingMs }), storage);
+}
+
+async function run(options: WakeOptions, storage: WakeStorage | null): Promise<WakeResult> {
+  const { request = () => fetch("/api/wake", { method: "POST" }) } = options;
   try {
     if (!(await request()).ok) return "failed";
   } catch {
     return "failed";
   }
-  return (await waitForBackend({ probe, intervalMs, timeoutMs })) ? "ready" : "timeout";
+  remember(storage);
+  return wait(options);
+}
+
+async function wait({
+  probe = () => fetch(PROBE_PATH),
+  intervalMs = 10_000,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  onReady,
+}: WakeOptions): Promise<WakeResult> {
+  if (!(await waitForBackend({ probe, intervalMs, timeoutMs }))) return "timeout";
+  await onReady?.();
+  return "ready";
+}
+
+/** 頼んでから待つ残りの時間。記録がなければ 0 */
+function remainingOf(storage: WakeStorage | null, timeoutMs: number): number {
+  let requestedAt: number;
+  try {
+    requestedAt = Number(storage?.getItem(WAKE_REQUESTED_KEY) ?? Number.NaN);
+  } catch {
+    return 0;
+  }
+  if (!Number.isFinite(requestedAt)) return 0;
+  // 時計が戻ったなどで先の時刻になっていても、待つのは timeoutMs まで
+  return Math.min(requestedAt + timeoutMs - Date.now(), timeoutMs);
+}
+
+function remember(storage: WakeStorage | null) {
+  try {
+    storage?.setItem(WAKE_REQUESTED_KEY, String(Date.now()));
+  } catch {
+    // 覚えられない環境（プライベートウィンドウ、サイトのデータを止めている）では、読み込み直すとまた押せるだけなので、無視してよい
+  }
+}
+
+function forget(storage: WakeStorage | null) {
+  try {
+    storage?.removeItem(WAKE_REQUESTED_KEY);
+  } catch {
+    // remember と同じ
+  }
+}
+
+function browserStorage(): WakeStorage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
 }
