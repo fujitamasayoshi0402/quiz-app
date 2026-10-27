@@ -1,5 +1,6 @@
 import { Redirect, useRouter } from "expo-router";
 import { FlatList, Pressable, Text, View } from "react-native";
+import { EnvironmentSwitch } from "@/components/environment-switch";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
 import { useListMyTenants } from "@/lib/api/generated/endpoints";
 import { useAuth } from "@/lib/auth/auth-provider";
@@ -21,6 +22,7 @@ function SignIn() {
         {error && <Text style={styles.error}>{error}</Text>}
         <Text style={styles.muted}>パスキーとパスワードは、web で使っているものがそのまま使えます。</Text>
       </View>
+      <EnvironmentSwitch />
     </Screen>
   );
 }
@@ -37,6 +39,7 @@ function TenantPicker() {
       <Screen>
         <ErrorMessage error={tenants.error} />
         <Button label="もう一度読み込む" onPress={() => void tenants.refetch()} />
+        <EnvironmentSwitch />
       </Screen>
     );
   }
@@ -61,6 +64,7 @@ function TenantPicker() {
           )}
         />
       )}
+      <EnvironmentSwitch />
       <Button label="ログアウト" variant="secondary" onPress={() => void signOut()} />
     </Screen>
   );

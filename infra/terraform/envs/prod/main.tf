@@ -115,8 +115,9 @@ module "quiz_service" {
   vpc_link_subnet_ids        = module.network.private_subnet_ids
   vpc_link_security_group_id = module.network.security_group_ids.vpc_link
 
-  auth_issuer    = module.auth.issuer
-  auth_client_id = module.auth.client_id
+  auth_issuer           = module.auth.issuer
+  auth_client_id        = module.auth.client_id
+  auth_mobile_client_id = module.auth.mobile_client_id
 
   figures = {
     bucket_name               = module.figures.bucket_name
@@ -195,6 +196,10 @@ module "auth" {
 
   # ローカルの web からは prod にログインさせない
   app_origins = ["https://${local.web_domain}"]
+
+  # モバイルアプリ（apps/mobile）の戻り先（ADR-0032、DEV-208）。自分の端末に入れたビルドから、dev と切り替えてつなぐ。
+  # Expo Go（シミュレータの Metro）からはつながせない。開発は dev で行う
+  mobile_app_url_prefixes = ["quizapp://"]
 
   # スモークテスト（tests/api）の利用者。シード（db/smoke）が同じアドレスでスモークテストのテナントの管理者を用意している
   smoke_user_email = "smoke@example.com"

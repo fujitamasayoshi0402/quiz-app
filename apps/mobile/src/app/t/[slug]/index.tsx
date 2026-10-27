@@ -1,5 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { FlatList, Pressable, Text, View } from "react-native";
+import { EnvironmentSwitch } from "@/components/environment-switch";
 import { ResumeCard } from "@/components/resume-card";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
 import { useListMyTenants, useListPlayableCategories } from "@/lib/api/generated/endpoints";
@@ -56,6 +57,7 @@ export default function TenantHome() {
       {(tenants.data?.length ?? 0) > 1 && (
         <Button label="テナントを切り替える" variant="secondary" onPress={() => router.replace("/")} />
       )}
+      <EnvironmentSwitch />
       <Button label="ログアウト" variant="secondary" onPress={() => void signOut()} />
     </Screen>
   );

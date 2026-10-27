@@ -325,9 +325,9 @@ jobs:
       # 型チェックでは、Metro がワークスペースの依存を解決できるかが分からない。接続先はダミーでよい
       - name: バンドルを作る（iOS）
         env:
-          EXPO_PUBLIC_API_ORIGIN: https://api.example.com
-          EXPO_PUBLIC_AUTH_ISSUER: https://issuer.example.com
-          EXPO_PUBLIC_AUTH_CLIENT_ID: ci
+          EXPO_PUBLIC_DEV_API_ORIGIN: https://api.example.com
+          EXPO_PUBLIC_DEV_AUTH_ISSUER: https://issuer.example.com
+          EXPO_PUBLIC_DEV_AUTH_CLIENT_ID: ci
         run: pnpm --filter mobile exec expo export --platform ios --output-dir "$RUNNER_TEMP/mobile-export"
 
   # 権限まわりの E2E テスト（DEV-77）。docker compose でアプリ一式を起動し、Playwright で画面から確かめる。
