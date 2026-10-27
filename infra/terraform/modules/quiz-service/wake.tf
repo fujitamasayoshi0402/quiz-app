@@ -4,7 +4,7 @@
 #                                                                                                            └ Aurora（Data API）
 #
 # - タスクが止まっていても届くよう、API Gateway が Step Functions を直接起動する。quiz-service を通らない
-# - **ログインした人だけが起こせる。** アクセストークンは API Gateway が確かめる（JWT の認可）。quiz-service と同じく、発行者と web のクライアントを見る。
+# - **ログインした人だけが起こせる。** アクセストークンは API Gateway が確かめる（JWT の認可）。quiz-service と同じく、発行者と、web とモバイルアプリのクライアントを見る（モバイルは DEV-209）。
 #   誰でもサインアップできるため、起こせる人は絞らない。起こしても、使われなければ止まる（idle_stop.tf）
 # - 何度呼ばれても、タスクは 1 つより増えない。止まっているときだけ起こす
 # - 流量の上限は、ほかの API より低くする（api.tf の route_settings）。叩き続けても、費用はタスク 1 つ分を超えない
@@ -23,7 +23,7 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
   # Cognito のアクセストークンには aud がない。API Gateway は aud がなければ client_id を audience と比べる
   jwt_configuration {
     issuer   = var.auth_issuer
-    audience = [var.auth_client_id]
+    audience = compact([var.auth_client_id, var.auth_mobile_client_id])
   }
 }
 
