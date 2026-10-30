@@ -70,6 +70,18 @@ test("デモのアカウントで管理画面を見学できる。保存して�
   });
 });
 
+test("スマホの幅で、カテゴリを選ぶと、その下の「範囲」まで送る（DEV-213）", async ({ page }) => {
+  // デモはカテゴリが多く代表の図も付くため、スマホの幅では選んだカテゴリの下が画面の外に出る
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "デモとして入る" }).click();
+  await expect(page).toHaveURL(/\/t\/demo\/play$/);
+
+  await page.getByText("世界の地理", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: "範囲" })).toBeInViewport();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+});
+
 test("トップの「管理を試す」から、ログインを経てテナントの作成へ向かう", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "アカウントを作って始める" }).click();
