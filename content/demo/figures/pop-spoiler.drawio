@@ -1,0 +1,34 @@
+<mxfile>
+  <diagram id="pop-spoiler" name="ネタバレは、開く人にだけ">
+    <mxGraphModel grid="0" page="0" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="ネタバレは、開く人にだけ" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=26;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="0" width="480" height="50" />
+        </mxCell>
+        <mxCell id="c2" value="通常の表示設定" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=22;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="65" width="480" height="35" />
+        </mxCell>
+        <mxCell id="c3" value="内容を隠した状態" style="rounded=1;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=26;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="115" width="400" height="65" />
+        </mxCell>
+        <mxCell id="c4" value="" style="endArrow=block;strokeWidth=3;strokeColor=#2563eb;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="240" y="195" />
+            <mxPoint as="targetPoint" x="240" y="255" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c5" value="押して表示" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=22;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="265" y="200" width="170" height="40" />
+        </mxCell>
+        <mxCell id="c6" value="ここに作品の結末" style="rounded=1;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=26;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="275" width="400" height="65" />
+        </mxCell>
+        <mxCell id="c7" value="機能の模式図（実際の画面とは異なります）" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=20;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="375" width="480" height="35" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

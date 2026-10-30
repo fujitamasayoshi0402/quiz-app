@@ -1,0 +1,152 @@
+[
+  {
+    "category": "ネット・SNS",
+    "difficulty": "ふつう",
+    "question": "動画ミーム「リックロール」の定番の仕掛けはどれですか。",
+    "choices": [
+      {
+        "body": "同じ動画を逆再生して見せる",
+        "isCorrect": false
+      },
+      {
+        "body": "動画の最後に名前を流す",
+        "isCorrect": false
+      },
+      {
+        "body": "別の内容と見せかけて特定の曲の動画へ誘う",
+        "isCorrect": true
+      },
+      {
+        "body": "動画の再生速度を少しずつ上げる",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は、別の内容と見せかけて特定の曲の動画へ誘う、です。期待したリンクを開くと、リック・アストリーの「Never Gonna Give You Up」の動画が出てくる、というお約束のいたずらです。YouTube公式ブログでも、この仕掛けが紹介されています。\n\n- 逆再生：映像の順番を変えることではありません。\n- 最後に名前を流す：エンドロールとは別の言葉です。\n- 再生速度を上げる：速度の編集ではなく、リンク先への期待をずらす仕掛けです。\n\n![面白そうな別の動画を期待してリンクを開くと、リック・アストリーの曲の動画が表示される流れ。](figure:pop-rickroll)\n\n出典: [YouTube Official Blog「24 Hours, 24 Videos」](https://blog.youtube/news-and-events/24-hours-24-videos-welcome-to-2009/)",
+    "status": "published"
+  },
+  {
+    "category": "ネット・SNS",
+    "difficulty": "やさしい",
+    "question": "YouTubeに最初に投稿された動画「Me at the zoo」の撮影場所はどれですか。",
+    "choices": [
+      {
+        "body": "ライブハウス",
+        "isCorrect": false
+      },
+      {
+        "body": "ゲームセンター",
+        "isCorrect": false
+      },
+      {
+        "body": "映画の撮影スタジオ",
+        "isCorrect": false
+      },
+      {
+        "body": "動物園",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は、動物園です。2005年に投稿された「Me at the zoo」は、YouTube共同創業者のジョード・カリムが登場する約19秒の動画。最初の1本は、大がかりな作品ではなく、動物園での短い日常の記録でした。\n\n- ライブハウス：音楽ライブの映像ではありません。\n- ゲームセンター：ゲームのプレイ動画ではありません。\n- 映画の撮影スタジオ：映画のセットではなく、実際の動物園で撮られています。\n\n出典: [YouTube Official Blog「YouTube enters V&A collection」](https://blog.youtube/news-and-events/va-museum-youtube-first-video/)",
+    "status": "published"
+  },
+  {
+    "category": "ネット・SNS",
+    "difficulty": "ふつう",
+    "question": "英語でも使われる「emoji」という言葉の由来はどれですか。",
+    "choices": [
+      {
+        "body": "日本語の「絵」と「文字」",
+        "isCorrect": true
+      },
+      {
+        "body": "英語の「emotion」と「icon」",
+        "isCorrect": false
+      },
+      {
+        "body": "英語の「electronic」と「image」",
+        "isCorrect": false
+      },
+      {
+        "body": "英語の「email」と「icon」",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は、日本語の「絵」と「文字」です。UnicodeのFAQは、emojiを日本語由来の言葉として説明しています。emotionに似たつづりでも、語源は別です。\n\n- emotionとicon：こちらは「emoticon」の語源です。文字や記号を組み合わせた顔文字を指します。\n- electronicとimage：emojiをこの2語に分ける語源ではありません。\n- emailとicon：メール用アイコンの略でもありません。\n\n![emojiは絵と文字、emoticonはemotionとicon。似ている2語の組み立てを比較した図。](figure:pop-emoji-words)\n\n出典: [Unicode「Emoji and Dingbats FAQ」](https://www.unicode.org/faq/emoji_dingbats.html)",
+    "status": "published"
+  },
+  {
+    "category": "ネット・SNS",
+    "difficulty": "やさしい",
+    "question": "Twitchの「レイド」でできることはどれですか。",
+    "choices": [
+      {
+        "body": "複数の配信を1つの画面に合成する",
+        "isCorrect": false
+      },
+      {
+        "body": "参加する視聴者を別の配信へ案内する",
+        "isCorrect": true
+      },
+      {
+        "body": "過去の配信を自動で短く編集する",
+        "isCorrect": false
+      },
+      {
+        "body": "視聴者全員に有料サブスクを贈る",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は、参加する視聴者を別の配信へ案内する機能です。自分の配信の終わりなどに、別の配信者のチャンネルへ視聴者を送り出せます。視聴者は移動前に参加を取りやめることもできます。\n\n- 画面を合成する：レイドは共同の画面を作る機能ではありません。\n- 過去の配信を短く編集する：アーカイブの編集機能ではありません。\n- 有料サブスクを贈る：サブスクギフトとは別の機能です。\n\n機能の説明は2026年10月時点の公式ヘルプに基づきます。\n\n![配信Aを見ている人のうち、レイドに参加する視聴者が配信Bへ移動する流れ。](figure:pop-raid)\n\n出典: [Twitch Help「How to Use Raids」](https://help.twitch.tv/s/article/how-to-use-raids?language=en_US)",
+    "status": "published"
+  },
+  {
+    "category": "ネット・SNS",
+    "difficulty": "やさしい",
+    "question": "Discordの「スポイラータグ」の主な使い道はどれですか。",
+    "choices": [
+      {
+        "body": "メッセージを時間指定で送る",
+        "isCorrect": false
+      },
+      {
+        "body": "メッセージを自動翻訳する",
+        "isCorrect": false
+      },
+      {
+        "body": "ネタバレを見たい人だけ開ける形にする",
+        "isCorrect": true
+      },
+      {
+        "body": "メッセージを一定時間後に消す",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は、ネタバレを見たい人だけ開ける形にする、です。Discordでは、たとえば文章を `||` で囲むとスポイラーとして扱えます。通常の表示設定では内容が隠れ、読む人が押すと表示されます。\n\n- 時間指定で送る：送信時刻を予約するためのタグではありません。\n- 自動翻訳する：文章の言語を変える機能ではありません。\n- 一定時間後に消す：表示を隠すもので、メッセージを自動削除するものではありません。\n\n2026年10月時点の公式ヘルプによる説明です。常に内容を表示する設定もあるので、秘密情報の保護には使いません。\n\n![通常の表示設定では内容が隠れており、押すと内容が見える。実際の作品のネタバレは使わない模式図。](figure:pop-spoiler)\n\n出典: [Discord Support「Spoiler Tags」](https://support.discord.com/hc/en-us/articles/360022320632-Spoiler-Tags)",
+    "status": "published"
+  },
+  {
+    "category": "ネット・SNS",
+    "difficulty": "ふつう",
+    "question": "ニコニコ動画で、コメントが流れる場面を決める基準はどれですか。",
+    "choices": [
+      {
+        "body": "見ている人の現在時刻",
+        "isCorrect": false
+      },
+      {
+        "body": "投稿者の住んでいる地域",
+        "isCorrect": false
+      },
+      {
+        "body": "動画の累計再生回数",
+        "isCorrect": false
+      },
+      {
+        "body": "動画の中の再生位置",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は、動画の中の再生位置です。コメントは動画のどの場面に付けたかと結び付きます。見る日時が違っても、同じ場面に来るとコメントが表示されるため、一緒に見ているような感覚が生まれます。\n\n- 現在時刻：今日の何時かではなく、動画の何秒目かが基準です。\n- 投稿者の地域：住んでいる場所に合わせて流す仕組みではありません。\n- 累計再生回数：何回目の再生かで表示の場面が決まるわけではありません。\n\n図の時刻とコメントは、仕組みを説明するための例です。\n\n![昨日見た人も今日見た人も、動画の30秒の位置で同じコメントを見る。視聴日時と動画内の時間を区別した図。](figure:pop-comments)\n\n出典: [ドワンゴ「第11期 中間報告書・ニコニコ動画の特徴」](https://dwango.co.jp/download/6526495807766528/)",
+    "status": "published"
+  }
+]

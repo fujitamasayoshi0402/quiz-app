@@ -1,0 +1,49 @@
+<mxfile>
+  <diagram id="pop-raid" name="レイド：次の配信へ">
+    <mxGraphModel grid="0" page="0" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="レイド：次の配信へ" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=26;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="0" width="480" height="50" />
+        </mxCell>
+        <mxCell id="c2" value="配信 A" style="rounded=1;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="75" width="160" height="75" />
+        </mxCell>
+        <mxCell id="c3" value="配信 B" style="rounded=1;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="305" y="75" width="160" height="75" />
+        </mxCell>
+        <mxCell id="c4" value="" style="endArrow=block;strokeWidth=3;strokeColor=#2563eb;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="185" y="112" />
+            <mxPoint as="targetPoint" x="295" y="112" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c5" value="参加する&#10;視聴者が移動" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="135" y="195" width="210" height="80" />
+        </mxCell>
+        <mxCell id="c6" value="" style="ellipse;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="310" width="30" height="30" />
+        </mxCell>
+        <mxCell id="c7" value="" style="rounded=1;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="50" y="345" width="50" height="35" />
+        </mxCell>
+        <mxCell id="c8" value="" style="ellipse;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="210" y="310" width="30" height="30" />
+        </mxCell>
+        <mxCell id="c9" value="" style="rounded=1;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="200" y="345" width="50" height="35" />
+        </mxCell>
+        <mxCell id="c10" value="" style="ellipse;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="360" y="310" width="30" height="30" />
+        </mxCell>
+        <mxCell id="c11" value="" style="rounded=1;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="350" y="345" width="50" height="35" />
+        </mxCell>
+        <mxCell id="c12" value="視聴者は参加を取りやめることも可能" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=22;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="405" width="480" height="35" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
