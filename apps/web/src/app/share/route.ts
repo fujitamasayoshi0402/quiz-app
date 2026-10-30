@@ -10,19 +10,19 @@ import { newTraceParent } from "@/lib/trace-context";
 const Body = z.object({ slug: z.string().regex(createTenantRequestSlugRegExp), attemptId: z.uuid() });
 
 /**
- * 結果の共有のリンクを作る（DEV-207。`lib/share/token.ts`）。結果画面の「結果を共有する」が送る。
+ * 結果の共有のリンクを作る（DEV-207。`lib/share/token.ts`）。web とモバイルの結果画面の「結果を共有する」が送る。
  *
  * - **点数は、ログインしている利用者のトークンで完了 API から取る。** 画面から送られるのは挑戦の ID だけで、点数は偽れない。
  *   完了 API は完了済みの挑戦に結果を返すだけなので、何度呼んでもよい。他人の挑戦は 404 になる
  * - POST だけを受ける。ほかのオリジンからの要求は、web の proxy が止める（`isSameOriginRequest`）
- * - アクセストークンの期限が切れていたら、401 を返す。画面を読み込み直せば、proxy が更新する
+ * - トークンは、web のセッションか、`Authorization` から取る（{@link accessTokenOf}）
  */
 export async function POST(request: NextRequest) {
   const body = Body.safeParse(await request.json().catch(() => undefined));
   if (!body.success) return problem(400, "共有する結果を指定してください");
 
-  const session = await readSession(request.cookies);
-  if (!session || session.expiresAt < Date.now() / 1000) {
+  const accessToken = await accessTokenOf(request);
+  if (!accessToken) {
     return problem(401, "ログインの期限が切れました。画面を読み込み直してから、もう一度お試しください");
   }
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const call = (path: string, method: "GET" | "POST") =>
     fetch(new URL(path, process.env.API_ORIGIN ?? "http://localhost:8080"), {
       method,
-      headers: { authorization: `Bearer ${session.accessToken}`, traceparent: newTraceParent() },
+      headers: { authorization: `Bearer ${accessToken}`, traceparent: newTraceParent() },
     });
 
   const completed = await call(getCompleteAttemptUrl(slug, attemptId), "POST");
@@ -48,6 +48,19 @@ export async function POST(request: NextRequest) {
   };
   const url = new URL(`/share/${await sealShareCard(card)}`, appOrigin(request));
   return NextResponse.json({ url: url.toString() });
+}
+
+/**
+ * バックエンドを呼ぶトークン。
+ *
+ * - web … セッション（Cookie）のトークン。期限が切れていたら使わない。画面を読み込み直せば、proxy が更新する
+ * - モバイル（DEV-212） … アプリが `Authorization: Bearer` で付けたトークン。アプリは API Gateway を直接呼ぶので、web のセッションを持たない。
+ *   検証はバックエンドに任せる。ほかのサイトの画面は、利用者のトークンを知らず、このヘッダを付けて送らせることもできない（CORS を開けていない）
+ */
+async function accessTokenOf(request: NextRequest): Promise<string | undefined> {
+  const session = await readSession(request.cookies);
+  if (session) return session.expiresAt < Date.now() / 1000 ? undefined : session.accessToken;
+  return /^Bearer (\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1];
 }
 
 /**

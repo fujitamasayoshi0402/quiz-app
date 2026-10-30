@@ -11,12 +11,15 @@ export type Environment = {
   authIssuer: string;
   /** Cognito のアプリ用のクライアント（web のクライアントではない） */
   authClientId: string;
+  /** web。結果の共有のリンクを作る（DEV-212）。無ければ、共有のボタンを出さない */
+  webOrigin?: string;
 };
 
 export type EnvironmentValues = {
   apiOrigin?: string;
   authIssuer?: string;
   authClientId?: string;
+  webOrigin?: string;
 };
 
 /** 並べる順。最初のものを、まだ選んでいないときのつなぐ先にする。prod は止まらないので、待たずに使える */
@@ -24,7 +27,8 @@ const ORDER: EnvironmentName[] = ["prod", "dev"];
 
 const LABELS: Record<EnvironmentName, string> = { prod: "本番（prod）", dev: "開発（dev）" };
 
-const VARIABLES: Record<keyof EnvironmentValues, string> = {
+/** つなぐのに要る値。web の origin は、共有にしか使わないので任意にする */
+const VARIABLES: Record<Exclude<keyof EnvironmentValues, "webOrigin">, string> = {
   apiOrigin: "API_ORIGIN",
   authIssuer: "AUTH_ISSUER",
   authClientId: "AUTH_CLIENT_ID",
@@ -39,7 +43,7 @@ export function environmentsFrom(values: Record<EnvironmentName, EnvironmentValu
   const environments: Environment[] = [];
   for (const name of ORDER) {
     const given = values[name];
-    const keys = Object.keys(VARIABLES) as (keyof EnvironmentValues)[];
+    const keys = Object.keys(VARIABLES) as (keyof typeof VARIABLES)[];
     const missing = keys.filter((key) => !given[key]);
     if (missing.length === keys.length) continue;
     if (missing.length > 0) {
@@ -52,6 +56,7 @@ export function environmentsFrom(values: Record<EnvironmentName, EnvironmentValu
       apiOrigin: trimSlash(given.apiOrigin!),
       authIssuer: trimSlash(given.authIssuer!),
       authClientId: given.authClientId!,
+      webOrigin: given.webOrigin ? trimSlash(given.webOrigin) : undefined,
     });
   }
   if (environments.length === 0) {

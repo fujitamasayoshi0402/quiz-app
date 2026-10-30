@@ -23,6 +23,12 @@ describe("environmentsFrom", () => {
     expect(environment.apiOrigin).toBe("https://api.dev.example.com");
   });
 
+  it("web の origin は任意で、渡せば末尾の / を落とす", () => {
+    const [environment] = environmentsFrom({ dev: { ...dev, webOrigin: "https://dev.example.com/" }, prod: {} });
+    expect(environment.webOrigin).toBe("https://dev.example.com");
+    expect(environmentsFrom({ dev, prod: {} })[0].webOrigin).toBeUndefined();
+  });
+
   it("値がすべて空の環境は、一覧に入れない", () => {
     expect(
       environmentsFrom({ dev, prod: { apiOrigin: "", authIssuer: "", authClientId: "" } }).map((e) => e.name),

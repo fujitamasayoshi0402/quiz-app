@@ -10,10 +10,12 @@ export const environments = environmentsFrom({
     apiOrigin: process.env.EXPO_PUBLIC_PROD_API_ORIGIN,
     authIssuer: process.env.EXPO_PUBLIC_PROD_AUTH_ISSUER,
     authClientId: process.env.EXPO_PUBLIC_PROD_AUTH_CLIENT_ID,
+    webOrigin: process.env.EXPO_PUBLIC_PROD_WEB_ORIGIN,
   },
   dev: {
     apiOrigin: process.env.EXPO_PUBLIC_DEV_API_ORIGIN,
     authIssuer: process.env.EXPO_PUBLIC_DEV_AUTH_ISSUER,
     authClientId: process.env.EXPO_PUBLIC_DEV_AUTH_CLIENT_ID,
+    webOrigin: process.env.EXPO_PUBLIC_DEV_WEB_ORIGIN,
   },
 });

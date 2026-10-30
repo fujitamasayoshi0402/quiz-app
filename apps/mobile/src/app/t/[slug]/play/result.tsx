@@ -5,6 +5,7 @@ import { ScrollView, Text, View } from "react-native";
 import { ABANDONED, AttemptEnded } from "@/components/attempt-ended";
 import { Markdown } from "@/components/markdown";
 import { ChoiceList, Eyebrow, SourceNote, Verdict } from "@/components/play";
+import { ShareResult } from "@/components/share-result";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
 import { ApiError } from "@/lib/api/fetcher";
 import { completeAttempt, getGetCurrentAttemptQueryKey } from "@/lib/api/generated/endpoints";
@@ -75,6 +76,8 @@ export default function PlayResult() {
           reviewed.map(({ quiz, number }) => <Review key={quiz.quizId} slug={slug} quiz={quiz} number={number} />)
         )}
       </View>
+
+      <ShareResult slug={slug} attemptId={params.attempt} />
 
       {fromHistory ? (
         <Button label="履歴に戻る" onPress={() => router.back()} />

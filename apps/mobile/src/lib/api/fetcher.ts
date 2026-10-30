@@ -1,6 +1,7 @@
 import type { ZodType } from "zod";
 import { accessToken, forgetSession } from "@/lib/auth/client";
 import { currentEnvironment } from "@/lib/current-environment";
+import type { Environment } from "@/lib/environments";
 
 /**
  * 生成されたクライアントが渡すオプション。`schema` は応答の Zod スキーマで、orval が操作ごとに埋める。
@@ -55,6 +56,17 @@ export async function followFigure(path: string, method: "GET" | "HEAD"): Promis
   return response;
 }
 
+/**
+ * 決まったつなぐ先へ、トークンを付けて呼び、応答をそのまま返す。失敗の応答も例外にしない。
+ * 止まっているサーバーを起こして待つ間に、応答の形で起動の途中かを見分ける（`lib/wake.ts`）。途中で切り替わっても、起こした先を確かめ続ける
+ */
+export async function authorizedFetch(environment: Environment, path: string, init?: RequestInit): Promise<Response> {
+  const token = await accessToken(environment);
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(`${environment.apiOrigin}${path}`, { ...init, headers });
+}
+
 /** バックエンドは RFC 9457 の ProblemDetail でエラーを返す。 */
 export type Problem = {
   title?: string;
@@ -81,7 +93,7 @@ export class ApiError extends Error {
 }
 
 /** バックエンドのエラーだけを読む。API Gateway が返す応答（`{"message": ...}`）は ProblemDetail ではない */
-async function readProblem(response: Response): Promise<Problem | null> {
+export async function readProblem(response: Response): Promise<Problem | null> {
   if (!response.headers.get("content-type")?.startsWith("application/problem+json")) {
     return null;
   }

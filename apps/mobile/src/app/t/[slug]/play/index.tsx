@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { AccessibilityInfo, type LayoutChangeEvent, ScrollView, Text, View } from "react-native";
 import { OptionGroup } from "@/components/play";
 import { ResumeCard } from "@/components/resume-card";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
@@ -49,6 +49,21 @@ export default function PlaySetup() {
   const [order, setOrder] = useState("random");
   const [limit, setLimit] = useState("10");
   const [mode, setMode] = useState<FeedbackMode>("learn");
+
+  // カテゴリを最初に選んだら、その下に出る「範囲」まで送る（DEV-213。web と同じ）。選んでも何も起きないように見えるため
+  const scroll = useRef<ScrollView>(null);
+  const viewport = useRef({ offset: 0, height: 0 });
+  const revealRange = useRef(false);
+  const onRangeLayout = (event: LayoutChangeEvent) => {
+    if (!revealRange.current) return;
+    revealRange.current = false;
+    const { y, height } = event.nativeEvent.layout;
+    // すでに見えていれば動かさない
+    if (y + height <= viewport.current.offset + viewport.current.height) return;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) =>
+      scroll.current?.scrollTo({ y: Math.max(0, y - 16), animated: !reduceMotion }),
+    );
+  };
 
   const start = useStartAttempt({
     mutation: {
@@ -100,12 +115,21 @@ export default function PlaySetup() {
   const conflict = start.error instanceof ApiError && start.error.status === 409;
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      ref={scroll}
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
+      onLayout={(event) => (viewport.current.height = event.nativeEvent.layout.height)}
+      onScroll={(event) => (viewport.current.offset = event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={100}
+    >
       <ResumeCard slug={slug} />
       <Section title="カテゴリ">
         <OptionGroup
           value={categoryId}
           onChange={(value) => {
+            // 選び直したときは動かさない
+            if (!categoryId) revealRange.current = true;
             setCategoryId(value);
             setRangeValue("all");
           }}
@@ -119,7 +143,7 @@ export default function PlaySetup() {
 
       {category && (
         <>
-          <Section title="範囲">
+          <Section title="範囲" onLayout={onRangeLayout}>
             <OptionGroup value={range?.value} onChange={setRangeValue} options={ranges} />
           </Section>
           <Section title="並び">
@@ -155,9 +179,17 @@ export default function PlaySetup() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  onLayout,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onLayout?: (event: LayoutChangeEvent) => void;
+}) {
   return (
-    <View style={{ gap: 10 }}>
+    <View style={{ gap: 10 }} onLayout={onLayout}>
       <Text accessibilityRole="header" style={[styles.text, { fontWeight: "600" }]}>
         {title}
       </Text>
