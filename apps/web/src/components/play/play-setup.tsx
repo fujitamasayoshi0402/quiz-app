@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +53,16 @@ export function PlaySetup({ slug }: { slug: string }) {
   const [order, setOrder] = useState("random");
   const [limit, setLimit] = useState("10");
   const [mode, setMode] = useState<FeedbackMode>("learn");
+
+  // カテゴリを最初に選んだら、その下に出る「範囲」まで送る（DEV-213）。狭い画面では、選んでも何も起きないように見えるため。
+  // 選び直したときは動かさない。キーボードの矢印でカテゴリを移るたびに、画面が飛ばないように
+  const rangeSection = useRef<HTMLElement>(null);
+  const revealRange = useRef(false);
+  useEffect(() => {
+    if (!revealRange.current || !rangeSection.current) return;
+    revealRange.current = false;
+    scrollIntoViewIfHidden(rangeSection.current);
+  }, [categoryId]);
 
   const start = useStartAttempt({
     mutation: {
@@ -116,6 +126,7 @@ export function PlaySetup({ slug }: { slug: string }) {
           columns={2}
           value={categoryId ?? ""}
           onChange={(value) => {
+            if (!categoryId) revealRange.current = true;
             setCategoryId(value);
             setRangeValue("all");
           }}
@@ -138,7 +149,7 @@ export function PlaySetup({ slug }: { slug: string }) {
 
       {category && (
         <>
-          <Section title="範囲">
+          <Section title="範囲" ref={rangeSection}>
             <OptionGroup name="range" value={range?.value ?? "all"} onChange={setRangeValue} options={ranges} />
           </Section>
           <Section title="出題対象">
@@ -218,9 +229,16 @@ function CoverFigure({ slug, figureId }: { slug: string; figureId: string }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/** 画面の下にはみ出していれば、見出しが上に来るまで送る。すでに見えていれば動かさない */
+function scrollIntoViewIfHidden(element: HTMLElement) {
+  if (element.getBoundingClientRect().bottom <= window.innerHeight) return;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  element.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+}
+
+function Section({ title, children, ref }: { title: string; children: React.ReactNode; ref?: React.Ref<HTMLElement> }) {
   return (
-    <section className="space-y-3">
+    <section ref={ref} className="scroll-mt-4 space-y-3">
       <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
       {children}
     </section>
