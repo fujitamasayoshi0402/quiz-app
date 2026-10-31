@@ -2,5 +2,5 @@
   "name": "content-tools",
   "private": true,
   "type": "module",
-  "description": "クイズのパックを流し込む（ADR-0034）。依存を持たず、Node が型を消してそのまま動かす"
+  "description": "クイズのパックを流し込む（ADR-0034）。npm の依存を持たず、Node が型を消してそのまま動かす"
 }

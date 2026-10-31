@@ -882,7 +882,29 @@ node tools/content/load.ts <パック> --api http://localhost:8080 --tenant <slu
 node tools/content/load.ts <パック> --api "$(cd infra/terraform/envs/dev && terraform output -raw quiz_service_url)" --tenant <slug>
 ```
 
-- **流すのは、そのテナントの管理者。** 自分の Cognito の利用者でトークンを取る（スモークテストと同じ `InitiateAuth`）。パスワードは画面に出さず、トークンはファイルに残さない
+macOSでは、初回にログイン状態をキーチェーンへ保存し、以後はプロファイルを指定して使える（[ADR-0036](adr/0036-cache-content-tool-sessions-in-macos-keychain.md)）。Xcode Command Line Toolsが必要で、初回にmacOSのアクセス許可を求められる場合がある。
+
+```bash
+# 初回と更新トークンが切れたとき。devの値はTerraformの名前付き出力から取る
+node tools/content/auth.ts login --profile dev --region ap-northeast-1 \
+  --client-id "$(cd infra/terraform/envs/dev && terraform output -raw auth_mobile_client_id)" \
+  --api "$(cd infra/terraform/envs/dev && terraform output -raw quiz_service_url)" \
+  --email <自分のメールアドレス>
+
+# 2回目以降はパスワード入力なし。トークンが必要なら自動更新する
+node tools/content/load.ts content/demo --profile dev --tenant demo --dry-run
+node tools/content/load.ts content/demo --profile dev --tenant demo
+
+# 秘密を表示しない状態確認と、Cognitoでの失効を含むログアウト
+node tools/content/auth.ts status --profile dev
+node tools/content/auth.ts logout --profile dev
+```
+
+prodは`--profile prod`とprodのTerraform出力で別に登録する。保存するのはトークンと接続先で、パスワードは保存しない。既存のCognito設定では更新トークンが初回ログインから30日で切れるため、そのときは再ログインする。接続先の取り違えを防ぐため、`--profile`と`--api` / `ACCESS_TOKEN`は併用しない。シェルに以前の`ACCESS_TOKEN`が残っている場合は`unset ACCESS_TOKEN`で外す。
+
+認証情報はmacOSのキーチェーンだけに置く。生成したキーチェーン用実行ファイルとコンパイルキャッシュは`tools/content/tmp/`（Gitの無視対象）に置き、秘密を含めない。macOS以外やCIでは従来の`ACCESS_TOKEN`方式を使う。
+
+- **流すのは、そのテナントの管理者。** 自分の Cognito の利用者でトークンを取る（スモークテストと同じ `InitiateAuth`）。パスワードは画面に出さず、トークンは平文ファイルに残さない。macOSではキーチェーンへの保存を選べる（ADR-0036）
 - ローカルの API も、dev の Cognito のトークンを受け付ける。ローカルに流すときも、同じトークンでよい
 - カテゴリと難易度がなければ作る。図は、原本（`.drawio`）が同じ図があれば使い回す
 - **クイズは、カテゴリと問題文が同じものを入れない。** 何度流しても増えない。問題文を直すと、別の問題として入る
@@ -894,7 +916,7 @@ node tools/content/load.ts <パック> --api "$(cd infra/terraform/envs/dev && t
   デモは見に来た人が見るものなので、`--update --prune` を付けて、パックと同じ状態にする
 - E2E と画面の撮影は、テストの前に、ローカルのデモのテナントへデモのパックを流す（`tests/e2e/support/demo-pack.ts`）。パックに誤りがあれば、ここで止まる
 - 自分で作ったテナントには、クイズと図の数に上限がある（ADR-0028）。上げるときは [Runbook](runbook.md#テナントの上限を変える)
-- 依存を持たない。Node が型を消してそのまま動かす（`node --test 'tools/content/*.test.ts'` でテストを流す）。コンストラクタの引数でフィールドを作る書き方など、型を消すだけでは動かない書き方は使えない
+- npmの依存を持たない。Node が型を消してそのまま動かす（`node --test 'tools/content/*.test.ts'` でテストを流す）。コンストラクタの引数でフィールドを作る書き方など、型を消すだけでは動かない書き方は使えない
 
 ### 認証
 
