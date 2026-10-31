@@ -48,7 +48,7 @@ export default function PlaySetup() {
   const [rangeValue, setRangeValue] = useState("all");
   const [order, setOrder] = useState("random");
   const [limit, setLimit] = useState("10");
-  const [mode, setMode] = useState<FeedbackMode>("learn");
+  const [mode, setMode] = useState<FeedbackMode>("swipe");
 
   // カテゴリを最初に選んだら、その下に出る「範囲」まで送る（DEV-213。web と同じ）。選んでも何も起きないように見えるため
   const scroll = useRef<ScrollView>(null);

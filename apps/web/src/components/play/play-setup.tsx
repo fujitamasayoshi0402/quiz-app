@@ -52,7 +52,7 @@ export function PlaySetup({ slug }: { slug: string }) {
   const [scope, setScope] = useState("all");
   const [order, setOrder] = useState("random");
   const [limit, setLimit] = useState("10");
-  const [mode, setMode] = useState<FeedbackMode>("learn");
+  const [mode, setMode] = useState<FeedbackMode>("swipe");
 
   // カテゴリを最初に選んだら、その下に出る「範囲」まで送る（DEV-213）。狭い画面では、選んでも何も起きないように見えるため。
   // 選び直したときは動かさない。キーボードの矢印でカテゴリを移るたびに、画面が飛ばないように
