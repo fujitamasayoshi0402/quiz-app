@@ -65,6 +65,7 @@ test("未所属の人が自分のテナントを作り、クイズを作って�
     await page.getByRole("banner").getByRole("link", { name: "解く" }).click();
     await expect(page).toHaveURL(new RegExp(`/t/${mine.slug}/play$`));
     await page.getByText(category).click();
+    await page.getByText("学習モード").click();
     await page.getByRole("button", { name: "始める" }).click();
     await page.getByRole("button", { name: /あ$/ }).click();
     await page.getByRole("button", { name: "回答する" }).click();
