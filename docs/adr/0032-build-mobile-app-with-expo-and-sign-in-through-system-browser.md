@@ -121,7 +121,7 @@ Managed Login はブラウザの画面で開くので、WebAuthn はブラウザ
 | 解説 | remark（GFM、改行）で構文木にし、React Native の部品に写す。HTML の節は文字として出し、画像は `figure:` の図だけを出す。web の `markdown.test.tsx` と同じ性質をテストで固定する |
 | 解説図 | `/play/figures/{id}/preview` をトークンを付けて呼び、署名付き URL へのリダイレクトをたどる。押すと、図か PDF を開く |
 | デモ | アプリには「デモとして入る」を置かない。web の入口は、web のサーバーがパスワードを持つ（[ADR-0029](0029-let-visitors-sign-in-as-shared-demo-account-without-login-screen.md)）。アプリに置くと、公開のアプリにパスワードと、API でのパスワードの認証を入れることになる。共有のデモのアカウントは、Managed Login に打ち込めば使える |
-| 配り方 | シミュレータ、Expo Go、開発用のビルド（Android の実機は APK）まで。ストアへの公開は、prod を公開するときに決める（下の「ストアに出すとき」） |
+| 配り方 | シミュレータ、Expo Go、自分の端末（iPhone は無料の Apple ID で署名、Android は APK）まで（「追記（DEV-210）」）。ストアへの公開は、prod を公開するときに決める（下の「ストアに出すとき」） |
 
 ### ストアに出すとき
 
@@ -129,7 +129,7 @@ Managed Login はブラウザの画面で開くので、WebAuthn はブラウザ
 
 | 項目 | 費用 | 備考 |
 | --- | --- | --- |
-| Apple Developer Program | 年 99 ドル | 毎年かかる。iOS の実機に入れるだけでも要る |
+| Apple Developer Program | 年 99 ドル | 毎年かかる。自分の iPhone に入れるだけなら要らない（無料の Apple ID で 7 日間使える。「追記（DEV-210）」） |
 | Google Play Console | 初回 25 ドル | 1 回だけ |
 | EAS（Expo のビルドと配信） | 無料の枠で足りる | ビルドは月に iOS 15 回・Android 15 回、OTA の更新は月 1,000 人まで |
 | AWS | ほぼ増えない | API はそのまま。使われた分だけ |
@@ -156,7 +156,7 @@ Managed Login はブラウザの画面で開くので、WebAuthn はブラウザ
   バックエンドは確認済みのメールアドレスしか使わない。ほかの属性は使っていない
 - ログインのたびに、ブラウザの画面が一度開く
 - ネイティブの部分は Expo に任せるので、理解は深まらない
-- iOS の実機では試せない（Apple Developer Program が要る）
+- iOS の実機には、無料の Apple ID で署名して入れる。署名は 7 日で切れるので、入れ直す（「追記（DEV-210）」）
 
 ### 緩和策
 
@@ -201,3 +201,15 @@ Managed Login でパスキーとパスワードを選ばせるには、クライ
 - `<img>` として読んだ SVG は、スクリプトを動かさず、外のものも読み込まない（web と同じ）。そのうえで WebView の JavaScript を切り、配信のときと同じ CSP を付ける
 - PNG と JPEG（PDF の 1 ページ目を含む）は、React Native の画像の部品で描く
 - 図を開くときは、`HEAD` でリダイレクトをたどって署名付き URL だけを取り、システムのブラウザの画面で開く
+
+## 追記（DEV-210）
+
+決定の表の「配り方」に、**自分の端末に、ストアを通さずに入れる**ことを足した。どちらも Release のビルドで、JavaScript をアプリの中に入れる。dev と prod の両方の値を入れ、端末の中で切り替える。
+
+- **iPhone は、Xcode と無料の Apple ID（Personal Team）で署名して入れる。** 「ストアに出すとき」の表で、iOS の実機に入れるだけでも Apple Developer Program が要るとしたのは誤りだった。
+  無料の署名は 7 日で切れ、入れ直す必要がある。入れられるアプリは同時に 3 つまで
+- アプリの ID は、無料の Apple ID では Apple の中で重ならないものしか登録できない。既定の `com.quizapp.mobile` は使えないため、ビルドのときに環境変数（`APP_ID`）で替える
+- **Android は、EAS のビルドで APK を作って入れる。** 手元に Android の SDK を入れずに済む。無料の枠（月 15 回）で足りる。署名の鍵は EAS が持つ
+- つなぐ先の値は、EAS の環境変数に `.env` と同じものを入れる。どれも秘密ではない（Cognito の ID と URL だけ）
+- 切り替えたときと 401 でログインの状態を捨てたときに、テナントの画面を閉じるようにした（`Stack.Protected`）。実機で、テナントのトップから切り替えると、トークンを付けずに API を呼び続けてエラーが並んだ
+- ストアへの公開は、引き続き prod を公開するときに決める
