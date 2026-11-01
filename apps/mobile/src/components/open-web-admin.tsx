@@ -17,7 +17,9 @@ export function OpenWebAdmin({ slug, role }: { slug: string; role: string | unde
   return (
     <View style={{ gap: 4 }}>
       <Button label="管理画面を開く（web）" variant="secondary" onPress={() => void Linking.openURL(url)} />
-      <Text style={styles.muted}>ブラウザで開きます。web のログインはアプリとは別で、初めて開くときはログインが要ります。</Text>
+      <Text style={styles.muted}>
+        ブラウザで開きます。web のログインはアプリとは別で、初めて開くときはログインが要ります。
+      </Text>
     </View>
   );
 }
