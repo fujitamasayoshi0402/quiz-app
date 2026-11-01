@@ -699,6 +699,8 @@ pnpm --filter mobile start                     # i で iOS のシミュレータ
 - 選んだつなぐ先は端末に覚える。まだ選んでいなければ prod につなぐ（止まらないので待たない）
 - **ログインの状態は、つなぐ先ごとに持つ。** User Pool が違うので、トークンを持ち越さない。切り替えて戻れば、前のログインのまま入れる
 - 切り替えると、取った応答を捨て、最初の画面から始め直す。テナントはつなぐ先ごとに別
+- **テナントの画面は、ログインしているときだけ開ける**（`_layout.tsx` の `Stack.Protected`。DEV-210）。切り替えたときと、401 でログインの状態を捨てたときは、開いていた画面を閉じて最初の画面に戻る。
+  残すと、トークンを付けずに API を呼び続け、エラーだけが並ぶ（DEV-210 で、テナントのトップから切り替えて起きた）
 - 呼んでいる途中で切り替わっても、始めたつなぐ先のトークンで呼び、そのつなぐ先の状態だけを書き換える（`lib/auth/client.ts`）
 - prod の Cognito は、アプリのスキーム（`quizapp://`）からしかログインさせない。Expo Go でつなぐのは dev だけ
 
@@ -716,6 +718,45 @@ xcrun simctl openurl booted exp://127.0.0.1:8081                           # シ
   web と違い、押したことは端末に覚えない。アプリを開き直すと、また押せる（押しても、タスクは 1 つより増えない）
 - **Expo の SDK は、公開から 7 日たった版を使う**（`minimumReleaseAge`）。SDK と同時に出る React Native の版も同じ。上げるときは、`pnpm --filter mobile exec expo install --check` で SDK が求める版を確かめる
 - React の型（`@types/react`）は web と同じ版にする。Amplify は依存を 1 か所にまとめて入れるため（`nodeLinker: hoisted`）、版が違うと web のビルドが型の食い違いで落ちる
+
+**自分の端末には、ストアを通さずに入れる**（DEV-210。ADR-0032 の追記）。Release のビルドで、JavaScript をアプリの中に入れるので、Metro も Mac も要らない。
+`.env` に dev と prod の両方を入れてビルドすれば、端末の中で切り替えられる。
+
+**iPhone** は、Xcode と無料の Apple ID（Personal Team）で署名して入れる。Apple Developer Program（年 99 ドル）は要らない。
+
+```bash
+brew install cocoapods                                    # 初回だけ
+xcrun xctrace list devices                                # USB でつないだ iPhone の ID（== Devices == の下）
+pnpm --filter mobile exec expo run:ios --device <iPhone の ID> --configuration Release --no-bundler
+```
+
+- 初回だけ、次の準備が要る
+  - Xcode の Settings → Accounts に Apple ID を足す
+  - iPhone で「デベロッパモード」をオンにする（設定 → プライバシーとセキュリティ。Xcode につないだあとに出る）
+  - `.env` の `APP_ID` と `APPLE_TEAM_ID` を埋める（`.env.example`）
+  - 一度 `expo prebuild --platform ios` で `ios/` を作り、Xcode で `ios/Quiz.xcworkspace` を開く。Signing & Capabilities で Personal Team を選び、エラーが出ていれば「Try Again」を押す。
+    アプリの ID が Apple に登録され、署名のプロファイルができる。コマンドラインの xcodebuild からは Xcode の Apple ID が見えず、ここだけは画面で行う
+  - 入れたあと、iPhone の 設定 → 一般 → VPN とデバイス管理 で、自分の Apple ID を「信頼」する。しないと開けない
+- **アプリの ID（`APP_ID`）は、Apple の中で重ならないものにする。** 既定の `com.quizapp.mobile` はほかの人が登録していて、使えない（`Failed Registering Bundle Identifier`）。
+  `io.github.<GitHub の名前>.quiz` のように、自分の名前を入れる。Android の決まりに合わせ、英小文字・数字・ドットだけにする
+- **無料の Apple ID の署名は、7 日で切れる。** 切れるとアプリが開かなくなる。上のコマンドを流し直せば入れ直せ、端末に覚えたログインの状態とつなぐ先は残る
+- 無料の Apple ID で入れられるアプリは、同時に 3 つまで。アプリの ID も、7 日に 10 個までしか作れない。ID は頻繁に替えない
+- `ios/` と `android/` は、ビルドのたびに `app.config.ts` から作る生成物で、リポジトリに入れない（`.gitignore`）。`app.config.ts` を変えたら、`expo prebuild --clean` で作り直す
+
+**Android** は、EAS のビルド（Expo のクラウド）で APK を作り、端末に直接入れる。Android Studio も Google Play も要らない。
+
+```bash
+cd apps/mobile
+npx --yes eas-cli@25.3.0 login                                                  # 初回だけ。Expo のアカウント
+npx --yes eas-cli@25.3.0 build -p android --profile device                      # 終わると APK の URL と QR コードが出る
+```
+
+- ビルドの設定は `eas.json` の `device`（`distribution: internal` で APK を作る）。EAS のプロジェクトは `app.config.ts` の `owner` と `extra.eas.projectId`
+- **つなぐ先とアプリの ID は、EAS の環境変数（preview）から渡す。** `.env` はリポジトリに入れないので、EAS には上がらない。
+  `.env` の `EXPO_PUBLIC_*` と `APP_ID` を、同じ名前で入れておく（`eas env:create --environment preview --visibility plaintext`）。`.env` を変えたら、こちらも直す
+- 署名の鍵は、初回のビルドで EAS が作って持つ。同じ鍵で作り直せば、上書きして入れられ、端末に覚えたログインの状態とつなぐ先は残る
+- 端末では、出た URL をブラウザで開いて APK を落とし、開いて入れる。初回は、ブラウザに「不明なアプリのインストール」を許す
+- 署名の期限はない。ビルドは無料の枠（月 15 回）の中で行う（ADR-0032）
 
 **解説の規則は web と同じ**（DEV-175）。生の HTML は文字として出し、画像は解説図（`figure:`）だけを出す。
 
