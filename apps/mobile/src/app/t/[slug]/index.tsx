@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { EnvironmentSwitch } from "@/components/environment-switch";
+import { OpenWebAdmin } from "@/components/open-web-admin";
 import { ResumeCard } from "@/components/resume-card";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
 import { useListMyTenants, useListPlayableCategories } from "@/lib/api/generated/endpoints";
@@ -8,7 +9,7 @@ import { useAuth } from "@/lib/auth/auth-provider";
 
 /**
  * テナントのトップ。中断中の挑戦があれば先に出し、出題できるカテゴリと難易度を並べる。
- * カテゴリを押すと、そのカテゴリを選んだ状態で出題の条件を選ぶ
+ * カテゴリを押すと、そのカテゴリを選んだ状態で出題の条件を選ぶ。管理者には、web の管理画面を開くボタンも出す
  */
 export default function TenantHome() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -37,6 +38,7 @@ export default function TenantHome() {
                 variant="secondary"
                 onPress={() => router.push({ pathname: "/t/[slug]/history", params: { slug } })}
               />
+              <OpenWebAdmin slug={slug} role={tenant?.role} />
             </View>
           }
           ListEmptyComponent={<Text style={styles.text}>出題できるクイズがまだありません。</Text>}
