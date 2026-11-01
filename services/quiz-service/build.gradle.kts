@@ -36,6 +36,7 @@ java {
 extra["tomcat.version"] = "11.0.26"
 extra["jackson-bom.version"] = "3.1.7"
 extra["jackson-2-bom.version"] = "2.21.7"
+extra["opentelemetry.version"] = "1.67.0"
 
 repositories {
     mavenCentral()
