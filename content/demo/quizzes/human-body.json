@@ -1,0 +1,177 @@
+[
+  {
+    "category": "からだのしくみ",
+    "difficulty": "やさしい",
+    "question": "血液の成分のうち、酸素を全身へ運ぶものはどれですか。",
+    "choices": [
+      {
+        "body": "白血球",
+        "isCorrect": false
+      },
+      {
+        "body": "赤血球",
+        "isCorrect": true
+      },
+      {
+        "body": "血小板",
+        "isCorrect": false
+      },
+      {
+        "body": "血漿",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "**赤血球**です。赤血球の中のヘモグロビンが肺で酸素を受け取り、全身へ届けます。\n\n![血液の 4 つの成分。赤血球は酸素を運び、白血球は細菌などと戦い、血小板は出血を止め、血漿は液体の部分](figure:blood-components)\n\n- **白血球**: 体に入った細菌などを見つけて退治します\n- **血小板**: 傷口に集まって、出血を止めます\n- **血漿**: 血液の液体の部分で、血球はこの中に浮かんでいます\n\n出典: [MSD マニュアル家庭版「血液の成分」](https://www.msdmanuals.com/ja-jp/home/13-%E8%A1%80%E6%B6%B2%E3%81%AE%E7%97%85%E6%B0%97/%E8%A1%80%E6%B6%B2%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%81%AE%E5%9F%BA%E7%A4%8E%E7%9F%A5%E8%AD%98/%E8%A1%80%E6%B6%B2%E3%81%AE%E6%88%90%E5%88%86)",
+    "status": "published"
+  },
+  {
+    "category": "からだのしくみ",
+    "difficulty": "やさしい",
+    "question": "大人の体の骨は、およそ何個ですか。",
+    "choices": [
+      {
+        "body": "約 200 個",
+        "isCorrect": true
+      },
+      {
+        "body": "約 100 個",
+        "isCorrect": false
+      },
+      {
+        "body": "約 300 個",
+        "isCorrect": false
+      },
+      {
+        "body": "約 400 個",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "**約 200 個**です。平均すると 206 個とされることが多く、人によって少し違います。\n\n- **約 300 個**: 生まれたばかりの赤ちゃんの数に近い値です。育つうちに骨どうしがくっつき、数が減ります\n- **約 100 個**: 手と足の骨だけで 100 個を超えるので、少なすぎます\n- **約 400 個**: 赤ちゃんの数よりも多く、大人の数ではありません\n\n出典: [国立国会図書館 レファレンス協同データベース「人間の骨の数が知りたい。」](https://crd.ndl.go.jp/reference/entry/index.php?page=ref_view&id=1000233028)",
+    "status": "published"
+  },
+  {
+    "category": "からだのしくみ",
+    "difficulty": "ふつう",
+    "question": "食べ物の栄養の大部分を吸収するのは、どこですか。",
+    "choices": [
+      {
+        "body": "胃",
+        "isCorrect": false
+      },
+      {
+        "body": "大腸",
+        "isCorrect": false
+      },
+      {
+        "body": "小腸",
+        "isCorrect": true
+      },
+      {
+        "body": "肝臓",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "**小腸**です。内側の壁に細かいひだや突起があって表面積が広く、ほとんどの栄養をここで吸収します。\n\n![食べ物の通り道。口、食道、胃、小腸、大腸、肛門の順で、小腸が栄養の大部分を吸収する](figure:digestive-tract)\n\n- **胃**: 食べ物をためて溶かすところです\n- **大腸**: 主に水分を吸収して、便を作ります\n- **肝臓**: 小腸で吸収された栄養が運ばれてくる臓器で、食べ物の通り道ではありません\n\n出典: [MSD マニュアル家庭版「小腸」](https://www.msdmanuals.com/ja-jp/home/03-%E6%B6%88%E5%8C%96%E5%99%A8%E7%B3%BB%E3%81%AE%E7%97%85%E6%B0%97/%E6%B6%88%E5%8C%96%E5%99%A8%E7%B3%BB%E3%81%AE%E7%94%9F%E7%89%A9%E5%AD%A6/%E5%B0%8F%E8%85%B8)",
+    "status": "published"
+  },
+  {
+    "category": "からだのしくみ",
+    "difficulty": "ふつう",
+    "question": "血液を全身へ送り出す、心臓の部屋はどれですか。",
+    "choices": [
+      {
+        "body": "右心房",
+        "isCorrect": false
+      },
+      {
+        "body": "右心室",
+        "isCorrect": false
+      },
+      {
+        "body": "左心室",
+        "isCorrect": true
+      },
+      {
+        "body": "左心房",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "**左心室**です。肺で酸素を受け取った血液を、大動脈を通して全身へ送り出します。\n\n![心臓の 4 つの部屋と血液の流れ。全身から右心房、右心室、肺、左心房、左心室を通って全身へ](figure:heart-circulation)\n\n- **右心房**: 全身から戻った血液が入る部屋です\n- **右心室**: 血液を肺へ送り出す部屋です\n- **左心房**: 肺から戻った血液が入る部屋です\n\n出典: [MSD マニュアル家庭版「心臓の生物学」](https://www.msdmanuals.com/ja-jp/home/06-%E5%BF%83%E8%87%93%E3%81%A8%E8%A1%80%E7%AE%A1%E3%81%AE%E7%97%85%E6%B0%97/%E5%BF%83%E8%87%93%E3%81%A8%E8%A1%80%E7%AE%A1%E3%81%AE%E7%94%9F%E7%89%A9%E5%AD%A6/%E5%BF%83%E8%87%93%E3%81%AE%E7%94%9F%E7%89%A9%E5%AD%A6)",
+    "status": "published"
+  },
+  {
+    "category": "からだのしくみ",
+    "difficulty": "むずかしい",
+    "question": "酸素を多く含む血液が流れている血管はどれですか。",
+    "choices": [
+      {
+        "body": "肺動脈",
+        "isCorrect": false
+      },
+      {
+        "body": "上大静脈",
+        "isCorrect": false
+      },
+      {
+        "body": "下大静脈",
+        "isCorrect": false
+      },
+      {
+        "body": "肺静脈",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "**肺静脈**です。血液は肺で酸素を受け取り、肺静脈を通って心臓へ戻ります。\n\n![血液の流れ。肺から左心房へ戻る肺静脈と、左心室から出る大動脈を、酸素の多い血液として青で示す](figure:heart-circulation)\n\n動脈と静脈の名前は、血液の向きで決まります。心臓から出るのが動脈、心臓へ戻るのが静脈で、酸素の量で決まるのではありません。\n\n- **肺動脈**: 全身で酸素を渡したあとの血液を、心臓から肺へ運びます\n- **上大静脈 / 下大静脈**: 全身から戻る、酸素の少ない血液が流れます\n\n出典: [MSD マニュアル家庭版「心臓の生物学」](https://www.msdmanuals.com/ja-jp/home/06-%E5%BF%83%E8%87%93%E3%81%A8%E8%A1%80%E7%AE%A1%E3%81%AE%E7%97%85%E6%B0%97/%E5%BF%83%E8%87%93%E3%81%A8%E8%A1%80%E7%AE%A1%E3%81%AE%E7%94%9F%E7%89%A9%E5%AD%A6/%E5%BF%83%E8%87%93%E3%81%AE%E7%94%9F%E7%89%A9%E5%AD%A6)",
+    "status": "published"
+  },
+  {
+    "category": "からだのしくみ",
+    "difficulty": "ふつう",
+    "question": "熱いものに触れて思わず手を引っ込めるとき、手を動かす命令を出すのはどこですか。",
+    "choices": [
+      {
+        "body": "大脳",
+        "isCorrect": false
+      },
+      {
+        "body": "脊髄",
+        "isCorrect": true
+      },
+      {
+        "body": "小脳",
+        "isCorrect": false
+      },
+      {
+        "body": "心臓",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "**脊髄**です。皮膚からの信号が感覚神経で脊髄に届くと、脊髄から運動神経へ命令が出ます。脳を通らないので、すばやく動けます。\n\n![手の皮膚から感覚神経で脊髄へ、脊髄から運動神経で手の筋肉へ。脳へは遅れて信号が届く](figure:reflex-arc)\n\n- **大脳**: 熱さを感じるところです。信号が届いて感じるのは、手が動き始めたあとです\n- **小脳**: 体のつり合いや、動きの調整を受け持ちます\n- **心臓**: 血液を送るところで、命令は出しません\n\n出典: [コトバンク「反射」](https://kotobank.jp/word/%E5%8F%8D%E5%B0%84-118077)、[コトバンク「脊髄反射」](https://kotobank.jp/word/%E8%84%8A%E9%AB%84%E5%8F%8D%E5%B0%84-86840)",
+    "status": "published"
+  },
+  {
+    "category": "からだのしくみ",
+    "difficulty": "むずかしい",
+    "question": "血液型の遺伝子が AO の親と BO の親の間に生まれる子が、O 型になる確率はどれですか。",
+    "choices": [
+      {
+        "body": "4 分の 1",
+        "isCorrect": true
+      },
+      {
+        "body": "0",
+        "isCorrect": false
+      },
+      {
+        "body": "2 分の 1",
+        "isCorrect": false
+      },
+      {
+        "body": "4 分の 3",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "**4 分の 1** です。子は、それぞれの親から遺伝子を 1 つずつ受け取ります。O 型になるのは、両方の親から O を受け取ったとき（OO）だけです。\n\n![縦に AO の親の A と O、横に BO の親の B と O を並べた表。AB 型、A 型、B 型、O 型が 1 マスずつ](figure:blood-type-grid)\n\n組み合わせは AB、AO、BO、OO の 4 通りで、起きやすさは同じです。O は A と B に対して劣性なので、AO は A 型、BO は B 型になります。\n\n- **0**: 親が A 型と B 型でも、O を持っていれば O 型の子が生まれます\n- **2 分の 1**: 片方の親から O を受け取る確率です\n- **4 分の 3**: O 型以外になる確率です\n\n出典: [コトバンク「ABO式血液型」](https://kotobank.jp/word/abo%E5%BC%8F%E8%A1%80%E6%B6%B2%E5%9E%8B-3145875)",
+    "status": "published"
+  }
+]
