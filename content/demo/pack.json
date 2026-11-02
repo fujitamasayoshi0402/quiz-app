@@ -55,6 +55,24 @@
       ]
     },
     {
+      "name": "生き物のふしぎ",
+      "description": "動物のなかま分け、昆虫の体、光合成、食べる・食べられるのつながり",
+      "difficulties": [
+        { "name": "やさしい", "level": 1 },
+        { "name": "ふつう", "level": 2 },
+        { "name": "むずかしい", "level": 3 }
+      ]
+    },
+    {
+      "name": "からだのしくみ",
+      "description": "血液、心臓、消化、骨、反射、血液型。自分の体の中で起きていること",
+      "difficulties": [
+        { "name": "やさしい", "level": 1 },
+        { "name": "ふつう", "level": 2 },
+        { "name": "むずかしい", "level": 3 }
+      ]
+    },
+    {
       "name": "コンビニ・外食",
       "description": "いつものお店やお菓子の、知ると話したくなる名前と発明の裏話",
       "difficulties": [
