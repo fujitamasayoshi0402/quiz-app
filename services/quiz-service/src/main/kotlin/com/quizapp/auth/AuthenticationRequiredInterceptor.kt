@@ -1,6 +1,7 @@
 package com.quizapp.auth
 
 import com.quizapp.ratelimit.RateLimitInterceptor
+import com.quizapp.warmup.WarmUpController
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.ObjectProvider
@@ -17,6 +18,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
  *
  * テナントの判定より先に動かす。後にすると、認証していない相手にも
  * 「その slug のテナントがあるか」が 401 と 404 の違いで分かってしまう。
+ *
+ * 例外は、DB を先に起こす API（[WarmUpController]）だけ。認証すると DB を使うため、回数の上限を確かめる前に起きてしまう
  */
 @Component
 class AuthenticationRequiredInterceptor : HandlerInterceptor {
@@ -40,13 +43,14 @@ class ApiAccessConfigurer(
 ) : WebMvcConfigurer {
 
     override fun addInterceptors(registry: InterceptorRegistry) {
-        registry.addInterceptor(authenticationRequired).addPathPatterns(API)
-        rateLimit.ifAvailable { registry.addInterceptor(it).addPathPatterns(API) }
+        registry.addInterceptor(authenticationRequired).addPathPatterns(API).excludePathPatterns(UNAUTHENTICATED)
+        rateLimit.ifAvailable { registry.addInterceptor(it).addPathPatterns(API).excludePathPatterns(UNAUTHENTICATED) }
         registry.addInterceptor(tenantAccess).addPathPatterns(TENANT_SCOPED)
     }
 
     private companion object {
         const val API = "/api/**"
         const val TENANT_SCOPED = "/api/t/*/**"
+        const val UNAUTHENTICATED = WarmUpController.PATH
     }
 }

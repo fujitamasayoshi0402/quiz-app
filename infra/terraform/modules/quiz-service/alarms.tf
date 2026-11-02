@@ -192,7 +192,7 @@ resource "aws_cloudwatch_event_target" "task_stopped" {
   rule = aws_cloudwatch_event_rule.task_stopped.name
   arn  = var.alarm_topic_arn
 
-  # イベントの JSON をそのまま送ると、メールで読みにくい。要点だけを文にする
+  # イベントの JSON をそのまま送ると、メールで読みにくい。要点だけを文にする。最初の文がメールの件名になる（modules/alarms）
   input_transformer {
     input_paths = {
       time   = "$.time"
@@ -200,6 +200,6 @@ resource "aws_cloudwatch_event_target" "task_stopped" {
       reason = "$.detail.stoppedReason"
       task   = "$.detail.taskArn"
     }
-    input_template = "\"quiz-service のタスクが止まりました（<time>）。理由: <reason>（<code>）。タスク: <task>。CloudWatch Logs の /ecs/${var.name}/quiz-service で、止まる前のログを見る。手順: ${local.runbook.task_stopped}\""
+    input_template = "\"quiz-service のタスクが止まりました。時刻: <time>。理由: <reason>（<code>）。タスク: <task>。CloudWatch Logs の /ecs/${var.name}/quiz-service で、止まる前のログを見る。手順: ${local.runbook.task_stopped}\""
   }
 }

@@ -1,0 +1,34 @@
+<mxfile>
+  <diagram id="pop-seven-hours" name="店名に残る営業時間">
+    <mxGraphModel grid="0" page="0" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="店名に残る営業時間" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=26;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="0" width="480" height="50" />
+        </mxCell>
+        <mxCell id="c2" value="朝 7 時&#10;開店" style="rounded=1;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="75" width="180" height="85" />
+        </mxCell>
+        <mxCell id="c3" value="夜 11 時&#10;閉店" style="rounded=1;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="285" y="75" width="180" height="85" />
+        </mxCell>
+        <mxCell id="c4" value="" style="endArrow=block;strokeWidth=3;strokeColor=#2563eb;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="75" y="200" />
+            <mxPoint as="targetPoint" x="405" y="200" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c5" value="7:00" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="215" width="150" height="40" />
+        </mxCell>
+        <mxCell id="c6" value="23:00" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="330" y="215" width="150" height="40" />
+        </mxCell>
+        <mxCell id="c7" value="SEVEN → ELEVEN" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=30;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="280" width="400" height="55" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

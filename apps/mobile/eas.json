@@ -1,0 +1,10 @@
+{
+  "cli": { "version": ">= 25.3.0", "appVersionSource": "local" },
+  "build": {
+    "device": {
+      "distribution": "internal",
+      "environment": "preview",
+      "android": { "buildType": "apk" }
+    }
+  }
+}

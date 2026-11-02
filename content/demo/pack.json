@@ -53,6 +53,22 @@
         { "name": "ふつう", "level": 2 },
         { "name": "むずかしい", "level": 3 }
       ]
+    },
+    {
+      "name": "コンビニ・外食",
+      "description": "いつものお店やお菓子の、知ると話したくなる名前と発明の裏話",
+      "difficulties": [
+        { "name": "やさしい", "level": 1 },
+        { "name": "ふつう", "level": 2 }
+      ]
+    },
+    {
+      "name": "ネット・SNS",
+      "description": "動画ミーム、絵文字、配信とコメント文化の小ネタ",
+      "difficulties": [
+        { "name": "やさしい", "level": 1 },
+        { "name": "ふつう", "level": 2 }
+      ]
     }
   ]
 }

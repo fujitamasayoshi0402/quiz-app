@@ -7,6 +7,7 @@ data "aws_caller_identity" "current" {}
 # ---- 予算 ----
 
 # 月の費用の上限の目安。実績が 85% と 100% を超えたとき、月末の予測が 100% を超えたときにメールで知らせる。
+# 知らせは SNS に送り、日本語にしてからメールにする（DEV-214。modules/alarms）。Budgets が直接送るメールは英語で、形を変えられない。
 # 予測で知らせるのは、月の途中で止める判断をするため。実績だけだと、気づいたときには超えている
 resource "aws_budgets_budget" "monthly" {
   name         = "月次コスト予算アラート"
@@ -30,28 +31,37 @@ resource "aws_budgets_budget" "monthly" {
   }
 
   notification {
-    notification_type          = "ACTUAL"
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 85
-    threshold_type             = "PERCENTAGE"
-    subscriber_email_addresses = [var.notification_email]
+    notification_type         = "ACTUAL"
+    comparison_operator       = "GREATER_THAN"
+    threshold                 = 85
+    threshold_type            = "PERCENTAGE"
+    subscriber_sns_topic_arns = [module.alarms.topic_arn]
   }
 
   notification {
-    notification_type          = "ACTUAL"
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 100
-    threshold_type             = "PERCENTAGE"
-    subscriber_email_addresses = [var.notification_email]
+    notification_type         = "ACTUAL"
+    comparison_operator       = "GREATER_THAN"
+    threshold                 = 100
+    threshold_type            = "PERCENTAGE"
+    subscriber_sns_topic_arns = [module.alarms.topic_arn]
   }
 
   notification {
-    notification_type          = "FORECASTED"
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 100
-    threshold_type             = "PERCENTAGE"
-    subscriber_email_addresses = [var.notification_email]
+    notification_type         = "FORECASTED"
+    comparison_operator       = "GREATER_THAN"
+    threshold                 = 100
+    threshold_type            = "PERCENTAGE"
+    subscriber_sns_topic_arns = [module.alarms.topic_arn]
   }
+}
+
+module "alarms" {
+  source = "../modules/alarms"
+
+  name          = "quiz-app-account"
+  label         = "アカウント"
+  email         = var.notification_email
+  allow_budgets = true
 }
 
 # ---- コスト配分タグ ----

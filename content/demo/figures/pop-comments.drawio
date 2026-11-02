@@ -1,0 +1,58 @@
+<mxfile>
+  <diagram id="pop-comments" name="見た日が違っても、同じ場面に">
+    <mxGraphModel grid="0" page="0" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="見た日が違っても、同じ場面に" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=26;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="0" width="480" height="50" />
+        </mxCell>
+        <mxCell id="c2" value="昨日見た人" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="75" width="180" height="40" />
+        </mxCell>
+        <mxCell id="c3" value="" style="endArrow=block;strokeWidth=3;strokeColor=#1f2937;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="35" y="170" />
+            <mxPoint as="targetPoint" x="445" y="170" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c4" value="" style="endArrow=none;strokeWidth=3;strokeColor=#2563eb;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="250" y="155" />
+            <mxPoint as="targetPoint" x="250" y="185" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c5" value="ここ好き！" style="rounded=1;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="275" y="115" width="170" height="45" />
+        </mxCell>
+        <mxCell id="c6" value="0:30" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="195" y="187" width="110" height="35" />
+        </mxCell>
+        <mxCell id="c7" value="今日見た人" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="245" width="180" height="40" />
+        </mxCell>
+        <mxCell id="c8" value="" style="endArrow=block;strokeWidth=3;strokeColor=#1f2937;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="35" y="340" />
+            <mxPoint as="targetPoint" x="445" y="340" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c9" value="" style="endArrow=none;strokeWidth=3;strokeColor=#2563eb;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="250" y="325" />
+            <mxPoint as="targetPoint" x="250" y="355" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c10" value="ここ好き！" style="rounded=1;fillColor=#f3f4f6;strokeColor=#1f2937;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="275" y="285" width="170" height="45" />
+        </mxCell>
+        <mxCell id="c11" value="0:30" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="195" y="357" width="110" height="35" />
+        </mxCell>
+        <mxCell id="c12" value="結び付くのは「動画内の時間」" style="text;fillColor=none;strokeColor=none;strokeWidth=2;align=center;verticalAlign=middle;fontColor=#1f2937;fontFamily=Helvetica;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="0" y="440" width="480" height="40" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

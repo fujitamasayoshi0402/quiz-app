@@ -1,21 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDemoWarmUp, WARM_UP_INTERVAL_MS } from "./demo-warm-up";
 
-const tokens = { accessToken: "demo-access", expiresAt: 0 };
-
 function setUp() {
   let now = 1_000_000;
   const fetch = vi.fn<(input: string | URL, init?: RequestInit) => Promise<Response>>(
-    async () => new Response("[]", { status: 200 }),
+    async () => new Response(null, { status: 204 }),
   );
   vi.stubGlobal("fetch", fetch);
-  const signIn = vi.fn(async () => tokens);
   const warmUp = createDemoWarmUp(
-    signIn,
     () => "https://api.example",
     () => now,
   );
-  return { fetch, signIn, warmUp, advance: (ms: number) => (now += ms) };
+  return { fetch, warmUp, advance: (ms: number) => (now += ms) };
 }
 
 describe("createDemoWarmUp", () => {
@@ -24,15 +20,17 @@ describe("createDemoWarmUp", () => {
     vi.restoreAllMocks();
   });
 
-  it("デモのアカウントのトークンで、DB を使う API を呼ぶ", async () => {
+  it("API の起こす口を、トークンを付けずに呼ぶ", async () => {
     const { fetch, warmUp } = setUp();
 
     expect(await warmUp()).toBe(true);
 
     expect(fetch).toHaveBeenCalledOnce();
     const [url, init] = fetch.mock.calls[0];
-    expect(url.toString()).toBe("https://api.example/api/me/tenants");
-    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer demo-access");
+    expect(url.toString()).toBe("https://api.example/api/warm-up");
+    expect(init?.method).toBe("POST");
+    // 認証すると、上限を確かめる前に DB が起きる
+    expect(new Headers(init?.headers).has("authorization")).toBe(false);
   });
 
   it("間隔の中では呼ばない。過ぎたらまた呼ぶ", async () => {
@@ -55,15 +53,15 @@ describe("createDemoWarmUp", () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
-  it("API が失敗しても、トークンが取れなくても、例外を投げない", async () => {
-    const { fetch, signIn, warmUp, advance } = setUp();
+  it("API が失敗しても、届かなくても、例外を投げない", async () => {
+    const { fetch, warmUp, advance } = setUp();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     fetch.mockResolvedValueOnce(new Response(null, { status: 503 }));
     await expect(warmUp()).resolves.toBe(true);
 
     advance(WARM_UP_INTERVAL_MS);
-    signIn.mockRejectedValueOnce(new Error("NotAuthorizedException"));
+    fetch.mockRejectedValueOnce(new TypeError("fetch failed"));
     await expect(warmUp()).resolves.toBe(true);
   });
 });

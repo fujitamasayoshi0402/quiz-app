@@ -1,6 +1,7 @@
 /**
  * クイズのパックを、テナントに流し込む（ADR-0034、DEV-186）。
  *
+ *   node tools/content/load.ts <パック> --profile dev --tenant <slug> [--dry-run] [--update] [--prune]
  *   ACCESS_TOKEN=... node tools/content/load.ts <パック> --api <API のオリジン> --tenant <slug> [--dry-run] [--update] [--prune]
  *
  * 1. カテゴリと難易度がなければ作る
@@ -15,6 +16,8 @@
 import { parseArgs } from "node:util";
 import { Api, ApiError, type QuizItem } from "./api.ts";
 import { type Pack, type Quiz, figureNames, quizKey, readPack, resolveFigures, validatePack } from "./pack.ts";
+import { Credentials } from "./credentials.ts";
+import { Keychain } from "./keychain.ts";
 
 /** 一括取り込みは 1 回 500 問まで */
 const IMPORT_BATCH = 500;
@@ -23,6 +26,7 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     api: { type: "string" },
+    profile: { type: "string" },
     tenant: { type: "string" },
     "dry-run": { type: "boolean", default: false },
     update: { type: "boolean", default: false },
@@ -31,9 +35,16 @@ const { values, positionals } = parseArgs({
 });
 
 const [packDir] = positionals;
-const token = process.env.ACCESS_TOKEN;
-if (!packDir || !values.api || !values.tenant || !token) {
-  console.error("使い方: ACCESS_TOKEN=... node tools/content/load.ts <パック> --api <オリジン> --tenant <slug> [--dry-run] [--update] [--prune]");
+let token = process.env.ACCESS_TOKEN;
+let origin = values.api;
+if (values.profile && (origin || token)) {
+  console.error("--profile は --api / ACCESS_TOKEN と併用できません。保存した接続先を使います");
+  process.exit(2);
+}
+if (!packDir || !values.tenant || (!values.profile && (!origin || !token))) {
+  console.error(
+    "使い方: node tools/content/load.ts <パック> --profile <名前> --tenant <slug> [--dry-run] [--update] [--prune]\nまたは ACCESS_TOKEN=... と --api <オリジン> を指定してください",
+  );
   process.exit(2);
 }
 const dryRun = values["dry-run"];
@@ -46,7 +57,17 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-const api = new Api(values.api, values.tenant, token);
+if (values.profile) {
+  try {
+    const saved = await new Credentials(new Keychain()).access(values.profile);
+    token = saved.accessToken;
+    origin = saved.apiOrigin;
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "保存済み認証を利用できません");
+    process.exit(1);
+  }
+}
+const api = new Api(origin!, values.tenant, token!);
 console.log(`${packDir} を ${api.origin} の ${api.slug} に流します${dryRun ? "（--dry-run。何も変えません）" : ""}`);
 console.log(`  パック: カテゴリ ${pack.categories.length}、クイズ ${pack.quizzes.length}、図 ${pack.figures.size}`);
 
@@ -62,7 +83,8 @@ for (const category of pack.categories) {
   if (!id) {
     console.log(`  カテゴリを作る: ${category.name}`);
     if (dryRun) {
-      for (const difficulty of category.difficulties) console.log(`  難易度を作る: ${category.name} / ${difficulty.name}`);
+      for (const difficulty of category.difficulties)
+        console.log(`  難易度を作る: ${category.name} / ${difficulty.name}`);
       continue;
     }
     id = (await api.createCategory(category.name, category.description)).id;
@@ -136,7 +158,8 @@ for (let start = 0; start < toImport.length; start += IMPORT_BATCH) {
     console.log(`  クイズを取り込んだ: ${importedCount} 問`);
   } catch (error) {
     // 取り込みは 1 問でも誤りがあると、どれも入れない。どの問題かを、行の番号ではなく問題文で出す
-    const rows = error instanceof ApiError ? ((error.problem?.rows ?? []) as { index: number; messages: string[] }[]) : [];
+    const rows =
+      error instanceof ApiError ? ((error.problem?.rows ?? []) as { index: number; messages: string[] }[]) : [];
     for (const row of rows) console.error(`  取り込めない: ${batch[row.index]?.question} — ${row.messages.join("、")}`);
     throw error;
   }

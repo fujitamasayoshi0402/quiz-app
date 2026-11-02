@@ -85,6 +85,7 @@ module "alarms" {
   source = "../../modules/alarms"
 
   name  = "quiz-app-dev"
+  label = "dev"
   email = var.alarm_email
 }
 

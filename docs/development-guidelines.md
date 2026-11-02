@@ -699,8 +699,15 @@ pnpm --filter mobile start                     # i で iOS のシミュレータ
 - 選んだつなぐ先は端末に覚える。まだ選んでいなければ prod につなぐ（止まらないので待たない）
 - **ログインの状態は、つなぐ先ごとに持つ。** User Pool が違うので、トークンを持ち越さない。切り替えて戻れば、前のログインのまま入れる
 - 切り替えると、取った応答を捨て、最初の画面から始め直す。テナントはつなぐ先ごとに別
+- **テナントの画面は、ログインしているときだけ開ける**（`_layout.tsx` の `Stack.Protected`。DEV-210）。切り替えたときと、401 でログインの状態を捨てたときは、開いていた画面を閉じて最初の画面に戻る。
+  残すと、トークンを付けずに API を呼び続け、エラーだけが並ぶ（DEV-210 で、テナントのトップから切り替えて起きた）
 - 呼んでいる途中で切り替わっても、始めたつなぐ先のトークンで呼び、そのつなぐ先の状態だけを書き換える（`lib/auth/client.ts`）
 - prod の Cognito は、アプリのスキーム（`quizapp://`）からしかログインさせない。Expo Go でつなぐのは dev だけ
+
+**管理者には、テナントのトップに「管理画面を開く（web）」が出る**（DEV-215。ADR-0032 の追記）。アプリに管理の画面はなく、端末のブラウザで、いまのつなぐ先の web の管理画面（`/t/{slug}/admin`）を開く。
+
+- **web のログインは、アプリとは別。** 初めて開くときは、ブラウザでログインが要る。一度ログインすれば、ブラウザの Cookie が残るあいだは入れる
+- `.env` の `EXPO_PUBLIC_*_WEB_ORIGIN`（結果の共有と同じ値）が空なら、ボタンは出ない
 
 **ログインするときは、アプリを `exp://127.0.0.1:8081` で開く。** 既定では Mac の LAN の IP で開き、ログインの戻り先が Cognito に登録したものと合わない。
 `--localhost` は使えない。Metro が IPv6 の `[::1]` でしか待たず、シミュレータから `127.0.0.1` につながらない。
@@ -716,6 +723,45 @@ xcrun simctl openurl booted exp://127.0.0.1:8081                           # シ
   web と違い、押したことは端末に覚えない。アプリを開き直すと、また押せる（押しても、タスクは 1 つより増えない）
 - **Expo の SDK は、公開から 7 日たった版を使う**（`minimumReleaseAge`）。SDK と同時に出る React Native の版も同じ。上げるときは、`pnpm --filter mobile exec expo install --check` で SDK が求める版を確かめる
 - React の型（`@types/react`）は web と同じ版にする。Amplify は依存を 1 か所にまとめて入れるため（`nodeLinker: hoisted`）、版が違うと web のビルドが型の食い違いで落ちる
+
+**自分の端末には、ストアを通さずに入れる**（DEV-210。ADR-0032 の追記）。Release のビルドで、JavaScript をアプリの中に入れるので、Metro も Mac も要らない。
+`.env` に dev と prod の両方を入れてビルドすれば、端末の中で切り替えられる。
+
+**iPhone** は、Xcode と無料の Apple ID（Personal Team）で署名して入れる。Apple Developer Program（年 99 ドル）は要らない。
+
+```bash
+brew install cocoapods                                    # 初回だけ
+xcrun xctrace list devices                                # USB でつないだ iPhone の ID（== Devices == の下）
+pnpm --filter mobile exec expo run:ios --device <iPhone の ID> --configuration Release --no-bundler
+```
+
+- 初回だけ、次の準備が要る
+  - Xcode の Settings → Accounts に Apple ID を足す
+  - iPhone で「デベロッパモード」をオンにする（設定 → プライバシーとセキュリティ。Xcode につないだあとに出る）
+  - `.env` の `APP_ID` と `APPLE_TEAM_ID` を埋める（`.env.example`）
+  - 一度 `expo prebuild --platform ios` で `ios/` を作り、Xcode で `ios/Quiz.xcworkspace` を開く。Signing & Capabilities で Personal Team を選び、エラーが出ていれば「Try Again」を押す。
+    アプリの ID が Apple に登録され、署名のプロファイルができる。コマンドラインの xcodebuild からは Xcode の Apple ID が見えず、ここだけは画面で行う
+  - 入れたあと、iPhone の 設定 → 一般 → VPN とデバイス管理 で、自分の Apple ID を「信頼」する。しないと開けない
+- **アプリの ID（`APP_ID`）は、Apple の中で重ならないものにする。** 既定の `com.quizapp.mobile` はほかの人が登録していて、使えない（`Failed Registering Bundle Identifier`）。
+  `io.github.<GitHub の名前>.quiz` のように、自分の名前を入れる。Android の決まりに合わせ、英小文字・数字・ドットだけにする
+- **無料の Apple ID の署名は、7 日で切れる。** 切れるとアプリが開かなくなる。上のコマンドを流し直せば入れ直せ、端末に覚えたログインの状態とつなぐ先は残る
+- 無料の Apple ID で入れられるアプリは、同時に 3 つまで。アプリの ID も、7 日に 10 個までしか作れない。ID は頻繁に替えない
+- `ios/` と `android/` は、ビルドのたびに `app.config.ts` から作る生成物で、リポジトリに入れない（`.gitignore`）。`app.config.ts` を変えたら、`expo prebuild --clean` で作り直す
+
+**Android** は、EAS のビルド（Expo のクラウド）で APK を作り、端末に直接入れる。Android Studio も Google Play も要らない。
+
+```bash
+cd apps/mobile
+npx --yes eas-cli@25.3.0 login                                                  # 初回だけ。Expo のアカウント
+npx --yes eas-cli@25.3.0 build -p android --profile device                      # 終わると APK の URL と QR コードが出る
+```
+
+- ビルドの設定は `eas.json` の `device`（`distribution: internal` で APK を作る）。EAS のプロジェクトは `app.config.ts` の `owner` と `extra.eas.projectId`
+- **つなぐ先とアプリの ID は、EAS の環境変数（preview）から渡す。** `.env` はリポジトリに入れないので、EAS には上がらない。
+  `.env` の `EXPO_PUBLIC_*` と `APP_ID` を、同じ名前で入れておく（`eas env:create --environment preview --visibility plaintext`）。`.env` を変えたら、こちらも直す
+- 署名の鍵は、初回のビルドで EAS が作って持つ。同じ鍵で作り直せば、上書きして入れられ、端末に覚えたログインの状態とつなぐ先は残る
+- 端末では、出た URL をブラウザで開いて APK を落とし、開いて入れる。初回は、ブラウザに「不明なアプリのインストール」を許す
+- 署名の期限はない。ビルドは無料の枠（月 15 回）の中で行う（ADR-0032）
 
 **解説の規則は web と同じ**（DEV-175）。生の HTML は文字として出し、画像は解説図（`figure:`）だけを出す。
 
@@ -819,8 +865,8 @@ Aurora の `quiz` はスーパーユーザーではなく、`FORCE ROW LEVEL SEC
 | 難易度 | 1 つ（ニュース） | 1 つ |
 | クイズ | なし。**デモのクイズは、デモのパック（`content/demo/`）から流す**（[クイズのパック](#クイズのパック)） | 公開 3 問 |
 
-デモのパックは、一般教養と図解のクイズ（世界の地理、身近な科学、図形とひらめき、日本と世界の歴史、ことばの由来、宇宙と天気）。
-6 カテゴリ・42 問で、どのカテゴリにも図の入った問題がある。難易度はどれも「やさしい / ふつう / むずかしい」。
+デモのパックは、一般教養の6カテゴリ（世界の地理、身近な科学、図形とひらめき、日本と世界の歴史、ことばの由来、宇宙と天気）と、身近な雑学の2カテゴリ（コンビニ・外食、ネット・SNS）。
+8 カテゴリ・54 問で、どのカテゴリにも図の入った問題がある。難易度は一般教養が「やさしい / ふつう / むずかしい」、身近な雑学が「やさしい / ふつう」。
 ローカルでは、E2E（と画面の撮影）を流すと、テストの前にデモのテナントへ流れる。手で流すときは [クイズのパック](#クイズのパック) の手順で流す。
 
 以前のシードが入れた技術のカテゴリ（AWS / インフラ、認証認可、イベント駆動設計、Web アプリの技術スタック）は、すでに入っている DB では、配下の難易度とクイズごとゴミ箱へ移す（DEV-188）。
@@ -882,7 +928,29 @@ node tools/content/load.ts <パック> --api http://localhost:8080 --tenant <slu
 node tools/content/load.ts <パック> --api "$(cd infra/terraform/envs/dev && terraform output -raw quiz_service_url)" --tenant <slug>
 ```
 
-- **流すのは、そのテナントの管理者。** 自分の Cognito の利用者でトークンを取る（スモークテストと同じ `InitiateAuth`）。パスワードは画面に出さず、トークンはファイルに残さない
+macOSでは、初回にログイン状態をキーチェーンへ保存し、以後はプロファイルを指定して使える（[ADR-0036](adr/0036-cache-content-tool-sessions-in-macos-keychain.md)）。Xcode Command Line Toolsが必要で、初回にmacOSのアクセス許可を求められる場合がある。
+
+```bash
+# 初回と更新トークンが切れたとき。devの値はTerraformの名前付き出力から取る
+node tools/content/auth.ts login --profile dev --region ap-northeast-1 \
+  --client-id "$(cd infra/terraform/envs/dev && terraform output -raw auth_mobile_client_id)" \
+  --api "$(cd infra/terraform/envs/dev && terraform output -raw quiz_service_url)" \
+  --email <自分のメールアドレス>
+
+# 2回目以降はパスワード入力なし。トークンが必要なら自動更新する
+node tools/content/load.ts content/demo --profile dev --tenant demo --dry-run
+node tools/content/load.ts content/demo --profile dev --tenant demo
+
+# 秘密を表示しない状態確認と、Cognitoでの失効を含むログアウト
+node tools/content/auth.ts status --profile dev
+node tools/content/auth.ts logout --profile dev
+```
+
+prodは`--profile prod`とprodのTerraform出力で別に登録する。保存するのはトークンと接続先で、パスワードは保存しない。既存のCognito設定では更新トークンが初回ログインから30日で切れるため、そのときは再ログインする。接続先の取り違えを防ぐため、`--profile`と`--api` / `ACCESS_TOKEN`は併用しない。シェルに以前の`ACCESS_TOKEN`が残っている場合は`unset ACCESS_TOKEN`で外す。
+
+認証情報はmacOSのキーチェーンだけに置く。生成したキーチェーン用実行ファイルとコンパイルキャッシュは`tools/content/tmp/`（Gitの無視対象）に置き、秘密を含めない。macOS以外やCIでは従来の`ACCESS_TOKEN`方式を使う。
+
+- **流すのは、そのテナントの管理者。** 自分の Cognito の利用者でトークンを取る（スモークテストと同じ `InitiateAuth`）。パスワードは画面に出さず、トークンは平文ファイルに残さない。macOSではキーチェーンへの保存を選べる（ADR-0036）
 - ローカルの API も、dev の Cognito のトークンを受け付ける。ローカルに流すときも、同じトークンでよい
 - カテゴリと難易度がなければ作る。図は、原本（`.drawio`）が同じ図があれば使い回す
 - **クイズは、カテゴリと問題文が同じものを入れない。** 何度流しても増えない。問題文を直すと、別の問題として入る
@@ -894,7 +962,7 @@ node tools/content/load.ts <パック> --api "$(cd infra/terraform/envs/dev && t
   デモは見に来た人が見るものなので、`--update --prune` を付けて、パックと同じ状態にする
 - E2E と画面の撮影は、テストの前に、ローカルのデモのテナントへデモのパックを流す（`tests/e2e/support/demo-pack.ts`）。パックに誤りがあれば、ここで止まる
 - 自分で作ったテナントには、クイズと図の数に上限がある（ADR-0028）。上げるときは [Runbook](runbook.md#テナントの上限を変える)
-- 依存を持たない。Node が型を消してそのまま動かす（`node --test 'tools/content/*.test.ts'` でテストを流す）。コンストラクタの引数でフィールドを作る書き方など、型を消すだけでは動かない書き方は使えない
+- npmの依存を持たない。Node が型を消してそのまま動かす（`node --test 'tools/content/*.test.ts'` でテストを流す）。コンストラクタの引数でフィールドを作る書き方など、型を消すだけでは動かない書き方は使えない
 
 ### 認証
 
@@ -983,12 +1051,19 @@ WHERE t.slug = 'demo' AND lower(u.email) = lower('<自分のメールアドレ�
   - 取ったトークンはサーバーのメモリに持ち、押した人みんなに配る。残りが 15 分を切ったら取り直す。連打されても Cognito のログインの回数の上限（120 件/秒、アカウントで共有）を使わない
   - セッションには共有の印を付け、ログアウトでリフレッシュトークンを失効させない。失効させると、同じトークンを持つほかの人のセッションも延ばせなくなる
   - パスワードは環境変数 `AUTH_DEMO_USER_EMAIL` と `AUTH_DEMO_USER_PASSWORD` で渡す。dev は Terraform（`modules/web`）、ローカルは `.env`。無ければ `/auth/demo` は 404 で、入口も出さない
-  - **入口を表示した時点で、止まっている DB を起こし始める**（DEV-195。`POST /auth/demo/warm`、`lib/auth/demo-warm-up.ts`）。web のサーバーが、デモのアカウントのトークンで `/api/me/tenants` を 1 回呼ぶ。
-    認証した要求は利用者を DB から引くため、Aurora の復帰が始まる。押す前に読んでいる間に復帰が進み、押したあとの待ちが短くなる
+  - **入口を表示した時点で、止まっている DB を起こし始める**（DEV-195。`POST /auth/demo/warm`、`lib/auth/demo-warm-up.ts`）。web のサーバーが、API の起こす口（`POST /api/warm-up`）を 1 回呼ぶ。
+    quiz-service が `SELECT 1` を流し、Aurora の復帰が始まる。押す前に読んでいる間に復帰が進み、押したあとの待ちが短くなる
     - dev で、止まっている Aurora に対して測った（タスクは動いている）。押してからカテゴリが出るまで、すぐに押すと 24.4 秒、入口を 15 秒読んでから押すと 9.4 秒。DB が起きているときは 7 秒ほど
-    - 押した時点で起こしても、ほとんど縮まない。押した直後に、トップが同じ API を呼ぶため
+    - 押した時点で起こしても、ほとんど縮まない。押した直後に、トップが `/api/me/tenants` を呼ぶため
     - 呼ぶのは、サーバー（実行環境）ごとに 1 分に 1 回まで。入口を開いた人の数だけ API を呼ばない
     - 押さずに帰った人の分も、Aurora が起きる。1 回で 15 分ほど（0.5 ACU で約 0.02 ドル）。スクリプトを動かすクローラーでも起きる
+    - **起こすのは 1 日（JST）20 回まで**（DEV-217。quiz-service の `DatabaseWarmUp`、`app.warm-up`）。上限まで起こしても 1 日 0.4 ドルほど。
+      超えたら DB に触れずに 204 を返し、デモに入るときの要求で起きる（20 秒ほど待つ）
+      - 回数はタスクのメモリで数える。prod のタスクは 1 つなので、ほぼ全体の上限になる。web のサーバーは実行環境ごとに分かれて入れ替わるため、web では数えない
+      - DB を使ってから 10 分の間は、起きているとみなし、起こさず数えない（一時停止まで prod 15 分、dev 30 分）
+      - トークンを付けない。`/api` 配下で認証を求めない唯一の API（`ApiAccessConfigurer`）。認証すると利用者を DB から引くため、上限を確かめる前に起きてしまう。
+        誰でも呼べるが、上限があるので、起こされる回数は変わらない。上限を使い切られたら、その日は先に起こさないだけ
+      - 起こしても、拾い直し（`DatabaseActivity`）は動かさない
     - タスクが止まっている dev では、API Gateway が 500 か 503 を返して何も起きない。タスクは起こさない
 - ログインが要る画面（`/t/...`、`/invitations/...`）を未ログインで開くと、proxy が**開こうとしたパスとクエリ**を戻り先にしてログインへ移す。
   レイアウトは開いているパスを知らないため、そこで戻り先を決めると、テナントのトップにしか戻せない
@@ -1431,6 +1506,19 @@ fields @timestamp, message, news_quizzes.imported, news_quizzes.discarded
 
 異常は、メールで知らせる（DEV-108）。送り先は環境に 1 つの SNS のトピック（`modules/alarms`）で、アドレスは `terraform.tfvars` の `alarm_email`。
 **購読は、届いた確認のメールのリンクを開くまで有効にならない。** トピックを作り直したときも、確かめ直す。
+
+**メールは、件名から日本語にして送る**（DEV-214。`modules/alarms/mailer`）。AWS が送るメールは、件名と本文の枠が英語に固定され、何が起きたか分からない。
+
+```
+アラーム・EventBridge のルール・予算 → アラームのトピック → Lambda（日本語にする）→ メールのトピック（購読はここ）→ メール
+```
+
+- 件名は「【dev】quiz-service が 5xx を返しました。」のように、どこからか（dev / prod / アカウント）と、何が起きたかを出す。**アラームの説明（`alarm_description`）の最初の文が件名になる。** アラームを足すときは、最初の文を「何が起きたか」にする
+- 本文は、日本時間の時刻、説明（見るものと手順）、アラームの画面へのリンク。AWS の判定（英語）は最後に添える
+- 予算（`infra/terraform/account`）も、SNS に送ってから日本語にする。実績か予測か、いくらになったかを件名に出す
+- EventBridge のルール（タスクの停止）は、送る文の最初の文が件名になる
+- 日本語にできなかったときは、元の文のまま送る。知らせを落とさない
+- Lambda は Node.js で、依存は Lambda が持つ AWS SDK だけ。**コードは Terraform が zip にして載せる**（quiz-service や通知と違い、デプロイのワークフローを通さない）。テストは CI の `terraform` ジョブが流す（`node --test`）
 
 | アラーム | 鳴る条件 | 鳴ったら見るもの |
 | --- | --- | --- |
@@ -2004,7 +2092,7 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
   - **dev と合わせて約 27〜32 ドル。** 予算（月 30 ドル）は変えず、超えた月は予算の通知で気づく。dev が多く起きている月は超えうる
   - 0.25 vCPU では、起動が遅くなる（Spring の起動は、dev の 0.5 vCPU で約 45 秒、0.25 vCPU で 46〜81 秒）。起動するのはリリースのときだけで、ヘルスチェックの猶予（180 秒）に収まる
   - 採らなかったもの: 予算を上げる（構成で下げられるうちは下げる）、prod も使われなくなったら止める（見に来た人が最初に待つ）、Fargate Spot（止められると、タスクが 1 つのため使えなくなる）
-- **予算は月 30 ドル。** 実績が 85% と 100% を超えたとき、月末の予測が 100% を超えたときにメールで届く
+- **予算は月 30 ドル。** 実績が 85% と 100% を超えたとき、月末の予測が 100% を超えたときにメールで届く。件名から日本語にして送る（[アラーム](#アラーム)）
   （`infra/terraform/account`）。通知先は公開リポジトリに載せないため、`terraform.tfvars`（Git の管理外）で渡す
   - 予測でも知らせるのは、月の途中で止める判断をするため。実績だけだと、気づいたときには超えている
   - クレジットと返金は差し引かずに数える。相殺されて、使った量が見えなくなるのを避ける

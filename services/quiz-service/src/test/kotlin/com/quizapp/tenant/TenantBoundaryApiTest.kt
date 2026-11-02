@@ -101,6 +101,8 @@ class TenantBoundaryApiTest {
                 "テナントを作る前に呼ぶ。読むのは core の本人の行と、本人が作ったテナントがあるかだけ（TenantCreationApiTest）",
             "POST /api/me/tenants" to
                 "作る人は、まだそのテナントに所属していない。core に新しいテナントと本人の所属を作るだけで、既存のテナントには触れない（TenantCreationApiTest）",
+            "POST /api/warm-up" to
+                "止まっている DB を先に起こすだけ。テーブルを読まず、何も返さない（WarmUpApiTest、DatabaseWarmUpTest）",
         )
     }
 

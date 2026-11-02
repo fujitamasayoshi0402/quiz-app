@@ -444,10 +444,14 @@ jobs:
 
       - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
         with:
-          install_args: terraform
+          install_args: terraform node
 
       - name: 整形（terraform fmt）
         run: terraform fmt -check -recursive -diff infra/terraform
+
+      # アラームと予算の知らせを日本語にする Lambda（DEV-214）。依存を持たず、Terraform が zip にして載せる
+      - name: アラームのメールの組み立てのテスト
+        run: node --test 'infra/terraform/modules/alarms/mailer/*.test.mjs'
 
       # backend は初期化しない。認証なしで、構文・型・参照の誤りだけを見る
       - name: 検証（terraform validate）

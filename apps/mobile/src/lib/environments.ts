@@ -11,7 +11,7 @@ export type Environment = {
   authIssuer: string;
   /** Cognito のアプリ用のクライアント（web のクライアントではない） */
   authClientId: string;
-  /** web。結果の共有のリンクを作る（DEV-212）。無ければ、共有のボタンを出さない */
+  /** web。結果の共有のリンクを作り（DEV-212）、管理者は管理画面を開く（DEV-215）。無ければ、どちらのボタンも出さない */
   webOrigin?: string;
 };
 
@@ -27,7 +27,7 @@ const ORDER: EnvironmentName[] = ["prod", "dev"];
 
 const LABELS: Record<EnvironmentName, string> = { prod: "本番（prod）", dev: "開発（dev）" };
 
-/** つなぐのに要る値。web の origin は、共有にしか使わないので任意にする */
+/** つなぐのに要る値。web の origin は、共有と管理画面を開くのにしか使わないので任意にする */
 const VARIABLES: Record<Exclude<keyof EnvironmentValues, "webOrigin">, string> = {
   apiOrigin: "API_ORIGIN",
   authIssuer: "AUTH_ISSUER",

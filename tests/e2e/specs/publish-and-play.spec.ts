@@ -61,6 +61,7 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
   await test.step("一般ユーザーが学習モードで解き、間違えるとその場で正解と解説が出る", async () => {
     await member.reload();
     await member.getByText(category).click();
+    await member.getByText("学習モード").click();
     await member.getByRole("button", { name: "始める" }).click();
 
     await expect(member.getByText("1 / 1 問")).toBeVisible();
@@ -107,6 +108,7 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     await expect(member.getByText(/^今日の復習 \d+ 問$/)).toBeVisible();
     await member.getByText(category).click();
     await member.getByText("今日の復習", { exact: true }).click();
+    await member.getByText("学習モード").click();
     await member.getByRole("button", { name: "始める" }).click();
 
     await expect(member.getByText("1 / 1 問")).toBeVisible();
@@ -159,6 +161,7 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     // 選んだ範囲に、印を付けた問題が何問あるかが出る
     await expect(member.getByText("この範囲に 1 問", { exact: false })).toBeVisible();
     await member.getByText("あとで見直す問題", { exact: true }).click();
+    await member.getByText("学習モード").click();
     await member.getByRole("button", { name: "始める" }).click();
 
     await expect(member.getByText("1 / 1 問")).toBeVisible();

@@ -1,0 +1,152 @@
+[
+  {
+    "category": "コンビニ・外食",
+    "difficulty": "やさしい",
+    "question": "セブン‐イレブンの「7」と「11」の由来はどれですか。",
+    "choices": [
+      {
+        "body": "かつての開店時刻と閉店時刻",
+        "isCorrect": true
+      },
+      {
+        "body": "創業した月と日",
+        "isCorrect": false
+      },
+      {
+        "body": "創業者の誕生日",
+        "isCorrect": false
+      },
+      {
+        "body": "最初に並べた商品の数",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は、かつての開店時刻と閉店時刻です。アメリカの店舗が朝7時から夜11時まで営業していたことに由来します。夜11時は24時間表記では23時。名前に、営業時間がそのまま残っています。\n\n- 創業した月と日：7月11日という日付が由来ではありません。\n- 創業者の誕生日：人の誕生日を表す数字ではありません。\n- 最初に並べた商品の数：品ぞろえの数を表す数字ではありません。\n\n![朝7時の開店から夜11時、つまり23時の閉店までを結ぶ営業時間の図。](figure:pop-seven-hours)\n\n出典: [セブン‐イレブン「セブン‐イレブンの名前の由来」](https://faq.sej.co.jp/article/?knowledge_id=cidqbpsvr0h8m5o3rvmg)",
+    "status": "published"
+  },
+  {
+    "category": "コンビニ・外食",
+    "difficulty": "やさしい",
+    "question": "ローソンの看板にある白いマークが表しているものはどれですか。",
+    "choices": [
+      {
+        "body": "コーヒーポット",
+        "isCorrect": false
+      },
+      {
+        "body": "牛乳を入れるミルク缶",
+        "isCorrect": true
+      },
+      {
+        "body": "パンを焼くオーブン",
+        "isCorrect": false
+      },
+      {
+        "body": "ジャムを入れる瓶",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は、牛乳を入れるミルク缶です。ローソンのルーツは、アメリカ・オハイオ州でJ.J.ローソン氏が営んでいた牛乳販売店。店名にもマークにも、その名残があります。\n\n- コーヒーポット：飲み物の容器に見えますが、由来はコーヒー店ではありません。\n- パンを焼くオーブン：パン屋の設備を描いたものではありません。\n- ジャムを入れる瓶：保存容器ではなく、牛乳屋のミルク缶を図案にしています。\n\n出典: [ローソン「ローソンの歴史」](https://www.lawson.co.jp/company/corporate/data/history/detail/)",
+    "status": "published"
+  },
+  {
+    "category": "コンビニ・外食",
+    "difficulty": "やさしい",
+    "question": "サーティワンの「31」に込められた願いはどれですか。",
+    "choices": [
+      {
+        "body": "31人で一緒に食べてほしい",
+        "isCorrect": false
+      },
+      {
+        "body": "31歳になっても食べてほしい",
+        "isCorrect": false
+      },
+      {
+        "body": "1か月、毎日違う味を楽しんでほしい",
+        "isCorrect": true
+      },
+      {
+        "body": "毎月31日にまとめて食べてほしい",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は、1か月、毎日違う味を楽しんでほしい、です。31日ある月でも、日替わりで違うフレーバーを楽しめるように、という願いが名前に込められています。\n\n- 31人で一緒に：人数を指定した名前ではありません。\n- 31歳になっても：対象年齢を表しているわけではありません。\n- 毎月31日にまとめて：月末だけでなく、毎日楽しむという意味です。\n\n名前の由来を問う問題なので、現在のお店の品数が常に31種類という意味ではありません。\n\n![1日、2日、3日から31日まで、毎日違う味を楽しむという願いをカレンダー形式で表した図。](figure:pop-thirty-one-days)\n\n出典: [B-R サーティワン アイスクリーム「31について」](https://www.br31.jp/contents/about/)",
+    "status": "published"
+  },
+  {
+    "category": "コンビニ・外食",
+    "difficulty": "ふつう",
+    "question": "カップヌードル開発時、めんを容器に収めるために採用された工夫はどれですか。",
+    "choices": [
+      {
+        "body": "めんを細かく砕いて流し込む",
+        "isCorrect": false
+      },
+      {
+        "body": "めんをゆでてから押し込む",
+        "isCorrect": false
+      },
+      {
+        "body": "容器を左右に分けて挟み込む",
+        "isCorrect": false
+      },
+      {
+        "body": "めんに上から容器をかぶせる",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は、めんに上から容器をかぶせる方法です。めんをカップに入れようとすると傾き、機械でつかむと崩れる問題がありました。めんを下に置き、カップをかぶせて上下を返す発想で解決しました。\n\n- 細かく砕く：かたまりを保って収める方法です。\n- ゆでて押し込む：やわらかくするのではなく、入れる向きを変えました。\n- 容器を左右に分ける：カップを分割する方法ではありません。\n\n![めんを置く、逆さのカップをかぶせる、上下を返してめんがカップ内に収まる、という3段階の模式図。](figure:pop-noodle-cup)\n\n出典: [日清食品「カップヌードル発売40周年特別企画」](https://www.nissin.com/jp/company/ir/library/report/pdf/knt_110930_01.pdf)",
+    "status": "published"
+  },
+  {
+    "category": "コンビニ・外食",
+    "difficulty": "ふつう",
+    "question": "KFCのカーネル・サンダースの「カーネル」が指すものはどれですか。",
+    "choices": [
+      {
+        "body": "ケンタッキー州から贈られた称号",
+        "isCorrect": true
+      },
+      {
+        "body": "生まれたときに付けられた名前",
+        "isCorrect": false
+      },
+      {
+        "body": "チキンの調理法を示す言葉",
+        "isCorrect": false
+      },
+      {
+        "body": "最初のお店があった町の名前",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は、ケンタッキー州から贈られた称号です。本名はハーランド・デーヴィッド・サンダース。「カーネル」は、食文化への貢献をたたえて州から贈られた名誉称号です。\n\n- 生まれたときの名前：本名のファーストネームはハーランドです。\n- チキンの調理法：料理の手法ではなく、人に贈られる称号です。\n- 町の名前：出身地や店舗の住所を示す名前ではありません。\n\n出典: [日本ケンタッキー・フライド・チキン「カーネル・サンダースの部屋」](https://www.kfc.co.jp/about_kfc/ilovekfc/colonelroom)",
+    "status": "published"
+  },
+  {
+    "category": "コンビニ・外食",
+    "difficulty": "やさしい",
+    "question": "お菓子のポッキーの名前のもとになったものはどれですか。",
+    "choices": [
+      {
+        "body": "ポケットに入るサイズ",
+        "isCorrect": false
+      },
+      {
+        "body": "食べるときのポッキンという音",
+        "isCorrect": true
+      },
+      {
+        "body": "棒でつつく動作の英語",
+        "isCorrect": false
+      },
+      {
+        "body": "開発者のニックネーム",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は、食べるときのポッキンという音です。江崎グリコの公式の開発史では、食べたときの音をヒントに名前を考えたと紹介されています。\n\n- ポケットに入るサイズ：持ち歩く場所から付いた名前ではありません。\n- 棒でつつく動作の英語：英語の「poke」ではなく、食べる音がもとです。\n- 開発者のニックネーム：人の愛称から付けたものではありません。\n\n出典: [江崎グリコ「Glicoグループ100年史・ポッキー」](https://www.glico.com/jp/100th_history_contents/highlight/product/006.html)",
+    "status": "published"
+  }
+]
