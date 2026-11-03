@@ -381,6 +381,18 @@ sql "SELECT slug, quiz_limit, figure_limit FROM core.tenants WHERE slug = '<slug
 - 書き換えた行の数（`numberOfRecordsUpdated`）が 1 であることを確かめる
 - アプリは要求のたびに上限を読む。デプロイは要らない
 
+**運用者のアカウントが作ったテナントの上限をまとめて外す**ときは、テナントの列ではなく、利用者に印を付ける（`core.users.capacity_exempt`。DEV-222）。
+その人が作ったテナントは、列の値によらず、クイズも図も上限なしになる。所属しているだけのテナントには効かない。
+
+```bash
+# <sub> は Cognito の利用者の ID。環境ごとに違う（aws cognito-idp list-users --user-pool-id <プール> --filter 'email = "<メールアドレス>"'）
+sql "SELECT id, capacity_exempt FROM core.users WHERE external_id = '<sub>'"                     # 前
+sql "UPDATE core.users SET capacity_exempt = true WHERE external_id = '<sub>'"
+sql "SELECT id, capacity_exempt FROM core.users WHERE external_id = '<sub>'"                     # 後
+```
+
+prod に流すときは、上の `cd` を `infra/terraform/envs/prod` に替える。
+
 ## prod のデモにパックを流す
 
 prod のデモのクイズは、シードではなくデモのパック（`content/demo/`）から流す（[ADR-0034](adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)、DEV-191）。
