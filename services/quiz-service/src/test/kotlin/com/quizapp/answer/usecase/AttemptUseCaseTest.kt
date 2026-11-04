@@ -1,5 +1,6 @@
 package com.quizapp.answer.usecase
 
+import com.quizapp.answer.domain.AttemptRepository
 import com.quizapp.answer.domain.AttemptStatus
 import com.quizapp.auth.CurrentUser
 import com.quizapp.auth.UserContext
@@ -85,6 +86,25 @@ class AttemptUseCaseTest {
             useCase.answer(attempt.id, quizzes[0].id, quizzes[0].correct())
 
             assertThatThrownBy { useCase.start(DeliveryCriteria(), discardInProgress = false) }
+                .isInstanceOfSatisfying(AttemptInProgressException::class.java) {
+                    assertThat(it.summary).isEqualTo(AttemptSummary(attempt.id, totalCount = 3, answeredCount = 1))
+                }
+        }
+
+        @Test
+        @DisplayName("同時に始めて先を越されたら、先に始まった挑戦を件数を添えて知らせる")
+        fun reportsAttemptStartedConcurrently() {
+            val (attempt, quizzes) = startWith(3)
+            useCase.answer(attempt.id, quizzes[0].id, quizzes[0].correct())
+            // 最初の確認では、まだ相手の挑戦が見えていない
+            var checked = false
+            val racing = object : AttemptRepository by repository {
+                override fun findInProgress(userId: UUID) =
+                    if (checked) repository.findInProgress(userId) else null.also { checked = true }
+            }
+            val racingUseCase = AttemptUseCase(racing, catalog, reviews, fakeTenantTransaction())
+
+            assertThatThrownBy { racingUseCase.start(DeliveryCriteria(), discardInProgress = false) }
                 .isInstanceOfSatisfying(AttemptInProgressException::class.java) {
                     assertThat(it.summary).isEqualTo(AttemptSummary(attempt.id, totalCount = 3, answeredCount = 1))
                 }

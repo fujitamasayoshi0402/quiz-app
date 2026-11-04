@@ -4,12 +4,14 @@ import com.quizapp.quiz.support.TestPostgres
 import com.quizapp.support.PlayFixture
 import com.quizapp.support.TestAuth
 import com.quizapp.support.TestTenant
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -18,6 +20,8 @@ import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.post
 import tools.jackson.databind.ObjectMapper
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 
 /**
  * 挑戦の開始（＝出題）の統合テスト。
@@ -88,6 +92,36 @@ class AttemptDeliveryApiTest {
         // 値が false でも、キーがあれば「正解でないもの」が分かってしまう
         assert(!body.contains("isCorrect")) { "出題の応答に正解情報が含まれている: $body" }
         assert(!body.contains("explanation")) { "出題の応答に解説が含まれている: $body" }
+    }
+
+    /**
+     * 確かめてから INSERT するので、同時に始めると全員が確認を通り抜け、DB の一意制約で止まる。
+     * DB の起動を待っている間は、要求が重なりやすい（DEV-226）
+     */
+    @Test
+    @DisplayName("同時に始めても 1 つだけが始まり、残りは 409 になる")
+    fun concurrentStartsAllowOnlyOne() {
+        val requests = 8
+        fixture.quiz(awsCategory, saa, "問題 1")
+
+        val ready = CountDownLatch(requests)
+        val pool = Executors.newFixedThreadPool(requests)
+        val statuses = try {
+            (1..requests)
+                .map {
+                    pool.submit<Int> {
+                        ready.countDown()
+                        ready.await()
+                        start("""{"scope":"all"}""").andReturn().response.status
+                    }
+                }
+                .map { it.get() }
+        } finally {
+            pool.shutdown()
+        }
+
+        assertThat(statuses.count { it == HttpStatus.CREATED.value() }).isEqualTo(1)
+        assertThat(statuses.count { it == HttpStatus.CONFLICT.value() }).isEqualTo(requests - 1)
     }
 
     @Test
