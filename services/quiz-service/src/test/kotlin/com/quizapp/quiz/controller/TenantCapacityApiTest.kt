@@ -121,6 +121,50 @@ class TenantCapacityApiTest {
         createFigure().andExpect { status { isCreated() } }
     }
 
+    @Test
+    @DisplayName("上限を受けない印のある人が作ったテナントは、上限の列に値があっても、クイズも図も作れる")
+    fun exemptCreatorHasNoLimit() {
+        limit(quizzes = 1, figures = 1)
+        createdBy(TestAuth.createUser("印のある人"), exempt = true)
+
+        repeat(2) { createQuiz().andExpect { status { isCreated() } } }
+        repeat(2) { createFigure().andExpect { status { isCreated() } } }
+        assertThat(count("quiz.quizzes")).isEqualTo(2)
+        assertThat(count("quiz.figures")).isEqualTo(2)
+    }
+
+    @Test
+    @DisplayName("印のない人が作ったテナントは、上限を受ける")
+    fun creatorWithoutExemptionHasLimit() {
+        limit(quizzes = 1)
+        createdBy(TestAuth.createUser("印のない人"), exempt = false)
+
+        createQuiz().andExpect { status { isCreated() } }
+        createQuiz().andExpect { status { isConflict() } }
+    }
+
+    @Test
+    @DisplayName("印のある人が所属しているだけのテナントは、上限を受ける。見るのは作った人だけ")
+    fun exemptMemberHasLimit() {
+        limit(quizzes = 1)
+        val member = TestAuth.createUser("印のある所属者")
+        exempt(member)
+        tenant.join(member, "admin")
+        createdBy(TestAuth.createUser("印のない作成者"), exempt = false)
+
+        createQuiz().andExpect { status { isCreated() } }
+        createQuiz().andExpect { status { isConflict() } }
+    }
+
+    private fun createdBy(userId: UUID, exempt: Boolean) {
+        if (exempt) exempt(userId)
+        TestPostgres.adminJdbcTemplate.update("UPDATE core.tenants SET created_by = ? WHERE id = ?", userId, tenant.id)
+    }
+
+    private fun exempt(userId: UUID) {
+        TestPostgres.adminJdbcTemplate.update("UPDATE core.users SET capacity_exempt = true WHERE id = ?", userId)
+    }
+
     private fun limit(quizzes: Int? = null, figures: Int? = null) {
         TestPostgres.adminJdbcTemplate.update(
             "UPDATE core.tenants SET quiz_limit = ?, figure_limit = ? WHERE id = ?",
