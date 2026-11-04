@@ -1,6 +1,6 @@
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { FlatList, Modal, Pressable, ScrollView, Text, View, type ViewToken } from "react-native";
+import { FlatList, type ListViewToken, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { AttemptEnded, ENDED_ELSEWHERE } from "@/components/attempt-ended";
 import { Markdown } from "@/components/markdown";
 import { ChoiceList, Eyebrow, SourceNote, Verdict } from "@/components/play";
@@ -63,7 +63,7 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
 
   // 画面の大半に出ている問題を「いまの問題」にする
   // FlatList は、この関数が描画のたびに替わることを受け付けない。変わらない関数にする
-  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ListViewToken[] }) => {
     const index = viewableItems[0]?.index;
     if (index != null) setCurrent(index);
   }, []);

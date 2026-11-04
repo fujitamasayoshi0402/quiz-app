@@ -135,6 +135,8 @@ export async function signOut(): Promise<void> {
       {
         clientId: environment.authClientId,
         token: session.refreshToken,
+        // eslint-plugin-import が package.json の exports をたどれず誤検知する。型チェックで確かめている
+        // eslint-disable-next-line import/namespace
         tokenTypeHint: AuthSession.TokenTypeHint.RefreshToken,
       },
       document,
