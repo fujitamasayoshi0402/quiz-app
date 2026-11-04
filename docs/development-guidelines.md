@@ -721,7 +721,12 @@ xcrun simctl openurl booted exp://127.0.0.1:8081                           # シ
 - Expo Go の戻り先は `exp://127.0.0.1:8081/--/auth/callback`。Cognito に登録してあるのはこれと `quizapp://` だけで、**実機の Expo Go からはログインできない**（LAN の IP が戻り先になる）
 - dev の quiz-service が止まっていると（[ECS](#ecsquiz-service)）、API は 500 か 503 を返す。案内の「サーバーを起動する」で起こせる（DEV-209。`lib/wake.ts`）。prod では出さない。
   web と違い、押したことは端末に覚えない。アプリを開き直すと、また押せる（押しても、タスクは 1 つより増えない）
-- **Expo の SDK は、公開から 7 日たった版を使う**（`minimumReleaseAge`）。SDK と同時に出る React Native の版も同じ。上げるときは、`pnpm --filter mobile exec expo install --check` で SDK が求める版を確かめる
+- **Expo の SDK は、公開から 7 日たった版を使う**（`minimumReleaseAge`）。SDK と同時に出る React Native の版も同じ。上げるときは、`pnpm --filter mobile exec expo install --check` で SDK が求める版を確かめる。
+  `--check` と `expo-doctor` は最新のパッチ版を求めるので、7 日たっていないパッチ版との差は出たままでよい。`expo install --fix` も最新を入れようとして止まるので、`expo` の `bundledNativeModules.json` の版を手で揃える
+- **Xcode 27（iOS 27 の SDK）でビルドするには、Expo SDK 58 以上が要る**（DEV-221）。iOS 27 の SDK は UIScene を必須にしていて、対応していないアプリは起動した直後に落ちる（`_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`）。
+  SDK 58 の `expo prebuild` は `SceneDelegate.swift` と `UIApplicationSceneManifest` を作る。SDK を上げたら、`ios/` と `android/` を消して作り直す
+- **ヘッダーは透かさない**（`_layout.tsx` の `headerTransparent: false`。DEV-221）。SDK 58 の iOS 26 以降は、既定でヘッダーが透明になり、内容がその裏に潜る
+- `expo prebuild` と `expo run:ios` は `package.json` の `ios` と `android` のスクリプトを書き換える。コミットしない
 - React の型（`@types/react`）は web と同じ版にする。Amplify は依存を 1 か所にまとめて入れるため（`nodeLinker: hoisted`）、版が違うと web のビルドが型の食い違いで落ちる
 
 **自分の端末には、ストアを通さずに入れる**（DEV-210。ADR-0032 の追記）。Release のビルドで、JavaScript をアプリの中に入れるので、Metro も Mac も要らない。

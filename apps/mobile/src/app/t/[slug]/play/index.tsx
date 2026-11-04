@@ -1,7 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { AccessibilityInfo, type LayoutChangeEvent, ScrollView, Text, View } from "react-native";
+import {
+  AccessibilityInfo,
+  type LayoutChangeEvent,
+  ScrollView,
+  type ScrollViewInstance,
+  Text,
+  View,
+} from "react-native";
 import { OptionGroup } from "@/components/play";
 import { ResumeCard } from "@/components/resume-card";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
@@ -51,7 +58,7 @@ export default function PlaySetup() {
   const [mode, setMode] = useState<FeedbackMode>("swipe");
 
   // カテゴリを最初に選んだら、その下に出る「範囲」まで送る（DEV-213。web と同じ）。選んでも何も起きないように見えるため
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const viewport = useRef({ offset: 0, height: 0 });
   const revealRange = useRef(false);
   const onRangeLayout = (event: LayoutChangeEvent) => {
