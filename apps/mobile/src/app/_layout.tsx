@@ -59,14 +59,15 @@ function EnvironmentScoped() {
 /**
  * テナントの画面は、ログインしているときだけ開ける（DEV-210）。ログインしていない（401 で捨てた、つなぐ先を替えた）と、
  * 開いていた画面を閉じて最初の画面に戻る。残すと、トークンを付けずに API を呼び続け、エラーだけが並ぶ。
- * つなげる先が 2 つあれば、いまのつなぐ先をヘッダーの右に出す
+ * つなげる先が 2 つあれば、いまのつなぐ先をヘッダーの右に出す。
+ * ヘッダーは透かさない（DEV-221）。SDK 58 の iOS 26 以降の既定は透明で、内容がヘッダーの裏に潜る。テンポモードは画面の高さで問題を送るので、ヘッダーの下から測る
  */
 function Screens() {
   const { status } = useAuth();
   const { environment, environments } = useEnvironment();
   const headerRight = environments.length > 1 ? () => <Text style={styles.muted}>{environment.name}</Text> : undefined;
   return (
-    <Stack screenOptions={{ headerBackTitle: "戻る", headerRight }}>
+    <Stack screenOptions={{ headerBackTitle: "戻る", headerRight, headerTransparent: false }}>
       <Stack.Screen name="index" options={{ title: "Quiz" }} />
       <Stack.Protected guard={status === "signedIn"}>
         <Stack.Screen name="t/[slug]/index" options={{ title: "" }} />

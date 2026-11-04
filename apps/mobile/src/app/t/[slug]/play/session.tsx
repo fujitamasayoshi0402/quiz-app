@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, type ScrollViewInstance, Text, View } from "react-native";
 import { ABANDONED, AttemptEnded, ENDED_ELSEWHERE } from "@/components/attempt-ended";
 import { Markdown } from "@/components/markdown";
 import { ChoiceList, Eyebrow, SourceNote, Verdict } from "@/components/play";
@@ -38,7 +38,7 @@ export default function PlaySession() {
 
 function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; mode: FeedbackMode }) {
   const router = useRouter();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const [done, setDone] = useState(() => new Set(attempt.answeredQuizIds));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<AnswerResult | null>(null);

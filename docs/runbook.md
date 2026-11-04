@@ -381,6 +381,18 @@ sql "SELECT slug, quiz_limit, figure_limit FROM core.tenants WHERE slug = '<slug
 - 書き換えた行の数（`numberOfRecordsUpdated`）が 1 であることを確かめる
 - アプリは要求のたびに上限を読む。デプロイは要らない
 
+**運用者のアカウントが作ったテナントの上限をまとめて外す**ときは、テナントの列ではなく、利用者に印を付ける（`core.users.capacity_exempt`。DEV-222）。
+その人が作ったテナントは、列の値によらず、クイズも図も上限なしになる。所属しているだけのテナントには効かない。
+
+```bash
+# <sub> は Cognito の利用者の ID。環境ごとに違う（aws cognito-idp list-users --user-pool-id <プール> --filter 'email = "<メールアドレス>"'）
+sql "SELECT id, capacity_exempt FROM core.users WHERE external_id = '<sub>'"                     # 前
+sql "UPDATE core.users SET capacity_exempt = true WHERE external_id = '<sub>'"
+sql "SELECT id, capacity_exempt FROM core.users WHERE external_id = '<sub>'"                     # 後
+```
+
+prod に流すときは、上の `cd` を `infra/terraform/envs/prod` に替える。
+
 ## prod のデモにパックを流す
 
 prod のデモのクイズは、シードではなくデモのパック（`content/demo/`）から流す（[ADR-0034](adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)、DEV-191）。
@@ -407,7 +419,7 @@ node tools/content/load.ts content/demo --api "$API" --tenant demo --update --pr
 
 - `token.sh` は、いる場所の Terraform の出力から web のクライアントを読む。`envs/prod` で流すと prod の Cognito のトークンになる
 - `--update --prune` で、パックと同じ状態にする。消すのはパックのカテゴリの中のクイズだけ
-- 確かめ方: prod の web で「デモとして入る」を押し、6 カテゴリが出て、解説の図が出る
+- 確かめ方: prod の web で「デモとして入る」を押し、10 カテゴリが出て、解説の図が出る
 
 ## prod の公開前の点検
 
@@ -422,7 +434,7 @@ prod を公開する前（タスクの数を 1 にする前）に確かめる（
 | データを戻せる | `aws rds describe-db-clusters --db-cluster-identifier quiz-app-prod --query 'DBClusters[0].[DeletionProtection,BackupRetentionPeriod]'` | 削除保護あり、保持 7 日。最終スナップショットは Terraform（`skip_final_snapshot = false`）。戻し方は [Aurora のデータを戻す](#aurora-のデータを戻す)。実際には戻さない |
 | 外から届く範囲（[セキュリティレビュー](security-review.md)の A02） | `curl -s -o /dev/null -w '%{http_code}' <URL>` | API の `/actuator/health`・`/swagger-ui.html`・`/v3/api-docs` が 404、解説図の CDN に署名なしで 403、バケットに直接 403。API Gateway の既定のエンドポイントは閉じている（`DisableExecuteApiEndpoint`） |
 | 画面のヘッダ | `curl -sI https://quiz.<ドメイン>/` | HSTS、`nosniff`、`X-Frame-Options`、CSP の `img-src` に `figures.quiz.<ドメイン>`、`connect-src` に prod のバケット。`X-Powered-By` がない |
-| 見に来た人の導線 | prod の web で手で操作する | 「デモとして入る」で 6 カテゴリが出て、解説の図が出る。自分のアカウントで「自分のテナントを作る」ができ、クイズを作って解ける。公開テナントの一覧（`/tenants`）が開ける（prod には公開テナントがないため、空の一覧が出る） |
+| 見に来た人の導線 | prod の web で手で操作する | 「デモとして入る」で 10 カテゴリが出て、解説の図が出る。自分のアカウントで「自分のテナントを作る」ができ、クイズを作って解ける。公開テナントの一覧（`/tenants`）が開ける（prod には公開テナントがないため、空の一覧が出る） |
 
 公開する。
 
