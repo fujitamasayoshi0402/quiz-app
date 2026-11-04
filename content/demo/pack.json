@@ -4,70 +4,222 @@
       "name": "世界の地理",
       "description": "川や国の大きさ、時差、地球の上の位置",
       "difficulties": [
-        { "name": "やさしい", "level": 1 },
-        { "name": "ふつう", "level": 2 },
-        { "name": "むずかしい", "level": 3 }
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        },
+        {
+          "name": "むずかしい",
+          "level": 3
+        }
       ]
     },
     {
       "name": "身近な科学",
       "description": "虹、月、季節、てこと滑車。身の回りの不思議のしくみ",
       "difficulties": [
-        { "name": "やさしい", "level": 1 },
-        { "name": "ふつう", "level": 2 },
-        { "name": "むずかしい", "level": 3 }
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        },
+        {
+          "name": "むずかしい",
+          "level": 3
+        }
       ]
     },
     {
       "name": "図形とひらめき",
       "description": "図を見て考えるパズル。展開図、一筆書き、時計、天秤",
       "difficulties": [
-        { "name": "やさしい", "level": 1 },
-        { "name": "ふつう", "level": 2 },
-        { "name": "むずかしい", "level": 3 }
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        },
+        {
+          "name": "むずかしい",
+          "level": 3
+        }
       ]
     },
     {
       "name": "日本と世界の歴史",
       "description": "年表で前後を考える。同じころ、日本と世界で何が起きていたか",
       "difficulties": [
-        { "name": "やさしい", "level": 1 },
-        { "name": "ふつう", "level": 2 },
-        { "name": "むずかしい", "level": 3 }
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        },
+        {
+          "name": "むずかしい",
+          "level": 3
+        }
       ]
     },
     {
       "name": "ことばの由来",
       "description": "漢字の成り立ち、ことわざと慣用句の本来の意味、故事成語",
       "difficulties": [
-        { "name": "やさしい", "level": 1 },
-        { "name": "ふつう", "level": 2 },
-        { "name": "むずかしい", "level": 3 }
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        },
+        {
+          "name": "むずかしい",
+          "level": 3
+        }
       ]
     },
     {
       "name": "宇宙と天気",
       "description": "惑星の大きさと距離、雲の種類、天気図と天気予報の読み方",
       "difficulties": [
-        { "name": "やさしい", "level": 1 },
-        { "name": "ふつう", "level": 2 },
-        { "name": "むずかしい", "level": 3 }
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        },
+        {
+          "name": "むずかしい",
+          "level": 3
+        }
       ]
     },
     {
       "name": "コンビニ・外食",
       "description": "いつものお店やお菓子の、知ると話したくなる名前と発明の裏話",
       "difficulties": [
-        { "name": "やさしい", "level": 1 },
-        { "name": "ふつう", "level": 2 }
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        }
       ]
     },
     {
       "name": "ネット・SNS",
       "description": "動画ミーム、絵文字、配信とコメント文化の小ネタ",
       "difficulties": [
-        { "name": "やさしい", "level": 1 },
-        { "name": "ふつう", "level": 2 }
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "name": "数と確率",
+      "description": "くじ・割合・平均を、身近な数字から考える",
+      "difficulties": [
+        {
+          "name": "ふつう",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "name": "単位と計算",
+      "description": "長さ・面積・速さ・電力量の単位を使い分ける",
+      "difficulties": [
+        {
+          "name": "ふつう",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "name": "太陽系",
+      "description": "惑星の大気・自転・衛星から、それぞれの特徴を知る",
+      "difficulties": [
+        {
+          "name": "ふつう",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "name": "お菓子・飲み物",
+      "description": "いつものおやつや飲み物に隠れた、名前・形・誕生の小話",
+      "difficulties": [
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "name": "身近なブランド",
+      "description": "看板やロゴが少し違って見える、身近な会社の意外なルーツ",
+      "difficulties": [
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "name": "映画・エンタメ",
+      "description": "見たことのある名作から楽しむ、舞台裏や設定の小ネタ",
+      "difficulties": [
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "name": "まずは5問",
+      "description": "お菓子・ブランド・映画から選んだ、誰かに話したくなる雑学5問",
+      "difficulties": [
+        {
+          "name": "やさしい",
+          "level": 1
+        },
+        {
+          "name": "ふつう",
+          "level": 2
+        }
       ]
     }
   ]

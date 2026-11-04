@@ -1,0 +1,502 @@
+[
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "太陽系の8惑星のうち、太陽に最も近い惑星はどれですか。",
+    "choices": [
+      {
+        "body": "水星",
+        "isCorrect": true
+      },
+      {
+        "body": "金星",
+        "isCorrect": false
+      },
+      {
+        "body": "地球",
+        "isCorrect": false
+      },
+      {
+        "body": "火星",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「水星」です。太陽から水星・金星・地球・火星の順に並びます。\n\n- 金星：太陽から2番目です。\n- 地球：太陽から3番目です。\n- 火星：太陽から4番目です。\n\n出典: [NASA：mercury facts](https://science.nasa.gov/mercury/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "太陽系の8惑星のうち、直径が最も小さい惑星はどれですか。",
+    "choices": [
+      {
+        "body": "火星",
+        "isCorrect": false
+      },
+      {
+        "body": "金星",
+        "isCorrect": false
+      },
+      {
+        "body": "地球",
+        "isCorrect": false
+      },
+      {
+        "body": "水星",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「水星」です。水星は8惑星で最小です。冥王星は準惑星に分類されます。\n\n- 火星：水星より大きい惑星です。\n- 金星：地球に近い大きさです。\n- 地球：水星より大きい惑星です。\n\n出典: [NASA：mercury facts](https://science.nasa.gov/mercury/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "水星が太陽の周りを1周する時間に最も近いものはどれですか。",
+    "choices": [
+      {
+        "body": "地球の687日",
+        "isCorrect": false
+      },
+      {
+        "body": "地球の12年",
+        "isCorrect": false
+      },
+      {
+        "body": "地球の88日",
+        "isCorrect": true
+      },
+      {
+        "body": "地球の365日",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「地球の88日」です。水星の1年は地球の約88日で、短い周期で公転します。\n\n- 地球の365日：地球の公転周期に近い値です。\n- 地球の687日：火星の公転周期に近い値です。\n- 地球の12年：木星の公転周期に近い値です。\n\n出典: [NASA：mercury facts](https://science.nasa.gov/mercury/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "太陽系で、平均的な地表温度が最も高い惑星はどれですか。",
+    "choices": [
+      {
+        "body": "火星",
+        "isCorrect": false
+      },
+      {
+        "body": "金星",
+        "isCorrect": true
+      },
+      {
+        "body": "水星",
+        "isCorrect": false
+      },
+      {
+        "body": "地球",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「金星」です。厚い大気による強い温室効果で、金星の表面は水星より高温になります。\n\n- 水星：太陽に最も近いことだけでは地表温度は決まりません。\n- 地球：金星のような極端な温室効果ではありません。\n- 火星：薄い大気を持つ寒冷な惑星です。\n\n出典: [NASA：venus facts](https://science.nasa.gov/venus/venus-facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "金星の厚い大気で、最も多く含まれる気体はどれですか。",
+    "choices": [
+      {
+        "body": "二酸化炭素",
+        "isCorrect": true
+      },
+      {
+        "body": "酸素",
+        "isCorrect": false
+      },
+      {
+        "body": "窒素",
+        "isCorrect": false
+      },
+      {
+        "body": "水素",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「二酸化炭素」です。金星の大気の大部分は二酸化炭素です。\n\n- 酸素：地球でも主成分ではなく、金星ではごく少量です。\n- 窒素：金星にも含まれますが二酸化炭素より少量です。\n- 水素：木星などの主成分と混同しています。\n\n出典: [NASA：venus facts](https://science.nasa.gov/venus/venus-facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "金星の自転について正しい説明はどれですか。",
+    "choices": [
+      {
+        "body": "地球と同じ向きに約24時間で回る",
+        "isCorrect": false
+      },
+      {
+        "body": "自転せず公転だけをする",
+        "isCorrect": false
+      },
+      {
+        "body": "約10時間で一周する",
+        "isCorrect": false
+      },
+      {
+        "body": "地球とは逆向きにゆっくり回る",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「地球とは逆向きにゆっくり回る」です。金星は多くの惑星と逆向きに、ゆっくり自転します。\n\n- 地球と同じ向きに約24時間で回る：地球に近い自転を想定しています。\n- 自転せず公転だけをする：金星にも自転があります。\n- 約10時間で一周する：木星に近い自転周期です。\n\n出典: [NASA：venus facts](https://science.nasa.gov/venus/venus-facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "火星の地面が赤っぽく見える主な理由はどれですか。",
+    "choices": [
+      {
+        "body": "大気の酸素が赤く光っている",
+        "isCorrect": false
+      },
+      {
+        "body": "赤い海が地表を覆っている",
+        "isCorrect": false
+      },
+      {
+        "body": "鉄を含む鉱物が酸化している",
+        "isCorrect": true
+      },
+      {
+        "body": "地表全体が赤い溶岩で覆われている",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「鉄を含む鉱物が酸化している」です。地表の鉄鉱物が酸化し、さびに似た赤色を示します。\n\n- 地表全体が赤い溶岩で覆われている：現在の地表全体が溶けているわけではありません。\n- 大気の酸素が赤く光っている：大気の酸素の発光が主因ではありません。\n- 赤い海が地表を覆っている：現在、赤い海が地表を覆ってはいません。\n\n出典: [NASA：mars facts](https://science.nasa.gov/mars/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "火星の天然衛星の組み合わせはどれですか。",
+    "choices": [
+      {
+        "body": "トリトンとネレイド",
+        "isCorrect": false
+      },
+      {
+        "body": "フォボスとダイモス",
+        "isCorrect": true
+      },
+      {
+        "body": "タイタンとエンケラドス",
+        "isCorrect": false
+      },
+      {
+        "body": "イオとエウロパ",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「フォボスとダイモス」です。フォボスとダイモスは火星を回る2つの衛星です。\n\n- タイタンとエンケラドス：土星の衛星です。\n- イオとエウロパ：木星の衛星です。\n- トリトンとネレイド：海王星の衛星です。\n\n出典: [NASA：mars facts](https://science.nasa.gov/mars/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "火星にある巨大な火山の名前はどれですか。",
+    "choices": [
+      {
+        "body": "オリンポス山",
+        "isCorrect": true
+      },
+      {
+        "body": "マウナ・ロア山",
+        "isCorrect": false
+      },
+      {
+        "body": "富士山",
+        "isCorrect": false
+      },
+      {
+        "body": "エベレスト",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「オリンポス山」です。オリンポス山は火星にある巨大な火山です。\n\n- マウナ・ロア山：地球のハワイにある火山です。\n- 富士山：地球の日本にある火山です。\n- エベレスト：地球のヒマラヤにある山で、火星の火山ではありません。\n\n出典: [NASA：mars facts](https://science.nasa.gov/mars/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "木星の「大赤斑」の正体はどれですか。",
+    "choices": [
+      {
+        "body": "固体表面の巨大なクレーター",
+        "isCorrect": false
+      },
+      {
+        "body": "赤い海",
+        "isCorrect": false
+      },
+      {
+        "body": "火山の溶岩湖",
+        "isCorrect": false
+      },
+      {
+        "body": "大気中の巨大な嵐",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「大気中の巨大な嵐」です。大赤斑は長く続いている巨大な嵐です。\n\n- 固体表面の巨大なクレーター：木星には地球のような固体表面がありません。\n- 赤い海：地表の海を観測しているわけではありません。\n- 火山の溶岩湖：火山の溶岩ではなく大気の現象です。\n\n出典: [NASA：jupiter facts](https://science.nasa.gov/jupiter/jupiter-facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "木星が1回自転する時間に最も近いものはどれですか。",
+    "choices": [
+      {
+        "body": "30日",
+        "isCorrect": false
+      },
+      {
+        "body": "1年",
+        "isCorrect": false
+      },
+      {
+        "body": "10時間",
+        "isCorrect": true
+      },
+      {
+        "body": "24時間",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「10時間」です。木星の自転周期は約9.9時間で、地球より速く回ります。\n\n- 24時間：地球の自転周期に近い値です。\n- 30日：木星の自転は月単位ではありません。\n- 1年：地球の公転周期と混同しています。\n\n出典: [NASA：jupiter facts](https://science.nasa.gov/jupiter/jupiter-facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "木星の大気の主な成分の組み合わせはどれですか。",
+    "choices": [
+      {
+        "body": "酸素とオゾン",
+        "isCorrect": false
+      },
+      {
+        "body": "水素とヘリウム",
+        "isCorrect": true
+      },
+      {
+        "body": "窒素と酸素",
+        "isCorrect": false
+      },
+      {
+        "body": "二酸化炭素と窒素",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「水素とヘリウム」です。木星は主に水素とヘリウムからなる巨大ガス惑星です。\n\n- 窒素と酸素：地球の大気に近い組み合わせです。\n- 二酸化炭素と窒素：金星や火星の大気に近い組み合わせです。\n- 酸素とオゾン：木星の大気の主成分ではありません。\n\n出典: [NASA：jupiter facts](https://science.nasa.gov/jupiter/jupiter-facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "土星の明るい環を構成する主なものはどれですか。",
+    "choices": [
+      {
+        "body": "多数の氷の粒や塊",
+        "isCorrect": true
+      },
+      {
+        "body": "一枚につながった金属の板",
+        "isCorrect": false
+      },
+      {
+        "body": "発光する気体だけ",
+        "isCorrect": false
+      },
+      {
+        "body": "液体の水だけ",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「多数の氷の粒や塊」です。環は多数の小天体からなり、主に氷と、岩石や塵が含まれます。\n\n- 一枚につながった金属の板：環は一枚の固い板ではありません。\n- 発光する気体だけ：気体の発光だけでできた環ではありません。\n- 液体の水だけ：液体の帯ではなく粒子の集まりです。\n\n出典: [NASA：saturn facts](https://science.nasa.gov/saturn/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "土星の平均密度を水と比べた説明はどれですか。",
+    "choices": [
+      {
+        "body": "水とまったく同じ",
+        "isCorrect": false
+      },
+      {
+        "body": "水の約5倍",
+        "isCorrect": false
+      },
+      {
+        "body": "水の約10倍",
+        "isCorrect": false
+      },
+      {
+        "body": "水より小さい",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「水より小さい」です。土星の平均密度は水より小さいことで知られます。\n\n- 水とまったく同じ：水と同じ値ではありません。\n- 水の約5倍：地球に近い密度との混同です。\n- 水の約10倍：土星の平均密度として大きすぎます。\n\n出典: [NASA：saturn facts](https://science.nasa.gov/saturn/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "厚い大気を持つ土星最大の衛星はどれですか。",
+    "choices": [
+      {
+        "body": "エウロパ",
+        "isCorrect": false
+      },
+      {
+        "body": "トリトン",
+        "isCorrect": false
+      },
+      {
+        "body": "タイタン",
+        "isCorrect": true
+      },
+      {
+        "body": "フォボス",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「タイタン」です。タイタンは土星最大の衛星で、厚い大気があります。\n\n- フォボス：火星の衛星です。\n- エウロパ：木星の衛星です。\n- トリトン：海王星の衛星です。\n\n出典: [NASA：saturn facts](https://science.nasa.gov/saturn/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "横倒しに近い姿勢で自転することで知られる惑星はどれですか。",
+    "choices": [
+      {
+        "body": "木星",
+        "isCorrect": false
+      },
+      {
+        "body": "天王星",
+        "isCorrect": true
+      },
+      {
+        "body": "水星",
+        "isCorrect": false
+      },
+      {
+        "body": "地球",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「天王星」です。天王星は自転軸が公転面に対して大きく傾いています。\n\n- 水星：天王星のような横倒しの自転ではありません。\n- 地球：地軸は傾いていますが横倒しに近いほどではありません。\n- 木星：自転軸の傾きは比較的小さい惑星です。\n\n出典: [NASA：uranus facts](https://science.nasa.gov/uranus/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "天王星の大気で赤い光を吸収し、青緑色の見え方に関わる気体はどれですか。",
+    "choices": [
+      {
+        "body": "メタン",
+        "isCorrect": true
+      },
+      {
+        "body": "酸素",
+        "isCorrect": false
+      },
+      {
+        "body": "二酸化炭素",
+        "isCorrect": false
+      },
+      {
+        "body": "窒素",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「メタン」です。大気中のメタンによる赤色光の吸収が、見える色に関わります。\n\n- 酸素：酸素の海が青く見せているわけではありません。\n- 二酸化炭素：金星などの主成分ですが、この吸収の説明とは違います。\n- 窒素：地球の大気の主成分ですが、この吸収の説明とは違います。\n\n出典: [NASA：uranus facts](https://science.nasa.gov/uranus/facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "太陽系の8惑星のうち、最も外側を公転する惑星はどれですか。",
+    "choices": [
+      {
+        "body": "天王星",
+        "isCorrect": false
+      },
+      {
+        "body": "土星",
+        "isCorrect": false
+      },
+      {
+        "body": "冥王星",
+        "isCorrect": false
+      },
+      {
+        "body": "海王星",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「海王星」です。8惑星で太陽から最も遠いのは海王星です。\n\n- 天王星：海王星の1つ内側です。\n- 土星：太陽から6番目です。\n- 冥王星：準惑星なので、この問題の8惑星には含みません。\n\n出典: [NASA：neptune facts](https://science.nasa.gov/neptune/neptune-facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "海王星が太陽を1周する時間に最も近いものはどれですか。",
+    "choices": [
+      {
+        "body": "地球の12年",
+        "isCorrect": false
+      },
+      {
+        "body": "地球の29年",
+        "isCorrect": false
+      },
+      {
+        "body": "地球の165年",
+        "isCorrect": true
+      },
+      {
+        "body": "地球の1年",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「地球の165年」です。海王星の1年は地球のおよそ165年です。\n\n- 地球の1年：地球自身の公転周期です。\n- 地球の12年：木星の公転周期に近い値です。\n- 地球の29年：土星の公転周期に近い値です。\n\n出典: [NASA：neptune facts](https://science.nasa.gov/neptune/neptune-facts/)",
+    "status": "published"
+  },
+  {
+    "category": "太陽系",
+    "difficulty": "ふつう",
+    "question": "計算で位置を予測した後、1846年に望遠鏡で発見された惑星はどれですか。",
+    "choices": [
+      {
+        "body": "土星",
+        "isCorrect": false
+      },
+      {
+        "body": "海王星",
+        "isCorrect": true
+      },
+      {
+        "body": "水星",
+        "isCorrect": false
+      },
+      {
+        "body": "金星",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「海王星」です。海王星は天王星の軌道のずれを手がかりに位置が予測されました。\n\n- 水星：肉眼で見え、古代から知られています。\n- 金星：肉眼で見え、古代から知られています。\n- 土星：肉眼で見え、古代から知られています。\n\n出典: [NASA：neptune facts](https://science.nasa.gov/neptune/neptune-facts/)",
+    "status": "published"
+  }
+]

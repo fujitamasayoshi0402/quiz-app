@@ -9,6 +9,7 @@ import { ApiErrorAlert } from "@/components/api-error-alert";
 import { OptionGroup } from "@/components/play/option-group";
 import { Panel } from "@/components/play/parts";
 import { ResumeCard } from "@/components/play/resume-card";
+import { DemoStarterCard } from "@/components/play/demo-starter-card";
 import { ReviewCard } from "@/components/play/review-card";
 import { ApiError } from "@/lib/api/fetcher";
 import {
@@ -117,6 +118,7 @@ export function PlaySetup({ slug }: { slug: string }) {
 
   return (
     <div className="space-y-8">
+      <DemoStarterCard slug={slug} categories={categories.data} />
       <ResumeCard slug={slug} />
       <ReviewCard slug={slug} />
 
