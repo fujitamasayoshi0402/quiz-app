@@ -418,6 +418,7 @@ erDiagram
         string external_id UK "認証基盤の利用者の ID（sub）"
         string email UK "確認済みのメールアドレス"
         boolean shared "共有のアカウント（デモ）か"
+        boolean capacity_exempt "作ったテナントが、クイズと図の上限を受けないか"
     }
     categories {
         uuid id PK

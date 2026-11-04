@@ -20,14 +20,21 @@ class PlayableCategoryJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate)
 
     override fun findAll(): List<PlayableCategory> = jdbcTemplate.query(
         """
-        WITH cover AS (
-            -- 易しい難易度から登録順に見て、最初に図を指している公開済みの問題の、最初の図
-            SELECT DISTINCT ON (q.category_id) q.category_id, f.id AS figure_id
+        WITH referenced AS MATERIALIZED (
+            -- 正規表現は問題ごとに 1 回だけ実行する。結合の条件に書くと、統計情報がないとき（クイズを流した直後）に
+            -- 「問題 × 図」の回数だけ実行され、68 問・46 枚で 1 秒を超えた（DEV-223）
+            SELECT q.category_id, q.difficulty_id, q.created_at,
+                   CAST(substring(q.explanation FROM '$FIGURE_REFERENCE') AS uuid) AS figure_id
             FROM quiz.quizzes q
-            JOIN quiz.difficulties d ON d.id = q.difficulty_id AND d.deleted_at IS NULL
-            JOIN quiz.figures f ON f.id = CAST(substring(q.explanation FROM '$FIGURE_REFERENCE') AS uuid)
             WHERE q.deleted_at IS NULL AND q.status = 'published'
-            ORDER BY q.category_id, d.level, d.sort_order, q.created_at
+        ),
+        cover AS (
+            -- 易しい難易度から登録順に見て、最初に図を指している公開済みの問題の、最初の図
+            SELECT DISTINCT ON (r.category_id) r.category_id, f.id AS figure_id
+            FROM referenced r
+            JOIN quiz.difficulties d ON d.id = r.difficulty_id AND d.deleted_at IS NULL
+            JOIN quiz.figures f ON f.id = r.figure_id
+            ORDER BY r.category_id, d.level, d.sort_order, r.created_at
         )
         SELECT c.id AS category_id, c.name AS category_name, c.description AS category_description,
                cover.figure_id AS cover_figure_id,

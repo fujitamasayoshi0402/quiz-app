@@ -1,0 +1,177 @@
+[
+  {
+    "category": "生き物のふしぎ",
+    "difficulty": "やさしい",
+    "question": "クジラは、脊椎動物のどのなかまですか。",
+    "choices": [
+      {
+        "body": "魚類",
+        "isCorrect": false
+      },
+      {
+        "body": "両生類",
+        "isCorrect": false
+      },
+      {
+        "body": "哺乳類",
+        "isCorrect": true
+      },
+      {
+        "body": "爬虫類",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "**哺乳類**です。クジラは肺で息をして、生まれた子を乳で育てます。水の中で暮らしていても、体のしくみは陸の哺乳類と同じです。\n\n![脊椎動物の 5 つのなかまの表。クジラは哺乳類で、子を産む](figure:vertebrate-classes)\n\n- **魚類**: えらで息をします。クジラは息つぎのために水面へ上がります\n- **両生類**: カエルのなかまで、子どものころは水の中でえらを使います\n- **爬虫類**: カメやトカゲのなかまで、乳で子を育てません\n\n出典: [コトバンク「哺乳類」](https://kotobank.jp/word/%E5%93%BA%E4%B9%B3%E9%A1%9E-133848)、[コトバンク「鯨類」](https://kotobank.jp/word/%E9%AF%A8%E9%A1%9E-1309517)",
+    "status": "published"
+  },
+  {
+    "category": "生き物のふしぎ",
+    "difficulty": "ふつう",
+    "question": "卵を産む哺乳類はどれですか。",
+    "choices": [
+      {
+        "body": "コウモリ",
+        "isCorrect": false
+      },
+      {
+        "body": "イルカ",
+        "isCorrect": false
+      },
+      {
+        "body": "ペンギン",
+        "isCorrect": false
+      },
+      {
+        "body": "カモノハシ",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "**カモノハシ**です。卵を産みますが、かえった子を母乳で育てるので哺乳類です。卵を産む哺乳類（単孔類）は、カモノハシとハリモグラのなかまだけです。\n\n![脊椎動物の表。哺乳類のうちクジラは子を産み、カモノハシは卵を産む](figure:vertebrate-classes)\n\n- **コウモリ**: 空を飛びますが、子を産む哺乳類です\n- **イルカ**: 海で暮らしますが、子を産む哺乳類です\n- **ペンギン**: 卵を産みますが、哺乳類ではなく鳥類です\n\n出典: [サイエンスポータル「カモノハシとハリモグラのゲノム解読」](https://scienceportal.jst.go.jp/newsflash/20210204_n01/)",
+    "status": "published"
+  },
+  {
+    "category": "生き物のふしぎ",
+    "difficulty": "やさしい",
+    "question": "昆虫の脚は、全部で何本ですか。",
+    "choices": [
+      {
+        "body": "4 本",
+        "isCorrect": false
+      },
+      {
+        "body": "8 本",
+        "isCorrect": false
+      },
+      {
+        "body": "6 本",
+        "isCorrect": true
+      },
+      {
+        "body": "10 本",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "**6 本**です。昆虫の体は頭・胸・腹の 3 つに分かれ、胸から 3 対の脚が出ています。\n\n![昆虫の体。頭、胸、腹に分かれ、胸から左右 3 本ずつ、計 6 本の脚が出る](figure:insect-body)\n\n- **4 本**: 前脚が小さく、4 本に見えるチョウもいますが、脚は 6 本あります\n- **8 本**: クモのなかまの数です。クモは昆虫ではありません\n- **10 本**: エビやカニのなかまに多い数です\n\n出典: [コトバンク「昆虫」](https://kotobank.jp/word/%E6%98%86%E8%99%AB-506352)",
+    "status": "published"
+  },
+  {
+    "category": "生き物のふしぎ",
+    "difficulty": "ふつう",
+    "question": "次のうち、昆虫はどれですか。",
+    "choices": [
+      {
+        "body": "クモ",
+        "isCorrect": false
+      },
+      {
+        "body": "ムカデ",
+        "isCorrect": false
+      },
+      {
+        "body": "ダンゴムシ",
+        "isCorrect": false
+      },
+      {
+        "body": "カブトムシ",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "**カブトムシ**です。体が頭・胸・腹に分かれ、胸に 6 本の脚があるという、昆虫の決まりに当てはまります。\n\n![昆虫の体。頭、胸、腹に分かれ、脚は胸から 3 対出る](figure:insect-body)\n\n- **クモ**: 脚が 8 本で、体は大きく 2 つに分かれます\n- **ムカデ**: 胴の節ごとに脚があり、数十本になります\n- **ダンゴムシ**: 名前に「ムシ」と付きますが、エビやカニに近い甲殻類です\n\n出典: [コトバンク「昆虫」](https://kotobank.jp/word/%E6%98%86%E8%99%AB-506352)、[コトバンク「甲殻類」](https://kotobank.jp/word/%E7%94%B2%E6%AE%BB%E9%A1%9E-61614)",
+    "status": "published"
+  },
+  {
+    "category": "生き物のふしぎ",
+    "difficulty": "やさしい",
+    "question": "光合成で、植物が空気中から取り入れる気体はどれですか。",
+    "choices": [
+      {
+        "body": "二酸化炭素",
+        "isCorrect": true
+      },
+      {
+        "body": "酸素",
+        "isCorrect": false
+      },
+      {
+        "body": "窒素",
+        "isCorrect": false
+      },
+      {
+        "body": "水素",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "**二酸化炭素**です。植物は光のエネルギーを使い、水と二酸化炭素から炭水化物を作ります。このとき酸素を出します。\n\n![葉に光が当たり、二酸化炭素と水を取り入れて、酸素と炭水化物を作って出す](figure:photosynthesis)\n\n- **酸素**: 光合成では外へ出す気体です。取り入れるのは呼吸のときです\n- **窒素**: 空気に最も多い気体ですが、光合成の材料ではありません\n- **水素**: 光合成では水を分けて取り出します。空気から取り入れるのではありません\n\n出典: [コトバンク「光合成」](https://kotobank.jp/word/%E5%85%89%E5%90%88%E6%88%90-62007)",
+    "status": "published"
+  },
+  {
+    "category": "生き物のふしぎ",
+    "difficulty": "ふつう",
+    "question": "キリンの首の骨（頸椎）は何個ですか。",
+    "choices": [
+      {
+        "body": "5 個",
+        "isCorrect": false
+      },
+      {
+        "body": "7 個",
+        "isCorrect": true
+      },
+      {
+        "body": "10 個",
+        "isCorrect": false
+      },
+      {
+        "body": "14 個",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "**7 個**です。ヒトと同じ数で、キリンは 1 個ずつの骨が長くなっています。哺乳類の頸椎は、一部の例外を除いて 7 個です。\n\n![ヒトとキリンの首の骨。どちらも 7 個で、キリンは 1 個ずつが長い](figure:giraffe-neck)\n\n- **5 個**: 首の短い動物でも、頸椎はふつう 7 個あります\n- **10 個 / 14 個**: 首の長さから、数が多いと考えた答えです\n\n東京大学などの研究では、キリンは胴の骨である第一胸椎も首の動きに使っていて、「8 番目の首の骨」のように働くことが分かりました。\n\n出典: [東京大学「キリンの首は、もっと長い」](https://www.u-tokyo.ac.jp/focus/ja/articles/a_00462.html)、[ニュースイッチ（キリンの首の骨の研究の解説）](https://newswitch.jp/p/22653)",
+    "status": "published"
+  },
+  {
+    "category": "生き物のふしぎ",
+    "difficulty": "むずかしい",
+    "question": "食べられるたびに、エネルギーが約 1 割だけ次へ渡るとします。草のエネルギーを 10,000 とすると、草→バッタ→カエル→ヘビと渡って、ヘビに届くのはどれくらいですか。",
+    "choices": [
+      {
+        "body": "1",
+        "isCorrect": false
+      },
+      {
+        "body": "100",
+        "isCorrect": false
+      },
+      {
+        "body": "1,000",
+        "isCorrect": false
+      },
+      {
+        "body": "10",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "**10** です。矢印は 3 本あるので、1 割にする計算を 3 回します。10,000 → 1,000 → 100 → 10 です。\n\n![積み重ねた 4 段の図。下から草 10,000、バッタ 1,000、カエル 100、ヘビ 10](figure:food-pyramid)\n\nエネルギーの多くは、生き物が動いたり体温を保ったりするうちに熱として失われます。上の段ほど養える数が減るので、肉食の大型動物は数が少なくなります。なお「1 割」は目安で、実際の値は生き物によって違います。\n\n- **1,000**: 1 回だけ計算した値で、バッタに届く量です\n- **100**: 2 回計算した値で、カエルに届く量です\n- **1**: 4 回計算した値です\n\n出典: [コトバンク「生態ピラミッド」](https://kotobank.jp/word/%E7%94%9F%E6%85%8B%E3%81%B4%E3%82%89%E3%81%BF%E3%81%A4%E3%81%A9-2781731)",
+    "status": "published"
+  }
+]
