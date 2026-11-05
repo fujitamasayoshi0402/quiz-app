@@ -40,9 +40,12 @@ RUN java -Djarmode=tools -jar services/quiz-service/build/libs/quiz-service.jar 
 # --- 実行 --------------------------------------------------------------------
 FROM eclipse-temurin:21-jre-noble
 
+# Ubuntu のセキュリティの更新を入れる（DEV-228。web の DEV-132 と同じ）。公式イメージは、修正が出てから作り直されるまでに間があり、
+# その間も、CI の脆弱性の検査を通す。
 # PDF の 1 ページ目を画像にするとき（ADR-0021）、埋め込まれていない日本語のフォントの代わりに使う。
 # 無いと、その文字が描かれない。小さい IPAex ゴシック（約 4 MB）だけを入れる
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends fonts-ipaexfont-gothic \
     && rm -rf /var/lib/apt/lists/*
 
