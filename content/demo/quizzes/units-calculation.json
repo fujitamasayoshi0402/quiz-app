@@ -1,0 +1,377 @@
+[
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "2.5kmをメートルで表したものはどれですか。",
+    "choices": [
+      {
+        "body": "2,500m",
+        "isCorrect": true
+      },
+      {
+        "body": "250m",
+        "isCorrect": false
+      },
+      {
+        "body": "25,000m",
+        "isCorrect": false
+      },
+      {
+        "body": "0.0025m",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「2,500m」です。kは1,000倍なので2.5×1,000です。\n\n- 250m：100倍しかしていません。\n- 25,000m：10,000倍にしています。\n- 0.0025m：換算の向きが逆です。\n\n出典: [NIST：SI接頭語](https://www.nist.gov/pml/owm/metric-si-prefixes)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "750mLをリットルで表したものはどれですか。",
+    "choices": [
+      {
+        "body": "7.5L",
+        "isCorrect": false
+      },
+      {
+        "body": "75L",
+        "isCorrect": false
+      },
+      {
+        "body": "0.075L",
+        "isCorrect": false
+      },
+      {
+        "body": "0.75L",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「0.75L」です。mは1,000分の1なので750÷1,000です。\n\n- 7.5L：100で割った値です。\n- 75L：10で割った値です。\n- 0.075L：10,000で割った値です。\n\n出典: [NIST：SI接頭語](https://www.nist.gov/pml/owm/metric-si-prefixes)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "1平方メートルを平方センチメートルで表したものはどれですか。",
+    "choices": [
+      {
+        "body": "1,000cm²",
+        "isCorrect": false
+      },
+      {
+        "body": "1,000,000cm²",
+        "isCorrect": false
+      },
+      {
+        "body": "10,000cm²",
+        "isCorrect": true
+      },
+      {
+        "body": "100cm²",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「10,000cm²」です。1m×1mは100cm×100cmです。\n\n- 100cm²：長さの換算だけをしています。\n- 1,000cm²：縦と横の両方を100倍する必要があります。\n- 1,000,000cm²：立方の換算と混同しています。\n\n出典: [NIST：SI単位](https://www.nist.gov/pml/owm/metric-si/si-units)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "一辺10cmの立方体の体積はどれですか。",
+    "choices": [
+      {
+        "body": "10,000cm³",
+        "isCorrect": false
+      },
+      {
+        "body": "1,000cm³",
+        "isCorrect": true
+      },
+      {
+        "body": "100cm³",
+        "isCorrect": false
+      },
+      {
+        "body": "30cm³",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「1,000cm³」です。縦×横×高さで10×10×10です。\n\n- 100cm³：面積の計算で止まっています。\n- 30cm³：3辺を足しています。\n- 10,000cm³：10を4回掛けています。\n\n出典: [NIST：SI単位](https://www.nist.gov/pml/owm/metric-si/si-units)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "質量250gの袋を4つ合わせた質量はどれですか。",
+    "choices": [
+      {
+        "body": "1kg",
+        "isCorrect": true
+      },
+      {
+        "body": "0.1kg",
+        "isCorrect": false
+      },
+      {
+        "body": "10kg",
+        "isCorrect": false
+      },
+      {
+        "body": "100kg",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「1kg」です。250×4=1,000gで、1kgです。\n\n- 0.1kg：1kgを10,000gと取り違えています。\n- 10kg：グラムからの換算で桁が1つ大きくなっています。\n- 100kg：グラムからの換算で桁が2つ大きくなっています。\n\n出典: [NIST：SI接頭語](https://www.nist.gov/pml/owm/metric-si-prefixes)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "長さを表すSI基本単位はどれですか。",
+    "choices": [
+      {
+        "body": "平方メートル",
+        "isCorrect": false
+      },
+      {
+        "body": "立方メートル",
+        "isCorrect": false
+      },
+      {
+        "body": "秒",
+        "isCorrect": false
+      },
+      {
+        "body": "メートル",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「メートル」です。メートルは長さの基本単位です。\n\n- 平方メートル：面積の単位です。\n- 立方メートル：体積の単位です。\n- 秒：時間の単位です。\n\n出典: [NIST：SI単位](https://www.nist.gov/pml/owm/metric-si/si-units)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "質量を表すSI基本単位はどれですか。",
+    "choices": [
+      {
+        "body": "ニュートン",
+        "isCorrect": false
+      },
+      {
+        "body": "リットル",
+        "isCorrect": false
+      },
+      {
+        "body": "キログラム",
+        "isCorrect": true
+      },
+      {
+        "body": "グラム",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「キログラム」です。質量の基本単位はキログラムです。\n\n- グラム：よく使いますがSI基本単位はキログラムです。\n- ニュートン：力を表す組立単位です。\n- リットル：体積の単位です。\n\n出典: [NIST：SI単位](https://www.nist.gov/pml/owm/metric-si/si-units)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "電流を表すSI基本単位はどれですか。",
+    "choices": [
+      {
+        "body": "オーム",
+        "isCorrect": false
+      },
+      {
+        "body": "アンペア",
+        "isCorrect": true
+      },
+      {
+        "body": "ボルト",
+        "isCorrect": false
+      },
+      {
+        "body": "ワット",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「アンペア」です。アンペアは電流の単位です。\n\n- ボルト：電位差の単位です。\n- ワット：電力などの仕事率の単位です。\n- オーム：電気抵抗の単位です。\n\n出典: [NIST：SI単位](https://www.nist.gov/pml/owm/metric-si/si-units)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "力の単位として使われるものはどれですか。",
+    "choices": [
+      {
+        "body": "ニュートン",
+        "isCorrect": true
+      },
+      {
+        "body": "パスカル",
+        "isCorrect": false
+      },
+      {
+        "body": "ジュール",
+        "isCorrect": false
+      },
+      {
+        "body": "ワット",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「ニュートン」です。ニュートンはkg·m/s²で表される力の単位です。\n\n- パスカル：圧力の単位です。\n- ジュール：エネルギーの単位です。\n- ワット：仕事率の単位です。\n\n出典: [NIST：SI単位](https://www.nist.gov/pml/owm/metric-si/si-units)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "1秒あたりの周期の回数を表す単位はどれですか。",
+    "choices": [
+      {
+        "body": "メートル",
+        "isCorrect": false
+      },
+      {
+        "body": "ジュール",
+        "isCorrect": false
+      },
+      {
+        "body": "ケルビン",
+        "isCorrect": false
+      },
+      {
+        "body": "ヘルツ",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「ヘルツ」です。1Hzは1秒あたり1周期に対応します。\n\n- メートル：長さの単位です。\n- ジュール：エネルギーの単位です。\n- ケルビン：熱力学温度の単位です。\n\n出典: [NIST：SI単位](https://www.nist.gov/pml/owm/metric-si/si-units)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "SI接頭語の「メガ」が表す倍率はどれですか。",
+    "choices": [
+      {
+        "body": "十億倍",
+        "isCorrect": false
+      },
+      {
+        "body": "千分の1倍",
+        "isCorrect": false
+      },
+      {
+        "body": "100万倍",
+        "isCorrect": true
+      },
+      {
+        "body": "千倍",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「100万倍」です。メガの記号Mは10の6乗です。\n\n- 千倍：キロの倍率です。\n- 十億倍：ギガの倍率です。\n- 千分の1倍：ミリの倍率です。\n\n出典: [NIST：SI接頭語](https://www.nist.gov/pml/owm/metric-si-prefixes)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "SI接頭語の「マイクロ」が表す倍率はどれですか。",
+    "choices": [
+      {
+        "body": "100万倍",
+        "isCorrect": false
+      },
+      {
+        "body": "100万分の1倍",
+        "isCorrect": true
+      },
+      {
+        "body": "千分の1倍",
+        "isCorrect": false
+      },
+      {
+        "body": "十億分の1倍",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「100万分の1倍」です。マイクロの記号µは10のマイナス6乗です。\n\n- 千分の1倍：ミリの倍率です。\n- 十億分の1倍：ナノの倍率です。\n- 100万倍：メガの倍率です。\n\n出典: [NIST：SI接頭語](https://www.nist.gov/pml/owm/metric-si-prefixes)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "時速72kmを秒速に直したものはどれですか。",
+    "choices": [
+      {
+        "body": "20m/s",
+        "isCorrect": true
+      },
+      {
+        "body": "2m/s",
+        "isCorrect": false
+      },
+      {
+        "body": "200m/s",
+        "isCorrect": false
+      },
+      {
+        "body": "72m/s",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「20m/s」です。72,000mを3,600秒で割ります。\n\n- 2m/s：換算後の桁が1つ小さくなっています。\n- 200m/s：換算後の桁が1つ大きくなっています。\n- 72m/s：時間と長さの単位を換算していません。\n\n出典: [NIST：SI単位](https://www.nist.gov/pml/owm/metric-si/si-units)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "秒速5mで40秒進みました。移動距離はどれですか。",
+    "choices": [
+      {
+        "body": "8m",
+        "isCorrect": false
+      },
+      {
+        "body": "45m",
+        "isCorrect": false
+      },
+      {
+        "body": "0.125m",
+        "isCorrect": false
+      },
+      {
+        "body": "200m",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「200m」です。距離は速さ×時間なので5×40です。\n\n- 8m：時間を速さで割っています。\n- 45m：異なる単位の数を足しています。\n- 0.125m：速さを時間で割っています。\n\n出典: [NIST：SI単位](https://www.nist.gov/pml/owm/metric-si/si-units)",
+    "status": "published"
+  },
+  {
+    "category": "単位と計算",
+    "difficulty": "ふつう",
+    "question": "電力100Wの機器を2時間使いました。消費電力量はどれですか。",
+    "choices": [
+      {
+        "body": "20kWh",
+        "isCorrect": false
+      },
+      {
+        "body": "200kWh",
+        "isCorrect": false
+      },
+      {
+        "body": "0.2kWh",
+        "isCorrect": true
+      },
+      {
+        "body": "2kWh",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「0.2kWh」です。100W×2h=200Whで、1,000で割ると0.2kWhです。\n\n- 2kWh：Whからの換算が10倍大きくなっています。\n- 20kWh：Whからの換算が100倍大きくなっています。\n- 200kWh：Whの数値をそのままkWhにしています。\n\n出典: [NIST：SI単位](https://www.nist.gov/pml/owm/metric-si/si-units)",
+    "status": "published"
+  }
+]

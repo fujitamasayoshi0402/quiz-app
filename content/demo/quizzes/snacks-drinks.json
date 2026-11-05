@@ -1,0 +1,202 @@
+[
+  {
+    "category": "お菓子・飲み物",
+    "difficulty": "ふつう",
+    "question": "「きのこの山」と「たけのこの里」、発売の順番はどれですか。",
+    "choices": [
+      {
+        "body": "きのこの山が4年早い",
+        "isCorrect": true
+      },
+      {
+        "body": "たけのこの里が4年早い",
+        "isCorrect": false
+      },
+      {
+        "body": "同じ年に発売された",
+        "isCorrect": false
+      },
+      {
+        "body": "きのこの山が10年早い",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「きのこの山が4年早い」です。きのこの山は1975年、たけのこの里は1979年に発売されました。定番のライバルにも、4歳の年の差があります。\n\n- たけのこの里が4年早い：先に登場したのはきのこの山です。\n- 同じ年に発売された：発売年には4年の差があります。\n- きのこの山が10年早い：先後は合っていますが、差は10年ではなく4年です。\n\n出典: [明治：きのこの山・たけのこの里の歴史](https://www.meiji.co.jp/products/brand/kinotake/history/)",
+    "status": "published"
+  },
+  {
+    "category": "お菓子・飲み物",
+    "difficulty": "やさしい",
+    "question": "「じゃがりこ」のキャラクターがキリンなのは、どんな言葉にかけたものですか。",
+    "choices": [
+      {
+        "body": "首を長くして発売を待つ",
+        "isCorrect": false
+      },
+      {
+        "body": "おいしさが頭ひとつ抜ける",
+        "isCorrect": false
+      },
+      {
+        "body": "遠くまで香りが届く",
+        "isCorrect": false
+      },
+      {
+        "body": "食べだしたらきりがない",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「食べだしたらきりがない」です。カルビーは、食べ始めると際限がないことと「キリン」の音をかけたと説明しています。先輩商品に続き、長く愛されてほしいという願いも込められています。\n\n- 首を長くして発売を待つ：首の長さへの連想は自然ですが、公式が示す言葉遊びとは違います。\n- おいしさが頭ひとつ抜ける：背の高さではなく「きりがない」という音が手がかりです。\n- 遠くまで香りが届く：香りを遠くへ届けるためのキャラクターではありません。\n\n出典: [カルビー：じゃがりこのキャラクター](https://faq.calbee.co.jp/faq_detail.html?id=39)",
+    "status": "published"
+  },
+  {
+    "category": "お菓子・飲み物",
+    "difficulty": "ふつう",
+    "question": "お菓子「ビスコ」の名前のもとになった組み合わせはどれですか。",
+    "choices": [
+      {
+        "body": "ビスケットとココア",
+        "isCorrect": false
+      },
+      {
+        "body": "美食とコーヒー",
+        "isCorrect": false
+      },
+      {
+        "body": "酵母とビスケット",
+        "isCorrect": true
+      },
+      {
+        "body": "ビタミンとスコーン",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「酵母とビスケット」です。発売当初の酵母入りビスケットから「コービス」と縮め、順序を変えてビスコになりました。名前には誕生時の工夫が残っています。\n\n- ビタミンとスコーン：ビタミンの「ビ」と考えたくなりますが、公式の由来は酵母ビスケットです。\n- ビスケットとココア：「コ」はココアの略ではありません。\n- 美食とコーヒー：美食やコーヒーを合わせた名前ではありません。\n\n出典: [江崎グリコ：ビスコの名前の由来](https://www.glico.com/jp/health/contents/bisco04/)",
+    "status": "published"
+  },
+  {
+    "category": "お菓子・飲み物",
+    "difficulty": "やさしい",
+    "question": "「ハイチュウ」の「ハイ」は、名前の由来では何を表していますか。",
+    "choices": [
+      {
+        "body": "高い山の果物",
+        "isCorrect": false
+      },
+      {
+        "body": "高品質・ハイグレード",
+        "isCorrect": true
+      },
+      {
+        "body": "高温で作ること",
+        "isCorrect": false
+      },
+      {
+        "body": "高く跳ねる弾力",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「高品質・ハイグレード」です。森永製菓は、高品質を示すハイグレードとチューイングキャンディを合わせた名前と説明しています。食感だけでなく、当時の高級志向も名前に入っています。\n\n- 高温で作ること：製造温度を表す「ハイ」ではありません。\n- 高く跳ねる弾力：弾力は特徴ですが、命名の由来は品質の高さです。\n- 高い山の果物：原料の産地や標高を表してはいません。\n\n出典: [森永製菓：ハイチュウの名前の由来](https://www.morinaga.co.jp/faq/faq_detail.html?id=23)",
+    "status": "published"
+  },
+  {
+    "category": "お菓子・飲み物",
+    "difficulty": "やさしい",
+    "question": "緑茶「伊右衛門」の名前のもとになった人物はどれですか。",
+    "choices": [
+      {
+        "body": "福寿園の創業者",
+        "isCorrect": true
+      },
+      {
+        "body": "サントリーの創業者",
+        "isCorrect": false
+      },
+      {
+        "body": "最初のCMの俳優",
+        "isCorrect": false
+      },
+      {
+        "body": "商品開発をした研究者",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「福寿園の創業者」です。京都の茶舗・福寿園を創業した福井伊右衛門の名に由来します。共同開発したお茶に、茶舗の初代の名前が受け継がれています。\n\n- サントリーの創業者：サントリー側の創業者名ではありません。\n- 最初のCMの俳優：CMの出演者の名前から付けたものではありません。\n- 商品開発をした研究者：開発担当者個人の名前ではありません。\n\n出典: [サントリー：伊右衛門の名前の由来](https://www.suntory.co.jp/customer/faq/001884.html)",
+    "status": "published"
+  },
+  {
+    "category": "お菓子・飲み物",
+    "difficulty": "ふつう",
+    "question": "炭酸水ブランド「ウィルキンソン」が生まれた国はどれですか。",
+    "choices": [
+      {
+        "body": "イギリス",
+        "isCorrect": false
+      },
+      {
+        "body": "アメリカ",
+        "isCorrect": false
+      },
+      {
+        "body": "ドイツ",
+        "isCorrect": false
+      },
+      {
+        "body": "日本",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「日本」です。英国人ウィルキンソンが兵庫県宝塚で炭酸鉱泉を見つけ、日本で瓶詰めを始めたのが出発点です。外国風の名前ですが、日本生まれのブランドです。\n\n- イギリス：創始者の出身国ですが、ブランド誕生の地は日本です。\n- アメリカ：英語の名前から連想しやすいものの、誕生地ではありません。\n- ドイツ：炭酸水のイメージがあっても、ウィルキンソンの出発点ではありません。\n\n出典: [アサヒ飲料：ウィルキンソンの歴史](https://www.asahiinryo.co.jp/wilkinson/sp/history/)",
+    "status": "published"
+  },
+  {
+    "category": "お菓子・飲み物",
+    "difficulty": "ふつう",
+    "question": "「雪見だいふく」の前身「わたぼうし」は、アイスを何で包んでいましたか。",
+    "choices": [
+      {
+        "body": "もなかの皮",
+        "isCorrect": false
+      },
+      {
+        "body": "カステラ",
+        "isCorrect": false
+      },
+      {
+        "body": "マシュマロ",
+        "isCorrect": true
+      },
+      {
+        "body": "クレープ生地",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「マシュマロ」です。ロッテは、マシュマロでバニラアイスを包んだ商品から、おもちで包む雪見だいふくへ発展させました。定番の食感にも試行錯誤の前史があります。\n\n- クレープ生地：クレープで包む方式が前身だったわけではありません。\n- もなかの皮：もなかアイスとは異なり、やわらかいマシュマロで包んでいました。\n- カステラ：ケーキ生地ではなくマシュマロでした。\n\n出典: [ロッテ：雪見だいふくのおもちの秘密](https://www.lotte.co.jp/entertainment/shallwelotte/product/sozai/mochi/)",
+    "status": "published"
+  },
+  {
+    "category": "お菓子・飲み物",
+    "difficulty": "やさしい",
+    "question": "明治「アポロ」の三角形のモチーフになったものはどれですか。",
+    "choices": [
+      {
+        "body": "バレエのスカート",
+        "isCorrect": false
+      },
+      {
+        "body": "宇宙船",
+        "isCorrect": true
+      },
+      {
+        "body": "いちごの実",
+        "isCorrect": false
+      },
+      {
+        "body": "山の頂上",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「宇宙船」です。アポロ計画の宇宙船をイメージした形です。いちご味のかわいいお菓子が、人類の月への挑戦とつながっています。\n\n- いちごの実：いちご味でも、形の由来はいちごそのものではありません。\n- 山の頂上：山をかたどった形ではありません。\n- バレエのスカート：広がった衣装に似て見えても、公式のモチーフは宇宙船です。\n\n出典: [明治：アポロの形のひみつ](https://www.meiji.co.jp/sweets/chocolate/apollo/kids_apollo/)",
+    "status": "published"
+  }
+]
