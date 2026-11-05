@@ -2049,7 +2049,10 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
     24 時間を超えて止まっていると復帰に 30 秒を超えることがある。API Gateway の待ち時間（30 秒）を超えると 504 が返る。間に合わなかった読み込みは、
     画面の再試行（5xx と通信エラーを 2 回まで、`src/app/providers.tsx`）で拾う。止まったあとの最初の操作は、たいてい読み込み
   - **待っている間、画面は 3 秒を過ぎたら案内を出す**（`components/slow-request-notice.tsx`）。スケルトンのままでは、壊れたのか待てばよいのかが分からない。
-    TanStack Query の読み込みと保存をまとめて見るため、画面ごとには書かない。遅い理由は画面からは分からないので、DB を起動しているとは言い切らない
+    TanStack Query の読み込みと保存をまとめて見るため、画面ごとには書かない。遅い理由は画面からは分からないので、DB を起動しているとは言い切らない。
+    モバイルも同じ案内を出す（DEV-226。`apps/mobile/src/components/slow-request-notice.tsx`）
+  - **ログイン済みの人には、先に起こす仕組み（`POST /api/warm-up`）は効かない**（DEV-226）。開いた直後の要求がそのまま DB を起こすので、先回りできる時間がない。待っている間は上の案内で伝える
+  - 同時に始めた挑戦は、DB の一意制約で 1 つに絞り、残りを 409 にする（DEV-226）。DB の起動を待っている間は、要求が重なりやすい
   - 一時停止しないときは、`DatabaseConnections` と RDS のイベント（クラスタ単位の「Initiated pause / resume」）を見る。
     接続の中身は Data API で `pg_stat_activity` を読むと分かる。`rdsadmin` の接続は一時停止を妨げない
 - 通知は Lambda（イベント時のみ課金）で実装し、常駐サービスを増やさない

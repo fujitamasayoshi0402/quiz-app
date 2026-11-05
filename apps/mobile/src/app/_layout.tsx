@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { Text } from "react-native";
+import { SlowRequestNotice } from "@/components/slow-request-notice";
 import { styles } from "@/components/ui";
 import { ApiError } from "@/lib/api/fetcher";
 import { AuthProvider, useAuth } from "@/lib/auth/auth-provider";
@@ -22,7 +23,12 @@ function Queries({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { retry: shouldRetry }, mutations: { retry: false } } }),
   );
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+      <SlowRequestNotice />
+    </QueryClientProvider>
+  );
 }
 
 /**
