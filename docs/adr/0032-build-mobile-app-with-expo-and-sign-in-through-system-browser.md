@@ -1,6 +1,6 @@
 # ADR-0032: モバイルアプリは Expo の managed で作り、ログインはシステムのブラウザで Managed Login を開く。API は直接呼ぶ
 
-- ステータス: Accepted
+- ステータス: Accepted（管理の画面は [ADR-0037](0037-build-quiz-admin-screens-in-mobile-app.md) で見直し）
 - 決定日: 2026-10-16
 
 ## 背景と課題
