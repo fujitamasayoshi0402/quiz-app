@@ -37,7 +37,7 @@ test("「デモとして入る」でデモのテナントに入り、クイズ�
   await test.step("クイズを始めて 1 問答える", async () => {
     await page.getByText("世界の地理", { exact: true }).click();
     await page.getByText("学習モード").click();
-    await page.getByRole("button", { name: "始める" }).click();
+    await page.getByRole("button", { name: "始める", exact: true }).click();
     await page.getByRole("listitem").first().getByRole("button").click();
     await page.getByRole("button", { name: "回答する" }).click();
     await expect(page.getByText(/^(正解|不正解)$/)).toBeVisible();
