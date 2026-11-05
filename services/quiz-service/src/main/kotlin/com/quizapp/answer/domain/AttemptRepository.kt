@@ -4,6 +4,7 @@ import java.util.UUID
 
 interface AttemptRepository {
 
+    /** 中断中の挑戦がすでにある場合は [ConcurrentAttemptStartException]。 */
     fun create(attempt: Attempt): Attempt
 
     fun findById(id: UUID): Attempt?
@@ -19,6 +20,8 @@ interface AttemptRepository {
 
     fun findAnswers(attemptId: UUID): List<Answer>
 }
+
+class ConcurrentAttemptStartException(cause: Throwable? = null) : RuntimeException("同じ利用者の挑戦が同時に始まりました", cause)
 
 class DuplicateAnswerException(quizId: UUID, cause: Throwable? = null) :
     RuntimeException("このクイズにはすでに回答しています: $quizId", cause)

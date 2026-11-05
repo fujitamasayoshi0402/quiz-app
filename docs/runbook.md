@@ -365,7 +365,8 @@ dev で測った時間（DEV-117。戻せる最も新しい時刻を指定）。
 運用者が使うテナントで足りなくなったときだけ、`core.tenants` の 1 行を Data API で書き換える（[ADR-0034](adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)）。
 **ほかの利用者のテナントの上限は変えない。** 空（`NULL`）にすると上限がなくなる。
 
-- いま: `my-quiz`（dev）をクイズ 300、図 300 にしてある（DEV-186）。ADR-0034 は上限を外すとしたが、上限は残して 300 にした
+- いま: `my-quiz`（dev・prod）は、作った人に印を付けてあるので、クイズも図も上限なし（下の `capacity_exempt`。DEV-222）
+- 列の値は、dev がクイズ 300、図 300（DEV-186。ADR-0034 は上限を外すとしたが、上限は残して 300 にした）、prod がクイズなし、図 50。印を外すと、この値に戻る
 
 ```bash
 cd infra/terraform/envs/dev

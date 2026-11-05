@@ -4,6 +4,7 @@ import com.quizapp.answer.domain.Answer
 import com.quizapp.answer.domain.Attempt
 import com.quizapp.answer.domain.AttemptRepository
 import com.quizapp.answer.domain.AttemptStatus
+import com.quizapp.answer.domain.ConcurrentAttemptStartException
 import com.quizapp.answer.domain.DuplicateAnswerException
 import com.quizapp.quiz.domain.DeliveryScope
 import com.quizapp.tenant.TenantContext
@@ -27,7 +28,12 @@ class AttemptRepositoryImpl(private val attempts: AttemptJdbcRepository, private
             status = attempt.status.name.lowercase(),
             quizzes = attempt.quizIds.map { AttemptQuizEntity(tenantId = tenantId, quizId = it) },
         )
-        return attempts.save(entity).toDomain()
+        return try {
+            attempts.save(entity).toDomain()
+        } catch (e: DuplicateKeyException) {
+            // attempts_single_in_progress_idx。先に SELECT で確かめていても、同時に始めると抜けるため、DB の制約を正とする
+            throw ConcurrentAttemptStartException(e)
+        }
     }
 
     override fun findById(id: UUID): Attempt? = attempts.findById(id).orElse(null)?.toDomain()
