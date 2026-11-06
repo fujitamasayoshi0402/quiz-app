@@ -1,0 +1,202 @@
+[
+  {
+    "category": "身近なブランド",
+    "difficulty": "ふつう",
+    "question": "「IKEA」の4文字は、何を組み合わせた名前ですか。",
+    "choices": [
+      {
+        "body": "創業者の名前と育った土地の頭文字",
+        "isCorrect": true
+      },
+      {
+        "body": "家具の材料4種類の頭文字",
+        "isCorrect": false
+      },
+      {
+        "body": "最初の社員4人の名前の頭文字",
+        "isCorrect": false
+      },
+      {
+        "body": "便利さを表す4つの英単語の頭文字",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「創業者の名前と育った土地の頭文字」です。I・Kは創業者イングヴァル・カンプラード、E・Aは育った農場と村の名前に由来します。世界的な看板に、創業者の故郷が刻まれています。\n\n- 家具の材料4種類の頭文字：家具の素材名を並べた略語ではありません。\n- 最初の社員4人の名前の頭文字：4人分の名前ではなく、1人の名前と土地の名前です。\n- 便利さを表す4つの英単語の頭文字：英語の宣伝文句を省略したものではありません。\n\n出典: [IKEA：イケアの歴史](https://www.ikea.com/jp/ja/this-is-ikea/about-us/our-heritage-pubad29a981/)",
+    "status": "published"
+  },
+  {
+    "category": "身近なブランド",
+    "difficulty": "やさしい",
+    "question": "「無印良品」という名前の意味として、公式に説明されているものはどれですか。",
+    "choices": [
+      {
+        "body": "印刷できない品",
+        "isCorrect": false
+      },
+      {
+        "body": "未検査のまま売る品",
+        "isCorrect": false
+      },
+      {
+        "body": "無期限で使える品",
+        "isCorrect": false
+      },
+      {
+        "body": "しるしの無い良い品",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「しるしの無い良い品」です。無印良品は、ブランドのしるしに頼らず品質の良い商品を届ける考え方を名前に込めています。素材・工程・包装を見直す姿勢にもつながっています。\n\n- 印刷できない品：「無印」は印刷できないという製造上の制約ではありません。\n- 未検査のまま売る品：品質の検査を省くという意味ではありません。\n- 無期限で使える品：商品の寿命や保証期間を表す名前ではありません。\n\n出典: [無印良品：What is MUJI?](https://www.muji.com/jp/about/)",
+    "status": "published"
+  },
+  {
+    "category": "身近なブランド",
+    "difficulty": "ふつう",
+    "question": "「SONY」の由来の一つ、ラテン語の「Sonus」が意味するものはどれですか。",
+    "choices": [
+      {
+        "body": "夢",
+        "isCorrect": false
+      },
+      {
+        "body": "速さ",
+        "isCorrect": false
+      },
+      {
+        "body": "音",
+        "isCorrect": true
+      },
+      {
+        "body": "光",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「音」です。ソニーの社名には、音を意味するラテン語が取り入れられています。オーディオや音楽でおなじみの会社らしい由来です。\n\n- 光：映像事業から連想できますが、Sonusの意味は光ではありません。\n- 夢：夢を表す語として使われたものではありません。\n- 速さ：速さを表す語として使われたものではありません。\n\n出典: [ソニー：ソニーフィルの歩み](https://www.sony.com/ja/SonyInfo/blog/2025/03/19/)",
+    "status": "published"
+  },
+  {
+    "category": "身近なブランド",
+    "difficulty": "やさしい",
+    "question": "「LEGO」のもとになったデンマーク語「Leg Godt」の意味はどれですか。",
+    "choices": [
+      {
+        "body": "小さく作れ",
+        "isCorrect": false
+      },
+      {
+        "body": "よく遊べ",
+        "isCorrect": true
+      },
+      {
+        "body": "高く積め",
+        "isCorrect": false
+      },
+      {
+        "body": "強くつなげ",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「よく遊べ」です。レゴの名前は、遊びを勧めるデンマーク語から生まれました。ブロックの組み方より広く、遊ぶことそのものを大切にした名前です。\n\n- 高く積め：積み上げる動作だけを命じた言葉ではありません。\n- 強くつなげ：部品の接続強度を表す言葉ではありません。\n- 小さく作れ：模型を小さくする指示ではありません。\n\n出典: [レゴグループ：マリオの日の発表・会社紹介](https://www.lego.com/ja-jp/aboutus/news/2024/march/mar10-2024)",
+    "status": "published"
+  },
+  {
+    "category": "身近なブランド",
+    "difficulty": "ふつう",
+    "question": "「キヤノン」が小さい「ャ」ではなく大きい「ヤ」を使う理由はどれですか。",
+    "choices": [
+      {
+        "body": "文字全体の見た目を整えるため",
+        "isCorrect": true
+      },
+      {
+        "body": "大きな声で読むため",
+        "isCorrect": false
+      },
+      {
+        "body": "登記で小さい文字を使えないため",
+        "isCorrect": false
+      },
+      {
+        "body": "旧社名の文字数を守るため",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「文字全体の見た目を整えるため」です。公式には、文字の間に空白が目立たず、全体のバランスが良く見えるようにしたと説明されています。読み方よりも、並べたときの姿を考えた表記です。\n\n- 大きな声で読むため：音量や強調の指示ではありません。\n- 登記で小さい文字を使えないため：法的に小さい文字が使えないから、とは説明されていません。\n- 旧社名の文字数を守るため：旧社名の文字数に合わせたものではありません。\n\n出典: [キヤノン：ロゴと名前の由来](https://global.canon/ja/corporate/logo/)",
+    "status": "published"
+  },
+  {
+    "category": "身近なブランド",
+    "difficulty": "やさしい",
+    "question": "家庭用ゲーム機で知られる任天堂が、創業時に製造を始めたものはどれですか。",
+    "choices": [
+      {
+        "body": "将棋盤",
+        "isCorrect": false
+      },
+      {
+        "body": "ラジオ",
+        "isCorrect": false
+      },
+      {
+        "body": "アーケードゲーム機",
+        "isCorrect": false
+      },
+      {
+        "body": "花札",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「花札」です。任天堂の歩みは、1889年に京都で始まった花札の製造から続いています。テレビゲームよりずっと前から、遊びを扱っていた会社です。\n\n- 将棋盤：同じ伝統的な遊びでも、公式沿革に記された出発点は花札です。\n- ラジオ：電気製品の製造から始まった会社ではありません。\n- アーケードゲーム機：電子ゲームが登場するより前の創業です。\n\n出典: [任天堂：会社の沿革](https://www.nintendo.co.jp/corporate/history/index.html)",
+    "status": "published"
+  },
+  {
+    "category": "身近なブランド",
+    "difficulty": "やさしい",
+    "question": "スターバックスのロゴに描かれた「サイレン」は、どんな姿ですか。",
+    "choices": [
+      {
+        "body": "冠をかぶったコーヒー農家",
+        "isCorrect": false
+      },
+      {
+        "body": "波に乗る船長",
+        "isCorrect": false
+      },
+      {
+        "body": "2つの尾を持つ人魚",
+        "isCorrect": true
+      },
+      {
+        "body": "翼を持つ女神",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「2つの尾を持つ人魚」です。スターバックスのサイレンは、2つの尾を持つ人魚です。顔の左右にある形を見直すと、カップのロゴが少し違って見えてきます。\n\n- 翼を持つ女神：翼や女神を描いたロゴではありません。\n- 冠をかぶったコーヒー農家：実在のコーヒー農家の肖像ではありません。\n- 波に乗る船長：船や船長の肖像ではありません。\n\n出典: [スターバックス：ロゴの意味と由来](https://stories.starbucks.co.jp/stories/2021/15658868/)",
+    "status": "published"
+  },
+  {
+    "category": "身近なブランド",
+    "difficulty": "ふつう",
+    "question": "「adidas」という名前のもとになったものはどれですか。",
+    "choices": [
+      {
+        "body": "優勝を意味することわざ",
+        "isCorrect": false
+      },
+      {
+        "body": "創業者の名前",
+        "isCorrect": true
+      },
+      {
+        "body": "創業した街の名前",
+        "isCorrect": false
+      },
+      {
+        "body": "初代シューズの素材",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「創業者の名前」です。創業者アドルフ・ダスラーの呼び名アディと姓に由来します。短いブランド名の中に、作り手本人の名前が入っています。\n\n- 創業した街の名前：会社のある街の名前を略したものではありません。\n- 初代シューズの素材：靴の素材名を略したものではありません。\n- 優勝を意味することわざ：競技の勝利を表すことわざではありません。\n\n出典: [adidas Group：FAQ](https://www.adidas-group.com/de/faq)",
+    "status": "published"
+  }
+]

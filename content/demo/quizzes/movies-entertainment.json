@@ -1,0 +1,202 @@
+[
+  {
+    "category": "映画・エンタメ",
+    "difficulty": "やさしい",
+    "question": "世界初の長編フルCGアニメーション映画として知られる作品はどれですか。",
+    "choices": [
+      {
+        "body": "トイ・ストーリー",
+        "isCorrect": true
+      },
+      {
+        "body": "モンスターズ・インク",
+        "isCorrect": false
+      },
+      {
+        "body": "ファインディング・ニモ",
+        "isCorrect": false
+      },
+      {
+        "body": "シュレック",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「トイ・ストーリー」です。第1作のトイ・ストーリーは1995年に登場しました。身近なおもちゃたちの冒険が、長編映画づくりの大きな転機にもなりました。\n\n- モンスターズ・インク：こちらもCG作品ですが、トイ・ストーリーより後の作品です。\n- ファインディング・ニモ：こちらもCG作品ですが、世界初の長編フルCG作品ではありません。\n- シュレック：別の有名なCG作品ですが、トイ・ストーリーより後に公開されました。\n\n出典: [ディズニー：トイ・ストーリー](https://www.disney.co.jp/studio/animation/0204)",
+    "status": "published"
+  },
+  {
+    "category": "映画・エンタメ",
+    "difficulty": "ふつう",
+    "question": "1977年に公開された最初の「スター・ウォーズ」は、現在の何話に当たりますか。",
+    "choices": [
+      {
+        "body": "エピソード1",
+        "isCorrect": false
+      },
+      {
+        "body": "エピソード3",
+        "isCorrect": false
+      },
+      {
+        "body": "エピソード6",
+        "isCorrect": false
+      },
+      {
+        "body": "エピソード4",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「エピソード4」です。最初の劇場公開作品は、現在のエピソード4「新たなる希望」です。物語の時系列と、映画の公開順が異なるシリーズです。\n\n- エピソード1：物語の番号では最初でも、最初に公開された作品ではありません。\n- エピソード3：旧三部作より後に公開された前日譚の一作です。\n- エピソード6：最初の公開作品ではなく、旧三部作の最後に当たります。\n\n出典: [スター・ウォーズ公式：ローグ・ワン作品紹介](https://starwars.disney.co.jp/movie/r1)",
+    "status": "published"
+  },
+  {
+    "category": "映画・エンタメ",
+    "difficulty": "ふつう",
+    "question": "1988年、「となりのトトロ」と2本立てで同時公開された映画はどれですか。",
+    "choices": [
+      {
+        "body": "天空の城ラピュタ",
+        "isCorrect": false
+      },
+      {
+        "body": "もののけ姫",
+        "isCorrect": false
+      },
+      {
+        "body": "火垂るの墓",
+        "isCorrect": true
+      },
+      {
+        "body": "魔女の宅急便",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「火垂るの墓」です。宮崎駿監督のトトロと、高畑勲監督の火垂るの墓が同時公開されました。雰囲気の大きく異なる2作品を、同じ興行で観られた組み合わせです。\n\n- 魔女の宅急便：トトロとの同時公開作品ではありません。\n- 天空の城ラピュタ：同じジブリの長編ですが、この2本立ての相手ではありません。\n- もののけ姫：このときの同時公開作品ではありません。\n\n出典: [スタジオジブリ：火垂るの墓特集](https://www.ghibli.jp/info/009663/)",
+    "status": "published"
+  },
+  {
+    "category": "映画・エンタメ",
+    "difficulty": "ふつう",
+    "question": "「プラダを着た悪魔」シリーズで、ミランダが編集長を務める雑誌はどれですか。",
+    "choices": [
+      {
+        "body": "フロントロウ",
+        "isCorrect": false
+      },
+      {
+        "body": "ランウェイ",
+        "isCorrect": true
+      },
+      {
+        "body": "スポットライト",
+        "isCorrect": false
+      },
+      {
+        "body": "ドレスコード",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「ランウェイ」です。ミランダが率いるのは、作中のファッション誌ランウェイです。ブランド名が題名にありますが、仕事の舞台はファッション雑誌の編集部です。\n\n- スポットライト：このシリーズのミランダの雑誌名ではありません。\n- ドレスコード：服装に関係する言葉ですが、雑誌の名称ではありません。\n- フロントロウ：ファッションショーを連想させますが、作中の雑誌名ではありません。\n\n出典: [20世紀スタジオ：プラダを着た悪魔２](https://www.20thcenturystudios.jp/movies/devil-wears-prada2)",
+    "status": "published"
+  },
+  {
+    "category": "映画・エンタメ",
+    "difficulty": "やさしい",
+    "question": "「レミーのおいしいレストラン」で、料理の才能を持つレミーはどんな動物ですか。",
+    "choices": [
+      {
+        "body": "ネズミ",
+        "isCorrect": true
+      },
+      {
+        "body": "ウサギ",
+        "isCorrect": false
+      },
+      {
+        "body": "リス",
+        "isCorrect": false
+      },
+      {
+        "body": "ネコ",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「ネズミ」です。レミーは鋭い嗅覚と味覚を持つネズミです。厨房では歓迎されにくい存在がシェフを夢見る、という取り合わせが物語の面白さになっています。\n\n- ウサギ：長い耳のウサギではありません。\n- リス：小さな動物でも、レミーはリスではありません。\n- ネコ：厨房に入り込むネコの物語ではありません。\n\n出典: [ディズニー：レミーのおいしいレストラン](https://www.disney.co.jp/fc/pixar/ratatouille)",
+    "status": "published"
+  },
+  {
+    "category": "映画・エンタメ",
+    "difficulty": "やさしい",
+    "question": "「モンスターズ・インク」の物語の序盤、会社が集めているエネルギー源はどれですか。",
+    "choices": [
+      {
+        "body": "子どもの寝息",
+        "isCorrect": false
+      },
+      {
+        "body": "子どもの涙",
+        "isCorrect": false
+      },
+      {
+        "body": "子どもの拍手",
+        "isCorrect": false
+      },
+      {
+        "body": "子どもの悲鳴",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「子どもの悲鳴」です。モンスターたちは子どもを怖がらせ、その悲鳴をエネルギーとして集めています。「怖がらせる」が会社の仕事になっている世界です。\n\n- 子どもの寝息：寝ているときの呼吸音を集める仕事ではありません。\n- 子どもの涙：泣いたときの涙を回収しているわけではありません。\n- 子どもの拍手：序盤に集めているのは拍手ではなく悲鳴です。\n\n出典: [ディズニー：モンスターズ・インク](https://www.disney.co.jp/fc/pixar/monsters-inc)",
+    "status": "published"
+  },
+  {
+    "category": "映画・エンタメ",
+    "difficulty": "ふつう",
+    "question": "映画「ホーム・アローン」第1作で、ケビンを置き忘れた家族の旅行先はどれですか。",
+    "choices": [
+      {
+        "body": "ローマ",
+        "isCorrect": false
+      },
+      {
+        "body": "ニューヨーク",
+        "isCorrect": false
+      },
+      {
+        "body": "パリ",
+        "isCorrect": true
+      },
+      {
+        "body": "ロンドン",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「パリ」です。家族はクリスマスをパリで過ごす予定で出発します。飛行機に乗ってから、家にケビンを残したことに気づくのが騒動の始まりです。\n\n- ロンドン：ヨーロッパへの旅行でも、目的地はロンドンではありません。\n- ローマ：第1作の家族の旅行先はローマではありません。\n- ニューヨーク：第2作を連想しやすい街ですが、第1作の家族の目的地はパリです。\n\n出典: [20世紀スタジオ：ホーム・アローン](https://www.20thcenturystudios.jp/movies/home-alone)",
+    "status": "published"
+  },
+  {
+    "category": "映画・エンタメ",
+    "difficulty": "やさしい",
+    "question": "映画「ボヘミアン・ラプソディ」で描かれるロックバンドはどれですか。",
+    "choices": [
+      {
+        "body": "レッド・ツェッペリン",
+        "isCorrect": false
+      },
+      {
+        "body": "クイーン",
+        "isCorrect": true
+      },
+      {
+        "body": "ビートルズ",
+        "isCorrect": false
+      },
+      {
+        "body": "ローリング・ストーンズ",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「クイーン」です。フレディ・マーキュリーとクイーンの歩みを描く映画です。題名もクイーンの楽曲名に由来しています。\n\n- ビートルズ：こちらも英国の有名バンドですが、本作の中心ではありません。\n- ローリング・ストーンズ：本作が描くバンドではありません。\n- レッド・ツェッペリン：同じ英国のロックバンドでも、本作の主人公たちではありません。\n\n出典: [20世紀スタジオ：ボヘミアン・ラプソディ](https://www.20thcenturystudios.jp/movies/bohemianrhapsody)",
+    "status": "published"
+  }
+]

@@ -4,12 +4,13 @@ import { EnvironmentSwitch } from "@/components/environment-switch";
 import { OpenWebAdmin } from "@/components/open-web-admin";
 import { ResumeCard } from "@/components/resume-card";
 import { Button, ErrorMessage, Loading, Screen, styles } from "@/components/ui";
+import { canManage } from "@/lib/admin/quiz-list";
 import { useListMyTenants, useListPlayableCategories } from "@/lib/api/generated/endpoints";
 import { useAuth } from "@/lib/auth/auth-provider";
 
 /**
  * テナントのトップ。中断中の挑戦があれば先に出し、出題できるカテゴリと難易度を並べる。
- * カテゴリを押すと、そのカテゴリを選んだ状態で出題の条件を選ぶ。管理者には、web の管理画面を開くボタンも出す
+ * カテゴリを押すと、そのカテゴリを選んだ状態で出題の条件を選ぶ。管理者には、クイズの管理と、web の管理画面を開くボタンも出す
  */
 export default function TenantHome() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -38,6 +39,13 @@ export default function TenantHome() {
                 variant="secondary"
                 onPress={() => router.push({ pathname: "/t/[slug]/history", params: { slug } })}
               />
+              {canManage(tenant?.role) && (
+                <Button
+                  label="クイズを管理する"
+                  variant="secondary"
+                  onPress={() => router.push({ pathname: "/t/[slug]/admin", params: { slug } })}
+                />
+              )}
               <OpenWebAdmin slug={slug} role={tenant?.role} />
             </View>
           }

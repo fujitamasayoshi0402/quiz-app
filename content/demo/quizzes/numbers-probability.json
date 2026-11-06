@@ -1,0 +1,377 @@
+[
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "公平な6面サイコロを1回振り、偶数が出る確率はどれですか。",
+    "choices": [
+      {
+        "body": "1/2",
+        "isCorrect": true
+      },
+      {
+        "body": "1/6",
+        "isCorrect": false
+      },
+      {
+        "body": "1/3",
+        "isCorrect": false
+      },
+      {
+        "body": "2/3",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「1/2」です。6通りのうち2・4・6の3通りなので、3/6です。\n\n- 1/6：特定の目が1つだけ出る確率です。\n- 1/3：当たりが2通りの場合の確率です。\n- 2/3：当たりを4通りと数えた値です。\n\n出典: [OpenStax：確率の基礎](https://openstax.org/books/introductory-statistics-2e/pages/3-1-terminology)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "公平なコインを独立に2回投げ、2回とも表になる確率はどれですか。",
+    "choices": [
+      {
+        "body": "1/2",
+        "isCorrect": false
+      },
+      {
+        "body": "3/4",
+        "isCorrect": false
+      },
+      {
+        "body": "1",
+        "isCorrect": false
+      },
+      {
+        "body": "1/4",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「1/4」です。表表・表裏・裏表・裏裏の4通りのうち1通りです。\n\n- 1/2：1回だけ表になる確率と混同しています。\n- 3/4：少なくとも1回表になる確率です。\n- 1：必ず表表になるわけではありません。\n\n出典: [OpenStax：確率の基礎](https://openstax.org/books/introductory-statistics-2e/pages/3-1-terminology)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "公平なコインを独立に2回投げ、少なくとも1回表になる確率はどれですか。",
+    "choices": [
+      {
+        "body": "1/2",
+        "isCorrect": false
+      },
+      {
+        "body": "1",
+        "isCorrect": false
+      },
+      {
+        "body": "3/4",
+        "isCorrect": true
+      },
+      {
+        "body": "1/4",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「3/4」です。4通りのうち裏裏だけを除くので3通りです。\n\n- 1/4：2回とも表になる確率です。\n- 1/2：ちょうど1回表になる確率です。\n- 1：裏裏の場合もあるため確実ではありません。\n\n出典: [OpenStax：確率の基礎](https://openstax.org/books/introductory-statistics-2e/pages/3-1-terminology)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "赤玉3個と青玉2個の袋から、各玉を同じ確率で1個選びます。青玉の確率はどれですか。",
+    "choices": [
+      {
+        "body": "2/3",
+        "isCorrect": false
+      },
+      {
+        "body": "2/5",
+        "isCorrect": true
+      },
+      {
+        "body": "1/2",
+        "isCorrect": false
+      },
+      {
+        "body": "3/5",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「2/5」です。全部で5個あり、そのうち青玉は2個です。\n\n- 1/2：色が2種類でも個数が違うため等確率ではありません。\n- 3/5：赤玉を選ぶ確率です。\n- 2/3：青の個数を赤の個数で割っています。\n\n出典: [OpenStax：確率の基礎](https://openstax.org/books/introductory-statistics-2e/pages/3-1-terminology)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "赤玉3個と青玉2個から無作為に、戻さず2個選びます。両方赤になる確率はどれですか。",
+    "choices": [
+      {
+        "body": "3/10",
+        "isCorrect": true
+      },
+      {
+        "body": "9/25",
+        "isCorrect": false
+      },
+      {
+        "body": "3/5",
+        "isCorrect": false
+      },
+      {
+        "body": "1/5",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「3/10」です。最初は3/5、赤を取った後は2/4なので、積は6/20です。\n\n- 9/25：1個目を戻す場合の計算です。\n- 3/5：1個目だけが赤になる確率です。\n- 1/5：残る赤玉2個を十分に数えていません。\n\n出典: [OpenStax：確率の基礎](https://openstax.org/books/introductory-statistics-2e/pages/3-1-terminology)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "区別できる公平な6面サイコロ2個を独立に振ります。目の和が7になる確率はどれですか。",
+    "choices": [
+      {
+        "body": "1/12",
+        "isCorrect": false
+      },
+      {
+        "body": "1/3",
+        "isCorrect": false
+      },
+      {
+        "body": "7/36",
+        "isCorrect": false
+      },
+      {
+        "body": "1/6",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「1/6」です。36通りのうち(1,6)から(6,1)まで6通りです。\n\n- 1/12：順序が逆の組を数え落としています。\n- 1/3：有利な組を12通りと数えています。\n- 7/36：和の値7は、組の個数ではありません。\n\n出典: [OpenStax：確率の基礎](https://openstax.org/books/introductory-statistics-2e/pages/3-1-terminology)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "3人が1列に並ぶとき、並び方の数はどれですか。",
+    "choices": [
+      {
+        "body": "9通り",
+        "isCorrect": false
+      },
+      {
+        "body": "8通り",
+        "isCorrect": false
+      },
+      {
+        "body": "6通り",
+        "isCorrect": true
+      },
+      {
+        "body": "3通り",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「6通り」です。先頭が3通り、次が2通り、最後が1通りで3×2×1です。\n\n- 3通り：先頭しか数えていません。\n- 9通り：同じ人を繰り返し選ぶ計算になっています。\n- 8通り：3人それぞれを二択にする問題ではありません。\n\n出典: [OpenStax：確率の基礎](https://openstax.org/books/introductory-statistics-2e/pages/3-1-terminology)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "4人から順番を区別せず2人を選びます。組み合わせの数はどれですか。",
+    "choices": [
+      {
+        "body": "4通り",
+        "isCorrect": false
+      },
+      {
+        "body": "6通り",
+        "isCorrect": true
+      },
+      {
+        "body": "12通り",
+        "isCorrect": false
+      },
+      {
+        "body": "8通り",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「6通り」です。順番つきでは4×3=12通りですが、各組を2回数えるので2で割ります。\n\n- 12通り：選ぶ順番まで区別した数です。\n- 8通り：相手の選び方を一律2通りとしています。\n- 4通り：最初の人だけを選ぶ数です。\n\n出典: [OpenStax：確率の基礎](https://openstax.org/books/introductory-statistics-2e/pages/3-1-terminology)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "大きさが2・4・9の3つの数の算術平均はどれですか。",
+    "choices": [
+      {
+        "body": "5",
+        "isCorrect": true
+      },
+      {
+        "body": "4",
+        "isCorrect": false
+      },
+      {
+        "body": "7.5",
+        "isCorrect": false
+      },
+      {
+        "body": "15",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「5」です。合計15を個数3で割ると5です。\n\n- 4：中央の値である中央値です。\n- 7.5：合計を2で割っています。\n- 15：合計であり平均ではありません。\n\n出典: [OpenStax：データの中心](https://openstax.org/books/introductory-statistics-2e/pages/2-5-measures-of-the-center-of-the-data)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "小さい順に1・2・3・4・100と並ぶ5個の数の中央値はどれですか。",
+    "choices": [
+      {
+        "body": "22",
+        "isCorrect": false
+      },
+      {
+        "body": "4",
+        "isCorrect": false
+      },
+      {
+        "body": "100",
+        "isCorrect": false
+      },
+      {
+        "body": "3",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「3」です。5個の中央にある3番目の数です。\n\n- 22：合計110を5で割った算術平均です。\n- 4：中央より1つ後ろの数です。\n- 100：最大値であり中央の値ではありません。\n\n出典: [OpenStax：データの中心](https://openstax.org/books/introductory-statistics-2e/pages/2-5-measures-of-the-center-of-the-data)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "データ2・2・3・5・8の最頻値はどれですか。",
+    "choices": [
+      {
+        "body": "4",
+        "isCorrect": false
+      },
+      {
+        "body": "8",
+        "isCorrect": false
+      },
+      {
+        "body": "2",
+        "isCorrect": true
+      },
+      {
+        "body": "3",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「2」です。2だけが2回現れ、ほかは1回です。\n\n- 3：中央値です。\n- 4：合計20を5で割った平均です。\n- 8：最大値です。\n\n出典: [OpenStax：データの中心](https://openstax.org/books/introductory-statistics-2e/pages/2-5-measures-of-the-center-of-the-data)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "定価1,000円の商品を20%引きにします。支払う金額はどれですか。",
+    "choices": [
+      {
+        "body": "1,200円",
+        "isCorrect": false
+      },
+      {
+        "body": "800円",
+        "isCorrect": true
+      },
+      {
+        "body": "200円",
+        "isCorrect": false
+      },
+      {
+        "body": "980円",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「800円」です。値引きは1,000×0.2=200円なので、残りは800円です。\n\n- 200円：値引き額です。\n- 980円：20%を20円と取り違えています。\n- 1,200円：20%値上げした金額です。\n\n出典: [OpenStax：百分率](https://openstax.org/books/prealgebra-2e/pages/6-1-understand-percent)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "100円の品を20%値上げし、その価格から20%値下げしました。最終価格はどれですか。",
+    "choices": [
+      {
+        "body": "96円",
+        "isCorrect": true
+      },
+      {
+        "body": "100円",
+        "isCorrect": false
+      },
+      {
+        "body": "80円",
+        "isCorrect": false
+      },
+      {
+        "body": "104円",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「96円」です。100×1.2×0.8=96です。値下げの基準は120円になります。\n\n- 100円：増減の割合の基準が同じと考えています。\n- 80円：最初の値上げを計算していません。\n- 104円：値下げ額24円を正しく引けていません。\n\n出典: [OpenStax：百分率](https://openstax.org/books/prealgebra-2e/pages/6-1-understand-percent)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "水と原液を3対1で混ぜ、合計800mLにします。原液はどれだけですか。",
+    "choices": [
+      {
+        "body": "600mL",
+        "isCorrect": false
+      },
+      {
+        "body": "400mL",
+        "isCorrect": false
+      },
+      {
+        "body": "約267mL",
+        "isCorrect": false
+      },
+      {
+        "body": "200mL",
+        "isCorrect": true
+      }
+    ],
+    "explanation": "正解は「200mL」です。全体は比の4つ分で、原液は1つ分なので800÷4です。\n\n- 600mL：水の量です。\n- 400mL：1対1で混ぜる場合の量です。\n- 約267mL：比の合計4ではなく3で割っています。\n\n出典: [OpenStax：百分率](https://openstax.org/books/prealgebra-2e/pages/6-1-understand-percent)",
+    "status": "published"
+  },
+  {
+    "category": "数と確率",
+    "difficulty": "ふつう",
+    "question": "30人中18人が賛成しました。賛成した人の割合はどれですか。",
+    "choices": [
+      {
+        "body": "40%",
+        "isCorrect": false
+      },
+      {
+        "body": "約167%",
+        "isCorrect": false
+      },
+      {
+        "body": "60%",
+        "isCorrect": true
+      },
+      {
+        "body": "18%",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "正解は「60%」です。18÷30×100=60です。\n\n- 18%：人数をそのまま百分率にしています。\n- 40%：賛成しなかった12人の割合です。\n- 約167%：全体と部分を逆に割っています。\n\n出典: [OpenStax：百分率](https://openstax.org/books/prealgebra-2e/pages/6-1-understand-percent)",
+    "status": "published"
+  }
+]

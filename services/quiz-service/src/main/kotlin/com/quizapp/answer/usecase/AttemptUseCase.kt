@@ -4,6 +4,7 @@ import com.quizapp.answer.domain.Answer
 import com.quizapp.answer.domain.Attempt
 import com.quizapp.answer.domain.AttemptRepository
 import com.quizapp.answer.domain.AttemptStatus
+import com.quizapp.answer.domain.ConcurrentAttemptStartException
 import com.quizapp.answer.domain.QuizCatalog
 import com.quizapp.auth.UserContext
 import com.quizapp.quiz.domain.AnswerKey
@@ -34,27 +35,39 @@ class AttemptUseCase(
      *
      * 中断中の挑戦があれば [AttemptInProgressException] を投げ、再開するか破棄するかを選ばせる。
      * 黙って破棄すると、解きかけの記録が予告なく消える。
+     *
+     * 同時に始めて先を越されたときも、先に始まった挑戦を同じように知らせる（DEV-226）。
      */
-    fun start(criteria: DeliveryCriteria, discardInProgress: Boolean): AttemptView = tenantTransaction.execute {
-        val userId = UserContext.require()
+    fun start(criteria: DeliveryCriteria, discardInProgress: Boolean): AttemptView = try {
+        tenantTransaction.execute {
+            val userId = UserContext.require()
 
-        repository.findInProgress(userId)?.let { existing ->
-            if (!discardInProgress) throw AttemptInProgressException(summarize(existing))
-            repository.finish(requireNotNull(existing.id), AttemptStatus.ABANDONED)
+            repository.findInProgress(userId)?.let { existing ->
+                if (!discardInProgress) throw AttemptInProgressException(summarize(existing))
+                repository.finish(requireNotNull(existing.id), AttemptStatus.ABANDONED)
+            }
+
+            val quizzes = catalog.select(criteria, userId)
+            if (quizzes.isEmpty()) throw NoQuizAvailableException()
+
+            val attempt = repository.create(Attempt.start(userId, criteria, quizzes.map { it.id }))
+            AttemptView(
+                id = requireNotNull(attempt.id),
+                status = attempt.status.label(),
+                scope = attempt.scope.label(),
+                quizzes = quizzes.map(attempt::arrange),
+                answeredQuizIds = emptyList(),
+                excludedCount = 0,
+            )
         }
+    } catch (e: ConcurrentAttemptStartException) {
+        // 一意制約に反したトランザクションは使えないので、別のトランザクションで読む。
+        // その間に先の挑戦が終わっていれば、知らせるものがないのでそのまま投げる
+        throw AttemptInProgressException(summarizeInProgress() ?: throw e, e)
+    }
 
-        val quizzes = catalog.select(criteria, userId)
-        if (quizzes.isEmpty()) throw NoQuizAvailableException()
-
-        val attempt = repository.create(Attempt.start(userId, criteria, quizzes.map { it.id }))
-        AttemptView(
-            id = requireNotNull(attempt.id),
-            status = attempt.status.label(),
-            scope = attempt.scope.label(),
-            quizzes = quizzes.map(attempt::arrange),
-            answeredQuizIds = emptyList(),
-            excludedCount = 0,
-        )
+    private fun summarizeInProgress(): AttemptSummary? = tenantTransaction.executeNullable {
+        repository.findInProgress(UserContext.require())?.let(::summarize)
     }
 
     /** 中断中の挑戦。なければ null。 */
@@ -270,7 +283,8 @@ private const val SOURCE_URL_DESCRIPTION =
 
 data class AttemptSummary(val id: UUID, val totalCount: Int, val answeredCount: Int)
 
-class AttemptInProgressException(val summary: AttemptSummary) : RuntimeException("中断中の挑戦があります: ${summary.id}")
+class AttemptInProgressException(val summary: AttemptSummary, cause: Throwable? = null) :
+    RuntimeException("中断中の挑戦があります: ${summary.id}", cause)
 
 class AttemptNotFoundException : RuntimeException("挑戦が見つかりません")
 

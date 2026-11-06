@@ -14,7 +14,9 @@ test("「デモとして入る」でデモのテナントに入り、クイズ�
   await test.step("トップを開くと、アプリの説明とデモの入口がある", async () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Quiz", level: 1 })).toBeVisible();
-    await expect(page.getByText("回答の履歴とランキングは、見た人どうしで共有されます", { exact: false })).toBeVisible();
+    await expect(
+      page.getByText("回答の履歴とランキングは、見た人どうしで共有されます", { exact: false }),
+    ).toBeVisible();
   });
 
   await test.step("押すと、デモのテナントの出題の画面に入る", async () => {
@@ -35,7 +37,7 @@ test("「デモとして入る」でデモのテナントに入り、クイズ�
   await test.step("クイズを始めて 1 問答える", async () => {
     await page.getByText("世界の地理", { exact: true }).click();
     await page.getByText("学習モード").click();
-    await page.getByRole("button", { name: "始める" }).click();
+    await page.getByRole("button", { name: "始める", exact: true }).click();
     await page.getByRole("listitem").first().getByRole("button").click();
     await page.getByRole("button", { name: "回答する" }).click();
     await expect(page.getByText(/^(正解|不正解)$/)).toBeVisible();
@@ -97,4 +99,35 @@ test("招待のリンクから来たときは、デモの入口を出さない",
   await page.goto("/invitations/not-a-real-token");
   await expect(page).toHaveURL(/\/login\?returnTo=%2Finvitations%2F/);
   await expect(page.getByRole("button", { name: "デモとして入る" })).toHaveCount(0);
+});
+
+test("スマホでおすすめの5問を設定なしで始め、解説を読んで結果まで進む（DEV-224）", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  const currentResponse = page.waitForResponse((response) => response.url().endsWith("/play/attempts/current"));
+  await page.goto("/");
+  await page.getByRole("button", { name: "デモとして入る" }).click();
+  await expect(page).toHaveURL(/\/t\/demo\/play$/);
+  // 共有のデモには、前のテストで中断した挑戦が残りうる。
+  const discard = page.getByRole("button", { name: "破棄する", exact: true });
+  await expect(page.getByRole("heading", { name: "まずは5問", exact: true })).toBeVisible();
+  const current = await currentResponse;
+  if (current.status() === 200 && (await current.json())) {
+    await expect(discard).toBeVisible();
+    await discard.click();
+    await expect(discard).toHaveCount(0);
+  }
+  const start = page.getByRole("button", { name: "おすすめの5問を始める" });
+  await expect(start).toBeInViewport();
+  await start.click();
+  await expect(page).toHaveURL(/\/play\/session\?attempt=.+&mode=learn$/);
+  for (let i = 0; i < 5; i++) {
+    await page.getByRole("listitem").first().getByRole("button").click();
+    await page.getByRole("button", { name: "回答する", exact: true }).click();
+    await expect(page.getByText(/^(正解|不正解)$/)).toBeVisible();
+    await page.getByRole("button", { name: i === 4 ? "結果を見る" : "次の問題へ", exact: true }).click();
+  }
+  await expect(page).toHaveURL(/\/play\/result\?/);
+  await expect(page.getByText(/^[0-5] \/ 5 問$/)).toBeVisible();
+  await page.getByRole("link", { name: "クイズを選ぶ画面に戻る" }).click();
+  await expect(page.getByRole("heading", { name: "カテゴリ", exact: true })).toBeVisible();
 });

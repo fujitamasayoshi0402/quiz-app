@@ -356,7 +356,7 @@ trivy image quiz-service:local                 # trivy.yaml を読む。止ま�
    `extra["<名前>.version"]` で上書きする。プロパティの名前は Spring Boot の `spring-boot-dependencies` の pom にある。
    Spring Boot を上げて、同じか新しい版になったら上書きを消す
 2. ベースイメージの OS のパッケージは、ベースイメージの更新を待つ。CI は毎回、タグの最新を取り直す。
-   web のイメージは、ビルドのときに Debian のセキュリティの更新を入れる（`apt-get upgrade`、DEV-132）。Node の版を固定したタグは、次の版が出ると作り直されないため
+   web と quiz-service のイメージは、ビルドのときに OS のセキュリティの更新を入れる（`apt-get upgrade`、DEV-132、DEV-228）。公式イメージは修正が出てから作り直されるまでに間があり、Node の版を固定したタグは、次の版が出ると作り直されないため
    修正版が公開から 7 日たっていなければ、pnpm が入れない。急ぐなら、`pnpm-workspace.yaml` の `minimumReleaseAgeExclude` に版まで書いて足し（`<名前>@<版>`）、7 日たったら外す。
    Dependabot の PR も同じ理由で作れないか、CI で止まる
 3. **直せないものは `.trivyignore.yaml` に足す。** 影響がない理由（`statement`）と、見直す期限（`expired_at`）を必ず書く。
@@ -704,7 +704,16 @@ pnpm --filter mobile start                     # i で iOS のシミュレータ
 - 呼んでいる途中で切り替わっても、始めたつなぐ先のトークンで呼び、そのつなぐ先の状態だけを書き換える（`lib/auth/client.ts`）
 - prod の Cognito は、アプリのスキーム（`quizapp://`）からしかログインさせない。Expo Go でつなぐのは dev だけ
 
-**管理者には、テナントのトップに「管理画面を開く（web）」が出る**（DEV-215。ADR-0032 の追記）。アプリに管理の画面はなく、端末のブラウザで、いまのつなぐ先の web の管理画面（`/t/{slug}/admin`）を開く。
+**管理者には、テナントのトップに「クイズを管理する」が出る**（DEV-216。[ADR-0037](adr/0037-build-quiz-admin-screens-in-mobile-app.md)）。アプリの管理の画面は、クイズだけ。一覧、絞り込み、正答率の低い順、削除、作成と編集（DEV-227）がある。
+
+- 作成と編集は、web と同じ規則で確かめる（`lib/admin/quiz-form.ts`）。下書きと公開でボタンを分け、押したほうの状態で検証する
+- 解説の図は描かず、選ばない。`figure:` の行は文字のまま残る。**解説から図の行を消しても、図は消さない**（web は保存のあとに消す。DEV-168）。図の一覧に残るので、web で消す
+- 解説のプレビューに図は出ない
+
+- 入口を出すのは管理者（`admin`）だけ。見た目のためで、権限は API が確かめる
+- `lib/admin/` は web の `lib/admin/` から写したもの。定義に表れない規則を変えるときは、両方を直す
+
+**管理者には、テナントのトップに「管理画面を開く（web）」も出る**（DEV-215。ADR-0032 の追記）。アプリに作らない管理（カテゴリ、図、削除済み一覧、招待、取り込みなど）は、端末のブラウザで、いまのつなぐ先の web の管理画面（`/t/{slug}/admin`）を開いて行う。
 
 - **web のログインは、アプリとは別。** 初めて開くときは、ブラウザでログインが要る。一度ログインすれば、ブラウザの Cookie が残るあいだは入れる
 - `.env` の `EXPO_PUBLIC_*_WEB_ORIGIN`（結果の共有と同じ値）が空なら、ボタンは出ない
@@ -721,7 +730,12 @@ xcrun simctl openurl booted exp://127.0.0.1:8081                           # シ
 - Expo Go の戻り先は `exp://127.0.0.1:8081/--/auth/callback`。Cognito に登録してあるのはこれと `quizapp://` だけで、**実機の Expo Go からはログインできない**（LAN の IP が戻り先になる）
 - dev の quiz-service が止まっていると（[ECS](#ecsquiz-service)）、API は 500 か 503 を返す。案内の「サーバーを起動する」で起こせる（DEV-209。`lib/wake.ts`）。prod では出さない。
   web と違い、押したことは端末に覚えない。アプリを開き直すと、また押せる（押しても、タスクは 1 つより増えない）
-- **Expo の SDK は、公開から 7 日たった版を使う**（`minimumReleaseAge`）。SDK と同時に出る React Native の版も同じ。上げるときは、`pnpm --filter mobile exec expo install --check` で SDK が求める版を確かめる
+- **Expo の SDK は、公開から 7 日たった版を使う**（`minimumReleaseAge`）。SDK と同時に出る React Native の版も同じ。上げるときは、`pnpm --filter mobile exec expo install --check` で SDK が求める版を確かめる。
+  `--check` と `expo-doctor` は最新のパッチ版を求めるので、7 日たっていないパッチ版との差は出たままでよい。`expo install --fix` も最新を入れようとして止まるので、`expo` の `bundledNativeModules.json` の版を手で揃える
+- **Xcode 27（iOS 27 の SDK）でビルドするには、Expo SDK 58 以上が要る**（DEV-221）。iOS 27 の SDK は UIScene を必須にしていて、対応していないアプリは起動した直後に落ちる（`_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`）。
+  SDK 58 の `expo prebuild` は `SceneDelegate.swift` と `UIApplicationSceneManifest` を作る。SDK を上げたら、`ios/` と `android/` を消して作り直す
+- **ヘッダーは透かさない**（`_layout.tsx` の `headerTransparent: false`。DEV-221）。SDK 58 の iOS 26 以降は、既定でヘッダーが透明になり、内容がその裏に潜る
+- `expo prebuild` と `expo run:ios` は `package.json` の `ios` と `android` のスクリプトを書き換える。コミットしない
 - React の型（`@types/react`）は web と同じ版にする。Amplify は依存を 1 か所にまとめて入れるため（`nodeLinker: hoisted`）、版が違うと web のビルドが型の食い違いで落ちる
 
 **自分の端末には、ストアを通さずに入れる**（DEV-210。ADR-0032 の追記）。Release のビルドで、JavaScript をアプリの中に入れるので、Metro も Mac も要らない。
@@ -2044,7 +2058,10 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
     24 時間を超えて止まっていると復帰に 30 秒を超えることがある。API Gateway の待ち時間（30 秒）を超えると 504 が返る。間に合わなかった読み込みは、
     画面の再試行（5xx と通信エラーを 2 回まで、`src/app/providers.tsx`）で拾う。止まったあとの最初の操作は、たいてい読み込み
   - **待っている間、画面は 3 秒を過ぎたら案内を出す**（`components/slow-request-notice.tsx`）。スケルトンのままでは、壊れたのか待てばよいのかが分からない。
-    TanStack Query の読み込みと保存をまとめて見るため、画面ごとには書かない。遅い理由は画面からは分からないので、DB を起動しているとは言い切らない
+    TanStack Query の読み込みと保存をまとめて見るため、画面ごとには書かない。遅い理由は画面からは分からないので、DB を起動しているとは言い切らない。
+    モバイルも同じ案内を出す（DEV-226。`apps/mobile/src/components/slow-request-notice.tsx`）
+  - **ログイン済みの人には、先に起こす仕組み（`POST /api/warm-up`）は効かない**（DEV-226）。開いた直後の要求がそのまま DB を起こすので、先回りできる時間がない。待っている間は上の案内で伝える
+  - 同時に始めた挑戦は、DB の一意制約で 1 つに絞り、残りを 409 にする（DEV-226）。DB の起動を待っている間は、要求が重なりやすい
   - 一時停止しないときは、`DatabaseConnections` と RDS のイベント（クラスタ単位の「Initiated pause / resume」）を見る。
     接続の中身は Data API で `pg_stat_activity` を読むと分かる。`rdsadmin` の接続は一時停止を妨げない
 - 通知は Lambda（イベント時のみ課金）で実装し、常駐サービスを増やさない
