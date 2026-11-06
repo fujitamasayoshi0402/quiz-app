@@ -1,5 +1,5 @@
 import { keepPreviousData } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, FlatList, Pressable, Text, View } from "react-native";
 import { OptionGroup } from "@/components/play";
@@ -24,10 +24,12 @@ import type { QuizListItemResponse } from "@/lib/api/generated/model";
 
 /**
  * クイズの一覧（DEV-216、ADR-0037）。カテゴリ・難易度・状態・作成元で絞り込み、正答率の低い順に並べ替えられる。
+ * 行を押すと編集の画面へ移る（DEV-227）。
  * 絞り込みは畳んでおく。電話の幅では、開いたままだと一覧が画面の外に出る
  */
 export default function AdminQuizList() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
+  const router = useRouter();
   const [filters, setFilters] = useState<QuizFilters>(NO_FILTERS);
   const [order, setOrder] = useState("registered");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -57,6 +59,7 @@ export default function AdminQuizList() {
 
   return (
     <Screen>
+      <Button label="クイズを作る" onPress={() => router.push({ pathname: "/t/[slug]/admin/new", params: { slug } })} />
       <Button
         label={
           filtersOpen ? "絞り込みを閉じる" : count > 0 ? `絞り込み・並び（${count} 件で絞り込み中）` : "絞り込み・並び"
@@ -86,6 +89,7 @@ export default function AdminQuizList() {
               quiz={item}
               meta={`${catalog.categoryName(item.categoryId)}・${catalog.difficultyName(item.difficultyId)}・${accuracyLabel(item)}`}
               deleting={remove.isPending}
+              onOpen={() => router.push({ pathname: "/t/[slug]/admin/[id]", params: { slug, id: item.id } })}
               onDelete={() => confirmDelete(item)}
             />
           )}
@@ -169,21 +173,30 @@ function QuizRow({
   quiz,
   meta,
   deleting,
+  onOpen,
   onDelete,
 }: {
   quiz: QuizListItemResponse;
   meta: string;
   deleting: boolean;
+  onOpen: () => void;
   onDelete: () => void;
 }) {
+  // 削除のボタンを、開くための押せる範囲の外に置く。重ねると、どちらが押されたか分かりにくい
   return (
     <View style={[styles.row, { gap: 6 }]}>
-      <Text style={styles.text} numberOfLines={2}>
-        {quiz.question}
-      </Text>
-      <Text style={styles.muted} numberOfLines={1}>
-        {meta}
-      </Text>
+      <Pressable
+        accessibilityRole="link"
+        onPress={onOpen}
+        style={({ pressed }) => [{ gap: 6 }, pressed && styles.dimmed]}
+      >
+        <Text style={styles.text} numberOfLines={2}>
+          {quiz.question}
+        </Text>
+        <Text style={styles.muted} numberOfLines={1}>
+          {meta}
+        </Text>
+      </Pressable>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Tag label={statusLabel(quiz.status)} />
         {quiz.sourceUrl && <Tag label="AI" />}

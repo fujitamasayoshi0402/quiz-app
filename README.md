@@ -9,7 +9,7 @@
 所属したテナントからは、自分で退会できます。退会すると、そのテナントでの回答の履歴も消えます（[ADR-0030](docs/adr/0030-let-members-leave-tenant-and-erase-their-history.md)）。
 解説は Markdown で書き、draw.io の図・画像・PDF を入れられます。
 ログインにはパスキー（WebAuthn）とパスワードを使えます。
-一般ユーザー向けには、同じ API を使うモバイルアプリ（Expo）もあります。出題と回答、解説（図を含む）、履歴、続きから解くことができます（[ADR-0032](docs/adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。
+同じ API を使うモバイルアプリ（Expo）もあります。出題と回答、解説（図を含む）、履歴、続きから解くことができます（[ADR-0032](docs/adr/0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md)）。管理者は、アプリでクイズの作成と編集もできます（[ADR-0037](docs/adr/0037-build-quiz-admin-screens-in-mobile-app.md)）。
 
 デモ用のデータとして、一般教養の8カテゴリに加え、「コンビニ・外食」「ネット・SNS」の身近な雑学も収録しています。解説には出典と、理解を助けるオリジナルの図解を付けています。
 クイズは図ごと「パック」（[`content/demo/`](content/demo/)）にまとめ、アプリの API で流し込みます（[ADR-0034](docs/adr/0034-keep-quiz-content-as-packs-and-load-through-api.md)）。

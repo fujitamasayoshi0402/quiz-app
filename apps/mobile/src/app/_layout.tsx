@@ -79,6 +79,8 @@ function Screens() {
         <Stack.Screen name="t/[slug]/index" options={{ title: "" }} />
         <Stack.Screen name="t/[slug]/history" options={{ title: "履歴" }} />
         <Stack.Screen name="t/[slug]/admin/index" options={{ title: "クイズの管理" }} />
+        <Stack.Screen name="t/[slug]/admin/new" options={{ title: "クイズを作る" }} />
+        <Stack.Screen name="t/[slug]/admin/[id]" options={{ title: "クイズを直す" }} />
         <Stack.Screen name="t/[slug]/play/index" options={{ title: "クイズを選ぶ" }} />
         <Stack.Screen name="t/[slug]/play/session" options={{ title: "" }} />
         {/* 結果から回答の画面へは戻らせない。戻ると、終わった挑戦の画面が出る */}
