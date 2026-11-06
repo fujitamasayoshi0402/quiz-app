@@ -18,7 +18,7 @@
 | インフラ | [0011](0011-terraform-state-and-environments.md) tfstate と環境の分け方 / [0012](0012-serve-frontend-on-amplify-hosting.md) フロントは Amplify Hosting / [0013](0013-run-ecs-tasks-in-public-subnets.md) タスクはパブリックサブネット（NAT なし） / [0014](0014-connect-to-aurora-with-iam-auth.md) Aurora へ IAM 認証 |
 | デプロイとリリース | [0015](0015-deploy-by-registering-task-definitions-from-ci.md) CI がタスク定義を登録する / [0024](0024-run-prod-in-same-account-and-launch-at-release.md) prod は同じアカウント、公開のときから動かす |
 | 運用 | [0026](0026-trace-requests-with-micrometer-and-x-ray.md) 分散トレース（Micrometer、X-Ray） |
-| モバイル | [0032](0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) Expo の managed で作り、ログインはシステムのブラウザで開く。API は直接呼ぶ |
+| モバイル | [0032](0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) Expo の managed で作り、ログインはシステムのブラウザで開く。API は直接呼ぶ / [0037](0037-build-quiz-admin-screens-in-mobile-app.md) 管理の画面はクイズだけ作り、ほかは web に任せる |
 | AI | [0031](0031-draft-quizzes-from-official-tech-news-with-bedrock.md) 公式の技術ニュースから、Bedrock がクイズの下書きを毎日作る |
 | 出題 | [0033](0033-schedule-reviews-with-simplified-sm2.md) 間違えやすい問題を、SM-2 を縮めた式で忘れたころに出す |
 | コンテンツ | [0034](0034-keep-quiz-content-as-packs-and-load-through-api.md) クイズの中身は図ごとパックにまとめ、API で流し込む |
@@ -35,6 +35,7 @@
 | [0016](0016-authenticate-with-cognito-managed-login.md) | [0027](0027-design-self-hosted-passkeys-and-keep-cognito.md) | 自前の実装への差し替えを設計したうえで、見送った。0016 は有効のまま（見直して変えなかった） |
 | [0004](0004-split-services-incrementally.md) | [0022](0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md)、[0023](0023-keep-answer-as-module-in-quiz-service.md) | 未決にしていたイベントの送り方と、回答・採点を分けるかを決めた（未決の点を決めた） |
 | [0034](0034-keep-quiz-content-as-packs-and-load-through-api.md) | [0036](0036-cache-content-tool-sessions-in-macos-keychain.md) | コンテンツ投入用のトークンをmacOSキーチェーンに保存して再利用する（一部を置き換え） |
+| [0032](0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) | [0037](0037-build-quiz-admin-screens-in-mobile-app.md) | アプリに管理の画面を作らない、という決定を、クイズの管理だけ作るに変えた（一部を置き換え） |
 
 ## 一覧
 
@@ -76,6 +77,7 @@
 | [0034](0034-keep-quiz-content-as-packs-and-load-through-api.md) | クイズの中身は図ごと「パック」にまとめ、アプリの API で流し込む。デモのパックはリポジトリに、自分の題材は非公開の場所に置く | Accepted |
 | [0035](0035-let-shared-demo-account-view-admin-screens-read-only.md) | 共有のデモのアカウントに「見学者」のロールを与え、管理画面を読むだけで使えるようにする。読ませる管理の API には印を付け、変更は断る | Accepted |
 | [0036](0036-cache-content-tool-sessions-in-macos-keychain.md) | コンテンツ投入用のログイン状態をmacOSキーチェーンに保存する | Accepted |
+| [0037](0037-build-quiz-admin-screens-in-mobile-app.md) | モバイルアプリに、クイズの管理の画面だけを作る。ほかの管理は web に任せる | Accepted |
 
 ## 運用ルール
 
