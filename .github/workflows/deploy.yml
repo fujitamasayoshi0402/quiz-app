@@ -240,6 +240,16 @@ jobs:
           DRAFTER_CHANGED: ${{ steps.drafter-changes.outputs.news-quiz-drafter }}
           MIGRATION_CHANGED: ${{ steps.backend-changes.outputs.migration }}
 
+      # dev では、止まっていたかを載せる前に覚えておく。載せる（deploy-quiz-service.sh）か起こすと、タスクが 1 つになる。
+      # 止まっていたときだけ、スモークテストのあとに止め直す（DEV-231）
+      - name: quiz-service が止まっていたかを調べる
+        id: before
+        if: inputs.environment == 'dev' && (steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true')
+        run: |
+          DESIRED=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --query 'services[0].desiredCount' --output text)
+          if [[ "$DESIRED" == "0" ]]; then echo "stopped=true"; else echo "stopped=false"; fi | tee -a "$GITHUB_OUTPUT"
+
       # ---- Lambda の zip を作る道具 ----
 
       - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
@@ -342,7 +352,7 @@ jobs:
 
       # quiz-service を載せないとき（web だけ）でも、スモークテストは API まで呼ぶ。
       # dev は使われなくなると止まり（DEV-153）、prod は公開まで止めてある。止まっていれば起こし、API が答えるまで待つ。
-      # 起こしたものは、使われなければまた止まる（prod は手で止める）
+      # dev で載せる前に止まっていたときは、スモークテストのあとに止め直す（DEV-231）
       - name: quiz-service が止まっていれば起こす
         if: steps.plan.outputs.backend == 'true' || steps.plan.outputs.frontend == 'true'
         run: |
@@ -399,4 +409,21 @@ jobs:
           # 起こす口（DEV-154）は、使われなくなったら止める dev にだけある
           WAKE_ENABLED: ${{ inputs.environment == 'dev' }}
           SMOKE_USER_PASSWORD: ${{ secrets.SMOKE_USER_PASSWORD }}
+
+      # デプロイが起こした dev のタスクは、スモークテストが通ったらすぐ止める（DEV-231）。
+      # 待っても、使われなければ 30 分後に止まるだけ（DEV-153）。載せる前から動いていたとき（使っている途中）は止めない。
+      # Aurora は最後の DB の要求から 30 分で一時停止するため、ここで止めても変わらない。
+      # 止められなくても、載せたものは動いている。失敗にはせず、30 分後の停止に任せる
+      - name: デプロイが起こした quiz-service を止める
+        if: steps.before.outputs.stopped == 'true'
+        run: |
+          # 起こすときと同じく、いま動かしているタスク定義を渡し、台数だけを変える（DEV-201）
+          TASK_DEFINITION=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --query 'services[0].taskDefinition' --output text)
+          if aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$TASK_DEFINITION" \
+            --desired-count 0 --query 'service.desiredCount' --output text; then
+            echo "- quiz-service: 載せる前に止まっていたため、スモークテストのあとに止めた" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::quiz-service を止められませんでした。使われなければ 30 分後に止まります"
+          fi
 
