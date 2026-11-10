@@ -35,6 +35,8 @@ export class Api {
   categories = () => this.request<CategorySummary[]>("GET", "categories");
   createCategory = (name: string, description?: string) =>
     this.request<CategorySummary>("POST", "categories", { name, description });
+  /** テナントのカテゴリの ID を、並べたい順にすべて送る。過不足があると 409 で、何も変えない */
+  reorderCategories = (ids: string[]) => this.request<void>("PUT", "categories/order", { ids });
   difficulties = (categoryId: string) => this.request<DifficultySummary[]>("GET", `categories/${categoryId}/difficulties`);
   createDifficulty = (categoryId: string, body: { name: string; level: number; description?: string }) =>
     this.request<DifficultySummary>("POST", `categories/${categoryId}/difficulties`, body);

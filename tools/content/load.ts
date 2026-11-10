@@ -4,7 +4,7 @@
  *   node tools/content/load.ts <パック> --profile dev --tenant <slug> [--dry-run] [--update] [--prune]
  *   ACCESS_TOKEN=... node tools/content/load.ts <パック> --api <API のオリジン> --tenant <slug> [--dry-run] [--update] [--prune]
  *
- * 1. カテゴリと難易度がなければ作る
+ * 1. カテゴリと難易度がなければ作る。パックにあるカテゴリを、パックの順に並べ直す（ほかのカテゴリの位置は変えない）
  * 2. 解説が指す図を、原本（.drawio）が同じものがあれば使い回し、なければ作る
  * 3. 解説の `figure:<名前>` を図の ID に差し替え、まだないクイズを取り込む（同じものかは、カテゴリと問題文で決める）
  * 4. `--update` を付けると、あるクイズのうちパックと違うものを、パックのとおりに直す。付けなければ、画面で直したものを上書きしない
@@ -15,7 +15,16 @@
  */
 import { parseArgs } from "node:util";
 import { Api, ApiError, type QuizItem } from "./api.ts";
-import { type Pack, type Quiz, figureNames, quizKey, readPack, resolveFigures, validatePack } from "./pack.ts";
+import {
+  type Pack,
+  type Quiz,
+  figureNames,
+  orderCategories,
+  quizKey,
+  readPack,
+  resolveFigures,
+  validatePack,
+} from "./pack.ts";
 import { Credentials } from "./credentials.ts";
 import { Keychain } from "./keychain.ts";
 
@@ -103,6 +112,18 @@ for (const category of pack.categories) {
     ids.set(difficulty.name, difficultyId);
   }
   difficultyIds.set(category.name, ids);
+}
+
+// 新しいカテゴリは一覧の最後に付くので、パックにあるカテゴリをパックの順に並べ直す（DEV-230）。
+// dry-run では、作るはずのカテゴリが最後に付いたものとして見積もる
+const packNames = pack.categories.map((c) => c.name);
+const plannedNames = [...existingCategories.keys(), ...packNames.filter((n) => !existingCategories.has(n))];
+const listed = dryRun ? plannedNames.map((name) => ({ id: "", name })) : await api.categories();
+const ordered = orderCategories(listed, packNames);
+const moved = ordered.filter((category, index) => listed[index] !== category);
+if (moved.length > 0) {
+  console.log(`  カテゴリをパックの順に並べ直す: ${moved.map((c) => c.name).join("、")} の位置が変わる`);
+  if (!dryRun) await api.reorderCategories(ordered.map((c) => c.id));
 }
 
 // ---- 2. 図: 原本が同じものを探す ----
