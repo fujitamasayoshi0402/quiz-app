@@ -76,6 +76,18 @@ export function resolveFigures(explanation: string, ids: Map<string, string>): s
   });
 }
 
+/**
+ * テナントのカテゴリを、パックの順に並べ直した並び（DEV-230）。
+ * パックにあるカテゴリが占めている位置の中だけで並べ替え、パックにないカテゴリの位置は変えない。
+ * パックがテナントの一部のカテゴリしか持たないときも、ほかのカテゴリを動かさないため
+ */
+export function orderCategories<T extends { name: string }>(current: T[], packNames: string[]): T[] {
+  const rank = new Map(packNames.map((name, index) => [name, index]));
+  const inPack = current.filter((c) => rank.has(c.name)).sort((a, b) => rank.get(a.name)! - rank.get(b.name)!);
+  let next = 0;
+  return current.map((c) => (rank.has(c.name) ? inPack[next++] : c));
+}
+
 /** 同じクイズかを決める鍵（ADR-0034: カテゴリと問題文） */
 export const quizKey = (category: string, question: string) => `${category.trim()}\n${question.trim()}`;
 

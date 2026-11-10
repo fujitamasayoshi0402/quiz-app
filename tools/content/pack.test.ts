@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { type Pack, figureNames, readPack, resolveFigures, validatePack } from "./pack.ts";
+import { type Pack, figureNames, orderCategories, readPack, resolveFigures, validatePack } from "./pack.ts";
 
 const testPack = path.join(import.meta.dirname, "testdata", "pack");
 
@@ -46,5 +46,35 @@ describe("パック", () => {
     assert.ok(errors.some((e) => e.includes("カテゴリ「ないカテゴリ」が pack.json にありません")));
     assert.ok(errors.some((e) => e.includes("小文字・数字・ハイフン")));
     assert.ok(errors.some((e) => e.includes("どの解説からも指されていません")));
+  });
+});
+
+describe("カテゴリの並び（DEV-230）", () => {
+  const names = (list: { name: string }[]) => list.map((c) => c.name);
+  const of = (...list: string[]) => list.map((name) => ({ name }));
+
+  it("あとから作って最後に付いたカテゴリを、パックの位置へ動かす", () => {
+    const current = of("地理", "科学", "コンビニ", "まずは5問", "生き物", "からだ");
+    const pack = ["地理", "科学", "生き物", "からだ", "コンビニ", "まずは5問"];
+    assert.deepEqual(names(orderCategories(current, pack)), pack);
+  });
+
+  it("パックにないカテゴリの位置は変えない", () => {
+    const current = of("AWS", "科学", "地理", "メモ", "からだ");
+    const ordered = orderCategories(current, ["地理", "科学", "からだ"]);
+    assert.deepEqual(names(ordered), ["AWS", "地理", "科学", "メモ", "からだ"]);
+  });
+
+  it("パックの順になっていれば、同じ並びを返す", () => {
+    const current = of("地理", "AWS", "科学");
+    assert.deepEqual(names(orderCategories(current, ["地理", "科学"])), ["地理", "AWS", "科学"]);
+  });
+
+  it("並べ替える要素は、渡したものをそのまま返す（ID を持ったまま）", () => {
+    const current = [
+      { id: "b", name: "科学" },
+      { id: "a", name: "地理" },
+    ];
+    assert.deepEqual(orderCategories(current, ["地理", "科学"]), [current[1], current[0]]);
   });
 });
