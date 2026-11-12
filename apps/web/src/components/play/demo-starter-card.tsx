@@ -5,17 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Panel } from "@/components/play/parts";
 import { useQuickStart } from "@/lib/play/use-quick-start";
 
+type Category = { id: string; name: string; quizCount: number };
+
+/**
+ * 入口に出す「まずは5問」のカテゴリ。デモに公開済みで、ちょうど 5 問あるときだけ返す。
+ * 返したカテゴリは、カテゴリの一覧から外す（DEV-237）。入口と一覧の 2 か所に同じものが出ないように
+ */
+export function findDemoStarter<T extends Category>(slug: string, categories: T[]): T | undefined {
+  if (slug !== "demo") return undefined;
+  return categories.find((item) => item.name === "まずは5問" && item.quizCount === 5);
+}
+
 /** DEV-224。デモパックの編集カテゴリを入口にする。環境ごとに異なる ID は API から取る。 */
-export function DemoStarterCard({
-  slug,
-  categories,
-}: {
-  slug: string;
-  categories: { id: string; name: string; quizCount: number }[];
-}) {
+export function DemoStarterCard({ slug, categories }: { slug: string; categories: Category[] }) {
   const start = useQuickStart(slug, "learn", "all", { order: "registered", limit: 5 });
-  const category = categories.find((item) => item.name === "まずは5問" && item.quizCount === 5);
-  if (slug !== "demo" || !category) return null;
+  const category = findDemoStarter(slug, categories);
+  if (!category) return null;
 
   return (
     <Panel className="space-y-4 border-primary/30 bg-primary/5">
