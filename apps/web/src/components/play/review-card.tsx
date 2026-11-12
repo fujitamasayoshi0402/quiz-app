@@ -12,13 +12,18 @@ import { useQuickStart } from "@/lib/play/use-quick-start";
  *
  * 方式は学習モード。忘れかけた問題は、解説を見ながら解き直すのが合う。
  * 件数が取れないときは何も出さない。出題の条件を選ぶ邪魔をしない。
+ *
+ * `shared` は、見た人どうしで共有するアカウント（デモ）のとき。ほかの人の回答も入ると添える（DEV-236）。
  */
-export function ReviewCard({ slug }: { slug: string }) {
+export function ReviewCard({ slug, shared = false }: { slug: string; shared?: boolean }) {
   const summary = useGetReviewSummary(slug);
   const start = useQuickStart(slug, "learn", "review");
 
   if (!summary.data) return null;
   const { dueCount, nextDueOn, today } = summary.data;
+  const sharedNote = shared && (
+    <p className="text-sm text-muted-foreground">デモは共有のアカウントのため、ほかの人が解いた問題も入ります。</p>
+  );
 
   if (dueCount === 0) {
     return (
@@ -29,6 +34,7 @@ export function ReviewCard({ slug }: { slug: string }) {
             ? `次の復習は${nextReviewLabel(nextDueOn, today)}です。`
             : "解いた問題が、忘れたころにここへ出ます。間違えた問題は、その日のうちに出ます。"}
         </p>
+        {sharedNote}
       </Panel>
     );
   }
@@ -39,6 +45,7 @@ export function ReviewCard({ slug }: { slug: string }) {
         <div className="min-w-0 flex-1 space-y-1">
           <p className="font-semibold">今日の復習 {dueCount} 問</p>
           <p className="text-sm text-muted-foreground">忘れかけた問題と、間違えた問題です。</p>
+          {sharedNote}
         </div>
         <Button className="rounded-full" disabled={start.isPending} onClick={() => start.start()}>
           {start.isPending ? "準備しています…" : "復習する"}

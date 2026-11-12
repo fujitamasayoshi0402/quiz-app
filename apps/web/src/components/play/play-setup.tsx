@@ -116,11 +116,16 @@ export function PlaySetup({ slug }: { slug: string }) {
   // 中断中の挑戦があると 409 が返る。黙って破棄せず、再開か破棄かを選ばせる
   const conflict = start.error instanceof ApiError && start.error.status === 409;
 
+  // デモは共有のアカウントで、今日の復習はほかの見た人の回答から積まれる。初めて来た人には意味が伝わらないため、
+  // 最初の画面は「まずは5問」とカテゴリに譲り、復習はいちばん下に共有だと添えて出す（DEV-236）。
+  // 中断中の挑戦は上に残す。勝手に破棄しない（DEV-224）
+  const sharedAccount = slug === "demo";
+
   return (
     <div className="space-y-8">
       <DemoStarterCard slug={slug} categories={categories.data} />
       <ResumeCard slug={slug} />
-      <ReviewCard slug={slug} />
+      {!sharedAccount && <ReviewCard slug={slug} />}
 
       <Section title="カテゴリ">
         <OptionGroup
@@ -198,6 +203,8 @@ export function PlaySetup({ slug }: { slug: string }) {
           )}
         </>
       )}
+
+      {sharedAccount && <ReviewCard slug={slug} shared />}
     </div>
   );
 }
