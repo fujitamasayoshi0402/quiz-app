@@ -25,6 +25,15 @@ test("「デモとして入る」でデモのテナントに入り、クイズ�
     await expect(page.getByRole("banner").getByText(DEMO_EMAIL)).toBeVisible();
   });
 
+  await test.step("今日の復習は、カテゴリより下に、共有のアカウントだと添えて出る（DEV-236）", async () => {
+    const categories = page.getByRole("heading", { name: "カテゴリ", exact: true });
+    const review = page.getByText(/^今日の復習/);
+    await expect(review).toBeVisible();
+    await expect(page.getByText("ほかの人が解いた問題も入ります", { exact: false })).toBeVisible();
+    const top = async (locator: typeof review) => (await locator.boundingBox())?.y ?? 0;
+    expect(await top(review)).toBeGreaterThan(await top(categories));
+  });
+
   await test.step("カテゴリごとに、代表の図と、問題数・所要時間の目安が出る（DEV-197）", async () => {
     const category = page.locator("label", { hasText: "世界の地理" });
     await expect(category.getByText(/\d+ 問・約 \d+ 分/)).toBeVisible();
