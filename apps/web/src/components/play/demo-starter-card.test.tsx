@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DemoStarterCard } from "./demo-starter-card";
+import { DemoStarterCard, findDemoStarter } from "./demo-starter-card";
 
 const quickStart = vi.hoisted(() => ({ start: vi.fn(), isPending: false, conflict: false, error: null }));
 vi.mock("@/lib/play/use-quick-start", () => ({ useQuickStart: () => quickStart }));
@@ -28,5 +28,17 @@ describe("デモのおすすめ5問", () => {
   it("中断中の挑戦があれば再開か明示的な破棄を案内する", () => {
     quickStart.conflict = true;
     expect(render()).toContain("下の「再開する」か「破棄する」");
+  });
+});
+
+describe("一覧から外す「まずは5問」（DEV-237）", () => {
+  const snacks = { id: "snacks", name: "お菓子・飲み物", quizCount: 12 };
+  it("入口を出すときは、そのカテゴリを返す", () => {
+    expect(findDemoStarter("demo", [snacks, ...categories])).toBe(categories[0]);
+  });
+  it("入口を出さないときは返さない。一覧に残り、選べるまま", () => {
+    expect(findDemoStarter("private", categories)).toBeUndefined();
+    expect(findDemoStarter("demo", [snacks])).toBeUndefined();
+    expect(findDemoStarter("demo", [{ ...categories[0], quizCount: 4 }])).toBeUndefined();
   });
 });

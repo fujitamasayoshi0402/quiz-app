@@ -9,7 +9,7 @@ import { ApiErrorAlert } from "@/components/api-error-alert";
 import { OptionGroup } from "@/components/play/option-group";
 import { Panel } from "@/components/play/parts";
 import { ResumeCard } from "@/components/play/resume-card";
-import { DemoStarterCard } from "@/components/play/demo-starter-card";
+import { DemoStarterCard, findDemoStarter } from "@/components/play/demo-starter-card";
 import { ReviewCard } from "@/components/play/review-card";
 import { ApiError } from "@/lib/api/fetcher";
 import {
@@ -87,7 +87,10 @@ export function PlaySetup({ slug }: { slug: string }) {
     );
   }
 
-  const category = categories.data.find((c) => c.id === categoryId);
+  // 入口のカードに出した「まずは5問」は、一覧には出さない（DEV-237）。カードが出ないときは一覧に残し、選べなくならないようにする
+  const starter = findDemoStarter(slug, categories.data);
+  const listed = categories.data.filter((c) => c !== starter);
+  const category = listed.find((c) => c.id === categoryId);
   const ranges = category ? rangeOptions(category) : [];
   const range = ranges.find((r) => r.value === rangeValue) ?? ranges[0];
   // 「あとで見直す問題」に、選んだ範囲で何問あるかを添える。数えられないうちは添えない
@@ -132,7 +135,7 @@ export function PlaySetup({ slug }: { slug: string }) {
             setCategoryId(value);
             setRangeValue("all");
           }}
-          options={categories.data.map((c) => ({
+          options={listed.map((c) => ({
             value: c.id,
             label: c.name,
             // 問題数と所要時間は、説明とは別の行にする。続けて書くと、狭い幅で数の途中から折り返す

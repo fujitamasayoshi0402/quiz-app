@@ -110,6 +110,8 @@ test("スマホでおすすめの5問を設定なしで始め、解説を読ん�
   // 共有のデモには、前のテストで中断した挑戦が残りうる。
   const discard = page.getByRole("button", { name: "破棄する", exact: true });
   await expect(page.getByRole("heading", { name: "まずは5問", exact: true })).toBeVisible();
+  // 入口と同じものは、カテゴリの一覧に出さない（DEV-237）
+  await expect(page.getByRole("radio", { name: /まずは5問/ })).toHaveCount(0);
   const current = await currentResponse;
   if (current.status() === 200 && (await current.json())) {
     await expect(discard).toBeVisible();
