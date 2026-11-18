@@ -20,7 +20,7 @@
 | 運用 | [0026](0026-trace-requests-with-micrometer-and-x-ray.md) 分散トレース（Micrometer、X-Ray） |
 | モバイル | [0032](0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) Expo の managed で作り、ログインはシステムのブラウザで開く。API は直接呼ぶ / [0037](0037-build-quiz-admin-screens-in-mobile-app.md) 管理の画面はクイズだけ作り、ほかは web に任せる |
 | AI | [0031](0031-draft-quizzes-from-official-tech-news-with-bedrock.md) 公式の技術ニュースから、Bedrock がクイズの下書きを毎日作る |
-| 出題 | [0033](0033-schedule-reviews-with-simplified-sm2.md) 間違えやすい問題を、SM-2 を縮めた式で忘れたころに出す |
+| 出題 | [0033](0033-schedule-reviews-with-simplified-sm2.md) 間違えやすい問題を、SM-2 を縮めた式で忘れたころに出す / [0038](0038-cache-play-reads-in-quiz-service-and-hide-db-resume.md) 出題の読み取りをメモリに持ち、DB の起動待ちを隠す |
 | コンテンツ | [0034](0034-keep-quiz-content-as-packs-and-load-through-api.md) クイズの中身は図ごとパックにまとめ、API で流し込む |
 
 ## 置き換えと見直し
@@ -78,6 +78,7 @@
 | [0035](0035-let-shared-demo-account-view-admin-screens-read-only.md) | 共有のデモのアカウントに「見学者」のロールを与え、管理画面を読むだけで使えるようにする。読ませる管理の API には印を付け、変更は断る | Accepted |
 | [0036](0036-cache-content-tool-sessions-in-macos-keychain.md) | コンテンツ投入用のログイン状態をmacOSキーチェーンに保存する | Accepted |
 | [0037](0037-build-quiz-admin-screens-in-mobile-app.md) | モバイルアプリに、クイズの管理の画面だけを作る。ほかの管理は web に任せる | Accepted |
+| [0038](0038-cache-play-reads-in-quiz-service-and-hide-db-resume.md) | 出題の読み取りを quiz-service のメモリに持ち、DB の起動待ちを操作の裏に隠す | Accepted |
 
 ## 運用ルール
 
