@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { startedAttemptKey } from "@/lib/play/started-attempt";
 import { Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -21,13 +23,24 @@ import type { FeedbackMode } from "@/lib/play/mode";
 import { useEndedElsewhere } from "@/lib/play/use-ended-elsewhere";
 
 /**
- * 回答画面。挑戦をサーバーから読み直して始めるため、再読み込みや別端末からの再開でも同じ位置に戻る。
+ * 回答画面。開始直後は開始APIの応答を使い、追加の読み込みを省く（DEV-239）。
+ * 再読み込みや中断後の再開ではサーバーから最新の状態を読む。
  * **現在位置は保存しない。** 出題順と回答済みの一覧から、最初の未回答を導く（要件定義）。
  */
 export function PlaySession({ slug, attemptId, mode }: { slug: string; attemptId: string; mode: FeedbackMode }) {
   // 画面を離れたらキャッシュを捨てる（gcTime: 0）。残すと、出題の画面から再開したときに、
   // 最初に開いたときの回答済みの一覧から始まり、答えた問題がまた出る
-  const attempt = useResumeAttempt(slug, attemptId, { query: { staleTime: Infinity, gcTime: 0 } });
+  const queryClient = useQueryClient();
+  const attempt = useResumeAttempt(slug, attemptId, {
+    query: {
+      staleTime: Infinity,
+      gcTime: 0,
+      initialData: () => queryClient.getQueryData<AttemptView>(startedAttemptKey(slug, attemptId)),
+    },
+  });
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: startedAttemptKey(slug, attemptId), exact: true });
+  }, [queryClient, slug, attemptId]);
 
   if (attempt.isPending) return <Skeleton className="h-80 w-full rounded-2xl" />;
   if (attempt.isError) return <ApiErrorAlert error={attempt.error} />;

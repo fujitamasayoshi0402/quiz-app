@@ -46,7 +46,17 @@ test("「デモとして入る」でデモのテナントに入り、クイズ�
   await test.step("クイズを始めて 1 問答える", async () => {
     await page.getByText("世界の地理", { exact: true }).click();
     await page.getByText("学習モード").click();
+    const reads: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "GET" && /\/play\/attempts\/[0-9a-f-]{36}$/.test(new URL(request.url()).pathname))
+        reads.push(request.url());
+    });
     await page.getByRole("button", { name: "始める", exact: true }).click();
+    await expect(page.locator('[data-slot="question"]')).toBeVisible();
+    expect(reads).toHaveLength(0); // 開始応答だけで表示する（DEV-239）
+    await page.reload();
+    await expect(page.locator('[data-slot="question"]')).toBeVisible();
+    expect(reads).toHaveLength(1); // 再読み込みは最新の状態を取得する
     await page.getByRole("listitem").first().getByRole("button").click();
     await page.getByRole("button", { name: "回答する" }).click();
     await expect(page.getByText(/^(正解|不正解)$/)).toBeVisible();
@@ -129,7 +139,14 @@ test("スマホでおすすめの5問を設定なしで始め、解説を読ん�
   }
   const start = page.getByRole("button", { name: "おすすめの5問を始める" });
   await expect(start).toBeInViewport();
+  const reads: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "GET" && /\/play\/attempts\/[0-9a-f-]{36}$/.test(new URL(request.url()).pathname))
+      reads.push(request.url());
+  });
   await start.click();
+  await expect(page.locator('[data-slot="question"]')).toBeVisible();
+  expect(reads).toHaveLength(0);
   await expect(page).toHaveURL(/\/play\/session\?attempt=.+&mode=learn$/);
   for (let i = 0; i < 5; i++) {
     await page.getByRole("listitem").first().getByRole("button").click();

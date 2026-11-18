@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   mutate: vi.fn(),
   push: vi.fn(),
   removeQueries: vi.fn(),
+  setQueryData: vi.fn(),
   invalidateQueries: vi.fn(),
   rememberMode: vi.fn(),
   options: {} as { mutation: { onSuccess: (attempt: { id: string }) => void; onError: (error: Error) => void } },
@@ -30,6 +31,7 @@ describe("すぐに始める出題条件", () => {
       data: { categoryId: "starter", scope: "all", order: "registered", limit: 5 },
     });
     mocks.options.mutation.onSuccess({ id: "attempt" });
+    expect(mocks.setQueryData).toHaveBeenCalledWith(["started-attempt", "demo", "attempt"], { id: "attempt" });
     expect(mocks.rememberMode).toHaveBeenCalledWith("attempt", "learn");
     expect(mocks.push).toHaveBeenCalledWith("/t/demo/play/session?attempt=attempt&mode=learn");
   });
