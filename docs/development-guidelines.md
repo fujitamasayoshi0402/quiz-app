@@ -2069,8 +2069,8 @@ gh variable set AUTH_CLIENT_ID --env prod --body "$(terraform output -raw auth_c
   - **ログイン済みの人には、先に起こす仕組み（`POST /api/warm-up`）は効かない**（DEV-226）。開いた直後の要求がそのまま DB を起こすので、先回りできる時間がない。待っている間は上の案内で伝える
   - **出題の画面のカテゴリの一覧と解説図は、quiz-service のメモリから返す**（DEV-233、[ADR-0038](adr/0038-cache-play-reads-in-quiz-service-and-hide-db-resume.md)）。
     ログインした人の要求が毎回引く利用者・テナント・所属もメモリに持つ。DB が止まっていても画面はすぐ出て、同じ画面の「中断中」「今日の復習」の読み込みが裏で DB を起こす。
-    変更を受けたら消し（管理の API の変更、参加、退会）、変わりうるものは 5 分ごとに裏で読み直す（`ReadCacheProperties`）。
-    タスクが 1 つであることを前提にしている。テストはメモリに持たない設定で動き、持ったときの振る舞いは `ReadCacheApiTest` が見る
+    変更を受けたら消し（管理の API の変更、参加、退会）、変わりうるものは 5 分ごとに裏で読み直す（`ReadCacheProperties`）。DB を直接書き換えると、その分は残る（最大 5 分）。
+    タスクが 1 つであることを前提にしている。テストとローカルの一式（E2E）はメモリに持たない設定で動く。どちらも DB を直接書き換えるため。持ったときの振る舞いは `ReadCacheApiTest` が見る
   - 同時に始めた挑戦は、DB の一意制約で 1 つに絞り、残りを 409 にする（DEV-226）。DB の起動を待っている間は、要求が重なりやすい
   - 一時停止しないときは、`DatabaseConnections` と RDS のイベント（クラスタ単位の「Initiated pause / resume」）を見る。
     接続の中身は Data API で `pg_stat_activity` を読むと分かる。`rdsadmin` の接続は一時停止を妨げない
