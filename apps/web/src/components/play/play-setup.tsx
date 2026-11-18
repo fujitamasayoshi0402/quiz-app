@@ -9,7 +9,7 @@ import { ApiErrorAlert } from "@/components/api-error-alert";
 import { OptionGroup } from "@/components/play/option-group";
 import { Panel } from "@/components/play/parts";
 import { ResumeCard } from "@/components/play/resume-card";
-import { DemoStarterCard } from "@/components/play/demo-starter-card";
+import { DemoStarterCard, findDemoStarter } from "@/components/play/demo-starter-card";
 import { ReviewCard } from "@/components/play/review-card";
 import { ApiError } from "@/lib/api/fetcher";
 import {
@@ -87,7 +87,10 @@ export function PlaySetup({ slug }: { slug: string }) {
     );
   }
 
-  const category = categories.data.find((c) => c.id === categoryId);
+  // 入口のカードに出した「まずは5問」は、一覧には出さない（DEV-237）。カードが出ないときは一覧に残し、選べなくならないようにする
+  const starter = findDemoStarter(slug, categories.data);
+  const listed = categories.data.filter((c) => c !== starter);
+  const category = listed.find((c) => c.id === categoryId);
   const ranges = category ? rangeOptions(category) : [];
   const range = ranges.find((r) => r.value === rangeValue) ?? ranges[0];
   // 「あとで見直す問題」に、選んだ範囲で何問あるかを添える。数えられないうちは添えない
@@ -116,11 +119,16 @@ export function PlaySetup({ slug }: { slug: string }) {
   // 中断中の挑戦があると 409 が返る。黙って破棄せず、再開か破棄かを選ばせる
   const conflict = start.error instanceof ApiError && start.error.status === 409;
 
+  // デモは共有のアカウントで、今日の復習はほかの見た人の回答から積まれる。初めて来た人には意味が伝わらないため、
+  // 最初の画面は「まずは5問」とカテゴリに譲り、復習はいちばん下に共有だと添えて出す（DEV-236）。
+  // 中断中の挑戦は上に残す。勝手に破棄しない（DEV-224）
+  const sharedAccount = slug === "demo";
+
   return (
     <div className="space-y-8">
       <DemoStarterCard slug={slug} categories={categories.data} />
       <ResumeCard slug={slug} />
-      <ReviewCard slug={slug} />
+      {!sharedAccount && <ReviewCard slug={slug} />}
 
       <Section title="カテゴリ">
         <OptionGroup
@@ -132,7 +140,7 @@ export function PlaySetup({ slug }: { slug: string }) {
             setCategoryId(value);
             setRangeValue("all");
           }}
-          options={categories.data.map((c) => ({
+          options={listed.map((c) => ({
             value: c.id,
             label: c.name,
             // 問題数と所要時間は、説明とは別の行にする。続けて書くと、狭い幅で数の途中から折り返す
@@ -198,6 +206,8 @@ export function PlaySetup({ slug }: { slug: string }) {
           )}
         </>
       )}
+
+      {sharedAccount && <ReviewCard slug={slug} shared />}
     </div>
   );
 }
