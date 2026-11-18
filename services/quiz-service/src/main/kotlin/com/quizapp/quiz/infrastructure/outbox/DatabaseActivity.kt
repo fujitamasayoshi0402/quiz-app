@@ -29,7 +29,8 @@ class DatabaseActivity(private val clock: Clock) {
 /**
  * 利用者を特定できた要求を、DB を使ったものとして記録する。
  *
- * 利用者の特定（[AuthenticationFilter]）は、毎回 DB から利用者を引く。特定できたなら、DB は起きている。
+ * 利用者の特定（[AuthenticationFilter]）は、メモリに持った対応から答えることがあり（ADR-0038）、DB を使ったとは限らない。
+ * それでも記録する。出題の画面は、同じときに「中断中」「今日の復習」などを DB から読むため、拾い直しが DB を起こす回数は増えない。
  * アクセストークンを持たない要求は記録しない。DB に触れずに 401 になる要求で、拾い直しを動かさない
  */
 class DatabaseActivityFilter(private val activity: DatabaseActivity) : OncePerRequestFilter() {

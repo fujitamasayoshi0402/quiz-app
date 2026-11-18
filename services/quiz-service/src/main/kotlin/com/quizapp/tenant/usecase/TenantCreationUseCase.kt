@@ -4,6 +4,7 @@ import com.quizapp.auth.Membership
 import com.quizapp.auth.TenantMemberships
 import com.quizapp.auth.TenantRole
 import com.quizapp.auth.UserContext
+import com.quizapp.tenant.TenantSlugs
 import com.quizapp.tenant.domain.TenantCreationBlock
 import com.quizapp.tenant.domain.TenantCreationNotAllowedException
 import com.quizapp.tenant.domain.TenantCreations
@@ -20,6 +21,7 @@ import org.springframework.transaction.support.TransactionTemplate
 class TenantCreationUseCase(
     private val creations: TenantCreations,
     private val memberships: TenantMemberships,
+    private val slugs: TenantSlugs,
     private val transactionTemplate: TransactionTemplate,
 ) {
     /** 作れない理由。作れるなら null。画面が、入力させる前に示す */
@@ -32,6 +34,8 @@ class TenantCreationUseCase(
             creations.blockFor(userId)?.let { throw TenantCreationNotAllowedException(it) }
             val tenantId = creations.create(slug, name, userId, TenantLimits.SELF_SERVICE)
             memberships.join(tenantId, userId, TenantRole.ADMIN)
+            // 作る前に同じ slug を引かれていると、見つからなかったことを持っている（ADR-0038）
+            slugs.forget(slug)
             Membership(slug, name, TenantRole.ADMIN)
         },
     )

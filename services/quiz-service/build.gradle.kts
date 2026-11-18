@@ -54,6 +54,8 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
+    // 出題の読み取りをメモリに持つ（ADR-0038）。版は Spring Boot が決める
+    implementation("com.github.ben-manes.caffeine:caffeine")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // コンテナのヘルスチェック（docker compose / ECS）に使う
     implementation("org.springframework.boot:spring-boot-starter-actuator")

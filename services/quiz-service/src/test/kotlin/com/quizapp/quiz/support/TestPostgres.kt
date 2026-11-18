@@ -62,6 +62,9 @@ object TestPostgres {
         // 拾い直しは定期的に動かさない。テストは手で呼ぶ（OutboxDeliveryApiTest）。
         // 動かすと、別のテストが残した送れていない行を、思わぬ時に送ってしまう
         registry.add("app.events.relay.enabled") { "false" }
+        // 出題の読み取りをメモリに持たない（ADR-0038）。テストは DB を直接書き換えるため、持つと古い所属や内容が残る。
+        // 持ったときの振る舞いは ReadCacheApiTest が確かめる
+        registry.add("app.read-cache.enabled") { "false" }
         // データの整合性の確認も同じ。テストは手で呼ぶ（IntegrityChecksApiTest）
         registry.add("app.integrity.enabled") { "false" }
         // 利用者ごとの流量の上限も止める。テストは同じ利用者（TestAuth.ADMIN）で多くの要求を続けて送り、コンテキストは使い回される。

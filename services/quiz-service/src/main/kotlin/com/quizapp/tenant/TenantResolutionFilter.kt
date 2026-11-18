@@ -5,23 +5,20 @@ import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.core.annotation.Order
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import org.springframework.web.util.UrlPathHelper
-import java.util.UUID
 
 /**
  * URL のパスからテナントを解決し、リクエストの間だけ [TenantContext] に保持する。
  *
  * `/api/t/{slug}/...` の形を前提とする。テナントを含まないパスでは何もしない。
  *
- * `core.tenants` は行レベルセキュリティの対象外のため、テナントが決まる前でも参照できる
- * （[ADR-0006](../../../../../../../docs/adr/0006-row-level-multi-tenancy.md)）。
+ * slug からテナントの ID を引くのは [TenantSlugs]。メモリに持ち、DB が止まっていても答える（ADR-0038）。
  */
 @Component
 @Order(TenantResolutionFilter.ORDER)
-class TenantResolutionFilter(private val jdbcTemplate: JdbcTemplate) : OncePerRequestFilter() {
+class TenantResolutionFilter(private val slugs: TenantSlugs) : OncePerRequestFilter() {
 
     override fun doFilterInternal(
         request: HttpServletRequest,
@@ -32,7 +29,7 @@ class TenantResolutionFilter(private val jdbcTemplate: JdbcTemplate) : OncePerRe
             // 生の URI ではなく、Spring がルートを選ぶときと同じく、デコードしてパスの引数（`;` 以降）を外したパスから取る（DEV-114）。
             // 解釈が食い違うと、テナントを決めたパスと、振り分けたルートが別のものを指しうる
             extractSlug(UrlPathHelper.defaultInstance.getPathWithinApplication(request))?.let { slug ->
-                findTenantId(slug)?.let {
+                slugs.idOf(slug)?.let {
                     TenantContext.set(it)
                     LogContext.putTenant(it)
                 }
@@ -56,10 +53,4 @@ class TenantResolutionFilter(private val jdbcTemplate: JdbcTemplate) : OncePerRe
         val index = segments.indexOf("t")
         return if (index >= 0 && index + 1 < segments.size) segments[index + 1] else null
     }
-
-    private fun findTenantId(slug: String): UUID? = jdbcTemplate.query(
-        "SELECT id FROM core.tenants WHERE slug = ? AND deleted_at IS NULL",
-        { rs, _ -> rs.getObject("id", UUID::class.java) },
-        slug,
-    ).firstOrNull()
 }
