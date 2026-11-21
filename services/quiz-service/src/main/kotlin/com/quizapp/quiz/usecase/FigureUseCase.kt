@@ -39,6 +39,7 @@ class FigureUseCase(
     private val uploads: FigureUploadStore,
     private val usages: FigureUsages,
     private val capacity: TenantCapacity,
+    private val content: PlayableContentCache,
     private val tenantTransaction: TenantTransaction,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -110,9 +111,8 @@ class FigureUseCase(
 
     private fun readUpload(id: UUID): ByteArray = uploads.readUpload(id) ?: throw FigureUploadNotFoundException(id)
 
-    fun kind(id: UUID): FigureKind = tenantTransaction.execute {
-        repository.findKind(id) ?: throw FigureNotFoundException(id)
-    }
+    /** 出題の画面が図ごとに引く。メモリから返す（ADR-0038） */
+    fun kind(id: UUID): FigureKind = content.figureKind(id) ?: throw FigureNotFoundException(id)
 
     /** 描き直すための原本。draw.io の図にだけある */
     fun source(id: UUID): String {

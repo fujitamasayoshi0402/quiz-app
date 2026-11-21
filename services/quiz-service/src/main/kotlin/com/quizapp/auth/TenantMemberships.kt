@@ -1,5 +1,6 @@
 package com.quizapp.auth
 
+import com.quizapp.cache.ReadCaches
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
 import java.util.UUID
@@ -27,6 +28,9 @@ interface TenantMemberships {
      * ロールを変えるのは所属の管理であり、招待の受け入れではない。
      */
     fun join(tenantId: UUID, userId: UUID, role: TenantRole)
+
+    /** 所属を外したあとに呼ぶ。メモリに持った所属を消す（ADR-0038） */
+    fun forget(tenantId: UUID, userId: UUID)
 }
 
 /** 所属先のテナントと、そこでの役割。 */
@@ -38,23 +42,35 @@ data class Membership(val slug: String, val name: String, val role: TenantRole)
  * 所属判定は「どのテナントで作業するか」が決まる前に必要になる。
  */
 @Component
-class TenantMembershipsJdbc(private val jdbcTemplate: JdbcTemplate) : TenantMemberships {
+class TenantMembershipsJdbc(private val jdbcTemplate: JdbcTemplate, caches: ReadCaches) : TenantMemberships {
 
-    override fun findRole(tenantId: UUID, userId: UUID): TenantRole? = jdbcTemplate.query(
-        """
+    /**
+     * 所属とロール、所属するテナントの一覧は、ログインした人のどの要求でも引く。**メモリに持つ**（ADR-0038）。
+     * 所属を変えたとき（[join]、[forget]）に消し、念のため数分ごとに裏で読み直す
+     */
+    private val roles = caches.refreshing<Pair<UUID, UUID>, TenantRole> { (tenantId, userId) ->
+        jdbcTemplate.query(
+            """
             SELECT role FROM core.tenant_members
             WHERE tenant_id = ? AND user_id = ? AND deleted_at IS NULL
             """,
-        { rs, _ -> TenantRole.from(rs.getString("role")) },
-        tenantId,
-        userId,
-    ).firstOrNull()
+            { rs, _ -> TenantRole.from(rs.getString("role")) },
+            tenantId,
+            userId,
+        ).firstOrNull()
+    }
+
+    private val tenants = caches.refreshing<UUID, List<Membership>> { userId -> loadTenantsOf(userId) }
+
+    override fun findRole(tenantId: UUID, userId: UUID): TenantRole? = roles.get(tenantId to userId)
 
     /**
      * **削除されたテナントも除く。** 所属だけを見ると、選んだ先で「テナントが存在しない」になる
      * （テナントの解決は [com.quizapp.tenant.TenantResolutionFilter] が削除済みを除いて行う）。
      */
-    override fun findTenantsOf(userId: UUID): List<Membership> = jdbcTemplate.query(
+    override fun findTenantsOf(userId: UUID): List<Membership> = tenants.get(userId).orEmpty()
+
+    private fun loadTenantsOf(userId: UUID): List<Membership> = jdbcTemplate.query(
         """
             SELECT t.slug, t.name, m.role FROM core.tenant_members m
             JOIN core.tenants t ON t.id = m.tenant_id
@@ -87,5 +103,11 @@ class TenantMembershipsJdbc(private val jdbcTemplate: JdbcTemplate) : TenantMemb
             userId,
             role.name.lowercase(),
         )
+        forget(tenantId, userId)
+    }
+
+    override fun forget(tenantId: UUID, userId: UUID) {
+        roles.forget(tenantId to userId)
+        tenants.forget(userId)
     }
 }

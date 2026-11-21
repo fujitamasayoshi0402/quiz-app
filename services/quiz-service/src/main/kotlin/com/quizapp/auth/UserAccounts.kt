@@ -1,5 +1,6 @@
 package com.quizapp.auth
 
+import com.quizapp.cache.ReadCaches
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
 import java.util.UUID
@@ -31,14 +32,22 @@ interface UserAccounts {
     fun create(externalId: String, email: String?, displayName: String): UUID
 }
 
+/**
+ * 認証基盤の ID から利用者の ID への対応は、ログインした人のどの要求でも引く。**メモリに持つ**（ADR-0038）。
+ * 一度結び付いたら変わらないため、読み直さない。結び付けたとき（[claimByEmail]、[create]）に消す
+ */
 @Component
-class UserAccountsJdbc(private val jdbcTemplate: JdbcTemplate) : UserAccounts {
+class UserAccountsJdbc(private val jdbcTemplate: JdbcTemplate, caches: ReadCaches) : UserAccounts {
 
-    override fun findIdByExternalId(externalId: String): UUID? = jdbcTemplate.query(
-        "SELECT id FROM core.users WHERE external_id = ?",
-        { rs, _ -> rs.getObject("id", UUID::class.java) },
-        externalId,
-    ).firstOrNull()
+    private val ids = caches.stable<String, UUID> { externalId ->
+        jdbcTemplate.query(
+            "SELECT id FROM core.users WHERE external_id = ?",
+            { rs, _ -> rs.getObject("id", UUID::class.java) },
+            externalId,
+        ).firstOrNull()
+    }
+
+    override fun findIdByExternalId(externalId: String): UUID? = ids.get(externalId)
 
     override fun emailOf(userId: UUID): String? = jdbcTemplate.query(
         "SELECT email FROM core.users WHERE id = ?",
@@ -55,7 +64,7 @@ class UserAccountsJdbc(private val jdbcTemplate: JdbcTemplate) : UserAccounts {
         { rs, _ -> rs.getObject("id", UUID::class.java) },
         externalId,
         email,
-    ).firstOrNull()
+    ).firstOrNull().also { ids.forget(externalId) }
 
     override fun existsByEmail(email: String): Boolean = jdbcTemplate.queryForObject(
         "SELECT EXISTS (SELECT 1 FROM core.users WHERE lower(email) = lower(?))",
@@ -73,5 +82,5 @@ class UserAccountsJdbc(private val jdbcTemplate: JdbcTemplate) : UserAccounts {
         externalId,
         email,
         displayName,
-    ).firstOrNull() ?: requireNotNull(findIdByExternalId(externalId))
+    ).firstOrNull().also { ids.forget(externalId) } ?: requireNotNull(findIdByExternalId(externalId))
 }

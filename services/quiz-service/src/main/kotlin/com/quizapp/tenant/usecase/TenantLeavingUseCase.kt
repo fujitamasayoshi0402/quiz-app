@@ -1,5 +1,6 @@
 package com.quizapp.tenant.usecase
 
+import com.quizapp.auth.TenantMemberships
 import com.quizapp.auth.UserContext
 import com.quizapp.tenant.TenantContext
 import com.quizapp.tenant.TenantTransaction
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service
 @Service
 class TenantLeavingUseCase(
     private val leavings: TenantLeavings,
+    private val memberships: TenantMemberships,
     private val answerHistory: MemberAnswerHistory,
     private val tenantTransaction: TenantTransaction,
 ) {
@@ -25,5 +27,7 @@ class TenantLeavingUseCase(
         leavings.blockFor(tenantId, userId)?.let { throw TenantLeaveNotAllowedException(it) }
         answerHistory.eraseOf(userId)
         leavings.leave(tenantId, userId)
+        // メモリに持った所属を消す（ADR-0038）。消さないと、退会したあとも前のロールで読める
+        memberships.forget(tenantId, userId)
     }
 }
