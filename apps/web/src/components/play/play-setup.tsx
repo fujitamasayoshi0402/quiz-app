@@ -1,5 +1,7 @@
 "use client";
 
+import { startedAttemptKey } from "@/lib/play/started-attempt";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -68,6 +70,8 @@ export function PlaySetup({ slug }: { slug: string }) {
   const start = useStartAttempt({
     mutation: {
       onSuccess: (attempt) => {
+        // 開始応答に問題がそろっているので、遷移先で同じ問題を取り直さない（DEV-239）。
+        queryClient.setQueryData(startedAttemptKey(slug, attempt.id), attempt);
         rememberMode(attempt.id, mode);
         queryClient.removeQueries({ queryKey: getGetCurrentAttemptQueryKey(slug) });
         router.push(`/t/${slug}/play/session?attempt=${attempt.id}&mode=${mode}`);

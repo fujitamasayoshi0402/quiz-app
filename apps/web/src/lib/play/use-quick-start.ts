@@ -1,3 +1,4 @@
+import { startedAttemptKey } from "@/lib/play/started-attempt";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api/fetcher";
@@ -30,6 +31,8 @@ export function useQuickStart(
         }
       },
       onSuccess: (attempt) => {
+        // 開始応答に問題がそろっているので、遷移先で同じ問題を取り直さない（DEV-239）。
+        queryClient.setQueryData(startedAttemptKey(slug, attempt.id), attempt);
         rememberMode(attempt.id, mode);
         queryClient.removeQueries({ queryKey: getGetCurrentAttemptQueryKey(slug) });
         router.push(`/t/${slug}/play/session?attempt=${attempt.id}&mode=${mode}`);
