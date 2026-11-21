@@ -745,9 +745,15 @@ xcrun simctl openurl booted exp://127.0.0.1:8081                           # シ
 
 ```bash
 brew install cocoapods                                    # 初回だけ
-xcrun xctrace list devices                                # USB でつないだ iPhone の ID（== Devices == の下）
-pnpm --filter mobile exec expo run:ios --device <iPhone の ID> --configuration Release --no-bundler
+pnpm --filter mobile device:ios                           # つないでいる iPhone に入れる（DEV-246）
+IOS_DEVICE=<iPhone の ID> pnpm --filter mobile device:ios  # iPhone が複数つながっているとき
 ```
+
+- `device:ios`（`apps/mobile/scripts/install-ios-device.sh`）は、ペアリングした iPhone を探し、`expo run:ios --configuration Release --no-bundler` で入れる。
+  入れたあとに開けないときの対処も、失敗したときに出す
+- **Claude Code の `!` からは流さない。** サンドボックスの中では Xcode の DerivedData に書けず、途中で落ちる。自分のターミナルで流す
+- **パスに日本語などを含む clone や worktree では流せない。** CocoaPods の pod install が落ちる（`incompatible character encodings`）。スクリプトは先に止める
+- **Xcode の「推奨の設定に更新」で入る `ENABLE_USER_SCRIPT_SANDBOXING = YES` は、スクリプトが NO に戻す。** YES のままだと、JS を入れるビルドのスクリプトが `Operation not permitted` で落ちる
 
 - 初回だけ、次の準備が要る
   - Xcode の Settings → Accounts に Apple ID を足す
@@ -758,7 +764,7 @@ pnpm --filter mobile exec expo run:ios --device <iPhone の ID> --configuration 
   - 入れたあと、iPhone の 設定 → 一般 → VPN とデバイス管理 で、自分の Apple ID を「信頼」する。しないと開けない
 - **アプリの ID（`APP_ID`）は、Apple の中で重ならないものにする。** 既定の `com.quizapp.mobile` はほかの人が登録していて、使えない（`Failed Registering Bundle Identifier`）。
   `io.github.<GitHub の名前>.quiz` のように、自分の名前を入れる。Android の決まりに合わせ、英小文字・数字・ドットだけにする
-- **無料の Apple ID の署名は、7 日で切れる。** 切れるとアプリが開かなくなる。上のコマンドを流し直せば入れ直せ、端末に覚えたログインの状態とつなぐ先は残る
+- **無料の Apple ID の署名は、7 日で切れる。** 切れるとアプリが開かなくなる。`device:ios` を流し直せば入れ直せ、端末に覚えたログインの状態とつなぐ先は残る
 - 無料の Apple ID で入れられるアプリは、同時に 3 つまで。アプリの ID も、7 日に 10 個までしか作れない。ID は頻繁に替えない
 - `ios/` と `android/` は、ビルドのたびに `app.config.ts` から作る生成物で、リポジトリに入れない（`.gitignore`）。`app.config.ts` を変えたら、`expo prebuild --clean` で作り直す
 
