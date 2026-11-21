@@ -43,6 +43,7 @@
     "start": "expo start",
     "ios": "expo start --ios",
     "android": "expo start --android",
+    "device:ios": "scripts/install-ios-device.sh",
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
