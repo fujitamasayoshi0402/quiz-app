@@ -4,7 +4,7 @@ import { colors, styles } from "@/components/ui";
 import type { DeliveredChoice } from "@/lib/api/generated/model";
 import type { Option } from "@/lib/play";
 
-const LETTERS = ["A", "B", "C", "D"];
+const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 const correctColor = "#047857";
 const wrongColor = "#b91c1c";
@@ -44,33 +44,49 @@ export function OptionGroup({
 }
 
 /**
- * 4 択。`reveal` を渡すと正解と選んだ選択肢を色と印で示し、選び直せなくする（web の `ChoiceList`）。
+ * 選択肢の一覧（2〜6 択、単一選択・複数選択に対応。DEV-243）。
+ * `reveal` を渡すと正解と選んだ選択肢を色と印で示し、選び直せなくする（web の `ChoiceList`）。
  * 回答と、結果画面の振り返りで共用する
  */
 export function ChoiceList({
   choices,
   selectedId,
+  selectedIds,
   onSelect,
   reveal,
+  multiple = false,
 }: {
   choices: DeliveredChoice[];
   selectedId?: string | null;
+  selectedIds?: string[];
   onSelect?: (id: string) => void;
-  reveal?: { correctChoiceId: string };
+  reveal?: { correctChoiceId?: string; correctChoiceIds?: string[] };
+  multiple?: boolean;
 }) {
   const locked = !onSelect || !!reveal;
+  const pickedSet = new Set(selectedIds ?? (selectedId ? [selectedId] : []));
+  const correctSet = new Set(
+    reveal?.correctChoiceIds && reveal.correctChoiceIds.length > 0
+      ? reveal.correctChoiceIds
+      : reveal?.correctChoiceId
+        ? [reveal.correctChoiceId]
+        : [],
+  );
+
   return (
     <View style={s.options}>
+      {multiple && !reveal && <Text style={styles.muted}>複数選択（正解をすべて選んでください）</Text>}
       {choices.map((choice, index) => {
-        const selected = choice.id === selectedId;
-        const correct = reveal?.correctChoiceId === choice.id;
+        const selected = pickedSet.has(choice.id);
+        const correct = correctSet.has(choice.id);
         const wrongPick = !!reveal && selected && !correct;
+        const letter = LETTERS[index] ?? String(index + 1);
         return (
           <Pressable
             key={choice.id}
             accessibilityRole="button"
             accessibilityState={{ selected, disabled: locked }}
-            accessibilityLabel={`${LETTERS[index]}. ${choice.body}${correct ? "（正解）" : wrongPick ? "（選んだ選択肢）" : ""}`}
+            accessibilityLabel={`${letter}. ${choice.body}${correct ? "（正解）" : wrongPick ? "（選んだ選択肢）" : ""}`}
             disabled={locked}
             onPress={() => onSelect?.(choice.id)}
             style={({ pressed }) => [
@@ -85,13 +101,14 @@ export function ChoiceList({
             <View
               style={[
                 s.letter,
+                multiple && { borderRadius: 8 },
                 selected && !reveal && s.letterSelected,
                 correct && { backgroundColor: correctColor },
                 wrongPick && { backgroundColor: wrongColor },
               ]}
             >
               <Text style={[s.letterText, (selected || correct) && s.letterTextOn]}>
-                {correct ? "✓" : wrongPick ? "✕" : LETTERS[index]}
+                {correct ? "✓" : wrongPick ? "✕" : letter}
               </Text>
             </View>
             <Text style={[styles.text, s.cardBody]}>{choice.body}</Text>

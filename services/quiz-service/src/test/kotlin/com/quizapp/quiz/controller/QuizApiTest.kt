@@ -144,12 +144,12 @@ class QuizApiTest {
     }
 
     @Test
-    @DisplayName("選択肢が 4 つ未満のまま公開しようとすると 400")
-    fun cannotPublishWithoutFourChoices() {
+    @DisplayName("選択肢が 2 つ未満のまま公開しようとすると 400")
+    fun cannotPublishWithFewerThanTwoChoices() {
         mockMvc.post("/api/t/${tenantA.slug}/admin/quizzes") {
             auth()
             contentType = MediaType.APPLICATION_JSON
-            content = quizJson(choiceCount = 3, status = "published")
+            content = quizJson(choiceCount = 1, status = "published")
         }.andExpect { status { isBadRequest() } }
     }
 
@@ -164,13 +164,21 @@ class QuizApiTest {
     }
 
     @Test
-    @DisplayName("正解が 2 つあると 400")
-    fun cannotHaveTwoCorrectChoices() {
+    @DisplayName("正解が複数あるクイズを公開できる")
+    fun canPublishMultipleCorrectChoices() {
         mockMvc.post("/api/t/${tenantA.slug}/admin/quizzes") {
             auth()
             contentType = MediaType.APPLICATION_JSON
-            content = quizJson(correctCount = 2, status = "published")
-        }.andExpect { status { isBadRequest() } }
+            content = quizJson(choiceCount = 5, correctCount = 2, status = "published")
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.choices.length()") { value(5) }
+            jsonPath("$.choices[0].isCorrect") { value(true) }
+            jsonPath("$.choices[1].isCorrect") { value(true) }
+            jsonPath("$.choices[2].isCorrect") { value(false) }
+            // 保存した順のまま返す（DB に ID を採番させると並びが崩れていた）
+            (0..4).forEach { i -> jsonPath("$.choices[$i].body") { value("選択肢 ${i + 1}") } }
+        }
     }
 
     @Test

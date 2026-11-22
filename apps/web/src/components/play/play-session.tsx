@@ -54,7 +54,7 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
   const resultUrl = `/t/${slug}/play/result?attempt=${attempt.id}&mode=${mode}`;
 
   const [done, setDone] = useState(() => new Set(attempt.answeredQuizIds));
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<AnswerResult | null>(null);
 
   const answer = useAnswerQuiz();
@@ -63,20 +63,31 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
   const total = attempt.quizzes.length;
   const current = attempt.quizzes.find((quiz) => !done.has(quiz.id));
   const position = attempt.quizzes.findIndex((quiz) => quiz.id === current?.id) + 1;
+  const isMultiple = (current?.correctCount ?? 1) > 1;
+
+  const toggleChoice = (id: string) => {
+    setSelectedIds((prev) =>
+      isMultiple ? (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]) : [id],
+    );
+  };
 
   const advance = (quizId: string) => {
     const next = new Set(done).add(quizId);
     setDone(next);
-    setSelectedId(null);
+    setSelectedIds([]);
     setFeedback(null);
     answer.reset();
     if (next.size >= total) router.push(resultUrl);
   };
 
   const submit = () => {
-    if (!current || !selectedId) return;
+    if (!current || selectedIds.length === 0) return;
     answer.mutate(
-      { slug, attemptId: attempt.id, data: { quizId: current.id, choiceId: selectedId } },
+      {
+        slug,
+        attemptId: attempt.id,
+        data: { quizId: current.id, choiceId: selectedIds[0], choiceIds: selectedIds },
+      },
       {
         // 学習モードはその場で答え合わせをする。模試モードは正誤を伏せて次へ進む
         onSuccess: (result) => (mode === "learn" ? setFeedback(result) : advance(current.id)),
@@ -122,16 +133,26 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
         <Eyebrow>
           QUESTION {position}・{mode === "learn" ? "学習モード" : "模試モード"}
         </Eyebrow>
-        <p data-slot="question" className="text-xl leading-snug font-semibold tracking-tight whitespace-pre-wrap">
-          {current.question}
-        </p>
+        <div data-slot="question">
+          <Markdown
+            tenant={slug}
+            className="text-xl leading-snug font-semibold tracking-tight [&_code]:font-normal [&_pre]:text-sm [&_table]:text-sm"
+          >
+            {current.question}
+          </Markdown>
+        </div>
       </div>
 
       <ChoiceList
         choices={current.choices}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        reveal={feedback ? { correctChoiceId: feedback.correctChoiceId } : undefined}
+        selectedIds={selectedIds}
+        onSelect={toggleChoice}
+        multiple={isMultiple}
+        reveal={
+          feedback
+            ? { correctChoiceId: feedback.correctChoiceId, correctChoiceIds: feedback.correctChoiceIds }
+            : undefined
+        }
       />
       {feedback && <Explanation slug={slug} quizId={current.id} result={feedback} />}
       {answer.isError && <ApiErrorAlert error={answer.error} />}
@@ -142,7 +163,12 @@ function Session({ slug, attempt, mode }: { slug: string; attempt: AttemptView; 
             {done.size + 1 >= total ? "結果を見る" : "次の問題へ"}
           </Button>
         ) : (
-          <Button size="lg" className="rounded-full px-8" onClick={submit} disabled={!selectedId || answer.isPending}>
+          <Button
+            size="lg"
+            className="rounded-full px-8"
+            onClick={submit}
+            disabled={selectedIds.length === 0 || answer.isPending}
+          >
             回答する
           </Button>
         )}

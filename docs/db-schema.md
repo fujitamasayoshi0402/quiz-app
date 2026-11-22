@@ -306,21 +306,18 @@ ALTER TABLE quiz.choices
   ADD CONSTRAINT choices_quiz_fk
   FOREIGN KEY (quiz_id, tenant_id) REFERENCES quiz.quizzes (id, tenant_id) ON DELETE CASCADE;
 
--- 1 クイズにつき正解は 1 つまで
-CREATE UNIQUE INDEX choices_single_correct ON quiz.choices (quiz_id) WHERE is_correct;
-
 CREATE UNIQUE INDEX choices_order_key ON quiz.choices (quiz_id, sort_order);
 ```
 
-#### 4 択の表現
+#### 選択肢と正解の表現
 
 `choices` に `is_correct` を持たせます。
 `quizzes` に `correct_choice_id` を持たせる案は、`quizzes` と `choices` が相互に参照し合うため、
 挿入の順序が複雑になります（クイズを作る → 選択肢を作る → クイズを更新して正解を指す）。
 
-部分ユニークインデックスにより、**正解が 2 つある状態は DB が拒否します。**
-一方「正解が 0 個」と「選択肢がちょうど 4 つ」は行数に関する制約のため、DB では表現できません。
-これらはドメイン層で守ります（[ドメインモデル](domain-model.md#クイズ)）。
+「選択肢は 2〜6 個」「正解は 1 個以上」は行数に関する制約のため、DB では表現できません。
+ドメイン層と、1 日 1 回の整合性チェックで守ります。
+複数の正解（すべて選べ）を許すため、正解を 1 つに限っていた部分ユニークインデックス `choices_single_correct` は外しました（V29、DEV-243）（[ドメインモデル](domain-model.md#クイズ)）。
 
 `choices` は論理削除しません。クイズに完全に従属し、単独で復活させる意味がないためです。
 クイズを論理削除した場合、選択肢はそのまま残ります（親が見えないため実質的に隠れます）。
@@ -373,6 +370,29 @@ CREATE INDEX answers_user_time_idx ON answer.answers (user_id, answered_at DESC)
 中断中の挑戦は `(tenant_id, user_id)` の部分ユニークインデックスで、**テナントごとに 1 件まで**に制限します。
 
 論理削除もしません。履歴そのものであり、削除する操作を設けないためです。
+
+`choice_id` には選んだ選択肢の最初の 1 つを入れます。選んだ選択肢の一覧は `answer.answer_choices` から読みます（DEV-243）。
+
+### answer.answer_choices
+
+1 回の回答で選んだ選択肢（DEV-243）。単一選択では 1 行、複数選択（すべて選べ）では選んだ数だけ行を持ちます。
+`answers` の 1 行が「1 問への 1 回の回答」を表すことは変わらないため、履歴・正答率・ランキングの集計はそのまま動きます。
+
+| カラム | 型 | 制約 |
+| --- | --- | --- |
+| `tenant_id` | uuid | NOT NULL |
+| `answer_id` | uuid | NOT NULL, FK → `answer.answers(id, tenant_id)` ON DELETE CASCADE |
+| `choice_id` | uuid | NOT NULL（**外部キーなし**。`answers.choice_id` と同じ理由） |
+| `sort_order` | integer | NOT NULL。PK は `(answer_id, sort_order)` |
+
+```sql
+ALTER TABLE answer.answer_choices
+  ADD CONSTRAINT answer_choices_choice_unique UNIQUE (answer_id, choice_id);
+
+CREATE INDEX answer_choices_choice_idx ON answer.answer_choices (choice_id);
+```
+
+RLS はほかの表と同じく `tenant_id` で絞ります。V29 で、それまでの回答を 1 行ずつ写しました。
 
 ### answer.ranking_entries
 

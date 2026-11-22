@@ -20,7 +20,7 @@ class FigureUsagesJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) : F
         val rows = jdbcTemplate.query(
             """
             SELECT id, question, explanation, deleted_at IS NOT NULL AS trashed FROM quiz.quizzes
-            WHERE explanation LIKE '%figure:%'
+            WHERE question LIKE '%figure:%' OR explanation LIKE '%figure:%'
             ORDER BY created_at, id
             """,
             emptyMap<String, Any>(),
@@ -36,7 +36,8 @@ class FigureUsagesJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate) : F
         val trashed = mutableMapOf<UUID, MutableList<FigureQuiz>>()
         for (row in rows) {
             val target = if (row.trashed) trashed else live
-            FigureReferences.findIn(row.explanation).forEach { target.getOrPut(it) { mutableListOf() }.add(row.quiz) }
+            (FigureReferences.findIn(row.quiz.question) + FigureReferences.findIn(row.explanation))
+                .forEach { target.getOrPut(it) { mutableListOf() }.add(row.quiz) }
         }
         return (live.keys + trashed.keys).associateWith { FigureUsage(live[it].orEmpty(), trashed[it].orEmpty()) }
     }

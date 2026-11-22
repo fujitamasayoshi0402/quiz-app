@@ -37,11 +37,13 @@ class QuizCatalogAdapter(
      */
     override fun findAnswerKeys(quizIds: List<UUID>): Map<UUID, AnswerKey> =
         quizRepository.findPublishedByIds(quizIds).mapNotNull { quiz ->
-            val correct = quiz.choices.firstOrNull { it.isCorrect } ?: return@mapNotNull null
+            val correctIds = quiz.choices.filter { it.isCorrect }.mapNotNull { it.id }
+            val firstCorrect = correctIds.firstOrNull() ?: return@mapNotNull null
             val id = quiz.id ?: return@mapNotNull null
             id to AnswerKey(
                 quizId = id,
-                correctChoiceId = requireNotNull(correct.id),
+                correctChoiceId = firstCorrect,
+                correctChoiceIds = correctIds.toSet(),
                 choiceIds = quiz.choices.mapNotNull { it.id }.toSet(),
                 explanation = quiz.explanation,
                 sourceUrl = quiz.sourceUrl,

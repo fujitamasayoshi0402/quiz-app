@@ -9,12 +9,17 @@ import com.quizapp.answer.domain.DuplicateAnswerException
 import com.quizapp.quiz.domain.DeliveryScope
 import com.quizapp.tenant.TenantContext
 import org.springframework.dao.DuplicateKeyException
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
-class AttemptRepositoryImpl(private val attempts: AttemptJdbcRepository, private val answers: AnswerJdbcRepository) :
-    AttemptRepository {
+class AttemptRepositoryImpl(
+    private val attempts: AttemptJdbcRepository,
+    private val answers: AnswerJdbcRepository,
+    private val jdbcTemplate: NamedParameterJdbcTemplate,
+) : AttemptRepository {
 
     override fun create(attempt: Attempt): Attempt {
         val tenantId = TenantContext.require()
@@ -43,24 +48,60 @@ class AttemptRepositoryImpl(private val attempts: AttemptJdbcRepository, private
     override fun finish(id: UUID, status: AttemptStatus): Boolean = attempts.finish(id, status.name.lowercase()) > 0
 
     override fun record(answer: Answer): Answer {
+        val tenantId = TenantContext.require()
         val entity = AnswerEntity(
-            tenantId = TenantContext.require(),
+            tenantId = tenantId,
             attemptId = answer.attemptId,
             userId = answer.userId,
             quizId = answer.quizId,
             choiceId = answer.choiceId,
             isCorrect = answer.isCorrect,
         )
-        return try {
-            answers.save(entity).toDomain()
+        val saved = try {
+            answers.save(entity)
         } catch (e: DuplicateKeyException) {
             // (attempt_id, quiz_id) のユニークインデックス。
             // 先に SELECT で確認する形にすると同時実行で抜けるため、DB の制約を正とする
             throw DuplicateAnswerException(answer.quizId, e)
         }
+        val answerId = requireNotNull(saved.id)
+        val choices = answer.choiceIds.ifEmpty { listOf(answer.choiceId) }.distinct()
+        jdbcTemplate.batchUpdate(
+            """
+            INSERT INTO answer.answer_choices (tenant_id, answer_id, choice_id, sort_order)
+            VALUES (:tenantId, :answerId, :choiceId, :sortOrder)
+            """.trimIndent(),
+            choices.mapIndexed { index, choiceId ->
+                MapSqlParameterSource()
+                    .addValue("tenantId", tenantId)
+                    .addValue("answerId", answerId)
+                    .addValue("choiceId", choiceId)
+                    .addValue("sortOrder", index)
+            }.toTypedArray(),
+        )
+        return saved.toDomain(choices)
     }
 
-    override fun findAnswers(attemptId: UUID): List<Answer> = answers.findByAttemptId(attemptId).map { it.toDomain() }
+    override fun findAnswers(attemptId: UUID): List<Answer> {
+        val entities = answers.findByAttemptId(attemptId)
+        if (entities.isEmpty()) return emptyList()
+        val answerIds = entities.mapNotNull { it.id }
+        val choiceIdsByAnswer = jdbcTemplate.query(
+            """
+            SELECT answer_id, choice_id FROM answer.answer_choices
+            WHERE answer_id IN (:answerIds)
+            ORDER BY answer_id, sort_order
+            """.trimIndent(),
+            mapOf("answerIds" to answerIds),
+        ) { rs, _ ->
+            rs.getObject("answer_id", UUID::class.java) to rs.getObject("choice_id", UUID::class.java)
+        }.groupBy({ it.first }, { it.second })
+
+        return entities.map { entity ->
+            val recorded = choiceIdsByAnswer[entity.id].orEmpty().ifEmpty { listOf(entity.choiceId) }
+            entity.toDomain(recorded)
+        }
+    }
 
     private fun AttemptEntity.toDomain() = Attempt(
         id = id,
@@ -75,12 +116,13 @@ class AttemptRepositoryImpl(private val attempts: AttemptJdbcRepository, private
         finishedAt = finishedAt,
     )
 
-    private fun AnswerEntity.toDomain() = Answer(
+    private fun AnswerEntity.toDomain(selectedChoiceIds: List<UUID> = listOf(choiceId)) = Answer(
         id = id,
         attemptId = attemptId,
         userId = userId,
         quizId = quizId,
         choiceId = choiceId,
+        choiceIds = selectedChoiceIds,
         isCorrect = isCorrect,
         answeredAt = answeredAt,
     )

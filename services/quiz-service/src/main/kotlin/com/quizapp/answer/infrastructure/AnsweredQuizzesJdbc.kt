@@ -91,7 +91,13 @@ class AnsweredQuizzesJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate, 
 
     override fun countChoices(quizId: UUID): Map<UUID, Int> = // tally と同じく、テナントでは絞らない。行レベルセキュリティが、いまのテナントの回答だけを返す
         jdbcTemplate.query(
-            "SELECT choice_id, count(*) AS answered FROM answer.answers WHERE quiz_id = :quizId GROUP BY choice_id",
+            """
+            SELECT COALESCE(ac.choice_id, a.choice_id) AS choice_id, count(*) AS answered
+            FROM answer.answers a
+            LEFT JOIN answer.answer_choices ac ON ac.answer_id = a.id
+            WHERE a.quiz_id = :quizId
+            GROUP BY COALESCE(ac.choice_id, a.choice_id)
+            """.trimIndent(),
             mapOf("quizId" to quizId),
         ) { rs, _ -> rs.getObject("choice_id", UUID::class.java) to rs.getInt("answered") }
             .toMap()

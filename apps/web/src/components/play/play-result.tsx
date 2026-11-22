@@ -129,7 +129,8 @@ function RetryIncorrect({
 }
 
 function Review({ slug, quiz, number }: { slug: string; quiz: QuizResult; number: number }) {
-  const answered = quiz.selectedChoiceId != null;
+  const selectedIds = quiz.selectedChoiceIds ?? (quiz.selectedChoiceId ? [quiz.selectedChoiceId] : []);
+  const answered = selectedIds.length > 0;
   return (
     <Panel className="space-y-4 p-5">
       <div className="space-y-2">
@@ -138,12 +139,18 @@ function Review({ slug, quiz, number }: { slug: string; quiz: QuizResult; number
           <Verdict correct={quiz.isCorrect} answered={answered} />
           <BookmarkToggle slug={slug} quizId={quiz.quizId} className="ml-auto" />
         </div>
-        <p className="leading-snug font-semibold tracking-tight whitespace-pre-wrap">{quiz.question}</p>
+        <Markdown
+          tenant={slug}
+          className="text-base leading-snug font-semibold tracking-tight [&_code]:font-normal [&_pre]:text-sm [&_table]:text-sm"
+        >
+          {quiz.question}
+        </Markdown>
       </div>
       <ChoiceList
         choices={quiz.choices}
-        selectedId={quiz.selectedChoiceId}
-        reveal={{ correctChoiceId: quiz.correctChoiceId }}
+        selectedIds={selectedIds}
+        multiple={(quiz.correctChoiceIds?.length ?? 1) > 1}
+        reveal={{ correctChoiceId: quiz.correctChoiceId, correctChoiceIds: quiz.correctChoiceIds }}
       />
       <div className="rounded-xl bg-muted/50 p-4 text-sm">
         <Markdown tenant={slug}>{quiz.explanation}</Markdown>

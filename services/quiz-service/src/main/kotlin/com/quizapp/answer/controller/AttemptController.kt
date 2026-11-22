@@ -63,7 +63,7 @@ class AttemptController(private val useCase: AttemptUseCase) {
     @PostMapping("/{attemptId}/answers")
     @Operation(operationId = "answerQuiz", summary = "1 問に回答する")
     fun answer(@PathVariable attemptId: UUID, @Valid @RequestBody request: AnswerRequest): AnswerResult =
-        useCase.answer(attemptId, request.quizId, request.choiceId)
+        useCase.answer(attemptId, request.quizId, request.selectedChoiceIds())
 
     @PostMapping("/{attemptId}/complete")
     @Operation(operationId = "completeAttempt", summary = "挑戦を終えて結果を取得")

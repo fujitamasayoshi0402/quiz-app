@@ -11,8 +11,8 @@ import java.util.UUID
  * クイズの不変条件。
  *
  * **下書きと公開で条件が違う**ことが要点。下書きは作りかけを保存する場所なので緩く、
- * 公開は出題と採点が成り立つ形（選択肢 4 つ・正解 1 つ・解説あり）を求める。
- * どちらの状態でも超えてはいけない上限（選択肢 4 つまで・正解 1 つまで）は共通。
+ * 公開は出題と採点が成り立つ形（選択肢 2〜6 個・正解 1 個以上・解説あり）を求める（DEV-243）。
+ * どちらの状態でも超えてはいけない上限（選択肢 6 個まで）は共通。
  */
 class QuizTest {
 
@@ -45,21 +45,20 @@ class QuizTest {
         }
 
         @Test
-        @DisplayName("選択肢は 5 つ以上にできない")
+        @DisplayName("選択肢は 7 つ以上にできない")
         fun draftCannotHaveTooManyChoices() {
-            val choices = fourChoices() + Choice(body = "5 つ目", isCorrect = false)
+            val choices = (1..7).map { Choice(body = "選択肢 $it", isCorrect = it == 1) }
             assertThatIllegalArgumentException()
                 .isThrownBy { quiz(choices = choices, status = QuizStatus.DRAFT) }
-                .withMessage("選択肢は 4 個までです")
+                .withMessage("選択肢は 6 個までです")
         }
 
         @Test
-        @DisplayName("正解は 2 つ以上にできない")
-        fun draftCannotHaveTwoCorrectChoices() {
+        @DisplayName("正解を複数指定できる")
+        fun draftCanHaveMultipleCorrectChoices() {
             val choices = fourChoices().mapIndexed { i, c -> c.copy(isCorrect = i < 2) }
-            assertThatIllegalArgumentException()
-                .isThrownBy { quiz(choices = choices, status = QuizStatus.DRAFT) }
-                .withMessage("正解は 1 つだけ指定してください")
+            assertThatCode { quiz(choices = choices, status = QuizStatus.DRAFT) }
+                .doesNotThrowAnyException()
         }
     }
 
@@ -67,17 +66,20 @@ class QuizTest {
     @DisplayName("公開")
     inner class Published {
         @Test
-        @DisplayName("選択肢 4 つ・正解 1 つ・解説ありなら公開できる")
+        @DisplayName("選択肢 2〜6 個・正解 1 個以上・解説ありなら公開できる")
         fun completeQuizCanBePublished() {
             assertThatCode { quiz() }.doesNotThrowAnyException()
+            assertThatCode { quiz(choices = fourChoices().take(2)) }.doesNotThrowAnyException()
+            val sixWithTwoCorrect = (1..6).map { Choice(body = "選択肢 $it", isCorrect = it <= 2) }
+            assertThatCode { quiz(choices = sixWithTwoCorrect) }.doesNotThrowAnyException()
         }
 
         @Test
-        @DisplayName("選択肢が 4 つ揃っていないと公開できない")
-        fun requiresFourChoices() {
+        @DisplayName("選択肢が 2 つ未満だと公開できない")
+        fun requiresAtLeastTwoChoices() {
             assertThatIllegalArgumentException()
-                .isThrownBy { quiz(choices = fourChoices().take(3)) }
-                .withMessage("公開するには選択肢が 4 個必要です")
+                .isThrownBy { quiz(choices = fourChoices().take(1)) }
+                .withMessage("公開するには選択肢が 2〜6 個必要です")
         }
 
         @Test
@@ -85,7 +87,7 @@ class QuizTest {
         fun requiresCorrectChoice() {
             assertThatIllegalArgumentException()
                 .isThrownBy { quiz(choices = fourChoices(correct = 0)) }
-                .withMessage("公開するには正解を 1 つ指定してください")
+                .withMessage("公開するには正解を 1 つ以上指定してください")
         }
 
         @Test
@@ -128,6 +130,18 @@ class QuizTest {
             assertThatIllegalArgumentException()
                 .isThrownBy { Choice(body = "あ".repeat(Choice.MAX_BODY_LENGTH + 1), isCorrect = false) }
                 .withMessage("選択肢は 500 文字以内で入力してください")
+        }
+
+        @Test
+        @DisplayName("問題文と解説が指している図の ID を両方返す")
+        fun figureIdsFromQuestionAndExplanation() {
+            val qFig = UUID.randomUUID()
+            val eFig = UUID.randomUUID()
+            val q = quiz(
+                question = "次の図を見て答えよ\n![問題図](figure:$qFig)",
+                explanation = "解説の図\n![解説図](figure:$eFig)",
+            )
+            org.assertj.core.api.Assertions.assertThat(q.figureIds()).containsExactlyInAnyOrder(qFig, eFig)
         }
     }
 

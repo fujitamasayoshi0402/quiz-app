@@ -68,18 +68,13 @@ class IntegrityChecksApiTest {
     }
 
     @Test
-    @DisplayName("公開中のクイズの選択肢が 4 つでない。下書きは 4 つまでなら崩れていない")
+    @DisplayName("公開中のクイズの選択肢が 2〜6 個でない。下書きは 6 個までなら崩れていない")
     fun choiceCount() {
         val published = fixture.quiz(category, difficulty, "公開")
         val draft = fixture.quiz(category, difficulty, "下書き", status = "draft")
-        // 正解でない選択肢を 1 つずつ消す
+        // 正解でない選択肢をすべて消して 1 個にする
         sql.update(
-            """
-            DELETE FROM quiz.choices WHERE id IN (
-                SELECT DISTINCT ON (quiz_id) id FROM quiz.choices
-                WHERE quiz_id IN (?, ?) AND NOT is_correct ORDER BY quiz_id, sort_order DESC
-            )
-            """.trimIndent(),
+            "DELETE FROM quiz.choices WHERE quiz_id IN (?, ?) AND NOT is_correct",
             published,
             draft,
         )
@@ -88,14 +83,18 @@ class IntegrityChecksApiTest {
     }
 
     @Test
-    @DisplayName("下書きでも、選択肢が 5 つ以上なら崩れている")
+    @DisplayName("下書きでも、選択肢が 7 つ以上なら崩れている")
     fun tooManyChoicesOnDraft() {
         val draft = fixture.quiz(category, difficulty, "下書き", status = "draft")
-        sql.update(
-            "INSERT INTO quiz.choices (tenant_id, quiz_id, body, sort_order) VALUES (?, ?, '5 つ目', 99)",
-            tenant.id,
-            draft,
-        )
+        (5..7).forEach { n ->
+            sql.update(
+                "INSERT INTO quiz.choices (tenant_id, quiz_id, body, sort_order) VALUES (?, ?, ?, ?)",
+                tenant.id,
+                draft,
+                "$n つ目",
+                90 + n,
+            )
+        }
 
         assertThat(violations()).containsExactly(IntegrityRule.CHOICE_COUNT to draft)
     }
@@ -119,23 +118,30 @@ class IntegrityChecksApiTest {
     }
 
     @Test
-    @DisplayName("解説が、ない図と、別のテナントの図を指している")
+    @DisplayName("問題文や解説が、ない図と、別のテナントの図を指している")
     fun missingFigure() {
         val other = TestTenant.create("リマ").withAdmin()
         val otherFigure = PlayFixture(mockMvc, objectMapper, other.slug).figure()
         val ownFigure = fixture.figure()
         val nowhere = fixture.quiz(category, difficulty, "ない図")
         val foreign = fixture.quiz(category, difficulty, "別のテナントの図", status = "draft")
+        val inQuestion = fixture.quiz(category, difficulty, "問題文にない図")
         sql.update("UPDATE quiz.quizzes SET explanation = ? WHERE id = ?", "[図](figure:${UUID.randomUUID()})", nowhere)
         sql.update(
             "UPDATE quiz.quizzes SET explanation = ? WHERE id = ?",
             "![自分の図](figure:$ownFigure)\n![別の図](figure:$otherFigure)",
             foreign,
         )
+        sql.update(
+            "UPDATE quiz.quizzes SET question = ? WHERE id = ?",
+            "問題 ![図](figure:${UUID.randomUUID()})",
+            inQuestion,
+        )
 
         assertThat(violations()).containsExactlyInAnyOrder(
             IntegrityRule.MISSING_FIGURE to nowhere,
             IntegrityRule.MISSING_FIGURE to foreign,
+            IntegrityRule.MISSING_FIGURE to inQuestion,
         )
     }
 

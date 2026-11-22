@@ -36,4 +36,10 @@ data class StartAttemptRequest(
     )
 }
 
-data class AnswerRequest(val quizId: UUID, val choiceId: UUID)
+data class AnswerRequest(val quizId: UUID, val choiceId: UUID? = null, val choiceIds: List<UUID>? = null) {
+    fun selectedChoiceIds(): List<UUID> = when {
+        !choiceIds.isNullOrEmpty() -> choiceIds
+        choiceId != null -> listOf(choiceId)
+        else -> emptyList()
+    }
+}

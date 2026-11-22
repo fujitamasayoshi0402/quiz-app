@@ -9,7 +9,7 @@ import { useAnswerQuiz } from "@/lib/api/generated/endpoints";
 import type { AnswerResult, AttemptView, DeliveredQuiz } from "@/lib/api/generated/model";
 import { useEndedElsewhere } from "@/lib/use-ended-elsewhere";
 
-type Answered = { choiceId: string; result?: AnswerResult; error?: unknown };
+type Answered = { choiceIds: string[]; result?: AnswerResult; error?: unknown };
 
 /** 最後のページ。並べるものは、問題のほかにこれが 1 つある */
 const FINISHED = "finished";
@@ -34,6 +34,7 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
   const total = attempt.quizzes.length;
 
   const [answers, setAnswers] = useState<Record<string, Answered>>({});
+  const [draftSelections, setDraftSelections] = useState<Record<string, string[]>>({});
   const [current, setCurrent] = useState(0);
   // 1 ページの高さ。画面の大きさは端末ごとに違うため、並べる前に測る
   const [pageHeight, setPageHeight] = useState(0);
@@ -45,18 +46,38 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
   // 最後に答えた問題だけでなく、前のページで送信中の回答も待つ
   const pendingCount = Object.values(answers).filter((a) => !a.result && a.error === undefined).length;
 
-  const choose = (quiz: DeliveredQuiz, choiceId: string) => {
+  const submitAnswer = (quiz: DeliveredQuiz, choiceIds: string[]) => {
+    if (choiceIds.length === 0) return;
     const previous = answers[quiz.id];
     if (previous && previous.error === undefined) return;
-    setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId } }));
+    setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceIds } }));
     // mutate に渡したコールバックは、最後の呼び出しの分しか呼ばれない。続けて答えたときに取りこぼさないよう、Promise で受ける
     answer
-      .mutateAsync({ slug, attemptId: attempt.id, data: { quizId: quiz.id, choiceId } })
-      .then((result) => setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId, result } })))
+      .mutateAsync({
+        slug,
+        attemptId: attempt.id,
+        data: { quizId: quiz.id, choiceId: choiceIds[0], choiceIds },
+      })
+      .then((result) => setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceIds, result } })))
       .catch((error: unknown) => {
-        setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId, error } }));
+        setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceIds, error } }));
         void endedElsewhere.check(error);
       });
+  };
+
+  const choose = (quiz: DeliveredQuiz, choiceId: string) => {
+    const isMultiple = (quiz.correctCount ?? 1) > 1;
+    if (!isMultiple) {
+      submitAnswer(quiz, [choiceId]);
+      return;
+    }
+    const previous = answers[quiz.id];
+    if (previous && previous.error === undefined) return;
+    setDraftSelections((prev) => {
+      const cur = prev[quiz.id] ?? [];
+      const next = cur.includes(choiceId) ? cur.filter((id) => id !== choiceId) : [...cur, choiceId];
+      return { ...prev, [quiz.id]: next };
+    });
   };
 
   const scrollTo = (index: number) => list.current?.scrollToIndex({ index, animated: true });
@@ -112,7 +133,9 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
                   number={alreadyAnswered + index + 1}
                   quiz={item}
                   answered={answers[item.id]}
+                  draftSelection={draftSelections[item.id] ?? []}
                   onChoose={(choiceId) => choose(item, choiceId)}
+                  onSubmitMultiple={() => submitAnswer(item, draftSelections[item.id] ?? [])}
                   onNext={() => scrollTo(index + 1)}
                 />
               )}
@@ -129,20 +152,26 @@ function QuizPage({
   number,
   quiz,
   answered,
+  draftSelection,
   onChoose,
+  onSubmitMultiple,
   onNext,
 }: {
   slug: string;
   number: number;
   quiz: DeliveredQuiz;
   answered?: Answered;
+  draftSelection: string[];
   onChoose: (choiceId: string) => void;
+  onSubmitMultiple: () => void;
   onNext: () => void;
 }) {
   const [explanationOpen, setExplanationOpen] = useState(false);
   const result = answered?.result;
   // 押したらすぐに回答する。結果が届くまでは押し直せない。失敗したときは選び直せる
   const locked = answered !== undefined && answered.error === undefined;
+  const isMultiple = (quiz.correctCount ?? 1) > 1;
+  const selectedIds = answered ? answered.choiceIds : draftSelection;
 
   return (
     <View style={{ flex: 1, padding: 16, gap: 12 }}>
@@ -150,15 +179,21 @@ function QuizPage({
       <ScrollView contentContainerStyle={{ gap: 20, paddingTop: 8 }} nestedScrollEnabled>
         <View style={{ gap: 8 }}>
           <Eyebrow>QUESTION {number}・テンポモード</Eyebrow>
-          <Text style={styles.question}>{quiz.question}</Text>
+          <Markdown tenant={slug}>{quiz.question}</Markdown>
         </View>
 
         <ChoiceList
           choices={quiz.choices}
-          selectedId={answered?.choiceId}
+          selectedIds={selectedIds}
           onSelect={locked ? undefined : onChoose}
-          reveal={result ? { correctChoiceId: result.correctChoiceId } : undefined}
+          multiple={isMultiple}
+          reveal={
+            result ? { correctChoiceId: result.correctChoiceId, correctChoiceIds: result.correctChoiceIds } : undefined
+          }
         />
+        {isMultiple && !locked && (
+          <Button label="回答する" disabled={selectedIds.length === 0} onPress={onSubmitMultiple} />
+        )}
 
         {answered?.error !== undefined && <ErrorMessage error={answered.error} />}
         {result && (

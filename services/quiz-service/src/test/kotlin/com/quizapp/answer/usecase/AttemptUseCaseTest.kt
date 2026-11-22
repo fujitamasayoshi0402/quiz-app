@@ -167,6 +167,32 @@ class AttemptUseCaseTest {
         }
 
         @Test
+        @DisplayName("複数選択は、すべての正解を過不足なく選んだときだけ正解になる")
+        fun multipleCorrectChoicesRequireExactMatch() {
+            val multi = catalog.add("複数正解の問題", correctCount = 2)
+            val attempt = useCase.start(DeliveryCriteria(), discardInProgress = false)
+            val c1 = multi.choices[0].id
+            val c2 = multi.choices[1].id
+            val wrong = multi.choices[2].id
+
+            // 片方だけでは不正解
+            val partial = useCase.answer(attempt.id, multi.id, listOf(c1))
+            assertThat(partial.isCorrect).isFalse()
+            assertThat(partial.correctChoiceIds).containsExactlyInAnyOrder(c1, c2)
+
+            // 正解 2 つ + 不正解 1 つでも不正解
+            val attempt2 = useCase.start(DeliveryCriteria(), discardInProgress = true)
+            val extra = useCase.answer(attempt2.id, multi.id, listOf(c1, c2, wrong))
+            assertThat(extra.isCorrect).isFalse()
+
+            // 正解 2 つをちょうど選べば正解（順序は問わない）
+            val attempt3 = useCase.start(DeliveryCriteria(), discardInProgress = true)
+            val exact = useCase.answer(attempt3.id, multi.id, listOf(c2, c1))
+            assertThat(exact.isCorrect).isTrue()
+            assertThat(exact.correctChoiceIds).containsExactlyInAnyOrder(c1, c2)
+        }
+
+        @Test
         @DisplayName("この挑戦で出題していないクイズには回答できない")
         fun quizNotInAttempt() {
             val (attempt, _) = startWith(1)

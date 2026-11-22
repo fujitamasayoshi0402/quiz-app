@@ -139,7 +139,7 @@ class CatalogUseCaseTest {
         @DisplayName("公開の条件はドメインが守る。ユースケースを通しても崩せない")
         fun publishingRulesStillApply() {
             assertThatIllegalArgumentException()
-                .isThrownBy { quizUseCase.create(aws, saa, "問題", "解説", choices.take(3), QuizStatus.PUBLISHED) }
+                .isThrownBy { quizUseCase.create(aws, saa, "問題", "解説", choices.take(1), QuizStatus.PUBLISHED) }
             assertThat(quizzes.search()).isEmpty()
         }
     }

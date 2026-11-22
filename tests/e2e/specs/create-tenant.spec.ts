@@ -55,7 +55,7 @@ test("未所属の人が自分のテナントを作り、クイズを作って�
     for (const [index, choice] of ["あ", "い", "う", "え"].entries()) {
       await page.getByPlaceholder(`選択肢 ${index + 1}`).fill(choice);
     }
-    await page.getByRole("radio", { name: "選択肢 1 を正解にする" }).check();
+    await page.getByRole("checkbox", { name: "選択肢 1 を正解にする" }).check();
     await page.getByLabel("解説", { exact: true }).fill("「あ」が正解です。");
     await page.getByRole("button", { name: "公開する" }).click();
     await expect(page.getByRole("row", { name: new RegExp(question) })).toContainText("公開");

@@ -105,7 +105,7 @@ export function parseJsonImport(text: string): ParsedImport {
 // --- CSV --------------------------------------------------------------------
 
 /**
- * 1 行目を列名として読む。選択肢は choice1〜choice4、正解は correct に番号（1〜4）で書く。
+ * 1 行目を列名として読む。選択肢は choice1〜choice6、正解は correct に番号（1〜6）で書く。複数の正解はカンマで区切る。
  * 空の選択肢は飛ばす（下書きなら選択肢が揃っていなくてよい）。
  */
 export function parseCsvImport(text: string): ParsedImport {
@@ -122,23 +122,37 @@ export function parseCsvImport(text: string): ParsedImport {
   const rows: ImportQuizRequest[] = [];
   const labels: string[] = [];
   records.slice(1).forEach(({ cells, line }) => {
-    const cell = (column: (typeof CSV_COLUMNS)[number]) => {
+    const cell = (column: string) => {
       const index = header.indexOf(column);
       return index < 0 ? "" : (cells[index] ?? "");
     };
 
-    const correct = cell("correct").trim();
-    if (correct !== "" && !/^[1-4]$/.test(correct)) {
-      errors.push(`${line} 行目: correct は 1〜4 の番号で書いてください`);
+    const correctRaw = cell("correct").trim();
+    const correctNumbers =
+      correctRaw === ""
+        ? []
+        : correctRaw
+            .split(/[,、\s]+/)
+            .map((part) => part.trim())
+            .filter((part) => part !== "");
+    if (correctNumbers.some((part) => !/^[1-6]$/.test(part))) {
+      errors.push(`${line} 行目: correct は 1〜6 の番号（複数のときはカンマ区切り）で書いてください`);
       return;
     }
-    const choices = ([1, 2, 3, 4] as const)
-      .map((number) => ({ body: cell(`choice${number}`), isCorrect: correct === String(number) }))
-      .filter((choice) => choice.body.trim() !== "");
-    if (correct !== "" && !choices.some((choice) => choice.isCorrect)) {
-      errors.push(`${line} 行目: correct が指す choice${correct} が空です`);
+    const correctSet = new Set(correctNumbers.map(Number));
+    const rawChoices = ([1, 2, 3, 4, 5, 6] as const).map((number) => ({
+      number,
+      body: cell(`choice${number}`),
+      isCorrect: correctSet.has(number),
+    }));
+    const emptyCorrect = rawChoices.find((choice) => choice.isCorrect && choice.body.trim() === "");
+    if (emptyCorrect) {
+      errors.push(`${line} 行目: correct が指す choice${emptyCorrect.number} が空です`);
       return;
     }
+    const choices = rawChoices
+      .filter((choice) => choice.body.trim() !== "")
+      .map(({ body, isCorrect }) => ({ body, isCorrect }));
 
     const status = cell("status").trim();
     rows.push({

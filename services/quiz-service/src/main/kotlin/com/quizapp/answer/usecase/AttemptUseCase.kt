@@ -77,6 +77,9 @@ class AttemptUseCase(
 
     fun resume(attemptId: UUID): AttemptView = tenantTransaction.execute { view(load(attemptId)) }
 
+    fun answer(attemptId: UUID, quizId: UUID, choiceId: UUID): AnswerResult =
+        answer(attemptId, quizId, listOf(choiceId))
+
     /**
      * 1 問に回答する。
      *
@@ -84,30 +87,35 @@ class AttemptUseCase(
      * まとめて見せる模試モードでは、クライアントが受け取った解説を保持して結果画面で出す。
      * 方式ごとに応答を変えると、採点の経路が 2 本になる。
      */
-    fun answer(attemptId: UUID, quizId: UUID, choiceId: UUID): AnswerResult = tenantTransaction.execute {
+    fun answer(attemptId: UUID, quizId: UUID, choiceIds: List<UUID>): AnswerResult = tenantTransaction.execute {
+        val selected = choiceIds.distinct()
+        require(selected.isNotEmpty()) { "選択肢を選んでください" }
         val attempt = load(attemptId)
         if (!attempt.isInProgress) throw AttemptAlreadyFinishedException()
         if (quizId !in attempt.quizIds) throw QuizNotInAttemptException()
 
         val key = catalog.findAnswerKeys(listOf(quizId))[quizId] ?: throw QuizNoLongerAvailableException()
         // 他のクイズの選択肢 ID を渡された場合と、出題後にクイズが編集された場合の両方をここで弾く
-        if (choiceId !in key.choiceIds) throw InvalidChoiceException()
+        if (!key.choiceIds.containsAll(selected)) throw InvalidChoiceException()
 
+        val isCorrect = selected.toSet() == key.correctChoiceIds
         repository.record(
             Answer(
                 attemptId = attemptId,
                 userId = attempt.userId,
                 quizId = quizId,
-                choiceId = choiceId,
-                isCorrect = choiceId == key.correctChoiceId,
+                choiceId = selected.first(),
+                choiceIds = selected,
+                isCorrect = isCorrect,
             ),
         )
         // 出題の方式（学習・模試・テンポ）はサーバーが知らない。どの方式の回答でも、次に出す日を決め直す（DEV-178）
-        reviews.record(attempt.userId, quizId, choiceId == key.correctChoiceId)
+        reviews.record(attempt.userId, quizId, isCorrect)
 
         AnswerResult(
-            isCorrect = choiceId == key.correctChoiceId,
+            isCorrect = isCorrect,
             correctChoiceId = key.correctChoiceId,
+            correctChoiceIds = key.correctChoiceIds.toList(),
             explanation = key.explanation,
             sourceUrl = key.sourceUrl,
             answeredCount = repository.findAnswers(attemptId).size,
@@ -180,13 +188,16 @@ class AttemptUseCase(
         val results = attempt.quizIds.mapNotNull { quizId ->
             val quiz = quizzes[quizId]?.let(attempt::arrange) ?: return@mapNotNull null
             val key = keys[quizId] ?: return@mapNotNull null
+            val answer = answers[quizId]
             QuizResult(
                 quizId = quizId,
                 question = quiz.question,
                 choices = quiz.choices,
-                selectedChoiceId = answers[quizId]?.choiceId,
+                selectedChoiceId = answer?.choiceId,
+                selectedChoiceIds = answer?.choiceIds.orEmpty(),
                 correctChoiceId = key.correctChoiceId,
-                isCorrect = answers[quizId]?.isCorrect ?: false,
+                correctChoiceIds = key.correctChoiceIds.toList(),
+                isCorrect = answer?.isCorrect ?: false,
                 explanation = key.explanation,
                 sourceUrl = key.sourceUrl,
             )
@@ -237,6 +248,7 @@ data class AnswerResult(
     @get:Schema(name = "isCorrect")
     val isCorrect: Boolean,
     val correctChoiceId: UUID,
+    val correctChoiceIds: List<UUID> = listOf(correctChoiceId),
     @field:Schema(description = AnswerKey.EXPLANATION_FORMAT)
     val explanation: String,
     @field:Schema(description = SOURCE_URL_DESCRIPTION)
@@ -264,10 +276,13 @@ data class AttemptResult(
 
 data class QuizResult(
     val quizId: UUID,
+    @field:Schema(description = AnswerKey.QUESTION_FORMAT)
     val question: String,
     val choices: List<DeliveredChoice>,
     val selectedChoiceId: UUID?,
+    val selectedChoiceIds: List<UUID> = listOfNotNull(selectedChoiceId),
     val correctChoiceId: UUID,
+    val correctChoiceIds: List<UUID> = listOf(correctChoiceId),
     // Kotlin の `isCorrect` は Java の getter 規約では `correct` と読まれる。
     // Jackson は Kotlin のプロパティ名で出すため、明示しないと定義と実際の JSON がずれる
     @get:Schema(name = "isCorrect")

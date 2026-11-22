@@ -17,7 +17,7 @@ import type { AnswerResult, AttemptView, DeliveredQuiz } from "@/lib/api/generat
 import { useEndedElsewhere } from "@/lib/play/use-ended-elsewhere";
 import { cn } from "@/lib/utils";
 
-type Answered = { choiceId: string; result?: AnswerResult; error?: unknown };
+type Answered = { choiceIds: string[]; result?: AnswerResult; error?: unknown };
 
 /**
  * テンポモード（DEV-75）。1 画面に 1 問を並べ、縦にスワイプして次々に解く。
@@ -38,6 +38,7 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
   const alreadyAnswered = attempt.quizzes.length - quizzes.length;
 
   const [answers, setAnswers] = useState<Record<string, Answered>>({});
+  const [draftSelections, setDraftSelections] = useState<Record<string, string[]>>({});
   const [current, setCurrent] = useState(0);
   const sections = useRef<(HTMLElement | null)[]>([]);
   const answer = useAnswerQuiz();
@@ -52,21 +53,44 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
     });
   }, []);
 
-  const choose = useCallback(
-    (quiz: DeliveredQuiz, choiceId: string) => {
+  const submitAnswer = useCallback(
+    (quiz: DeliveredQuiz, choiceIds: string[]) => {
+      if (choiceIds.length === 0) return;
       const previous = answers[quiz.id];
       if (previous && previous.error === undefined) return;
-      setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId } }));
+      setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceIds } }));
       // mutate に渡したコールバックは、最後の呼び出しの分しか呼ばれない。続けて答えたときに取りこぼさないよう、Promise で受ける
       answer
-        .mutateAsync({ slug, attemptId: attempt.id, data: { quizId: quiz.id, choiceId } })
-        .then((result) => setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId, result } })))
+        .mutateAsync({
+          slug,
+          attemptId: attempt.id,
+          data: { quizId: quiz.id, choiceId: choiceIds[0], choiceIds },
+        })
+        .then((result) => setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceIds, result } })))
         .catch((error: unknown) => {
-          setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceId, error } }));
+          setAnswers((prev) => ({ ...prev, [quiz.id]: { choiceIds, error } }));
           void check(error);
         });
     },
     [answer, answers, attempt.id, check, slug],
+  );
+
+  const choose = useCallback(
+    (quiz: DeliveredQuiz, choiceId: string) => {
+      const isMultiple = (quiz.correctCount ?? 1) > 1;
+      if (!isMultiple) {
+        submitAnswer(quiz, [choiceId]);
+        return;
+      }
+      const previous = answers[quiz.id];
+      if (previous && previous.error === undefined) return;
+      setDraftSelections((prev) => {
+        const cur = prev[quiz.id] ?? [];
+        const next = cur.includes(choiceId) ? cur.filter((id) => id !== choiceId) : [...cur, choiceId];
+        return { ...prev, [quiz.id]: next };
+      });
+    },
+    [answers, submitAnswer],
   );
 
   // 画面の中央に来た問題を「いまの問題」にする
@@ -101,7 +125,7 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
       } else if (["ArrowUp", "PageUp", "k"].includes(event.key)) {
         event.preventDefault();
         scrollTo(current - 1);
-      } else if (/^[1-4]$/.test(event.key)) {
+      } else if (/^[1-6]$/.test(event.key)) {
         const quiz = quizzes[current];
         const choice = quiz?.choices[Number(event.key) - 1];
         if (quiz && choice) choose(quiz, choice.id);
@@ -155,7 +179,9 @@ export function SwipeSession({ slug, attempt }: { slug: string; attempt: Attempt
               number={alreadyAnswered + index + 1}
               quiz={quiz}
               answered={answers[quiz.id]}
+              draftSelection={draftSelections[quiz.id] ?? []}
               onChoose={(choiceId) => choose(quiz, choiceId)}
+              onSubmitMultiple={() => submitAnswer(quiz, draftSelections[quiz.id] ?? [])}
               onNext={() => scrollTo(index + 1)}
             />
           </section>
@@ -194,20 +220,26 @@ function QuizCard({
   number,
   quiz,
   answered,
+  draftSelection,
   onChoose,
+  onSubmitMultiple,
   onNext,
 }: {
   slug: string;
   number: number;
   quiz: DeliveredQuiz;
   answered?: Answered;
+  draftSelection: string[];
   onChoose: (choiceId: string) => void;
+  onSubmitMultiple: () => void;
   onNext: () => void;
 }) {
   const [explanationOpen, setExplanationOpen] = useState(false);
   const result = answered?.result;
   // 押したらすぐに回答する。結果が届くまでは押し直せない。失敗したときは選び直せる
   const locked = answered !== undefined && answered.error === undefined;
+  const isMultiple = (quiz.correctCount ?? 1) > 1;
+  const selectedIds = answered ? answered.choiceIds : draftSelection;
 
   return (
     // 上に寄せる。中央に寄せると、正誤と解説が出たときに問題文が動く
@@ -215,18 +247,38 @@ function QuizCard({
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pt-[4dvh]">
         <div className="space-y-3">
           <Eyebrow>QUESTION {number}</Eyebrow>
-          <p data-slot="question" className="text-xl leading-snug font-semibold tracking-tight whitespace-pre-wrap">
-            {quiz.question}
-          </p>
+          <div data-slot="question">
+            <Markdown
+              tenant={slug}
+              className="text-xl leading-snug font-semibold tracking-tight [&_code]:font-normal [&_pre]:text-sm [&_table]:text-sm"
+            >
+              {quiz.question}
+            </Markdown>
+          </div>
         </div>
 
         <ChoiceList
           choices={quiz.choices}
-          selectedId={answered?.choiceId}
+          selectedIds={selectedIds}
           onSelect={locked ? undefined : onChoose}
-          reveal={result ? { correctChoiceId: result.correctChoiceId } : undefined}
+          multiple={isMultiple}
+          reveal={
+            result ? { correctChoiceId: result.correctChoiceId, correctChoiceIds: result.correctChoiceIds } : undefined
+          }
           shortcuts
         />
+        {isMultiple && !locked && (
+          <div className="flex justify-end">
+            <Button
+              size="lg"
+              className="rounded-full px-8"
+              disabled={selectedIds.length === 0}
+              onClick={onSubmitMultiple}
+            >
+              回答する
+            </Button>
+          </div>
+        )}
 
         {answered?.error !== undefined && <ApiErrorAlert error={answered.error} />}
         {result && (

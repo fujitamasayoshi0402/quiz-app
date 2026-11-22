@@ -87,6 +87,7 @@ data class Answer(
     val userId: UUID,
     val quizId: UUID,
     val choiceId: UUID,
+    val choiceIds: List<UUID> = listOf(choiceId),
     val isCorrect: Boolean,
     val answeredAt: Instant? = null,
 )

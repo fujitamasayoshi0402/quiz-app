@@ -33,6 +33,7 @@ data class SaveQuizRequest(
     val difficultyId: UUID,
     @field:NotBlank(message = "問題文を入力してください")
     @field:Size(max = Quiz.MAX_QUESTION_LENGTH, message = "問題文は {max} 文字以内で入力してください")
+    @field:Schema(description = Quiz.QUESTION_FORMAT)
     val question: String,
     @field:Schema(description = Quiz.EXPLANATION_FORMAT)
     val explanation: String = "",
@@ -57,6 +58,7 @@ data class QuizResponse(
     val id: UUID,
     val categoryId: UUID,
     val difficultyId: UUID,
+    @field:Schema(description = Quiz.QUESTION_FORMAT)
     val question: String,
     @field:Schema(description = Quiz.EXPLANATION_FORMAT)
     val explanation: String,
@@ -97,6 +99,7 @@ data class QuizListItemResponse(
     val id: UUID,
     val categoryId: UUID,
     val difficultyId: UUID,
+    @field:Schema(description = Quiz.QUESTION_FORMAT)
     val question: String,
     @field:Schema(description = Quiz.EXPLANATION_FORMAT)
     val explanation: String,
@@ -136,6 +139,7 @@ data class QuizDetailResponse(
     val id: UUID,
     val categoryId: UUID,
     val difficultyId: UUID,
+    @field:Schema(description = Quiz.QUESTION_FORMAT)
     val question: String,
     @field:Schema(description = Quiz.EXPLANATION_FORMAT)
     val explanation: String,

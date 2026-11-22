@@ -6,7 +6,8 @@ import { OptionGroup } from "@/components/play";
 import { Button, ErrorMessage, Loading, colors, styles } from "@/components/ui";
 import { useCatalog, useInvalidateTenant } from "@/lib/admin/catalog";
 import {
-  CHOICE_COUNT,
+  MAX_CHOICE_COUNT,
+  MIN_CHOICE_COUNT,
   type QuizFormErrors,
   type QuizFormValues,
   type QuizStatus,
@@ -69,6 +70,7 @@ function QuizEditor({
   const invalidate = useInvalidateTenant(slug);
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState<QuizFormErrors>({});
+  const [questionPreview, setQuestionPreview] = useState(false);
   const [preview, setPreview] = useState(false);
 
   const finish = async () => {
@@ -83,11 +85,41 @@ function QuizEditor({
   const set = <K extends keyof QuizFormValues>(key: K, value: QuizFormValues[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
+  const toggleCorrect = (index: number) =>
+    setForm((current) => ({
+      ...current,
+      correctIndexes: current.correctIndexes.includes(index)
+        ? current.correctIndexes.filter((i) => i !== index)
+        : [...current.correctIndexes, index].sort((a, b) => a - b),
+    }));
+
+  const addChoice = () =>
+    setForm((current) => {
+      if (current.choices.length >= MAX_CHOICE_COUNT) return current;
+      return {
+        ...current,
+        choices: [...current.choices, ""],
+        choiceIds: [...current.choiceIds, null],
+      };
+    });
+
+  const removeChoice = (index: number) =>
+    setForm((current) => {
+      if (current.choices.length <= MIN_CHOICE_COUNT) return current;
+      return {
+        ...current,
+        choices: current.choices.filter((_, i) => i !== index),
+        choiceIds: current.choiceIds.filter((_, i) => i !== index),
+        correctIndexes: current.correctIndexes.filter((i) => i !== index).map((i) => (i > index ? i - 1 : i)),
+      };
+    });
+
   const save = (status: QuizStatus) => {
     const result = validateQuizForm(form, status);
     if (!result.ok) {
       setErrors(result.errors);
-      // プレビューを開いたままだと、誤りのある解説の入力欄が見えない
+      // プレビューを開いたままだと、誤りのある入力欄が見えない
+      if (result.errors.question) setQuestionPreview(false);
       if (result.errors.explanation) setPreview(false);
       return;
     }
@@ -149,36 +181,70 @@ function QuizEditor({
         )}
       </Field>
 
-      <Field label="問題文" error={errors.question}>
-        <TextInput
-          style={[s.input, s.multiline, errors.question && s.invalid]}
-          multiline
-          value={form.question}
-          onChangeText={(question) => set("question", question)}
-          accessibilityLabel="問題文"
-        />
+      <Field
+        label="問題文"
+        hint="Markdown で書けます。図は web の管理画面で入れます。`figure:` の行は、消さなければそのまま残ります。"
+        error={errors.question}
+      >
+        <View style={s.tabs}>
+          <Button
+            label="書く"
+            variant={questionPreview ? "secondary" : "primary"}
+            onPress={() => setQuestionPreview(false)}
+          />
+          <Button
+            label="プレビュー"
+            variant={questionPreview ? "primary" : "secondary"}
+            onPress={() => setQuestionPreview(true)}
+          />
+        </View>
+        {questionPreview ? (
+          <View style={styles.panel}>
+            {form.question.trim() ? (
+              // tenant を渡さないので、図は出ない
+              <Markdown>{form.question}</Markdown>
+            ) : (
+              <Text style={styles.muted}>問題文はまだありません。</Text>
+            )}
+            <Text style={styles.muted}>図はプレビューに出ません。</Text>
+          </View>
+        ) : (
+          <TextInput
+            style={[s.input, s.multiline, errors.question && s.invalid]}
+            multiline
+            value={form.question}
+            onChangeText={(question) => set("question", question)}
+            accessibilityLabel="問題文"
+          />
+        )}
       </Field>
 
-      <Field label="選択肢" hint="正解の選択肢を 1 つ選んでください。" error={errors.correctIndex}>
-        <View accessibilityRole="radiogroup" style={{ gap: 12 }}>
-          {Array.from({ length: CHOICE_COUNT }, (_, index) => {
-            const checked = form.correctIndex === index;
+      <Field
+        label="選択肢"
+        hint={`選択肢は ${MIN_CHOICE_COUNT}〜${MAX_CHOICE_COUNT} 個まで設定できます。正解の選択肢を 1 つ以上選んでください。`}
+        error={errors.correctIndexes}
+      >
+        <View style={{ gap: 12 }}>
+          {form.choices.map((choiceBody, index) => {
+            const checked = form.correctIndexes.includes(index);
             const error = errors[`choices.${index}`];
             return (
               <View key={index} style={{ gap: 4 }}>
                 <View style={s.choiceRow}>
                   <Pressable
-                    accessibilityRole="radio"
+                    accessibilityRole="checkbox"
                     accessibilityState={{ checked }}
                     accessibilityLabel={`選択肢 ${index + 1} を正解にする`}
                     hitSlop={8}
-                    onPress={() => set("correctIndex", index)}
-                    style={[s.radio, checked && s.radioChecked]}
-                  />
+                    onPress={() => toggleCorrect(index)}
+                    style={[s.checkbox, checked && s.checkboxChecked]}
+                  >
+                    {checked && <Text style={s.checkboxMark}>✓</Text>}
+                  </Pressable>
                   <TextInput
                     style={[s.input, s.choiceInput, error && s.invalid]}
                     placeholder={`選択肢 ${index + 1}`}
-                    value={form.choices[index]}
+                    value={choiceBody}
                     onChangeText={(body) =>
                       set(
                         "choices",
@@ -186,11 +252,23 @@ function QuizEditor({
                       )
                     }
                   />
+                  {form.choices.length > MIN_CHOICE_COUNT && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`選択肢 ${index + 1} を消す`}
+                      onPress={() => removeChoice(index)}
+                    >
+                      <Text style={styles.muted}>消す</Text>
+                    </Pressable>
+                  )}
                 </View>
                 {error && <Text style={[styles.error, { paddingLeft: 32 }]}>{error}</Text>}
               </View>
             );
           })}
+          {form.choices.length < MAX_CHOICE_COUNT && (
+            <Button label="選択肢を足す" variant="secondary" onPress={addChoice} />
+          )}
         </View>
       </Field>
 
@@ -273,8 +351,16 @@ const s = StyleSheet.create({
   invalid: { borderColor: colors.danger },
   choiceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   choiceInput: { flex: 1 },
-  // 出題の条件の選択（`components/play.tsx` の OptionGroup）と同じ印
-  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: colors.muted },
-  radioChecked: { borderWidth: 5, borderColor: colors.text },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxChecked: { borderColor: colors.text, backgroundColor: colors.text },
+  checkboxMark: { color: colors.background, fontSize: 13, fontWeight: "700" },
   tabs: { flexDirection: "row", gap: 8 },
 });

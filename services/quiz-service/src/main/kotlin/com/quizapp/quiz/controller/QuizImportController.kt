@@ -71,6 +71,7 @@ data class ImportQuizzesRequest(
 data class ImportQuizRequest(
     val category: String,
     val difficulty: String,
+    @field:Schema(description = Quiz.QUESTION_FORMAT)
     val question: String,
     @field:Schema(description = Quiz.EXPLANATION_FORMAT)
     val explanation: String = "",
