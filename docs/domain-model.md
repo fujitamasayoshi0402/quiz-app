@@ -190,9 +190,11 @@ AWS の資格のように、**同じ難度帯に複数の種類が並ぶ**体系
 
 ## クイズ
 
-- 4 択問題。**選択肢はちょうど 4 つ、正解はちょうど 1 つ**
+- 選択式の問題。**公開するには選択肢が 2〜6 個、正解が 1 個以上**（DEV-243）
+  - 正解が 1 つなら単一選択、2 つ以上なら「すべて選べ」の複数選択として出す。選んだ組が正解の組と完全に一致したときだけ正解とする
+  - 出題では正解の数だけを返し、どれが正解かは返さない
 - カテゴリと難易度をそれぞれ 1 つ持つ
-- 解説は Markdown の文章。原文のまま持ち、表示する側で整形する（[ADR-0018](adr/0018-write-explanations-in-markdown-and-render-on-screen.md)）。図は本文から ID で指す（[解説図](#解説図)）
+- 問題文と解説は Markdown の文章（問題文は DEV-242 から）。原文のまま持ち、表示する側で整形する（[ADR-0018](adr/0018-write-explanations-in-markdown-and-render-on-screen.md)）。図は本文から ID で指す（[解説図](#解説図)）
 - **下書き / 公開の状態を持つ。** 出題されるのは公開されたものだけ
 - AI が技術ニュースから作ったものは、元にした発表の URL（`source_url`）を持つ。人が作ったものは空（[ADR-0031](adr/0031-draft-quizzes-from-official-tech-news-with-bedrock.md)）
 
@@ -389,7 +391,7 @@ erDiagram
     categories ||--o{ difficulties : "持つ"
     categories ||--o{ quizzes : "分類する"
     difficulties ||--o{ quizzes : "難度を示す"
-    quizzes ||--|{ choices : "4 つ持つ"
+    quizzes ||--|{ choices : "2〜6 個持つ"
     users ||--o{ attempts : "挑戦する"
     attempts ||--|{ attempt_quizzes : "出題順を持つ"
     quizzes ||--o{ attempt_quizzes : "出題される"
@@ -482,6 +484,12 @@ erDiagram
         uuid choice_id FK
         bool is_correct
         timestamp answered_at
+    }
+    answer_choices {
+        uuid tenant_id
+        uuid answer_id FK
+        uuid choice_id "FK を貼らない"
+        int sort_order
     }
 ```
 
