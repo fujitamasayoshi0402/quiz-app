@@ -241,7 +241,7 @@ CREATE INDEX difficulties_level_idx
 | `explanation` | text | NOT NULL |
 | `explanation_image_key` | text | NULL 可（Phase 4 で使う S3 キー） |
 | `status` | text | NOT NULL, default `'draft'`, `CHECK (status IN ('draft','published'))` |
-| `created_at` / `updated_at` | timestamptz | NOT NULL |
+| `created_at` / `updated_at` | timestamptz | NOT NULL。`created_at` の既定は `clock_timestamp()`。登録順の出題はこの順で並べるため、一括取り込みでも行ごとに時刻を進める（DEV-244） |
 | `deleted_at` | timestamptz | NULL 可 |
 | `deletion_batch_id` | uuid | NULL 可。`CHECK (deletion_batch_id IS NULL OR deleted_at IS NOT NULL)` |
 
