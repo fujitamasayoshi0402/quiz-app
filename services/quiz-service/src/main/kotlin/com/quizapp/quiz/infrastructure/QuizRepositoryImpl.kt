@@ -68,10 +68,13 @@ class QuizRepositoryImpl(private val jdbcRepository: QuizJdbcRepository, private
      * 引き継ぐのは、**このクイズにいまある選択肢の ID だけ。** ほかのクイズの ID を渡されても使わない。
      * 同じ ID が 2 度あれば、2 つ目からは新しい ID にする。どちらも、そのまま入れると主キーがぶつかる。
      * Spring Data JDBC は保存のたびに子を消して入れ直すため、ID を渡せばその ID で入る。
+     *
+     * 新しい選択肢の ID もここで決める。DB に採番させると、Spring Data JDBC が返す選択肢の並びが
+     * 保存した順と食い違うことがある（選択肢 5 つで、保存の応答の 2 つ目と 5 つ目が入れ替わった。DEV-243）
      */
-    private fun keptIds(choices: List<Choice>, existing: QuizEntity?): List<Pair<Choice, UUID?>> {
+    private fun keptIds(choices: List<Choice>, existing: QuizEntity?): List<Pair<Choice, UUID>> {
         val available = existing?.choices?.mapNotNull { it.id }.orEmpty().toMutableSet()
-        return choices.map { choice -> choice to choice.id?.takeIf(available::remove) }
+        return choices.map { choice -> choice to (choice.id?.takeIf(available::remove) ?: UUID.randomUUID()) }
     }
 
     private fun QuizEntity.toDomain() = Quiz(

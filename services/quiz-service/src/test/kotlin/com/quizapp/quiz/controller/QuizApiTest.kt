@@ -176,6 +176,8 @@ class QuizApiTest {
             jsonPath("$.choices[0].isCorrect") { value(true) }
             jsonPath("$.choices[1].isCorrect") { value(true) }
             jsonPath("$.choices[2].isCorrect") { value(false) }
+            // 保存した順のまま返す（DB に ID を採番させると並びが崩れていた）
+            (0..4).forEach { i -> jsonPath("$.choices[$i].body") { value("選択肢 ${i + 1}") } }
         }
     }
 
