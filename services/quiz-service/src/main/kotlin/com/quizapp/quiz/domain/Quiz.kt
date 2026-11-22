@@ -79,8 +79,10 @@ data class Quiz(
     companion object {
         const val MIN_CHOICE_COUNT = 2
         const val MAX_CHOICE_COUNT = 6
+
         /** AI が技術ニュースから作る下書きの選択肢の数（ADR-0031）。人が作るクイズは 2〜6 個から選べる（DEV-243） */
         const val CHOICE_COUNT = 4
+
         const val MAX_QUESTION_LENGTH = 2000
         const val MAX_SOURCE_URL_LENGTH = 2048
 
