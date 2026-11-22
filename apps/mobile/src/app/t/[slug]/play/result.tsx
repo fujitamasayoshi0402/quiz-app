@@ -101,18 +101,20 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function Review({ slug, quiz, number }: { slug: string; quiz: QuizResult; number: number }) {
-  const answered = quiz.selectedChoiceId != null;
+  const selectedIds = quiz.selectedChoiceIds ?? (quiz.selectedChoiceId ? [quiz.selectedChoiceId] : []);
+  const answered = selectedIds.length > 0;
   return (
     <View style={styles.panel}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         <Eyebrow>QUESTION {number}</Eyebrow>
         <Verdict correct={quiz.isCorrect} answered={answered} />
       </View>
-      <Text style={[styles.text, { fontWeight: "600" }]}>{quiz.question}</Text>
+      <Markdown tenant={slug}>{quiz.question}</Markdown>
       <ChoiceList
         choices={quiz.choices}
-        selectedId={quiz.selectedChoiceId}
-        reveal={{ correctChoiceId: quiz.correctChoiceId }}
+        selectedIds={selectedIds}
+        multiple={(quiz.correctChoiceIds?.length ?? 1) > 1}
+        reveal={{ correctChoiceId: quiz.correctChoiceId, correctChoiceIds: quiz.correctChoiceIds }}
       />
       <Markdown tenant={slug}>{quiz.explanation}</Markdown>
       <SourceNote sourceUrl={quiz.sourceUrl} />

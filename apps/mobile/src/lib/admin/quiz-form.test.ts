@@ -11,32 +11,40 @@ const filled: QuizFormValues = {
   difficultyId: DIFFICULTY,
   question: "問題",
   choices: ["A", "B", "C", "D"],
-  correctIndex: 1,
+  correctIndexes: [1],
   explanation: "解説",
 };
 
 describe("validateQuizForm", () => {
   it("下書きは、選択肢と正解と解説がなくても保存できる", () => {
     const result = validateQuizForm(
-      { ...filled, choices: ["A", "", "", ""], correctIndex: null, explanation: "" },
+      { ...filled, choices: ["A", "", "", ""], correctIndexes: [], explanation: "" },
       "draft",
     );
     expect(result.ok).toBe(true);
   });
 
-  it("公開するには、選択肢 4 つ・正解・解説が要る", () => {
+  it("公開するには、選択肢 2〜6 個・正解 1 個以上・解説が要る", () => {
     const result = validateQuizForm(
-      { ...filled, choices: ["A", "", "C", "D"], correctIndex: null, explanation: " " },
+      { ...filled, choices: ["A", "", "C", "D"], correctIndexes: [], explanation: " " },
       "published",
     );
     expect(result).toEqual({
       ok: false,
       errors: {
-        "choices.1": "公開するには 4 つとも入力してください",
-        correctIndex: "公開するには正解を選んでください",
+        "choices.1": "公開するには空欄の選択肢を埋めるか、欄を消してください",
+        correctIndexes: "公開するには正解を選んでください",
         explanation: "公開するには解説を入力してください",
       },
     });
+  });
+
+  it("公開時に複数の正解を指定できる", () => {
+    const result = validateQuizForm({ ...filled, correctIndexes: [0, 2] }, "published");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.choices?.map((c) => c.isCorrect)).toEqual([true, false, true, false]);
+    }
   });
 
   it("カテゴリと難易度が未選択なら、選ぶように伝える", () => {
@@ -55,7 +63,7 @@ describe("validateQuizForm", () => {
   });
 
   it("正解にした欄が空なら、下書きでも拒む", () => {
-    const result = validateQuizForm({ ...filled, choices: ["A", "", "C", "D"], correctIndex: 1 }, "draft");
+    const result = validateQuizForm({ ...filled, choices: ["A", "", "C", "D"], correctIndexes: [1] }, "draft");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors["choices.1"]).toBe("正解にした選択肢を入力してください");
   });
@@ -72,7 +80,7 @@ describe("toSaveQuizRequest", () => {
       ...filled,
       choices: [" A ", "", "C", ""],
       choiceIds: [CHOICE, null, null, null],
-      correctIndex: 2,
+      correctIndexes: [2],
     });
     expect(request.choices).toEqual([
       { id: CHOICE, body: "A", isCorrect: false },
@@ -82,7 +90,7 @@ describe("toSaveQuizRequest", () => {
 });
 
 describe("toQuizForm", () => {
-  it("選択肢が 4 つ未満なら、残りの欄を空にする", () => {
+  it("選択肢の数（2〜6 個）に合わせて欄を作り、正解の位置を取り出す", () => {
     const form = toQuizForm({
       id: "q",
       categoryId: CATEGORY,
@@ -95,9 +103,9 @@ describe("toQuizForm", () => {
         { id: "44444444-4444-4444-8444-444444444444", body: "B", isCorrect: true },
       ],
     });
-    expect(form.choices).toEqual(["A", "B", "", ""]);
-    expect(form.choiceIds).toEqual([CHOICE, "44444444-4444-4444-8444-444444444444", null, null]);
-    expect(form.correctIndex).toBe(1);
+    expect(form.choices).toEqual(["A", "B"]);
+    expect(form.choiceIds).toEqual([CHOICE, "44444444-4444-4444-8444-444444444444"]);
+    expect(form.correctIndexes).toEqual([1]);
     // 図の参照は文字のまま引き継ぐ
     expect(form.explanation).toBe("解説 ![図](figure:abc)");
   });

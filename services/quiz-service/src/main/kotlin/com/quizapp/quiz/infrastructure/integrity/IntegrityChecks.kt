@@ -9,11 +9,11 @@ import java.util.UUID
  * 崩れたときに気づけるよう、決まりごとに名前を付けてログに出す。**名前を変えると、ログの絞り込みが変わる**
  */
 enum class IntegrityRule(val code: String, val description: String) {
-    /** 公開中は 4 つちょうど、下書きでも 4 つまで（`Quiz`） */
+    /** 公開中は 2〜6 個、下書きでも 6 個まで（`Quiz`、DEV-243） */
     CHOICE_COUNT("choice-count", "選択肢の数が決まりと違う"),
 
-    /** 公開中は 1 つちょうど。2 つ以上は DB の一意索引が止めるため、ここで見つかるのは 0 個 */
-    CORRECT_CHOICE_COUNT("correct-choice-count", "公開中なのに正解が 1 つではない"),
+    /** 公開中は 1 個以上 */
+    CORRECT_CHOICE_COUNT("correct-choice-count", "公開中なのに正解がない"),
 
     EXPLANATION_BLANK("explanation-blank", "公開中なのに解説が空"),
 

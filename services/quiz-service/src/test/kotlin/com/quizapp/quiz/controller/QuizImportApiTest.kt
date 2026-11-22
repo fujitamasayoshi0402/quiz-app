@@ -155,7 +155,7 @@ class QuizImportApiTest {
             row("", category = "存在しないカテゴリ"),
             row("別のカテゴリの難易度", difficulty = "初級"),
             row("状態の誤り", status = "archived"),
-            row("選択肢が足りない", choiceCount = 3, status = "published"),
+            row("選択肢が足りない", choiceCount = 1, status = "published"),
         ).andExpect {
             status { isBadRequest() }
             jsonPath("$.rows[*].index") { value(containsInAnyOrder(1, 2, 3, 4)) }
@@ -163,7 +163,7 @@ class QuizImportApiTest {
             jsonPath("$.rows[0].messages") { value(containsInAnyOrder("カテゴリが見つかりません", "問題文を入力してください")) }
             jsonPath("$.rows[1].messages[0]") { value("難易度がこのカテゴリにありません") }
             jsonPath("$.rows[2].messages[0]") { value("状態は draft または published を指定してください") }
-            jsonPath("$.rows[3].messages[0]") { value("公開するには選択肢が 4 個必要です") }
+            jsonPath("$.rows[3].messages[0]") { value("公開するには選択肢が 2〜6 個必要です") }
         }
     }
 

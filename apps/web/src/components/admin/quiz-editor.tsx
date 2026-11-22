@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -37,7 +36,8 @@ import { useCatalog } from "@/lib/admin/catalog";
 import { useInvalidateTenant } from "@/lib/admin/invalidate";
 import { type ChoiceAnswers, choiceAnswersOf } from "@/lib/admin/choice-answers";
 import {
-  CHOICE_COUNT,
+  MAX_CHOICE_COUNT,
+  MIN_CHOICE_COUNT,
   type QuizFormValues,
   QuizFormSchema,
   type QuizStatus,
@@ -62,12 +62,13 @@ export function EditQuiz({ slug, quizId }: { slug: string; quizId: string }) {
   const quiz = useGetQuiz(slug, quizId);
   if (quiz.isPending) return <Skeleton className="h-96 w-full" />;
   if (quiz.isError) return <ApiErrorAlert error={quiz.error} />;
+  const initial = toQuizForm(quiz.data);
   return (
     <QuizEditor
       slug={slug}
       quizId={quizId}
-      initial={toQuizForm(quiz.data)}
-      answers={choiceAnswersOf(quiz.data, CHOICE_COUNT)}
+      initial={initial}
+      answers={choiceAnswersOf(quiz.data, initial.choices.length)}
       currentStatus={quiz.data.status}
       sourceUrl={quiz.data.sourceUrl}
     />
@@ -111,16 +112,65 @@ function QuizEditor({
   const form = useForm<QuizFormValues>({ resolver: zodResolver(QuizFormSchema), defaultValues: initial });
   const { errors } = form.formState;
   const categoryId = useWatch({ control: form.control, name: "categoryId" });
+  const question = useWatch({ control: form.control, name: "question" });
+  const choices = useWatch({ control: form.control, name: "choices" });
+  const correctIndexes = useWatch({ control: form.control, name: "correctIndexes" });
   const explanation = useWatch({ control: form.control, name: "explanation" });
+
+  const toggleCorrect = (index: number) => {
+    const cur = form.getValues("correctIndexes");
+    const next = cur.includes(index) ? cur.filter((i) => i !== index) : [...cur, index].sort((a, b) => a - b);
+    form.setValue("correctIndexes", next, { shouldDirty: true, shouldValidate: form.formState.isSubmitted });
+  };
+
+  const addChoice = () => {
+    const curChoices = form.getValues("choices");
+    if (curChoices.length >= MAX_CHOICE_COUNT) return;
+    form.setValue("choices", [...curChoices, ""], { shouldDirty: true });
+    form.setValue("choiceIds", [...form.getValues("choiceIds"), null], { shouldDirty: true });
+  };
+
+  const removeChoice = (index: number) => {
+    const curChoices = form.getValues("choices");
+    if (curChoices.length <= MIN_CHOICE_COUNT) return;
+    form.setValue(
+      "choices",
+      curChoices.filter((_, i) => i !== index),
+      { shouldDirty: true, shouldValidate: form.formState.isSubmitted },
+    );
+    form.setValue(
+      "choiceIds",
+      form.getValues("choiceIds").filter((_, i) => i !== index),
+      { shouldDirty: true },
+    );
+    form.setValue(
+      "correctIndexes",
+      form
+        .getValues("correctIndexes")
+        .filter((i) => i !== index)
+        .map((i) => (i > index ? i - 1 : i)),
+      { shouldDirty: true, shouldValidate: form.formState.isSubmitted },
+    );
+  };
+  const [questionTab, setQuestionTab] = useState("write");
   const [explanationTab, setExplanationTab] = useState("write");
-  const figures = useExplanationFigures(slug, form.getValues, (value) =>
-    form.setValue("explanation", value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted }),
+  const questionFigures = useFieldFigures(
+    slug,
+    () => form.getValues("question"),
+    (value) => form.setValue("question", value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted }),
   );
+  const figures = useFieldFigures(
+    slug,
+    () => form.getValues("explanation"),
+    (value) => form.setValue("explanation", value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted }),
+  );
+  const { ref: registerQuestion, ...questionField } = form.register("question");
   const { ref: registerExplanation, ...explanationField } = form.register("explanation");
+  const questionFileInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const removal = useFigureRemoval(slug, quizId, form.getValues, (value) =>
-    form.setValue("explanation", value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted }),
+  const removal = useFigureRemoval(slug, quizId, form.getValues, (field, value) =>
+    form.setValue(field, value, { shouldDirty: true, shouldValidate: form.formState.isSubmitted }),
   );
   // 保存したあとに、外して消すことにした図を消す（DEV-168）。消せなかった図があれば、一覧へ戻らずに伝える
   const finishSave = async () => {
@@ -145,6 +195,7 @@ function QuizEditor({
       },
       // プレビューを開いたままだと、誤りのある入力欄が見えない
       (invalid) => {
+        if (invalid.question) setQuestionTab("write");
         if (invalid.explanation) setExplanationTab("write");
       },
     )();
@@ -218,48 +269,137 @@ function QuizEditor({
         <CardContent className="space-y-6">
           <Field data-invalid={!!errors.question}>
             <FieldLabel htmlFor="question">問題文</FieldLabel>
-            <Textarea id="question" rows={3} aria-invalid={!!errors.question} {...form.register("question")} />
+            <FieldDescription>
+              Markdown で書けます（見出し、箇条書き、コード、リンク、表）。図は「図を描く」で描くか、「画像・PDF
+              を入れる」で上げて入れます。
+            </FieldDescription>
+            <Tabs value={questionTab} onValueChange={setQuestionTab}>
+              <div className="flex flex-wrap items-center gap-2">
+                <TabsList>
+                  <TabsTrigger value="write">書く</TabsTrigger>
+                  <TabsTrigger value="preview">プレビュー</TabsTrigger>
+                </TabsList>
+                <div className="ml-auto flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={questionFigures.drawNew}>
+                    図を描く
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={questionFigures.uploading}
+                    onClick={() => questionFileInput.current?.click()}
+                  >
+                    {questionFigures.uploading ? "上げています…" : "画像・PDF を入れる"}
+                  </Button>
+                  <input
+                    ref={questionFileInput}
+                    type="file"
+                    accept={FIGURE_FILE_TYPES.join(",")}
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = "";
+                      if (file) void questionFigures.upload(file);
+                    }}
+                  />
+                </div>
+              </div>
+              <TabsContent value="write" forceMount className="space-y-3 data-[state=inactive]:hidden">
+                <Textarea
+                  id="question"
+                  rows={4}
+                  className="font-mono"
+                  aria-invalid={!!errors.question}
+                  {...questionField}
+                  ref={(element) => {
+                    registerQuestion(element);
+                    questionFigures.bindTextarea(element);
+                  }}
+                />
+                {questionFigures.error !== null && <ApiErrorAlert error={questionFigures.error} />}
+                <ExplanationFigures
+                  slug={slug}
+                  heading="問題文の図"
+                  ids={figureIdsIn(question)}
+                  loading={questionFigures.loading}
+                  onRedraw={questionFigures.redraw}
+                  blocked={removal.blocked}
+                  onRemove={(id) => removal.remove("question", id)}
+                  onRemoveAndDelete={(id) => void removal.removeAndDelete("question", id)}
+                />
+              </TabsContent>
+              <TabsContent value="preview" className="min-h-24 rounded-lg border px-3 py-2">
+                {question.trim() ? (
+                  <Markdown tenant={slug}>{question}</Markdown>
+                ) : (
+                  <p className="text-sm text-muted-foreground">問題文がまだありません。</p>
+                )}
+              </TabsContent>
+            </Tabs>
             <FieldError errors={[errors.question]} />
           </Field>
+          <FigureEditor
+            slug={slug}
+            source={questionFigures.drawing?.source}
+            open={questionFigures.drawing !== null}
+            onOpenChange={(open) => !open && questionFigures.close()}
+            onSaved={questionFigures.saved}
+          />
 
           <FieldSet>
             <FieldLegend variant="label">選択肢</FieldLegend>
-            <FieldDescription>正解の選択肢を 1 つ選んでください。</FieldDescription>
+            <FieldDescription>
+              選択肢は {MIN_CHOICE_COUNT}〜{MAX_CHOICE_COUNT} 個まで設定できます。正解の選択肢を 1
+              つ以上選んでください（2 つ以上選ぶと「すべて選べ」の複数選択になります）。
+            </FieldDescription>
             {answers && <AnswersSummary answers={answers} />}
-            <Controller
-              control={form.control}
-              name="correctIndex"
-              render={({ field }) => (
-                <RadioGroup
-                  value={field.value === null ? "" : String(field.value)}
-                  onValueChange={(value) => field.onChange(Number(value))}
-                  className="gap-3"
-                >
-                  {Array.from({ length: CHOICE_COUNT }, (_, index) => {
-                    const error = errors.choices?.[index];
-                    return (
-                      <Field key={index} data-invalid={!!error}>
-                        <div className="flex items-center gap-3">
-                          <RadioGroupItem
-                            value={String(index)}
-                            id={`correct-${index}`}
-                            aria-label={`選択肢 ${index + 1} を正解にする`}
-                          />
-                          <Input
-                            placeholder={`選択肢 ${index + 1}`}
-                            aria-invalid={!!error}
-                            {...form.register(`choices.${index}`)}
-                          />
-                        </div>
-                        <FieldError errors={[error]} className="pl-7" />
-                        {answers && answers.total > 0 && <SlotAnswers slot={answers.slots[index]} />}
-                      </Field>
-                    );
-                  })}
-                </RadioGroup>
-              )}
-            />
-            <FieldError errors={[errors.correctIndex]} />
+            <div className="grid gap-3">
+              {choices.map((_, index) => {
+                const error = errors.choices?.[index];
+                const checked = correctIndexes.includes(index);
+                return (
+                  <Field key={index} data-invalid={!!error}>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleCorrect(index)}
+                        id={`correct-${index}`}
+                        aria-label={`選択肢 ${index + 1} を正解にする`}
+                        className="size-4 shrink-0 cursor-pointer accent-primary"
+                      />
+                      <Input
+                        placeholder={`選択肢 ${index + 1}`}
+                        aria-invalid={!!error}
+                        {...form.register(`choices.${index}`)}
+                      />
+                      {choices.length > MIN_CHOICE_COUNT && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`選択肢 ${index + 1} を消す`}
+                          onClick={() => removeChoice(index)}
+                        >
+                          消す
+                        </Button>
+                      )}
+                    </div>
+                    <FieldError errors={[error]} className="pl-7" />
+                    {answers && answers.total > 0 && <SlotAnswers slot={answers.slots[index]} />}
+                  </Field>
+                );
+              })}
+            </div>
+            {choices.length < MAX_CHOICE_COUNT && (
+              <div>
+                <Button type="button" variant="outline" size="sm" onClick={addChoice}>
+                  選択肢を足す
+                </Button>
+              </div>
+            )}
+            <FieldError errors={[errors.correctIndexes]} />
           </FieldSet>
 
           <Field data-invalid={!!errors.explanation}>
@@ -318,16 +458,19 @@ function QuizEditor({
                 {figures.error !== null && <ApiErrorAlert error={figures.error} />}
                 <ExplanationFigures
                   slug={slug}
+                  heading="解説の図"
                   ids={figureIdsIn(explanation)}
                   loading={figures.loading}
                   onRedraw={figures.redraw}
                   blocked={removal.blocked}
-                  onRemove={removal.remove}
-                  onRemoveAndDelete={(id) => void removal.removeAndDelete(id)}
+                  onRemove={(id) => removal.remove("explanation", id)}
+                  onRemoveAndDelete={(id) => void removal.removeAndDelete("explanation", id)}
                 />
                 <PendingFigureDeletions
                   slug={slug}
-                  ids={removal.pending.filter((id) => !figureIdsIn(explanation).includes(id))}
+                  ids={removal.pending.filter(
+                    (id) => !figureIdsIn(question).includes(id) && !figureIdsIn(explanation).includes(id),
+                  )}
                   onKeep={removal.keep}
                 />
               </TabsContent>
@@ -429,16 +572,12 @@ function AiDraftNotice({ sourceUrl }: { sourceUrl: string }) {
 }
 
 /**
- * 解説に図を描いて入れる・描き直す（ADR-0020）。
+ * 問題文や解説に図を描いて入れる・描き直す（ADR-0020、DEV-242）。
  *
  * 新しい図はカーソルの位置に入れる。描き直した図は新しい ID になるので、本文の参照を差し替える。
- * 前の図は消さない。保存する前に編集をやめると、保存済みの解説は前の図を指したままになる。
+ * 前の図は消さない。保存する前に編集をやめると、保存済みの本文は前の図を指したままになる。
  */
-function useExplanationFigures(
-  slug: string,
-  getValues: (name: "explanation") => string,
-  setExplanation: (value: string) => void,
-) {
+function useFieldFigures(slug: string, getText: () => string, setText: (value: string) => void) {
   const textarea = useRef<HTMLTextAreaElement | null>(null);
   const cursor = useRef<number | null>(null);
   const [drawing, setDrawing] = useState<{ source?: string; replaces?: string } | null>(null);
@@ -474,8 +613,8 @@ function useExplanationFigures(
       }
     },
     saved: (id: string) => {
-      const current = getValues("explanation");
-      setExplanation(
+      const current = getText();
+      setText(
         drawing?.replaces ? replaceFigure(current, drawing.replaces, id) : insertFigure(current, cursor.current, id),
       );
     },
@@ -491,8 +630,8 @@ function useExplanationFigures(
       setUploading(true);
       try {
         const { id, kind } = await uploadFigureFile(slug, file);
-        const current = getValues("explanation");
-        setExplanation(
+        const current = getText();
+        setText(
           kind === "pdf"
             ? insertPdf(current, cursor.current, id, linkLabelOf(file.name))
             : insertFigure(current, cursor.current, id, "画像"),
@@ -506,9 +645,10 @@ function useExplanationFigures(
   };
 }
 
-/** 解説が指している図の一覧。描き直す、外す、外して消すときは、ここから選ぶ */
+/** 問題文や解説が指している図の一覧。描き直す、外す、外して消すときは、ここから選ぶ */
 function ExplanationFigures({
   slug,
+  heading,
   ids,
   loading,
   onRedraw,
@@ -517,6 +657,7 @@ function ExplanationFigures({
   onRemoveAndDelete,
 }: {
   slug: string;
+  heading: string;
   ids: string[];
   loading: string | null;
   onRedraw: (id: string) => void;
@@ -527,7 +668,7 @@ function ExplanationFigures({
   if (ids.length === 0) return null;
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium">解説の図</p>
+      <p className="text-sm font-medium">{heading}</p>
       <ul className="flex flex-wrap gap-3">
         {ids.map((id, index) => (
           <ExplanationFigure
@@ -630,15 +771,15 @@ function ExplanationFigure({
 function useFigureRemoval(
   slug: string,
   quizId: string | undefined,
-  getValues: (name: "explanation") => string,
-  setExplanation: (value: string) => void,
+  getValues: (name: "question" | "explanation") => string,
+  setField: (field: "question" | "explanation", value: string) => void,
 ) {
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<string[]>([]);
   const [blocked, setBlocked] = useState<string[]>([]);
   const [left, setLeft] = useState<string[]>([]);
 
-  const remove = (id: string) => setExplanation(removeFigure(getValues("explanation"), id));
+  const remove = (field: "question" | "explanation", id: string) => setField(field, removeFigure(getValues(field), id));
 
   const usedElsewhere = async (id: string): Promise<boolean> => {
     const figures = await queryClient.fetchQuery({
@@ -655,18 +796,21 @@ function useFigureRemoval(
     blocked,
     left,
     remove,
-    removeAndDelete: async (id: string) => {
+    removeAndDelete: async (field: "question" | "explanation", id: string) => {
       if (await usedElsewhere(id)) {
         setBlocked((current) => (current.includes(id) ? current : [...current, id]));
         return;
       }
-      remove(id);
-      setPending((current) => (current.includes(id) ? current : [...current, id]));
+      remove(field, id);
+      const otherField = field === "question" ? "explanation" : "question";
+      if (!figureIdsIn(getValues(otherField)).includes(id)) {
+        setPending((current) => (current.includes(id) ? current : [...current, id]));
+      }
     },
     keep: (id: string) => setPending((current) => current.filter((pendingId) => pendingId !== id)),
-    /** 保存のあとに呼ぶ。外したままの図を消し、消せなかった図を返す。解説に戻した図は消さない */
+    /** 保存のあとに呼ぶ。外したままの図を消し、消せなかった図を返す。問題文や解説に戻した図は消さない */
     deletePending: async (): Promise<string[]> => {
-      const stillUsed = figureIdsIn(getValues("explanation"));
+      const stillUsed = [...figureIdsIn(getValues("question")), ...figureIdsIn(getValues("explanation"))];
       const failed: string[] = [];
       for (const id of pending.filter((pendingId) => !stillUsed.includes(pendingId))) {
         await deleteFigure(slug, id).catch(() => failed.push(id));

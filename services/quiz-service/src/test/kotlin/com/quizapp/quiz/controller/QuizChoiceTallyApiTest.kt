@@ -143,6 +143,11 @@ class QuizChoiceTallyApiTest {
             UUID.fromString(choice),
             other.tenant.id,
         )
+        TestPostgres.adminJdbcTemplate.update(
+            "UPDATE answer.answer_choices SET choice_id = ? WHERE tenant_id = ?",
+            UUID.fromString(choice),
+            other.tenant.id,
+        )
 
         val detail = play.detail(quiz)
         assertThat(detail["choices"].toList().map { it["answerCount"].asInt() }).containsExactly(1, 0, 0, 0)

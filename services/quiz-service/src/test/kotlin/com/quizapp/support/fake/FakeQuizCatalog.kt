@@ -30,17 +30,31 @@ class FakeQuizCatalog : QuizCatalog {
         UUID.randomUUID().also { difficulties[it] = categoryId to name }
 
     /**
-     * 出題できるクイズを足す。**先頭の選択肢が正解。**
+     * 出題できるクイズを足す。**先頭から [correctCount] 個の選択肢が正解。**
      *
      * [difficultyId] を省くと、どのカテゴリにも属さないクイズになる。カテゴリを見ないテストのため。
      */
-    fun add(question: String = "問題", difficultyId: UUID? = null): DeliveredQuiz {
+    fun add(question: String = "問題", difficultyId: UUID? = null, correctCount: Int = 1): DeliveredQuiz {
         val id = UUID.randomUUID()
         val choices = (1..CHOICES).map { DeliveredChoice(UUID.randomUUID(), "$question の選択肢 $it") }
         val categoryId = difficultyId?.let { requireNotNull(difficulties[it]).first } ?: UUID.randomUUID()
-        val quiz = DeliveredQuiz(id, categoryId, difficultyId ?: UUID.randomUUID(), question, choices)
+        val quiz = DeliveredQuiz(
+            id = id,
+            categoryId = categoryId,
+            difficultyId = difficultyId ?: UUID.randomUUID(),
+            question = question,
+            choices = choices,
+            correctCount = correctCount,
+        )
+        val correctIds = choices.take(correctCount).map { it.id }.toSet()
         quizzes[id] = quiz
-        keys[id] = AnswerKey(id, choices.first().id, choices.map { it.id }.toSet(), "$question の解説")
+        keys[id] = AnswerKey(
+            quizId = id,
+            correctChoiceId = choices.first().id,
+            correctChoiceIds = correctIds,
+            choiceIds = choices.map { it.id }.toSet(),
+            explanation = "$question の解説",
+        )
         return quiz
     }
 
@@ -58,6 +72,7 @@ class FakeQuizCatalog : QuizCatalog {
         quizzes[quizId] = edited
         keys[quizId] = requireNotNull(keys[quizId]).copy(
             correctChoiceId = choices.first().id,
+            correctChoiceIds = choices.take(quiz.correctCount).map { it.id }.toSet(),
             choiceIds = choices.map { it.id }.toSet(),
         )
         return edited

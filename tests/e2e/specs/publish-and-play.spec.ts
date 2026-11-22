@@ -35,11 +35,11 @@ test("管理者が公開したクイズを、一般ユーザーが学習モー�
     for (const [index, city] of ["大阪", "東京", "京都", "名古屋"].entries()) {
       await admin.getByPlaceholder(`選択肢 ${index + 1}`).fill(city);
     }
-    await admin.getByRole("radio", { name: "選択肢 2 を正解にする" }).check();
+    await admin.getByRole("checkbox", { name: "選択肢 2 を正解にする" }).check();
 
     const explanation = admin.getByLabel("解説", { exact: true });
     await explanation.fill("1869 年に、天皇が京都から東京へ移りました。\n\n");
-    await admin.locator('input[type="file"]').setInputFiles(path.join(__dirname, "../../api/fixtures/figure.png"));
+    await admin.locator('input[type="file"]').last().setInputFiles(path.join(__dirname, "../../api/fixtures/figure.png"));
     await expect(explanation).toHaveValue(/!\[画像\]\(figure:[0-9a-f-]{36}\)/);
 
     await admin.getByRole("button", { name: "下書きとして保存" }).click();

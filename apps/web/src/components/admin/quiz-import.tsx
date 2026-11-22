@@ -185,10 +185,11 @@ function FormatHelp() {
       <summary className="cursor-pointer">ファイルの形式</summary>
       <div className="mt-2 space-y-2 text-muted-foreground">
         <p>
-          <strong>CSV</strong>: 1 行目に列名を並べます（{CSV_COLUMNS.join(", ")}）。正解は correct
-          に選択肢の番号（1〜4）で書きます。 status は draft（下書き）か
-          published（公開）で、空なら下書きです。解説に改行やカンマを含めるときは、値を &quot; で囲みます。 Excel
-          で作るときは「CSV UTF-8」で保存してください。
+          <strong>CSV</strong>: 1 行目に列名を並べます（{CSV_COLUMNS.join(", ")}。choice5, choice6
+          も追加できます）。正解は correct に選択肢の番号（1〜6。複数のときは <code>&quot;1,3&quot;</code>{" "}
+          のようにカンマ区切り）で書きます。 status は draft（下書き）か
+          published（公開）で、空なら下書きです。問題文や解説に改行やカンマを含めるときは、値を &quot; で囲みます。
+          Excel で作るときは「CSV UTF-8」で保存してください。
         </p>
         <p>
           <strong>JSON</strong>: クイズの配列です。各クイズに category, difficulty, question, choices（body と isCorrect

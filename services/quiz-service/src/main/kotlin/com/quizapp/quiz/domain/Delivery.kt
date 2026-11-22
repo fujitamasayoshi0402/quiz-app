@@ -1,5 +1,6 @@
 package com.quizapp.quiz.domain
 
+import io.swagger.v3.oas.annotations.media.Schema
 import java.util.UUID
 
 /**
@@ -93,17 +94,21 @@ data class DeliveryCriteria(
 }
 
 /**
- * 出題されたクイズ。**正解の情報も解説も持たない。**
+ * 出題されたクイズ。**どの選択肢が正解か、また解説は持たない。**
  *
  * ドメインの [Quiz] をそのまま返すと `isCorrect` が漏れる。
  * 型を分けることで、レスポンスの組み立てで気をつける必要をなくしている。
+ * [correctCount] は正解の選択肢の数（1 なら単一選択、2 以上なら「すべて選べ」の複数選択。DEV-243）。
  */
 data class DeliveredQuiz(
     val id: UUID,
     val categoryId: UUID,
     val difficultyId: UUID,
+    @field:Schema(description = Quiz.QUESTION_FORMAT)
     val question: String,
     val choices: List<DeliveredChoice>,
+    @field:Schema(description = "正解の選択肢の数。1 なら単一選択、2 以上なら複数選択（すべて選べ）")
+    val correctCount: Int = 1,
 )
 
 data class DeliveredChoice(val id: UUID, val body: String)
@@ -117,12 +122,19 @@ data class DeliveredChoice(val id: UUID, val body: String)
 data class AnswerKey(
     val quizId: UUID,
     val correctChoiceId: UUID,
+    val correctChoiceIds: Set<UUID> = setOf(correctChoiceId),
     val choiceIds: Set<UUID>,
     val explanation: String,
     /** AI が技術ニュースから作ったクイズの、元にした発表。解く人に、AI が作ったことと出典を示す（ADR-0031） */
     val sourceUrl: String? = null,
 ) {
     companion object {
+        /**
+         * [DeliveredQuiz.question] の書き方。answer が結果画面に問題文を載せるとき、API 定義の説明に使う。
+         * answer が [Quiz] を直接読まないよう、受け取る型から読めるようにしている（ADR-0023、DEV-242）
+         */
+        const val QUESTION_FORMAT = Quiz.QUESTION_FORMAT
+
         /**
          * [explanation] の書き方。answer が採点の結果に解説を載せるとき、API 定義の説明に使う。
          * answer が [Quiz] を直接読まないよう、受け取る型から読めるようにしている（ADR-0023）

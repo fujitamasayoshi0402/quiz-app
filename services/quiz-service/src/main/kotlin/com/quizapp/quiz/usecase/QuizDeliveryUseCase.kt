@@ -86,5 +86,6 @@ class QuizDeliveryUseCase(private val quizRepository: QuizRepository, private va
         difficultyId = quiz.difficultyId,
         question = quiz.question,
         choices = quiz.choices.map { DeliveredChoice(requireNotNull(it.id), it.body) },
+        correctCount = quiz.choices.count { it.isCorrect }.coerceAtLeast(1),
     )
 }

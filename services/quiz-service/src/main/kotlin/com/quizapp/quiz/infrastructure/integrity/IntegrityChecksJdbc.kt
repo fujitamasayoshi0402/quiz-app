@@ -39,7 +39,7 @@ class IntegrityChecksJdbc(
 
     private fun liveQuizzes(): List<QuizRow> = jdbcTemplate.query(
         """
-        SELECT q.id, q.status, q.explanation,
+        SELECT q.id, q.status, q.question, q.explanation,
                count(c.id) AS choices, count(c.id) FILTER (WHERE c.is_correct) AS correct
         FROM quiz.quizzes q
         LEFT JOIN quiz.choices c ON c.quiz_id = q.id
@@ -50,6 +50,7 @@ class IntegrityChecksJdbc(
         QuizRow(
             id = rs.getObject("id", UUID::class.java),
             published = rs.getString("status") == PUBLISHED,
+            question = rs.getString("question"),
             explanation = rs.getString("explanation"),
             choices = rs.getInt("choices"),
             correct = rs.getInt("correct"),
@@ -58,7 +59,9 @@ class IntegrityChecksJdbc(
 
     // 図の書き方はドメインのものを使う。SQL の正規表現で書き直すと、2 つがずれる
     private fun missingFigures(quizzes: List<QuizRow>): List<Pair<IntegrityRule, UUID>> {
-        val references = quizzes.associate { it.id to FigureReferences.findIn(it.explanation) }
+        val references = quizzes.associate {
+            it.id to (FigureReferences.findIn(it.question) + FigureReferences.findIn(it.explanation))
+        }
         val referenced = references.values.flatten().toSet()
         if (referenced.isEmpty()) return emptyList()
 
@@ -87,6 +90,7 @@ class IntegrityChecksJdbc(
     private data class QuizRow(
         val id: UUID,
         val published: Boolean,
+        val question: String,
         val explanation: String,
         val choices: Int,
         val correct: Int,
@@ -94,9 +98,13 @@ class IntegrityChecksJdbc(
         // 決まりは Quiz の検証と同じ。公開するときだけ揃っていればよく、下書きは数の上限だけを守る
         fun violations(): List<Pair<IntegrityRule, UUID>> = listOfNotNull(
             IntegrityRule.CHOICE_COUNT.takeIf {
-                if (published) choices != Quiz.CHOICE_COUNT else choices > Quiz.CHOICE_COUNT
+                if (published) {
+                    choices !in Quiz.MIN_CHOICE_COUNT..Quiz.MAX_CHOICE_COUNT
+                } else {
+                    choices > Quiz.MAX_CHOICE_COUNT
+                }
             },
-            IntegrityRule.CORRECT_CHOICE_COUNT.takeIf { published && correct != 1 },
+            IntegrityRule.CORRECT_CHOICE_COUNT.takeIf { published && correct < 1 },
             IntegrityRule.EXPLANATION_BLANK.takeIf { published && explanation.isBlank() },
         ).map { it to id }
     }

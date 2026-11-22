@@ -22,14 +22,18 @@ class PlayableCategoryJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate)
         """
         WITH referenced AS MATERIALIZED (
             -- 正規表現は問題ごとに 1 回だけ実行する。結合の条件に書くと、統計情報がないとき（クイズを流した直後）に
-            -- 「問題 × 図」の回数だけ実行され、68 問・46 枚で 1 秒を超えた（DEV-223）
+            -- 「問題 × 図」の回数だけ実行され、68 問・46 枚で 1 秒を超えた（DEV-223）。問題文と解説の両方を見る（DEV-242）
             SELECT q.category_id, q.difficulty_id, q.created_at,
-                   CAST(substring(q.explanation FROM '$FIGURE_REFERENCE') AS uuid) AS figure_id
+                   CAST(
+                       COALESCE(
+                           substring(q.question FROM '$FIGURE_REFERENCE'),
+                           substring(q.explanation FROM '$FIGURE_REFERENCE')
+                       ) AS uuid
+                   ) AS figure_id
             FROM quiz.quizzes q
             WHERE q.deleted_at IS NULL AND q.status = 'published'
         ),
         cover AS (
-            -- 易しい難易度から登録順に見て、最初に図を指している公開済みの問題の、最初の図
             SELECT DISTINCT ON (r.category_id) r.category_id, f.id AS figure_id
             FROM referenced r
             JOIN quiz.difficulties d ON d.id = r.difficulty_id AND d.deleted_at IS NULL
@@ -48,23 +52,7 @@ class PlayableCategoryJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate)
         GROUP BY c.id, d.id, cover.figure_id
         ORDER BY c.sort_order, c.name, d.level, d.sort_order, d.name
         """,
-    ) { rs, _ ->
-        Row(
-            category = CategoryKey(
-                id = rs.getObject("category_id", UUID::class.java),
-                name = rs.getString("category_name"),
-                description = rs.getString("category_description"),
-                coverFigureId = rs.getObject("cover_figure_id", UUID::class.java),
-            ),
-            difficulty = PlayableDifficulty(
-                id = rs.getObject("difficulty_id", UUID::class.java),
-                name = rs.getString("difficulty_name"),
-                level = rs.getInt("level"),
-                description = rs.getString("difficulty_description"),
-                quizCount = rs.getInt("quiz_count"),
-            ),
-        )
-    }
+    ) { rs, _ -> toRow(rs) }
         // groupBy は最初に現れた順を保つので、SQL の並びがそのまま残る
         .groupBy { it.category }
         .map { (category, rows) ->
@@ -76,6 +64,22 @@ class PlayableCategoryJdbc(private val jdbcTemplate: NamedParameterJdbcTemplate)
                 coverFigureId = category.coverFigureId,
             )
         }
+
+    private fun toRow(rs: java.sql.ResultSet) = Row(
+        category = CategoryKey(
+            id = rs.getObject("category_id", UUID::class.java),
+            name = rs.getString("category_name"),
+            description = rs.getString("category_description"),
+            coverFigureId = rs.getObject("cover_figure_id", UUID::class.java),
+        ),
+        difficulty = PlayableDifficulty(
+            id = rs.getObject("difficulty_id", UUID::class.java),
+            name = rs.getString("difficulty_name"),
+            level = rs.getInt("level"),
+            description = rs.getString("difficulty_description"),
+            quizCount = rs.getInt("quiz_count"),
+        ),
+    )
 
     override fun findCategoryIds(quizIds: Collection<UUID>): Map<UUID, UUID> {
         // IN 句に空のリストを渡すと SQL が壊れる

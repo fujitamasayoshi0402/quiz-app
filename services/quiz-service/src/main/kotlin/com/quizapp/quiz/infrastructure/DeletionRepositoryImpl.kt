@@ -258,11 +258,12 @@ class DeletionRepositoryImpl(private val jdbc: NamedParameterJdbcTemplate) : Del
      * 図は、ゴミ箱の問題だけが使っているときに消せる。そのような問題を戻すと、解説がない図を指す
      */
     private fun requireFiguresOf(where: String, params: Map<String, Any>) {
-        val referenced = jdbc.queryForList(
-            "SELECT explanation FROM quiz.quizzes WHERE deleted_at IS NOT NULL AND $where",
+        val referenced = jdbc.query(
+            "SELECT question, explanation FROM quiz.quizzes WHERE deleted_at IS NOT NULL AND $where",
             params,
-            String::class.java,
-        ).filterNotNull().flatMap(FigureReferences::findIn).toSet()
+        ) { rs, _ ->
+            FigureReferences.findIn(rs.getString("question")) + FigureReferences.findIn(rs.getString("explanation"))
+        }.flatten().toSet()
         if (referenced.isEmpty()) return
 
         val existing = jdbc.queryForList(

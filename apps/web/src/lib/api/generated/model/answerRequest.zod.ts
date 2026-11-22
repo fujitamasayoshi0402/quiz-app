@@ -15,7 +15,8 @@
 import * as zod from 'zod';
 
 export const AnswerRequest = zod.object({
-  "choiceId": zod.uuid(),
+  "choiceId": zod.uuid().nullish(),
+  "choiceIds": zod.array(zod.uuid()).nullish(),
   "quizId": zod.uuid()
 })
 

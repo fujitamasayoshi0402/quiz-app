@@ -2691,13 +2691,21 @@ components:
       type: object
       properties:
         choiceId:
-          type: string
+          type:
+          - string
+          - "null"
           format: uuid
+        choiceIds:
+          type:
+          - array
+          - "null"
+          items:
+            type: string
+            format: uuid
         quizId:
           type: string
           format: uuid
       required:
-      - choiceId
       - quizId
     AnswerResult:
       type: object
@@ -2708,6 +2716,11 @@ components:
         correctChoiceId:
           type: string
           format: uuid
+        correctChoiceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
         explanation:
           type: string
           description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
@@ -3142,6 +3155,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DeliveredChoice"
+        correctCount:
+          type: integer
+          format: int32
+          description: 正解の選択肢の数。1 なら単一選択、2 以上なら複数選択（すべて選べ）
         difficultyId:
           type: string
           format: uuid
@@ -3150,6 +3167,11 @@ components:
           format: uuid
         question:
           type: string
+          description: "問題文。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する\
+            。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字\
+            ](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
       required:
       - categoryId
       - choices
@@ -3307,6 +3329,11 @@ components:
             \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         question:
           type: string
+          description: "問題文。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する\
+            。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字\
+            ](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         status:
           type: string
       required:
@@ -3508,6 +3535,11 @@ components:
           format: uuid
         question:
           type: string
+          description: "問題文。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する\
+            。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字\
+            ](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         removedChoiceAnswerCount:
           type: integer
           format: int32
@@ -3561,6 +3593,11 @@ components:
           format: uuid
         question:
           type: string
+          description: "問題文。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する\
+            。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字\
+            ](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         sourceUrl:
           type:
           - string
@@ -3603,6 +3640,11 @@ components:
           format: uuid
         question:
           type: string
+          description: "問題文。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する\
+            。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字\
+            ](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         sourceUrl:
           type:
           - string
@@ -3628,6 +3670,11 @@ components:
         correctChoiceId:
           type: string
           format: uuid
+        correctChoiceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
         explanation:
           type: string
           description: "解説。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する。\
@@ -3639,6 +3686,11 @@ components:
           type: boolean
         question:
           type: string
+          description: "問題文。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する\
+            。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字\
+            ](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         quizId:
           type: string
           format: uuid
@@ -3647,6 +3699,11 @@ components:
           - string
           - "null"
           format: uuid
+        selectedChoiceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
         sourceUrl:
           type:
           - string
@@ -3786,6 +3843,11 @@ components:
             \ を使う。保存するとき、指している図がテナントにあることを確かめる"
         question:
           type: string
+          description: "問題文。Markdown（GitHub Flavored Markdown）で書く。改行はそのまま改行として表示する\
+            。生の HTML は表示しない。画像は `![代替テキスト](figure:<図の ID>)` で解説図を指したものだけを表示し、`[文字\
+            ](figure:<図の ID>)` は解説図を新しいタブで開くリンクにする。本文の中に出す画像は GET /api/t/{slug}/play/figures/{id}/preview\
+            \ から取る（PDF は 1 ページ目の画像になる）。図を開くときは GET /api/t/{slug}/play/figures/{id}\
+            \ を使う。保存するとき、指している図がテナントにあることを確かめる"
           maxLength: 2000
           minLength: 0
         status:
