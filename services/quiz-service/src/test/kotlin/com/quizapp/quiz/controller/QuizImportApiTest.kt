@@ -109,6 +109,27 @@ class QuizImportApiTest {
     }
 
     @Test
+    @DisplayName("取り込んだ順に作成時刻が増える。登録順の出題は、送った行の順になる（DEV-244）")
+    fun keepsRowOrderAsRegisteredOrder() {
+        val questions = (1..5).map { "登録順の $it 問目" }
+        import(*questions.map { row(it, status = "published") }.toTypedArray()).andExpect { status { isCreated() } }
+
+        // 1 つのトランザクションで入れても、作成時刻が重ならない（重なると、登録順の並びが決まらない）
+        val stored = TestPostgres.adminJdbcTemplate.queryForList(
+            "SELECT question FROM quiz.quizzes WHERE category_id = ? ORDER BY created_at",
+            String::class.java,
+            awsCategory,
+        )
+        val distinctTimes = TestPostgres.adminJdbcTemplate.queryForObject(
+            "SELECT count(DISTINCT created_at) FROM quiz.quizzes WHERE category_id = ?",
+            Int::class.java,
+            awsCategory,
+        )
+        assertThat(distinctTimes).isEqualTo(questions.size)
+        assertThat(stored).containsExactlyElementsOf(questions)
+    }
+
+    @Test
     @DisplayName("1 行でも不正なら、1 件も取り込まない")
     fun rejectsAllWhenAnyRowIsInvalid() {
         import(
