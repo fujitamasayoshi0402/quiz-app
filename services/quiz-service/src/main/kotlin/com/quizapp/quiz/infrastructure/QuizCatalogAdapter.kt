@@ -4,9 +4,11 @@ import com.quizapp.answer.domain.QuizCatalog
 import com.quizapp.quiz.domain.AnswerKey
 import com.quizapp.quiz.domain.DeliveredQuiz
 import com.quizapp.quiz.domain.DeliveryCriteria
+import com.quizapp.quiz.domain.DeliveryScope
 import com.quizapp.quiz.domain.PlayableCategory
 import com.quizapp.quiz.domain.PlayableCategoryQuery
 import com.quizapp.quiz.domain.QuizRepository
+import com.quizapp.quiz.usecase.PlayableContentCache
 import com.quizapp.quiz.usecase.QuizDeliveryUseCase
 import org.springframework.stereotype.Component
 import java.util.UUID
@@ -22,10 +24,18 @@ class QuizCatalogAdapter(
     private val deliveryUseCase: QuizDeliveryUseCase,
     private val quizRepository: QuizRepository,
     private val playableCategories: PlayableCategoryQuery,
+    private val content: PlayableContentCache,
 ) : QuizCatalog {
 
     override fun select(criteria: DeliveryCriteria, userId: UUID): List<DeliveredQuiz> =
         deliveryUseCase.select(criteria, userId)
+
+    /** 候補は、出題の範囲ごとにメモリに持つ。まだ持っていなければ、ここで DB から読む（DEV-240） */
+    override fun selectFromMemory(criteria: DeliveryCriteria): List<DeliveredQuiz>? {
+        if (!content.enabled || criteria.scope != DeliveryScope.ALL) return null
+        val candidates = content.candidates(criteria.categoryId, criteria.difficultyId, criteria.level)
+        return deliveryUseCase.selectFrom(candidates, criteria)
+    }
 
     override fun findDeliverable(quizIds: List<UUID>): List<DeliveredQuiz> = deliveryUseCase.findDeliverable(quizIds)
 

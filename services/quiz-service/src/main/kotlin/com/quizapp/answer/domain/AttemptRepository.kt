@@ -4,7 +4,10 @@ import java.util.UUID
 
 interface AttemptRepository {
 
-    /** 中断中の挑戦がすでにある場合は [ConcurrentAttemptStartException]。 */
+    /**
+     * 中断中の挑戦がすでにある場合は [ConcurrentAttemptStartException]。
+     * ID を決めてあれば、その ID で入れる（メモリで始めた挑戦。DEV-240）
+     */
     fun create(attempt: Attempt): Attempt
 
     fun findById(id: UUID): Attempt?

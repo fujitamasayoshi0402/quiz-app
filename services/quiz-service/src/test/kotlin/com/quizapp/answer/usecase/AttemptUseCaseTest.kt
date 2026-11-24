@@ -33,7 +33,8 @@ class AttemptUseCaseTest {
     private val catalog = FakeQuizCatalog()
     private val reviews =
         ReviewUseCase(InMemoryReviewScheduleRepository(), catalog, Clock.systemUTC(), fakeTenantTransaction())
-    private val useCase = AttemptUseCase(repository, catalog, reviews, fakeTenantTransaction())
+    private val useCase =
+        AttemptUseCase(repository, catalog, reviews, fakeTenantTransaction(), AttemptMemory.disabled())
 
     private val user = UUID.randomUUID()
 
@@ -102,7 +103,8 @@ class AttemptUseCaseTest {
                 override fun findInProgress(userId: UUID) =
                     if (checked) repository.findInProgress(userId) else null.also { checked = true }
             }
-            val racingUseCase = AttemptUseCase(racing, catalog, reviews, fakeTenantTransaction())
+            val racingUseCase =
+                AttemptUseCase(racing, catalog, reviews, fakeTenantTransaction(), AttemptMemory.disabled())
 
             assertThatThrownBy { racingUseCase.start(DeliveryCriteria(), discardInProgress = false) }
                 .isInstanceOfSatisfying(AttemptInProgressException::class.java) {

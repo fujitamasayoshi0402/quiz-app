@@ -22,7 +22,7 @@ class InMemoryAttemptRepository : AttemptRepository {
 
     override fun create(attempt: Attempt): Attempt {
         if (findInProgress(attempt.userId) != null) throw ConcurrentAttemptStartException()
-        val saved = attempt.copy(id = UUID.randomUUID(), startedAt = Instant.now())
+        val saved = attempt.copy(id = attempt.id ?: UUID.randomUUID(), startedAt = Instant.now())
         attempts[requireNotNull(saved.id)] = saved
         return saved
     }

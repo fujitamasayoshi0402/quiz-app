@@ -29,53 +29,34 @@ class AttemptUseCase(
     private val catalog: QuizCatalog,
     private val reviews: ReviewUseCase,
     private val tenantTransaction: TenantTransaction,
+    private val memory: AttemptMemory,
 ) {
+    private val starting = AttemptStart(repository, catalog, tenantTransaction, memory)
+
+    /** 挑戦を始める（[AttemptStart]） */
+    fun start(criteria: DeliveryCriteria, discardInProgress: Boolean): AttemptView =
+        starting.start(criteria, discardInProgress)
+
     /**
-     * 挑戦を始める。
+     * 中断中の挑戦。なければ null。
      *
-     * 中断中の挑戦があれば [AttemptInProgressException] を投げ、再開するか破棄するかを選ばせる。
-     * 黙って破棄すると、解きかけの記録が予告なく消える。
-     *
-     * 同時に始めて先を越されたときも、先に始まった挑戦を同じように知らせる（DEV-226）。
+     * 読んだ結果をメモリにも持つ。起動の直後でも、出題の画面を開いたときに読んでおけば、そのあとの「始める」は DB を待たない
      */
-    fun start(criteria: DeliveryCriteria, discardInProgress: Boolean): AttemptView = try {
-        tenantTransaction.execute {
-            val userId = UserContext.require()
-
-            repository.findInProgress(userId)?.let { existing ->
-                if (!discardInProgress) throw AttemptInProgressException(summarize(existing))
-                repository.finish(requireNotNull(existing.id), AttemptStatus.ABANDONED)
-            }
-
-            val quizzes = catalog.select(criteria, userId)
-            if (quizzes.isEmpty()) throw NoQuizAvailableException()
-
-            val attempt = repository.create(Attempt.start(userId, criteria, quizzes.map { it.id }))
-            AttemptView(
-                id = requireNotNull(attempt.id),
-                status = attempt.status.label(),
-                scope = attempt.scope.label(),
-                quizzes = quizzes.map(attempt::arrange),
-                answeredQuizIds = emptyList(),
-                excludedCount = 0,
-            )
+    fun current(): AttemptView? {
+        val userId = UserContext.require()
+        memory.awaitSaves(userId)
+        val readStarted = memory.known(userId)
+        val found = tenantTransaction.executeNullable {
+            repository.findInProgress(userId)?.let { it to view(it) }
         }
-    } catch (e: ConcurrentAttemptStartException) {
-        // 一意制約に反したトランザクションは使えないので、別のトランザクションで読む。
-        // その間に先の挑戦が終わっていれば、知らせるものがないのでそのまま投げる
-        throw AttemptInProgressException(summarizeInProgress() ?: throw e, e)
+        memory.rememberRead(userId, readStarted, found?.first, found?.second?.answeredQuizIds?.size ?: 0)
+        return found?.second
     }
 
-    private fun summarizeInProgress(): AttemptSummary? = tenantTransaction.executeNullable {
-        repository.findInProgress(UserContext.require())?.let(::summarize)
+    fun resume(attemptId: UUID): AttemptView {
+        memory.awaitSave(attemptId)
+        return tenantTransaction.execute { view(load(attemptId)) }
     }
-
-    /** 中断中の挑戦。なければ null。 */
-    fun current(): AttemptView? = tenantTransaction.executeNullable {
-        repository.findInProgress(UserContext.require())?.let { view(it) }
-    }
-
-    fun resume(attemptId: UUID): AttemptView = tenantTransaction.execute { view(load(attemptId)) }
 
     fun answer(attemptId: UUID, quizId: UUID, choiceId: UUID): AnswerResult =
         answer(attemptId, quizId, listOf(choiceId))
@@ -87,7 +68,15 @@ class AttemptUseCase(
      * まとめて見せる模試モードでは、クライアントが受け取った解説を保持して結果画面で出す。
      * 方式ごとに応答を変えると、採点の経路が 2 本になる。
      */
-    fun answer(attemptId: UUID, quizId: UUID, choiceIds: List<UUID>): AnswerResult = tenantTransaction.execute {
+    fun answer(attemptId: UUID, quizId: UUID, choiceIds: List<UUID>): AnswerResult {
+        // 「始める」をメモリで返したとき、挑戦はまだ保存中のことがある。最初の問題を読んでいる間に、たいてい終わる
+        memory.awaitSave(attemptId)
+        val result = record(attemptId, quizId, choiceIds)
+        memory.answered(UserContext.require(), attemptId, result.answeredCount)
+        return result
+    }
+
+    private fun record(attemptId: UUID, quizId: UUID, choiceIds: List<UUID>): AnswerResult = tenantTransaction.execute {
         val selected = choiceIds.distinct()
         require(selected.isNotEmpty()) { "選択肢を選んでください" }
         val attempt = load(attemptId)
@@ -129,20 +118,33 @@ class AttemptUseCase(
      * 完了済みの挑戦に対しては結果を返すだけにする。
      * 結果画面の再読み込みで失敗させる理由がない。
      */
-    fun complete(attemptId: UUID): AttemptResult = tenantTransaction.execute {
-        val attempt = load(attemptId)
-        when (attempt.status) {
-            AttemptStatus.ABANDONED -> throw AttemptAlreadyFinishedException()
-            AttemptStatus.IN_PROGRESS -> repository.finish(attemptId, AttemptStatus.COMPLETED)
-            AttemptStatus.COMPLETED -> Unit
+    fun complete(attemptId: UUID): AttemptResult = finishing(attemptId) {
+        tenantTransaction.execute {
+            val attempt = load(attemptId)
+            when (attempt.status) {
+                AttemptStatus.ABANDONED -> throw AttemptAlreadyFinishedException()
+                AttemptStatus.IN_PROGRESS -> repository.finish(attemptId, AttemptStatus.COMPLETED)
+                AttemptStatus.COMPLETED -> Unit
+            }
+            result(attempt.copy(status = AttemptStatus.COMPLETED))
         }
-        result(attempt.copy(status = AttemptStatus.COMPLETED))
     }
 
-    fun abandon(attemptId: UUID) = tenantTransaction.executeWithoutResult {
-        val attempt = load(attemptId)
-        if (!attempt.isInProgress) throw AttemptAlreadyFinishedException()
-        repository.finish(attemptId, AttemptStatus.ABANDONED)
+    fun abandon(attemptId: UUID) = finishing(attemptId) {
+        tenantTransaction.executeWithoutResult {
+            val attempt = load(attemptId)
+            if (!attempt.isInProgress) throw AttemptAlreadyFinishedException()
+            repository.finish(attemptId, AttemptStatus.ABANDONED)
+        }
+    }
+
+    /** 挑戦を終える。「始める」と重ならないよう 1 つずつ行い、終えたらメモリからも外す */
+    private fun <T> finishing(attemptId: UUID, block: () -> T): T {
+        val userId = UserContext.require()
+        memory.awaitSave(attemptId)
+        return memory.locked(userId) {
+            block().also { memory.finished(userId, attemptId) }
+        }
     }
 
     /**
@@ -215,17 +217,12 @@ class AttemptUseCase(
             results = results,
         )
     }
-
-    private fun AttemptStatus.label() = name.lowercase()
-
-    private fun DeliveryScope.label() = name.lowercase()
-
-    private fun summarize(attempt: Attempt) = AttemptSummary(
-        id = requireNotNull(attempt.id),
-        totalCount = attempt.quizIds.size,
-        answeredCount = repository.findAnswers(requireNotNull(attempt.id)).size,
-    )
 }
+
+/** API の表記に合わせて小文字にする */
+internal fun AttemptStatus.label() = name.lowercase()
+
+internal fun DeliveryScope.label() = name.lowercase()
 
 /**
  * 回答中の挑戦。出題リストは正解も解説も持たない。

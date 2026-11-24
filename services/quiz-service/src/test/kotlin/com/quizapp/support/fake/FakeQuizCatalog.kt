@@ -81,6 +81,9 @@ class FakeQuizCatalog : QuizCatalog {
     override fun select(criteria: DeliveryCriteria, userId: UUID): List<DeliveredQuiz> =
         quizzes.values.take(criteria.limit)
 
+    /** 単体テストは、メモリに持たない設定と同じく DB の経路で始める */
+    override fun selectFromMemory(criteria: DeliveryCriteria): List<DeliveredQuiz>? = null
+
     override fun findDeliverable(quizIds: List<UUID>): List<DeliveredQuiz> =
         quizIds.mapNotNull { quizzes[it] }.reversed()
 

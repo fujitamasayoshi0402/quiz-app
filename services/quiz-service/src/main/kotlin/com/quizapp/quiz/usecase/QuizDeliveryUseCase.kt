@@ -31,6 +31,16 @@ class QuizDeliveryUseCase(private val quizRepository: QuizRepository, private va
             .map(::toDelivered)
     }
 
+    /**
+     * 渡された候補から選ぶ（ADR-0038 の 2、DEV-240）。候補は、メモリに持った公開クイズ（[PlayableContentCache.candidates]）。
+     *
+     * 選ぶのに利用者の回答（未回答・間違えた問題・あとで見直す・今日の復習）が要る条件では null を返す。そのときは [select] で DB から選ぶ
+     */
+    fun selectFrom(candidates: List<Quiz>, criteria: DeliveryCriteria): List<DeliveredQuiz>? {
+        if (criteria.scope != DeliveryScope.ALL) return null
+        return order(candidates, criteria.order).take(criteria.limit).map(::toDelivered)
+    }
+
     /** 再開時に使う。削除・非公開になったクイズはここで落ちる。 */
     fun findDeliverable(quizIds: List<UUID>): List<DeliveredQuiz> =
         quizRepository.findPublishedByIds(quizIds).map(::toDelivered)
