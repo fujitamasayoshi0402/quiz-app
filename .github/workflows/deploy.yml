@@ -301,6 +301,10 @@ jobs:
       #
       # **push は buildx ではなく docker で行う。** buildx（BuildKit）は push の前に ECR のマニフェストを読む（ecr:BatchGetImage）。
       # デプロイのロールは push に要る権限しか持たないため、拒否される。読む権限を足すより、これまでと同じ docker push にする
+      - name: OS の更新を取り直す日付を決める
+        if: steps.plan.outputs.backend == 'true' && steps.image.outputs.exists != 'true'
+        run: echo "OS_UPDATES_DATE=$(date -u +%F)" >> "$GITHUB_ENV"
+
       - name: イメージを作る
         if: steps.plan.outputs.backend == 'true' && steps.image.outputs.exists != 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -312,6 +316,8 @@ jobs:
           provenance: false
           cache-from: type=gha,scope=quiz-service-arm64
           cache-to: type=gha,scope=quiz-service-arm64,mode=max,ignore-error=true
+          # OS の更新の層を、1 日に 1 回は取り直す（DEV-249）
+          build-args: OS_UPDATES_DATE=${{ env.OS_UPDATES_DATE }}
         env:
           DOCKER_BUILD_RECORD_UPLOAD: false
 

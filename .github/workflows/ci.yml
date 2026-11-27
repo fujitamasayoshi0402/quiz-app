@@ -99,6 +99,9 @@ jobs:
 
       # Dockerfile が壊れていても、使うまで気づかない。Phase 2 のデプロイで初めて落ちないようにする。
       # レイヤーは GitHub Actions のキャッシュから読む（DEV-87）。書くのは develop / main への push だけ（env.IMAGE_CACHE_TO）
+      - name: OS の更新を取り直す日付を決める
+        run: echo "OS_UPDATES_DATE=$(date -u +%F)" >> "$GITHUB_ENV"
+
       - name: コンテナイメージをビルドする
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -109,6 +112,8 @@ jobs:
           load: true
           cache-from: type=gha,scope=quiz-service
           cache-to: ${{ env.IMAGE_CACHE_TO && format('{0},scope=quiz-service', env.IMAGE_CACHE_TO) || '' }}
+          # OS の更新の層を、1 日に 1 回は取り直す（DEV-249）
+          build-args: OS_UPDATES_DATE=${{ env.OS_UPDATES_DATE }}
 
       # 修正版のある HIGH 以上が見つかったら止める（DEV-113。基準は trivy.yaml、無視するものは .trivyignore.yaml）。
       # jar（Spring Boot の依存）と、ベースイメージの OS のパッケージを見る
@@ -261,6 +266,9 @@ jobs:
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      - name: OS の更新を取り直す日付を決める
+        run: echo "OS_UPDATES_DATE=$(date -u +%F)" >> "$GITHUB_ENV"
+
       - name: コンテナイメージをビルドする
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -271,6 +279,8 @@ jobs:
           load: true
           cache-from: type=gha,scope=web
           cache-to: ${{ env.IMAGE_CACHE_TO && format('{0},scope=web', env.IMAGE_CACHE_TO) || '' }}
+          # OS の更新の層を、1 日に 1 回は取り直す（DEV-249）
+          build-args: OS_UPDATES_DATE=${{ env.OS_UPDATES_DATE }}
 
       # 実行時の依存（standalone の node_modules）と、ベースイメージの OS のパッケージを見る（DEV-113）。
       # 開発だけで使う依存は入らない。そちらは Dependabot alerts が pnpm-lock.yaml から見る

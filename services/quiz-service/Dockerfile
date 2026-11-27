@@ -44,7 +44,11 @@ FROM eclipse-temurin:21-jre-noble
 # その間も、CI の脆弱性の検査を通す。
 # PDF の 1 ページ目を画像にするとき（ADR-0021）、埋め込まれていない日本語のフォントの代わりに使う。
 # 無いと、その文字が描かれない。小さい IPAex ゴシック（約 4 MB）だけを入れる
-RUN apt-get update \
+# この層はビルドのキャッシュから使い回され、OS の修正が出ても入らないことがある（DEV-249）。
+# CI とデプロイは、今日の日付を渡して 1 日に 1 回は取り直す。渡さなければ、今までどおりキャッシュを使う
+ARG OS_UPDATES_DATE=unset
+RUN echo "OS updates: ${OS_UPDATES_DATE}" \
+    && apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends fonts-ipaexfont-gothic \
     && rm -rf /var/lib/apt/lists/*
