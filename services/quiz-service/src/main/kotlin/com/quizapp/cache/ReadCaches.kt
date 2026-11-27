@@ -43,6 +43,9 @@ data class ReadCacheProperties(
 @EnableConfigurationProperties(ReadCacheProperties::class)
 class ReadCaches(private val properties: ReadCacheProperties) {
 
+    /** メモリに持つか。止めると、どのキャッシュも毎回読む */
+    val enabled: Boolean get() = properties.enabled
+
     /**
      * 一度決まったら変わらない対応（認証基盤の ID → 利用者の ID、slug → テナントの ID）。読み直さない。
      * 見つからなかったことも持つ。作ったときは [ReadCache.forget] で消す

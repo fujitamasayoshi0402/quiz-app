@@ -9,6 +9,7 @@ import com.quizapp.answer.domain.DuplicateAnswerException
 import com.quizapp.quiz.domain.DeliveryScope
 import com.quizapp.tenant.TenantContext
 import org.springframework.dao.DuplicateKeyException
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Component
@@ -19,11 +20,13 @@ class AttemptRepositoryImpl(
     private val attempts: AttemptJdbcRepository,
     private val answers: AnswerJdbcRepository,
     private val jdbcTemplate: NamedParameterJdbcTemplate,
+    private val aggregates: JdbcAggregateTemplate,
 ) : AttemptRepository {
 
     override fun create(attempt: Attempt): Attempt {
         val tenantId = TenantContext.require()
         val entity = AttemptEntity(
+            id = attempt.id,
             tenantId = tenantId,
             userId = attempt.userId,
             categoryId = attempt.categoryId,
@@ -34,7 +37,8 @@ class AttemptRepositoryImpl(
             quizzes = attempt.quizIds.map { AttemptQuizEntity(tenantId = tenantId, quizId = it) },
         )
         return try {
-            attempts.save(entity).toDomain()
+            // ID を決めてある挑戦（メモリで始めたもの。DEV-240）は、save だと既存の行の更新として扱われるため、insert で入れる
+            (if (entity.id == null) attempts.save(entity) else aggregates.insert(entity)).toDomain()
         } catch (e: DuplicateKeyException) {
             // attempts_single_in_progress_idx。先に SELECT で確かめていても、同時に始めると抜けるため、DB の制約を正とする
             throw ConcurrentAttemptStartException(e)

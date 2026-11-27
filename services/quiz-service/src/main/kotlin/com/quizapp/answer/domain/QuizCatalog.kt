@@ -23,6 +23,13 @@ interface QuizCatalog {
     fun select(criteria: DeliveryCriteria, userId: UUID): List<DeliveredQuiz>
 
     /**
+     * DB を待たずに、メモリに持った公開クイズから選ぶ（ADR-0038 の 2、DEV-240）。トランザクションの外で呼ぶ。
+     *
+     * 選ぶのに利用者の回答が要る条件（未回答優先・間違えた問題など）では null を返す。そのときは [select] を使う
+     */
+    fun selectFromMemory(criteria: DeliveryCriteria): List<DeliveredQuiz>?
+
+    /**
      * 指定 ID のうち、いま出題できるものだけを返す。
      *
      * 再開時の検証に使う。**返る件数が減りうる。**
