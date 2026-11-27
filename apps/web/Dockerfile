@@ -39,7 +39,11 @@ COPY --from=build --chown=node:node /repo/apps/web/.next/static ./apps/web/.next
 
 # Debian のセキュリティの更新を入れる（DEV-132）。公式イメージは、Debian が修正を出してから作り直されるまでに数日かかり、
 # 版を固定したタグ（22.23.x）は、次の版が出ると作り直されなくなる。その間も、CI の脆弱性の検査を通す
-RUN apt-get update \
+# この層はビルドのキャッシュから使い回され、OS の修正が出ても入らないことがある（DEV-249）。
+# CI とデプロイは、今日の日付を渡して 1 日に 1 回は取り直す。渡さなければ、今までどおりキャッシュを使う
+ARG OS_UPDATES_DATE=unset
+RUN echo "OS updates: ${OS_UPDATES_DATE}" \
+    && apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
