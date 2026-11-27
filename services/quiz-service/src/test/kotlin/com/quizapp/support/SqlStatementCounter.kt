@@ -36,6 +36,22 @@ object SqlStatementCounter {
     internal fun record() {
         counter.get()?.let { counter.set(it + 1) }
     }
+
+    private val transactionEnds = ThreadLocal<Int?>()
+
+    /** [block] の間の、DB との往復の回数の目安。SQL の本数に、コミットとロールバックの回数を足す（DEV-235） */
+    fun countRoundTrips(block: () -> Unit): Int {
+        transactionEnds.set(0)
+        try {
+            return count(block) + (transactionEnds.get() ?: 0)
+        } finally {
+            transactionEnds.remove()
+        }
+    }
+
+    internal fun recordTransactionEnd() {
+        transactionEnds.get()?.let { transactionEnds.set(it + 1) }
+    }
 }
 
 /** アプリの DataSource を包み、接続で SQL を用意するたびに [SqlStatementCounter] に数えさせる */
@@ -54,6 +70,7 @@ class SqlStatementCounterConfiguration {
 
     private fun counting(connection: Connection): Connection = proxy(connection) { method, result ->
         if (method.name in STATEMENT_METHODS) SqlStatementCounter.record()
+        if (method.name in TRANSACTION_END_METHODS) SqlStatementCounter.recordTransactionEnd()
         result
     }
 
@@ -69,5 +86,6 @@ class SqlStatementCounterConfiguration {
 
     private companion object {
         val STATEMENT_METHODS = setOf("prepareStatement", "prepareCall", "createStatement")
+        val TRANSACTION_END_METHODS = setOf("commit", "rollback")
     }
 }
