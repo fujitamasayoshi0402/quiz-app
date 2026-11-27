@@ -15,7 +15,7 @@
 | API | [0010](0010-generate-openapi-from-code.md) OpenAPI をコードから生成する / [0019](0019-expose-api-through-api-gateway-http-api.md) 入口は API Gateway（HTTP API） |
 | 解説と解説図 | [0018](0018-write-explanations-in-markdown-and-render-on-screen.md) 解説は Markdown / [0017](0017-deliver-figures-with-cloudfront-signed-urls.md) 図は CloudFront の署名付き URL で配る / [0020](0020-reference-figures-from-explanations-and-add-images-and-pdfs.md) 画像と PDF、`figure:` で指す / [0021](0021-render-first-page-of-pdfs-as-images.md) PDF の 1 ページ目を画像にする |
 | イベントと通知 | [0022](0022-publish-quiz-events-through-outbox-and-notify-slack-per-tenant.md) Outbox から EventBridge、テナントごとの Slack へ |
-| インフラ | [0011](0011-terraform-state-and-environments.md) tfstate と環境の分け方 / [0012](0012-serve-frontend-on-amplify-hosting.md) フロントは Amplify Hosting / [0013](0013-run-ecs-tasks-in-public-subnets.md) タスクはパブリックサブネット（NAT なし） / [0014](0014-connect-to-aurora-with-iam-auth.md) Aurora へ IAM 認証 |
+| インフラ | [0011](0011-terraform-state-and-environments.md) tfstate と環境の分け方 / [0012](0012-serve-frontend-on-amplify-hosting.md) フロントは Amplify Hosting / [0013](0013-run-ecs-tasks-in-public-subnets.md) タスクはパブリックサブネット（NAT なし） / [0014](0014-connect-to-aurora-with-iam-auth.md) Aurora へ IAM 認証 / [0039](0039-keep-aurora-serverless-over-neon-and-dsql.md) DB は Aurora を続ける（Neon・DSQL・Cloudflare と比べた） |
 | デプロイとリリース | [0015](0015-deploy-by-registering-task-definitions-from-ci.md) CI がタスク定義を登録する / [0024](0024-run-prod-in-same-account-and-launch-at-release.md) prod は同じアカウント、公開のときから動かす |
 | 運用 | [0026](0026-trace-requests-with-micrometer-and-x-ray.md) 分散トレース（Micrometer、X-Ray） |
 | モバイル | [0032](0032-build-mobile-app-with-expo-and-sign-in-through-system-browser.md) Expo の managed で作り、ログインはシステムのブラウザで開く。API は直接呼ぶ / [0037](0037-build-quiz-admin-screens-in-mobile-app.md) 管理の画面はクイズだけ作り、ほかは web に任せる |
@@ -79,6 +79,7 @@
 | [0036](0036-cache-content-tool-sessions-in-macos-keychain.md) | コンテンツ投入用のログイン状態をmacOSキーチェーンに保存する | Accepted |
 | [0037](0037-build-quiz-admin-screens-in-mobile-app.md) | モバイルアプリに、クイズの管理の画面だけを作る。ほかの管理は web に任せる | Accepted |
 | [0038](0038-cache-play-reads-in-quiz-service-and-hide-db-resume.md) | 出題の読み取りを quiz-service のメモリに持ち、DB の起動待ちを操作の裏に隠す | Accepted |
+| [0039](0039-keep-aurora-serverless-over-neon-and-dsql.md) | DB は Aurora Serverless v2 を続ける。Neon・Aurora DSQL・Cloudflare への移行と比べた | Accepted |
 
 ## 運用ルール
 
